@@ -1,0 +1,767 @@
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { createDatabaseError } from '../middleware/errorHandler';
+
+// Interfaces for financial transaction queries
+export interface TransactionQueryFilters {
+  // Entity filters
+  entity_type?: 'application' | 'renewal' | 'all';
+  entity_id?: number;
+  
+  // Status filters
+  payment_status?: 'Pending' | 'Processing' | 'Completed' | 'Failed' | 'Cancelled';
+  financial_status?: 'Pending' | 'Under Review' | 'Approved' | 'Rejected';
+  workflow_stage?: string;
+  
+  // Date filters
+  date_from?: string;
+  date_to?: string;
+  created_date_from?: string;
+  created_date_to?: string;
+  reviewed_date_from?: string;
+  reviewed_date_to?: string;
+  
+  // Amount filters
+  amount_min?: number;
+  amount_max?: number;
+  
+  // Member filters
+  member_search?: string; // Search by name, email, or membership number
+  member_id?: number;
+  province_code?: string;
+  district_code?: string;
+  municipal_code?: string;
+  ward_code?: string;
+  
+  // Reviewer filters
+  financial_reviewed_by?: number;
+  final_reviewed_by?: number;
+  
+  // Pagination
+  limit?: number;
+  offset?: number;
+  
+  // Sorting
+  sort_by?: 'created_at' | 'amount' | 'member_name' | 'status' | 'reviewed_at';
+  sort_order?: 'ASC' | 'DESC';
+  
+  // Advanced filters
+  has_payment?: boolean;
+  overdue_only?: boolean;
+  flagged_only?: boolean;
+  requires_attention?: boolean;
+}
+
+export interface TransactionQueryResult {
+  transactions: any[];
+  total_count: number;
+  filtered_count: number;
+  summary: {
+    total_amount: number;
+    avg_amount: number;
+    completed_amount: number;
+    pending_amount: number;
+    status_breakdown: { [key: string]: number };
+  };
+  pagination: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    total_pages: number;
+    current_page: number;
+  };
+}
+
+export interface TransactionExportOptions {
+  format: 'csv' | 'excel' | 'json';
+  include_member_details?: boolean;
+  include_payment_details?: boolean;
+  include_audit_trail?: boolean;
+  date_format?: 'ISO' | 'local' | 'custom';
+  custom_date_format?: string;
+}
+
+export class FinancialTransactionQueryService {
+
+  // =====================================================
+  // ADVANCED TRANSACTION QUERYING
+  // =====================================================
+
+  // Execute complex financial transaction queries
+  static async queryTransactions(filters: TransactionQueryFilters): Promise<TransactionQueryResult> {
+    try {
+
+      // Build dynamic WHERE clause
+      const whereConditions: string[] = [];
+      const queryParams: any[] = [];
+
+      // Entity type filter
+      if (filters.entity_type && filters.entity_type !== 'all') {
+        whereConditions.push('uft.transaction_type COLLATE utf8mb4_general_ci = ?');
+        queryParams.push(filters.entity_type === 'application' ? 'Application' : 'Renewal');
+      }
+
+      // Entity ID filter
+      if (filters.entity_id) {
+        whereConditions.push('uft.entity_id = ?');
+        queryParams.push(filters.entity_id);
+      }
+
+      // Status filters
+      if (filters.payment_status) {
+        whereConditions.push('uft.payment_status COLLATE utf8mb4_general_ci = ?');
+        queryParams.push(filters.payment_status);
+      }
+
+      if (filters.financial_status) {
+        whereConditions.push('uft.financial_status COLLATE utf8mb4_general_ci = ?');
+        queryParams.push(filters.financial_status);
+      }
+
+      if (filters.workflow_stage) {
+        whereConditions.push('uft.workflow_stage = ?');
+        queryParams.push(filters.workflow_stage);
+      }
+
+      // Date filters
+      if (filters.date_from && filters.date_to) {
+        whereConditions.push('DATE(uft.created_at) BETWEEN ? AND ?');
+        queryParams.push(filters.date_from, filters.date_to);
+      } else if (filters.date_from) {
+        whereConditions.push('DATE(uft.created_at) >= ?');
+        queryParams.push(filters.date_from);
+      } else if (filters.date_to) {
+        whereConditions.push('DATE(uft.created_at) <= ?');
+        queryParams.push(filters.date_to);
+      }
+
+      // Created date filters
+      if (filters.created_date_from && filters.created_date_to) {
+        whereConditions.push('DATE(uft.created_at) BETWEEN ? AND ?');
+        queryParams.push(filters.created_date_from, filters.created_date_to);
+      }
+
+      // Reviewed date filters
+      if (filters.reviewed_date_from && filters.reviewed_date_to) {
+        whereConditions.push('DATE(COALESCE(uft.financial_reviewed_at, uft.final_reviewed_at)) BETWEEN ? AND ?');
+        queryParams.push(filters.reviewed_date_from, filters.reviewed_date_to);
+      }
+
+      // Amount filters
+      if (filters.amount_min !== undefined) {
+        whereConditions.push('uft.amount >= ?');
+        queryParams.push(filters.amount_min);
+      }
+
+      if (filters.amount_max !== undefined) {
+        whereConditions.push('uft.amount <= ?');
+        queryParams.push(filters.amount_max);
+      }
+
+      // Member search filter
+      if (filters.member_search) {
+        whereConditions.push(`(
+          uft.member_name LIKE ? OR 
+          uft.member_email LIKE ? OR 
+          uft.membership_number LIKE ?
+        )`);
+        const searchTerm = `%${filters.member_search}%`;
+        queryParams.push(searchTerm, searchTerm, searchTerm);
+      }
+
+      // Member ID filter
+      if (filters.member_id) {
+        whereConditions.push('uft.member_id = ?');
+        queryParams.push(filters.member_id);
+      }
+
+      // Geographic filters
+      if (filters.province_code) {
+        whereConditions.push('uft.province_code = ?');
+        queryParams.push(filters.province_code);
+      }
+
+      if (filters.district_code) {
+        whereConditions.push('uft.district_code = ?');
+        queryParams.push(filters.district_code);
+      }
+
+      if (filters.municipal_code) {
+        whereConditions.push('uft.municipal_code = ?');
+        queryParams.push(filters.municipal_code);
+      }
+
+      if (filters.ward_code) {
+        whereConditions.push('uft.ward_code = ?');
+        queryParams.push(filters.ward_code);
+      }
+
+      // Reviewer filters
+      if (filters.financial_reviewed_by) {
+        whereConditions.push('uft.financial_reviewed_by = ?');
+        queryParams.push(filters.financial_reviewed_by);
+      }
+
+      if (filters.final_reviewed_by) {
+        whereConditions.push('uft.final_reviewed_by = ?');
+        queryParams.push(filters.final_reviewed_by);
+      }
+
+      // Advanced filters
+      if (filters.has_payment !== undefined) {
+        if (filters.has_payment) {
+          whereConditions.push('uft.amount > 0');
+        } else {
+          whereConditions.push('(uft.amount = 0 OR uft.amount IS NULL)');
+        }
+      }
+
+      if (filters.overdue_only) {
+        whereConditions.push(`(
+          uft.financial_status = 'Under Review' AND 
+          uft.created_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)
+        )`);
+      }
+
+      if (filters.flagged_only) {
+        whereConditions.push(`(
+          uft.financial_status = 'Rejected' OR 
+          uft.payment_status = 'Failed' OR
+          uft.amount > 1000
+        )`);
+      }
+
+      if (filters.requires_attention) {
+        whereConditions.push(`(
+          uft.financial_status IN ('Pending', 'Under Review') OR
+          uft.payment_status IN ('Pending', 'Processing') OR
+          (uft.financial_status = 'Under Review' AND uft.created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR))
+        )`);
+      }
+
+      // Build WHERE clause
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      // Build ORDER BY clause
+      const sortBy = filters.sort_by || 'created_at';
+      const sortOrder = filters.sort_order || 'DESC';
+      const orderClause = `ORDER BY uft.${sortBy} ${sortOrder}`;
+
+      // Build LIMIT clause
+      const limit = Math.min(filters.limit || 50, 1000); // Max 1000 records
+      const offset = filters.offset || 0;
+      const limitClause = `LIMIT ${limit} OFFSET ${offset}`;
+
+      // Get total count (without pagination)
+      const countQuery = `
+        SELECT COUNT(*) as total_count
+        FROM unified_financial_transactions uft
+        ${whereClause}
+      `;
+      
+      const countResult = await executeQuerySingle(countQuery, queryParams);
+      const totalCount = countResult?.total_count || 0;
+
+      // Get transactions with pagination
+      const transactionsQuery = `
+        SELECT
+          uft.*,
+          CASE
+            WHEN uft.transaction_type COLLATE utf8mb4_general_ci = 'Application' THEN 'Application'
+            WHEN uft.transaction_type COLLATE utf8mb4_general_ci = 'Renewal' THEN 'Renewal'
+            ELSE 'Unknown'
+          END as entity_type_display,
+          CASE
+            WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Approved' AND uft.payment_status COLLATE utf8mb4_general_ci = 'Completed' THEN 'Complete'
+            WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Rejected' OR uft.payment_status COLLATE utf8mb4_general_ci = 'Failed' THEN 'Failed'
+            WHEN uft.financial_status COLLATE utf8mb4_general_ci IN ('Pending', 'Under Review') THEN 'In Review'
+            ELSE 'Processing'
+          END as overall_status,
+          DATEDIFF(NOW(), uft.created_at) as days_since_created,
+          CASE
+            WHEN uft.financial_reviewed_at IS NOT NULL THEN DATEDIFF(uft.financial_reviewed_at, uft.created_at)
+            ELSE NULL
+          END as days_to_review
+        FROM unified_financial_transactions uft
+        ${whereClause}
+        ${orderClause}
+        ${limitClause}
+      `;
+
+      const transactions = await executeQuery(transactionsQuery, queryParams);
+
+      // Get summary statistics
+      const summaryQuery = `
+        SELECT
+          COUNT(*) as filtered_count,
+          COALESCE(SUM(uft.amount), 0) as total_amount,
+          COALESCE(AVG(uft.amount), 0) as avg_amount,
+          COALESCE(SUM(CASE WHEN uft.payment_status COLLATE utf8mb4_general_ci = 'Completed' THEN uft.amount END), 0) as completed_amount,
+          COALESCE(SUM(CASE WHEN uft.payment_status COLLATE utf8mb4_general_ci IN ('Pending', 'Processing') THEN uft.amount END), 0) as pending_amount,
+          -- Status breakdown
+          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Pending' THEN 1 END) as status_pending,
+          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Under Review' THEN 1 END) as status_under_review,
+          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Approved' THEN 1 END) as status_approved,
+          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Rejected' THEN 1 END) as status_rejected
+        FROM unified_financial_transactions uft
+        ${whereClause}
+      `;
+
+      const summaryResult = await executeQuerySingle(summaryQuery, queryParams);
+
+      // Calculate pagination info
+      const totalPages = Math.ceil(totalCount / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      const hasMore = offset + limit < totalCount;
+
+      return {
+        transactions: transactions || [],
+        total_count: totalCount,
+        filtered_count: summaryResult?.filtered_count || 0,
+        summary: {
+          total_amount: summaryResult?.total_amount || 0,
+          avg_amount: summaryResult?.avg_amount || 0,
+          completed_amount: summaryResult?.completed_amount || 0,
+          pending_amount: summaryResult?.pending_amount || 0,
+          status_breakdown: {
+            pending: summaryResult?.status_pending || 0,
+            under_review: summaryResult?.status_under_review || 0,
+            approved: summaryResult?.status_approved || 0,
+            rejected: summaryResult?.status_rejected || 0
+          }
+        },
+        pagination: {
+          limit,
+          offset,
+          has_more: hasMore,
+          total_pages: totalPages,
+          current_page: currentPage
+        }
+      };
+
+    } catch (error) {
+      throw createDatabaseError('Failed to query financial transactions', error);
+    }
+  }
+
+  // =====================================================
+  // SEARCH AND AUTOCOMPLETE
+  // =====================================================
+
+  // Search members for transaction filtering
+  static async searchMembers(searchTerm: string, limit: number = 20): Promise<any[]> {
+    try {
+      const members = await executeQuery(`
+        SELECT DISTINCT
+          uft.member_id,
+          uft.member_name,
+          uft.member_email,
+          uft.membership_number,
+          COUNT(*) as transaction_count,
+          MAX(uft.created_at) as last_transaction_date
+        FROM unified_financial_transactions uft
+        WHERE (
+          uft.member_name LIKE ? OR 
+          uft.member_email LIKE ? OR 
+          uft.membership_number LIKE ?
+        )
+        GROUP BY uft.member_id, uft.member_name, uft.member_email, uft.membership_number
+        ORDER BY uft.member_name ASC
+        LIMIT ?
+      `, [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, limit]);
+
+      return members || [];
+
+    } catch (error) {
+      throw createDatabaseError('Failed to search members', error);
+    }
+  }
+
+  // Get unique values for filter dropdowns
+  static async getFilterOptions(): Promise<{
+    payment_statuses: string[];
+    financial_statuses: string[];
+    workflow_stages: string[];
+    provinces: { code: string; name: string }[];
+    reviewers: { id: number; name: string }[];
+  }> {
+    try {
+      // Get unique payment statuses
+      const paymentStatuses = await executeQuery(`
+        SELECT DISTINCT payment_status 
+        FROM unified_financial_transactions 
+        WHERE payment_status IS NOT NULL 
+        ORDER BY payment_status
+      `);
+
+      // Get unique financial statuses
+      const financialStatuses = await executeQuery(`
+        SELECT DISTINCT financial_status 
+        FROM unified_financial_transactions 
+        WHERE financial_status IS NOT NULL 
+        ORDER BY financial_status
+      `);
+
+      // Get unique workflow stages
+      const workflowStages = await executeQuery(`
+        SELECT DISTINCT workflow_stage 
+        FROM unified_financial_transactions 
+        WHERE workflow_stage IS NOT NULL 
+        ORDER BY workflow_stage
+      `);
+
+      // Get provinces with transaction counts
+      const provinces = await executeQuery(`
+        SELECT DISTINCT 
+          uft.province_code as code,
+          p.province_name as name,
+          COUNT(*) as transaction_count
+        FROM unified_financial_transactions uft
+        LEFT JOIN provinces p ON uft.province_code = p.province_code
+        WHERE uft.province_code IS NOT NULL
+        GROUP BY uft.province_code, p.province_name
+        ORDER BY p.province_name
+      `);
+
+      // Get reviewers who have reviewed transactions
+      const reviewers = await executeQuery(`
+        SELECT DISTINCT 
+          u.id,
+          u.name,
+          COUNT(*) as review_count
+        FROM users u
+        INNER JOIN unified_financial_transactions uft ON (
+          u.id = uft.financial_reviewed_by OR 
+          u.id = uft.final_reviewed_by
+        )
+        WHERE u.is_active = 1
+        GROUP BY u.id, u.name
+        ORDER BY u.name
+      `);
+
+      return {
+        payment_statuses: (paymentStatuses || []).map((row: any) => row.payment_status),
+        financial_statuses: (financialStatuses || []).map((row: any) => row.financial_status),
+        workflow_stages: (workflowStages || []).map((row: any) => row.workflow_stage),
+        provinces: provinces || [],
+        reviewers: reviewers || []
+      };
+
+    } catch (error) {
+      throw createDatabaseError('Failed to get filter options', error);
+    }
+  }
+
+  // =====================================================
+  // TRANSACTION EXPORT FUNCTIONALITY
+  // =====================================================
+
+  // Export transactions to various formats
+  static async exportTransactions(
+    filters: TransactionQueryFilters,
+    options: TransactionExportOptions
+  ): Promise<{ data: any; filename: string; contentType: string }> {
+    try {
+      // Remove pagination for export (get all matching records)
+      const exportFilters = { ...filters, limit: undefined, offset: undefined };
+
+      // Get all matching transactions
+      const queryResult = await this.queryTransactions(exportFilters);
+      const transactions = queryResult.transactions;
+
+      // Prepare data based on options
+      let exportData = transactions.map(transaction => {
+        const baseData = {
+          transaction_id: transaction.entity_id,
+          transaction_type: transaction.transaction_type,
+          member_name: transaction.member_name,
+          member_email: transaction.member_email,
+          membership_number: transaction.membership_number,
+          amount: transaction.amount,
+          payment_status: transaction.payment_status,
+          financial_status: transaction.financial_status,
+          workflow_stage: transaction.workflow_stage,
+          created_at: this.formatDate(transaction.created_at, options.date_format, options.custom_date_format),
+          overall_status: transaction.overall_status,
+          days_since_created: transaction.days_since_created
+        };
+
+        // Add member details if requested
+        if (options.include_member_details) {
+          Object.assign(baseData, {
+            province_code: transaction.province_code,
+            district_code: transaction.district_code,
+            municipal_code: transaction.municipal_code,
+            ward_code: transaction.ward_code,
+            member_id: transaction.member_id
+          });
+        }
+
+        // Add payment details if requested
+        if (options.include_payment_details) {
+          Object.assign(baseData, {
+            payment_method: transaction.payment_method,
+            payment_reference: transaction.payment_reference,
+            payment_date: transaction.payment_date ?
+              this.formatDate(transaction.payment_date, options.date_format, options.custom_date_format) : null
+          });
+        }
+
+        // Add audit trail if requested
+        if (options.include_audit_trail) {
+          Object.assign(baseData, {
+            financial_reviewed_by: transaction.financial_reviewed_by,
+            financial_reviewed_at: transaction.financial_reviewed_at ?
+              this.formatDate(transaction.financial_reviewed_at, options.date_format, options.custom_date_format) : null,
+            final_reviewed_by: transaction.final_reviewed_by,
+            final_reviewed_at: transaction.final_reviewed_at ?
+              this.formatDate(transaction.final_reviewed_at, options.date_format, options.custom_date_format) : null,
+            days_to_review: transaction.days_to_review
+          });
+        }
+
+        return baseData;
+      });
+
+      // Generate filename
+      const timestamp = new Date().toISOString().split('T')[0];
+      const entityType = filters.entity_type && filters.entity_type !== 'all' ? `_${filters.entity_type}` : '';
+      const filename = `financial_transactions${entityType}_${timestamp}.${options.format}`;
+
+      // Return data based on format
+      switch (options.format) {
+        case 'json':
+          return {
+            data: JSON.stringify({
+              transactions: exportData,
+              summary: queryResult.summary,
+              export_info: {
+                generated_at: new Date().toISOString(),
+                total_records: exportData.length,
+                filters_applied: filters
+              }
+            }, null, 2),
+            filename,
+            contentType: 'application/json'
+          };
+
+        case 'csv':
+          const csvData = this.convertToCSV(exportData);
+          return {
+            data: csvData,
+            filename,
+            contentType: 'text/csv'
+          };
+
+        case 'excel':
+          // For Excel, return JSON that can be processed by frontend
+          return {
+            data: JSON.stringify({
+              worksheets: [
+                {
+                  name: 'Transactions',
+                  data: exportData
+                },
+                {
+                  name: 'Summary',
+                  data: [queryResult.summary]
+                }
+              ]
+            }),
+            filename: filename.replace('.excel', '.xlsx'),
+            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          };
+
+        default:
+          throw new Error(`Unsupported export format: ${options.format}`);
+      }
+
+    } catch (error) {
+      throw createDatabaseError('Failed to export transactions', error);
+    }
+  }
+
+  // =====================================================
+  // UTILITY METHODS
+  // =====================================================
+
+  // Format date based on options
+  private static formatDate(date: Date | string, format?: string, customFormat?: string): string {
+    if (!date) return '';
+
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+    switch (format) {
+      case 'local':
+        return dateObj.toLocaleDateString();
+      case 'custom':
+        return customFormat ? this.applyCustomDateFormat(dateObj, customFormat) : dateObj.toISOString();
+      case 'ISO':
+      default:
+        return dateObj.toISOString();
+    }
+  }
+
+  // Apply custom date format
+  private static applyCustomDateFormat(date: Date, format: string): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return format
+      .replace('YYYY', year.toString())
+      .replace('MM', month)
+      .replace('DD', day)
+      .replace('HH', hours)
+      .replace('mm', minutes)
+      .replace('ss', seconds);
+  }
+
+  // Convert data to CSV format
+  private static convertToCSV(data: any[]): string {
+    if (data.length === 0) return '';
+
+    const headers = Object.keys(data[0]);
+    const csvHeaders = headers.join(',');
+
+    const csvRows = data.map(row => {
+      return headers.map(header => {
+        const value = row[header];
+        // Escape commas and quotes in CSV
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value || '';
+      }).join(',');
+    });
+
+    return [csvHeaders, ...csvRows].join('\n');
+  }
+
+  // =====================================================
+  // ADVANCED ANALYTICS
+  // =====================================================
+
+  // Get transaction analytics
+  static async getTransactionAnalytics(filters: TransactionQueryFilters): Promise<{
+    time_series: any[];
+    status_distribution: any[];
+    amount_distribution: any[];
+    geographic_distribution: any[];
+    reviewer_performance: any[];
+  }> {
+    try {
+      // Build WHERE clause for analytics
+      const whereConditions: string[] = [];
+      const queryParams: any[] = [];
+
+      if (filters.entity_type && filters.entity_type !== 'all') {
+        whereConditions.push('uft.transaction_type = ?');
+        queryParams.push(filters.entity_type === 'application' ? 'Application' : 'Renewal');
+      }
+
+      if (filters.date_from && filters.date_to) {
+        whereConditions.push('DATE(uft.created_at) BETWEEN ? AND ?');
+        queryParams.push(filters.date_from, filters.date_to);
+      }
+
+      const whereClause = whereConditions.length > 0 ?
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      // Time series data (daily aggregation)
+      const timeSeries = await executeQuery(`
+        SELECT
+          DATE(uft.created_at) as date,
+          COUNT(*) as transaction_count,
+          SUM(uft.amount) as total_amount,
+          COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) as approved_count,
+          COUNT(CASE WHEN uft.payment_status = 'Completed' THEN 1 END) as completed_count
+        FROM unified_financial_transactions uft
+        ${whereClause}
+        GROUP BY DATE(uft.created_at)
+        ORDER BY DATE(uft.created_at) DESC
+        LIMIT 30
+      `, queryParams);
+
+      // Status distribution
+      const statusDistribution = await executeQuery(`
+        SELECT
+          uft.financial_status as status,
+          COUNT(*) as count,
+          SUM(uft.amount) as total_amount,
+          ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM unified_financial_transactions uft2 ${whereClause}), 2) as percentage
+        FROM unified_financial_transactions uft
+        ${whereClause}
+        GROUP BY uft.financial_status
+        ORDER BY count DESC
+      `, queryParams);
+
+      // Amount distribution (buckets)
+      const amountDistribution = await executeQuery(`
+        SELECT
+          CASE
+            WHEN uft.amount = 0 THEN 'Free'
+            WHEN uft.amount <= 100 THEN '1-100'
+            WHEN uft.amount <= 500 THEN '101-500'
+            WHEN uft.amount <= 1000 THEN '501-1000'
+            ELSE '1000+'
+          END as amount_range,
+          COUNT(*) as count,
+          SUM(uft.amount) as total_amount
+        FROM unified_financial_transactions uft
+        ${whereClause}
+        GROUP BY amount_range
+        ORDER BY MIN(uft.amount)
+      `, queryParams);
+
+      // Geographic distribution
+      const geographicDistribution = await executeQuery(`
+        SELECT
+          p.province_name,
+          uft.province_code,
+          COUNT(*) as transaction_count,
+          SUM(uft.amount) as total_amount,
+          COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) as approved_count
+        FROM unified_financial_transactions uft
+        LEFT JOIN provinces p ON uft.province_code = p.province_code
+        ${whereClause}
+        GROUP BY uft.province_code, p.province_name
+        ORDER BY transaction_count DESC
+        LIMIT 10
+      `, queryParams);
+
+      // Reviewer performance
+      const reviewerPerformance = await executeQuery(`
+        SELECT
+          u.name as reviewer_name,
+          u.id as reviewer_id,
+          COUNT(*) as reviews_completed,
+          AVG(DATEDIFF(uft.financial_reviewed_at, uft.created_at)) as avg_review_time_days,
+          COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) as approved_count,
+          COUNT(CASE WHEN uft.financial_status = 'Rejected' THEN 1 END) as rejected_count,
+          ROUND(COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) * 100.0 / COUNT(*), 2) as approval_rate
+        FROM unified_financial_transactions uft
+        INNER JOIN users u ON uft.financial_reviewed_by = u.id
+        ${whereClause}
+        GROUP BY u.id, u.name
+        HAVING reviews_completed > 0
+        ORDER BY reviews_completed DESC
+        LIMIT 10
+      `, queryParams);
+
+      return {
+        time_series: timeSeries || [],
+        status_distribution: statusDistribution || [],
+        amount_distribution: amountDistribution || [],
+        geographic_distribution: geographicDistribution || [],
+        reviewer_performance: reviewerPerformance || []
+      };
+
+    } catch (error) {
+      throw createDatabaseError('Failed to get transaction analytics', error);
+    }
+  }
+}

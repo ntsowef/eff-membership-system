@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # Redis Master
+  redis-master:
+    image: redis:7-alpine
+    container_name: membership-redis-master
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-master-data:/data
+      - ./redis/redis-master.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    networks:
+      - membership-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis Replica (for read scaling)
+  redis-replica:
+    image: redis:7-alpine
+    container_name: membership-redis-replica
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-replica-data:/data
+      - ./redis/redis-replica.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=slave
+      - REDIS_MASTER_HOST=redis-master
+    depends_on:
+      - redis-master
+    networks:
+      - membership-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis Sentinel (for high availability)
+  redis-sentinel:
+    image: redis:7-alpine
+    container_name: membership-redis-sentinel
+    restart: unless-stopped
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-replica
+    networks:
+      - membership-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis Commander (Web UI for Redis management)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: membership-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=master:redis-master:6379,replica:redis-replica:6379
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=secure_password_change_me
+    depends_on:
+      - redis-master
+      - redis-replica
+    networks:
+      - membership-network
+
+volumes:
+  redis-master-data:
+    driver: local
+  redis-replica-data:
+    driver: local
+
+networks:
+  membership-network:
+    driver: bridge
+    external: true

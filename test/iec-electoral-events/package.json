@@ -1,0 +1,49 @@
+{
+  "name": "iec-electoral-events-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive test suite for IEC Electoral Events Integration",
+  "main": "test-runner.js",
+  "scripts": {
+    "test": "node test-runner.js",
+    "test:unit": "node unit-tests.js",
+    "test:integration": "node integration-tests.js",
+    "test:api": "node api-endpoint-tests.js",
+    "test:performance": "node performance-tests.js",
+    "test:watch": "nodemon test-runner.js",
+    "test:coverage": "nyc node test-runner.js"
+  },
+  "keywords": [
+    "iec",
+    "electoral-events",
+    "testing",
+    "integration",
+    "api",
+    "performance"
+  ],
+  "author": "Membership Management System",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "supertest": "^6.3.0",
+    "nodemon": "^3.0.0",
+    "nyc": "^15.1.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "collectCoverageFrom": [
+      "../../backend/src/services/iecElectoralEventsService.ts",
+      "../../backend/src/services/voterVerificationService.ts",
+      "../../backend/src/routes/iecElectoralEvents.ts"
+    ],
+    "coverageDirectory": "./coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  }
+}

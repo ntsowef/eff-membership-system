@@ -1,0 +1,350 @@
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { createDatabaseError } from '../middleware/errorHandler';
+import {
+  VotingDistrict,
+  VotingDistrictCreateRequest,
+  VotingDistrictUpdateRequest,
+  VotingDistrictFilters,
+  VotingDistrictStatistics,
+  GeographicHierarchyComplete
+} from '../models/votingDistricts';
+
+export class VotingDistrictsService {
+  // Get all voting districts with optional filtering
+  static async getVotingDistricts(filters: VotingDistrictFilters = {}): Promise<VotingDistrict[]> {
+    try {
+      let query = `
+        SELECT
+          vd.id,
+          vd.vd_code as voting_district_code,
+          vd.vd_name as voting_district_name,
+          vd.voting_district_number,
+          vd.ward_code,
+          vd.is_active,
+          vd.created_at,
+          vd.updated_at,
+          w.ward_name,
+          w.ward_number,
+          m.municipal_code,
+          m.municipal_name,
+          d.district_code,
+          d.district_name,
+          p.province_code,
+          p.province_name,
+          COUNT(mem.member_id) as member_count
+        FROM voting_districts vd
+        JOIN wards w ON vd.ward_code = w.ward_code
+        JOIN municipalities m ON w.municipal_code = m.municipal_code
+        JOIN districts d ON m.district_code = d.district_code
+        JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN members mem ON vd.vd_code = mem.voting_district_code
+        WHERE 1=1
+      `;
+
+      const params: any[] = [];
+
+      if (filters.province_code) {
+        query += ' AND p.province_code = ?';
+        params.push(filters.province_code);
+      }
+
+      if (filters.district_code) {
+        query += ' AND d.district_code = ?';
+        params.push(filters.district_code);
+      }
+
+      if (filters.municipal_code) {
+        query += ' AND m.municipal_code = ?';
+        params.push(filters.municipal_code);
+      }
+
+      if (filters.ward_code) {
+        query += ' AND w.ward_code = ?';
+        params.push(filters.ward_code);
+      }
+
+      if (filters.voting_district_code) {
+        query += ' AND vd.voting_district_code = ?';
+        params.push(filters.voting_district_code);
+      }
+
+      if (filters.is_active !== undefined) {
+        query += ' AND vd.is_active = ?';
+        params.push(filters.is_active);
+      }
+
+      if (filters.search) {
+        query += ' AND (vd.voting_district_name LIKE ? OR vd.voting_district_number LIKE ? OR vd.voting_district_code LIKE ?)';
+        const searchTerm = `%${filters.search}%`;
+        params.push(searchTerm, searchTerm, searchTerm);
+      }
+
+      query += `
+        GROUP BY vd.id
+        ORDER BY p.province_name, d.district_name, m.municipal_name, w.ward_number, vd.voting_district_number
+      `;
+
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch voting districts', error);
+    }
+  }
+
+  // Get voting districts by ward
+  static async getVotingDistrictsByWard(wardCode: string): Promise<VotingDistrict[]> {
+    try {
+      // Use the new view for better performance and consistency
+      const query = `
+        SELECT
+          voting_district_code,
+          voting_district_name,
+          voting_district_number,
+          ward_code,
+          is_active,
+          ward_name,
+          ward_number,
+          member_count
+        FROM voting_districts_with_members
+        WHERE ward_code = ?
+        ORDER BY voting_district_number
+      `;
+
+      return await executeQuery(query, [wardCode]);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch voting districts by ward', error);
+    }
+  }
+
+  // Get single voting district by code
+  static async getVotingDistrictByCode(votingDistrictCode: string): Promise<VotingDistrict | null> {
+    try {
+      const query = `
+        SELECT
+          vd.voting_district_code,
+          vd.voting_district_name,
+          vd.voting_district_number,
+          vd.ward_code,
+          vd.is_active,
+          vd.created_at,
+          vd.updated_at,
+          w.ward_name,
+          w.ward_number,
+          mu.municipality_code,
+          mu.municipality_name,
+          d.district_code,
+          d.district_name,
+          p.province_code,
+          p.province_name,
+          COUNT(m.member_id) as member_count
+        FROM voting_districts vd
+        JOIN wards w ON vd.ward_code = w.ward_code
+        JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        JOIN districts d ON mu.district_code = d.district_code
+        JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN members m ON vd.voting_district_code = m.voting_district_code
+        WHERE vd.voting_district_code = ?
+        GROUP BY vd.voting_district_code
+      `;
+
+      return await executeQuerySingle(query, [votingDistrictCode]);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch voting district', error);
+    }
+  }
+
+  // Create new voting district
+  static async createVotingDistrict(data: VotingDistrictCreateRequest): Promise<number> {
+    try {
+      const query = `
+        INSERT INTO voting_districts (
+          vd_code, vd_name, ward_code
+        ) VALUES (?, ?, ?)
+      `;
+
+      const result = await executeQuery(query, [
+        data.voting_district_code,
+        data.voting_district_name,
+        data.ward_code
+      ]);
+
+      return result.insertId;
+    } catch (error) {
+      throw createDatabaseError('Failed to create voting district', error);
+    }
+  }
+
+  // Update voting district
+  static async updateVotingDistrict(
+    votingDistrictCode: string, 
+    data: VotingDistrictUpdateRequest
+  ): Promise<boolean> {
+    try {
+      const updates: string[] = [];
+      const params: any[] = [];
+
+      if (data.voting_district_name !== undefined) {
+        updates.push('vd_name = ?');
+        params.push(data.voting_district_name);
+      }
+
+      if (data.ward_code !== undefined) {
+        updates.push('ward_code = ?');
+        params.push(data.ward_code);
+      }
+
+      if (data.latitude !== undefined) {
+        updates.push('latitude = ?');
+        params.push(data.latitude);
+      }
+
+      if (data.longitude !== undefined) {
+        updates.push('longitude = ?');
+        params.push(data.longitude);
+      }
+
+      if (data.is_active !== undefined) {
+        updates.push('is_active = ?');
+        params.push(data.is_active);
+      }
+
+      if (updates.length === 0) {
+        return false;
+      }
+
+      updates.push('updated_at = NOW()');
+      params.push(votingDistrictCode);
+
+      const query = `
+        UPDATE voting_districts
+        SET ${updates.join(', ')}
+        WHERE vd_code = ?
+      `;
+
+      const result = await executeQuery(query, params);
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to update voting district', error);
+    }
+  }
+
+  // Delete voting district
+  static async deleteVotingDistrict(votingDistrictCode: string): Promise<boolean> {
+    try {
+      const query = 'DELETE FROM voting_districts WHERE vd_code = ?';
+      const result = await executeQuery(query, [votingDistrictCode]);
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to delete voting district', error);
+    }
+  }
+
+  // Get voting district statistics
+  static async getVotingDistrictStatistics(): Promise<VotingDistrictStatistics> {
+    try {
+      // Total counts
+      const totalQuery = `
+        SELECT 
+          COUNT(*) as total_voting_districts,
+          COUNT(CASE WHEN is_active = TRUE THEN 1 END) as active_voting_districts
+        FROM voting_districts
+      `;
+      const totals = await executeQuerySingle(totalQuery);
+
+      // By province
+      const provinceQuery = `
+        SELECT 
+          p.province_code,
+          p.province_name,
+          COUNT(vd.id) as voting_district_count
+        FROM provinces p
+        LEFT JOIN districts d ON p.province_code = d.province_code
+        LEFT JOIN municipalities m ON d.district_code = m.district_code
+        LEFT JOIN wards w ON m.municipal_code = w.municipal_code
+        LEFT JOIN voting_districts vd ON w.ward_code = vd.ward_code AND vd.is_active = TRUE
+        WHERE p.is_active = TRUE
+        GROUP BY p.province_code, p.province_name
+        ORDER BY p.province_name
+      `;
+      const byProvince = await executeQuery(provinceQuery);
+
+      // By ward
+      const wardQuery = `
+        SELECT
+          w.ward_code,
+          w.ward_name,
+          COUNT(vd.id) as voting_district_count
+        FROM wards w
+        LEFT JOIN voting_districts vd ON w.ward_code = vd.ward_code AND vd.is_active = TRUE
+        WHERE w.is_active = TRUE
+        GROUP BY w.ward_code, w.ward_name
+        HAVING voting_district_count > 0
+        ORDER BY voting_district_count DESC
+        LIMIT 20
+      `;
+      const byWard = await executeQuery(wardQuery);
+
+      // Member distribution
+      const memberQuery = `
+        SELECT
+          vd.vd_code as voting_district_code,
+          vd.vd_name as voting_district_name,
+          COUNT(m.member_id) as member_count
+        FROM voting_districts vd
+        LEFT JOIN members m ON vd.vd_code = m.voting_district_code
+        WHERE vd.is_active = TRUE
+        GROUP BY vd.vd_code, vd.vd_name
+        ORDER BY member_count DESC
+        LIMIT 20
+      `;
+      const memberDistribution = await executeQuery(memberQuery);
+
+      return {
+        total_voting_districts: totals.total_voting_districts,
+        active_voting_districts: totals.active_voting_districts,
+        voting_districts_by_province: byProvince,
+        voting_districts_by_ward: byWard,
+        member_distribution: memberDistribution
+      };
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch voting district statistics', error);
+    }
+  }
+
+  // Get complete geographic hierarchy
+  static async getCompleteGeographicHierarchy(filters: VotingDistrictFilters = {}): Promise<GeographicHierarchyComplete[]> {
+    try {
+      let query = `
+        SELECT * FROM geographic_hierarchy_complete
+        WHERE 1=1
+      `;
+
+      const params: any[] = [];
+
+      if (filters.province_code) {
+        query += ' AND province_code = ?';
+        params.push(filters.province_code);
+      }
+
+      if (filters.district_code) {
+        query += ' AND district_code = ?';
+        params.push(filters.district_code);
+      }
+
+      if (filters.municipal_code) {
+        query += ' AND municipal_code = ?';
+        params.push(filters.municipal_code);
+      }
+
+      if (filters.ward_code) {
+        query += ' AND ward_code = ?';
+        params.push(filters.ward_code);
+      }
+
+      query += ' ORDER BY province_name, district_name, municipal_name, ward_number, voting_district_number';
+
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch complete geographic hierarchy', error);
+    }
+  }
+}

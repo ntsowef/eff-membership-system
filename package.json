@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@types/pg": "^8.15.5",
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.2",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.16.3"
+  }
+}

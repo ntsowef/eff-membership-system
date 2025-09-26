@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Meeting Edit API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Meeting Edit API</h1>
+        <p>This page tests the meeting edit functionality</p>
+        
+        <div>
+            <label>Meeting ID:</label>
+            <input type="number" id="meetingId" value="26" />
+        </div>
+        
+        <div>
+            <label>New Title:</label>
+            <input type="text" id="newTitle" value="Updated Meeting Title" />
+        </div>
+        
+        <div>
+            <label>New Description:</label>
+            <textarea id="newDescription" rows="3">Updated meeting description</textarea>
+        </div>
+        
+        <button onclick="getMeeting()">Get Meeting</button>
+        <button onclick="updateMeeting()">Update Meeting</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        function addResult(title, content, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'container';
+            resultDiv.innerHTML = `
+                <h3>${title}</h3>
+                <div class="test-result ${type}">
+                    <pre>${content}</pre>
+                </div>
+            `;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function getMeeting() {
+            const meetingId = document.getElementById('meetingId').value;
+            
+            try {
+                addResult('🔄 Getting Meeting', `Fetching meeting ${meetingId}...`, 'info');
+                
+                const response = await fetch(`/api/v1/meetings/${meetingId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('✅ Get Meeting Success', 
+                        `Status: ${response.status}\n` +
+                        `Success: ${data.success}\n` +
+                        `Meeting Title: ${data.data?.meeting?.title}\n` +
+                        `Meeting Status: ${data.data?.meeting?.meeting_status}\n` +
+                        `Start Time: ${data.data?.meeting?.start_datetime}\n` +
+                        `End Time: ${data.data?.meeting?.end_datetime}\n\n` +
+                        `Full Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    addResult('❌ Get Meeting Error', 
+                        `Status: ${response.status}\n` +
+                        `Response: ${JSON.stringify(data, null, 2)}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                addResult('❌ Get Meeting Exception', 
+                    `Error: ${error.message}\n` +
+                    `Stack: ${error.stack}`, 
+                    'error'
+                );
+            }
+        }
+
+        async function updateMeeting() {
+            const meetingId = document.getElementById('meetingId').value;
+            const newTitle = document.getElementById('newTitle').value;
+            const newDescription = document.getElementById('newDescription').value;
+            
+            try {
+                addResult('🔄 Updating Meeting', `Updating meeting ${meetingId}...`, 'info');
+                
+                const updateData = {
+                    title: newTitle,
+                    description: newDescription
+                };
+                
+                const response = await fetch(`/api/v1/meetings/${meetingId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('✅ Update Meeting Success', 
+                        `Status: ${response.status}\n` +
+                        `Success: ${data.success}\n` +
+                        `Message: ${data.message}\n` +
+                        `Updated Title: ${data.data?.meeting?.title}\n` +
+                        `Updated Description: ${data.data?.meeting?.description}\n\n` +
+                        `Full Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    addResult('❌ Update Meeting Error', 
+                        `Status: ${response.status}\n` +
+                        `Response: ${JSON.stringify(data, null, 2)}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                addResult('❌ Update Meeting Exception', 
+                    `Error: ${error.message}\n` +
+                    `Stack: ${error.stack}`, 
+                    'error'
+                );
+            }
+        }
+
+        // Auto-run get meeting on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                getMeeting();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Meeting Detail API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .success { border-color: #4CAF50; background-color: #f8fff8; }
+        .error { border-color: #f44336; background-color: #fff8f8; }
+        .info { border-color: #2196F3; background-color: #f8f9ff; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1976D2; }
+        .status { font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Meeting Detail API Test</h1>
+        <p>Testing the meeting detail API endpoint and data structure</p>
+
+        <div class="test-section info">
+            <h3>Test Controls</h3>
+            <button onclick="testDirectAPI()">Test Direct Backend API</button>
+            <button onclick="testProxyAPI()">Test Frontend Proxy API</button>
+            <button onclick="testMeetingPage()">Open Meeting Detail Page</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(title, content, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-section ${type}`;
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <div class="status">Status: ${type.toUpperCase()}</div>
+                <pre>${content}</pre>
+            `;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testDirectAPI() {
+            try {
+                addResult('🔄 Testing Direct Backend API', 'Calling http://localhost:5000/api/v1/meetings/26...', 'info');
+                
+                const response = await fetch('http://localhost:5000/api/v1/meetings/26');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('✅ Direct Backend API Success', JSON.stringify(data, null, 2), 'success');
+                    
+                    // Test data structure
+                    if (data.success && data.data && data.data.meeting) {
+                        addResult('✅ Data Structure Valid', 
+                            `Meeting found: ${data.data.meeting.title}\n` +
+                            `ID: ${data.data.meeting.id}\n` +
+                            `Status: ${data.data.meeting.meeting_status}\n` +
+                            `Level: ${data.data.meeting.hierarchy_level}`, 'success');
+                    } else {
+                        addResult('❌ Data Structure Invalid', 'Expected structure: {success: true, data: {meeting: {...}}}', 'error');
+                    }
+                } else {
+                    addResult('❌ Direct Backend API Failed', `Status: ${response.status}\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Direct Backend API Error', error.message, 'error');
+            }
+        }
+
+        async function testProxyAPI() {
+            try {
+                addResult('🔄 Testing Frontend Proxy API', 'Calling /api/v1/meetings/26 through proxy...', 'info');
+                
+                const response = await fetch('/api/v1/meetings/26');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('✅ Proxy API Success', JSON.stringify(data, null, 2), 'success');
+                    
+                    // Test what the frontend apiGet function would return
+                    let extractedData;
+                    if (data && typeof data === 'object' && 'data' in data && 'success' in data) {
+                        extractedData = data.data; // This is what apiGet returns
+                        addResult('✅ Frontend Data Extraction', 
+                            `apiGet would return: ${JSON.stringify(extractedData, null, 2)}\n\n` +
+                            `Meeting extraction: meeting = extractedData.meeting\n` +
+                            `Result: ${JSON.stringify(extractedData.meeting, null, 2)}`, 'success');
+                    } else {
+                        addResult('❌ Frontend Data Extraction Failed', 'Unexpected data structure', 'error');
+                    }
+                } else {
+                    addResult('❌ Proxy API Failed', `Status: ${response.status}\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                addResult('❌ Proxy API Error', error.message, 'error');
+            }
+        }
+
+        function testMeetingPage() {
+            addResult('🔄 Opening Meeting Detail Page', 'Opening http://localhost:3000/admin/meetings/26 in new tab...', 'info');
+            window.open('http://localhost:3000/admin/meetings/26', '_blank');
+        }
+
+        // Auto-run tests on page load
+        window.onload = function() {
+            addResult('🚀 Meeting Detail API Test Started', 'Ready to test meeting detail functionality', 'info');
+        };
+    </script>
+</body>
+</html>

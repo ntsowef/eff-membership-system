@@ -1,0 +1,360 @@
+import { Router, Request, Response } from 'express';
+import { SMSManagementService, SMSTemplate, SMSCampaign } from '../services/smsManagementService';
+import { executeQuery } from '../config/database';
+
+const router = Router();
+
+// SMS Templates Endpoints
+
+// Get all SMS templates
+router.get('/templates', async (req: Request, res: Response) => {
+  try {
+    const filters = {
+      category: req.query.category as string,
+      is_active: req.query.is_active === 'true' ? true : req.query.is_active === 'false' ? false : undefined,
+      search: req.query.search as string
+    };
+
+    const templates = await SMSManagementService.getTemplates(filters);
+
+    res.json({
+      success: true,
+      data: {
+        templates,
+        total: templates.length
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to get SMS templates:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to retrieve SMS templates',
+        details: error.message
+      }
+    });
+  }
+});
+
+// Send single SMS
+router.post('/send', authenticate, requireAdminLevel(2), authRateLimit, async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { error, value } = sendSMSSchema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    const { to, message, from } = value;
+    const userId = req.user!.id;
+
+    const result = await smsService.sendSMS(to, message, from);
+
+    // Log SMS sending
+    await logAudit(
+      userId,
+      AuditAction.CREATE,
+      EntityType.SYSTEM,
+      0,
+      undefined,
+      {
+        action: 'sms_sent',
+        recipient: to,
+        provider: result.provider,
+        success: result.success,
+        message_id: result.messageId
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'SMS sent successfully',
+      data: {
+        message_id: result.messageId,
+        provider: result.provider,
+        recipient: to,
+        status: result.success ? 'sent' : 'failed',
+        error: result.error
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Send bulk SMS
+router.post('/bulk-send', authenticate, requireAdminLevel(3), strictRateLimit, async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { error, value } = bulkSMSSchema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    const { recipients, message, from } = value;
+    const userId = req.user!.id;
+
+    // Send SMS to all recipients
+    const results = await Promise.all(
+      recipients.map(async (recipient: string) => {
+        const result = await smsService.sendSMS(recipient, message, from);
+        return {
+          recipient,
+          success: result.success,
+          message_id: result.messageId,
+          error: result.error
+        };
+      })
+    );
+
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+
+    // Log bulk SMS operation
+    await logAudit(
+      userId,
+      AuditAction.CREATE,
+      EntityType.SYSTEM,
+      0,
+      undefined,
+      {
+        action: 'bulk_sms_sent',
+        total_recipients: recipients.length,
+        successful_sends: successful,
+        failed_sends: failed,
+        provider: smsService.getProviderName()
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Bulk SMS operation completed',
+      data: {
+        summary: {
+          total: recipients.length,
+          successful,
+          failed
+        },
+        provider: smsService.getProviderName(),
+        results
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Test SMS functionality
+router.post('/test', authenticate, requireAdminLevel(2), authRateLimit, async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { error, value } = testSMSSchema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    const { to } = value;
+    const userId = req.user!.id;
+
+    const result = await smsService.testSMS(to);
+
+    // Log SMS test
+    await logAudit(
+      userId,
+      AuditAction.CREATE,
+      EntityType.SYSTEM,
+      0,
+      undefined,
+      {
+        action: 'sms_test',
+        recipient: to,
+        provider: result.provider,
+        success: result.success,
+        message_id: result.messageId
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'SMS test completed',
+      data: {
+        provider: result.provider,
+        recipient: to,
+        test_result: result.success ? 'passed' : 'failed',
+        message_id: result.messageId,
+        error: result.error
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get SMS provider information
+router.get('/provider', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const providerName = smsService.getProviderName();
+
+    res.json({
+      success: true,
+      message: 'SMS provider information retrieved',
+      data: {
+        current_provider: providerName,
+        supported_providers: [
+          {
+            name: 'SMPP',
+            description: 'Direct carrier connection via SMPP protocol',
+            features: ['High volume', 'Real-time delivery reports', 'Cost effective'],
+            recommended_for: 'High volume messaging (>10,000/month)'
+          },
+          {
+            name: 'Twilio',
+            description: 'Cloud-based SMS service',
+            features: ['Easy setup', 'Global coverage', 'Reliable delivery'],
+            recommended_for: 'General purpose messaging'
+          },
+          {
+            name: 'Clickatell',
+            description: 'Global SMS gateway provider',
+            features: ['Global reach', 'Multiple channels', 'Good pricing'],
+            recommended_for: 'International messaging'
+          },
+          {
+            name: 'SMS Gateway',
+            description: 'Generic HTTP-based SMS gateway',
+            features: ['Custom integration', 'Flexible configuration'],
+            recommended_for: 'Custom SMS providers'
+          },
+          {
+            name: 'Mock SMS',
+            description: 'Testing and development provider',
+            features: ['No real SMS sent', 'Logging only', 'Development safe'],
+            recommended_for: 'Development and testing'
+          }
+        ]
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get SMS configuration status
+router.get('/config/status', authenticate, requireAdminLevel(3), async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const providerName = smsService.getProviderName();
+    
+    // Basic configuration check (without exposing sensitive data)
+    const configStatus = {
+      provider: providerName,
+      configured: providerName !== 'Mock SMS',
+      features: {
+        single_sms: true,
+        bulk_sms: true,
+        delivery_reports: providerName === 'SMPP',
+        international: providerName !== 'Mock SMS'
+      }
+    };
+
+    res.json({
+      success: true,
+      message: 'SMS configuration status retrieved',
+      data: configStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Send notification SMS to members
+router.post('/notify-members', authenticate, requireAdminLevel(2), strictRateLimit, async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const schema = Joi.object({
+      member_ids: Joi.array().items(Joi.number().positive()).min(1).max(1000).required(),
+      message: Joi.string().min(1).max(1600).required(),
+      from: Joi.string().optional()
+    });
+
+    const { error, value } = schema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    const { member_ids, message, from } = value;
+    const userId = req.user!.id;
+
+    // Get member phone numbers
+    const { executeQuery } = require('../config/database');
+    const members = await executeQuery(
+      'SELECT id, phone, CONCAT(firstname, " ", surname) as name FROM members WHERE id IN (?) AND phone IS NOT NULL AND phone != ""',
+      [member_ids]
+    );
+
+    if (members.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No members found with valid phone numbers',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Send SMS to all members
+    const results = await Promise.all(
+      members.map(async (member: any) => {
+        const result = await smsService.sendSMS(member.phone, message, from);
+        return {
+          member_id: member.id,
+          member_name: member.name,
+          phone: member.phone,
+          success: result.success,
+          message_id: result.messageId,
+          error: result.error
+        };
+      })
+    );
+
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+
+    // Log member notification
+    await logAudit(
+      userId,
+      AuditAction.CREATE,
+      EntityType.MEMBER,
+      0,
+      undefined,
+      {
+        action: 'member_sms_notification',
+        total_members: members.length,
+        successful_sends: successful,
+        failed_sends: failed,
+        provider: smsService.getProviderName()
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Member SMS notification completed',
+      data: {
+        summary: {
+          total_members: members.length,
+          successful,
+          failed
+        },
+        provider: smsService.getProviderName(),
+        results
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

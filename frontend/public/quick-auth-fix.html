@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Authentication Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Quick Authentication Fix</h1>
+        <p>This tool will help you resolve the 401 Unauthorized errors by logging you in and testing the API.</p>
+        
+        <div id="status" class="status">
+            <strong>Status:</strong> Ready to authenticate
+        </div>
+
+        <h3>Step 1: Login</h3>
+        <button onclick="quickLogin()">🔐 Login as Admin</button>
+        <button onclick="loginAsProvince()">🏛️ Login as Province Admin</button>
+        
+        <h3>Step 2: Test API</h3>
+        <button onclick="testExpiredMembersAPI()">📊 Test Expired Members API</button>
+        <button onclick="testDashboardAPI()">📈 Test Dashboard API</button>
+        
+        <h3>Step 3: Fix Dashboard</h3>
+        <button onclick="refreshDashboard()">🔄 Refresh Main Dashboard</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            status.innerHTML = `<strong>Status:</strong> <span class="${className}">${message}</span>`;
+        }
+
+        function addResult(title, content, type = 'info') {
+            const results = document.getElementById('results');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            results.innerHTML += `
+                <div style="margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; background: #f8f9fa;">
+                    <strong class="${className}">${title}</strong>
+                    <pre>${content}</pre>
+                </div>
+            `;
+        }
+
+        async function quickLogin() {
+            updateStatus('Logging in as System Administrator...', 'info');
+            
+            try {
+                // Clear existing tokens
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('sessionId');
+                
+                const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@membership.org',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.data.token) {
+                    localStorage.setItem('authToken', data.data.token);
+                    localStorage.setItem('sessionId', data.data.session_id);
+                    
+                    updateStatus('✅ Login successful! Token stored.', 'success');
+                    addResult('Login Success', `
+User: ${data.data.user.name}
+Email: ${data.data.user.email}
+Admin Level: ${data.data.user.admin_level}
+Token: ${data.data.token.substring(0, 30)}...
+Session ID: ${data.data.session_id}
+                    `, 'success');
+                } else {
+                    updateStatus('❌ Login failed', 'error');
+                    addResult('Login Failed', JSON.stringify(data, null, 2), 'error');
+                }
+            } catch (error) {
+                updateStatus('❌ Login error: ' + error.message, 'error');
+                addResult('Login Error', error.message, 'error');
+            }
+        }
+
+        async function loginAsProvince() {
+            updateStatus('Logging in as Province Administrator...', 'info');
+            
+            try {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('sessionId');
+                
+                const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'ntsowef@gmail.com',
+                        password: 'test123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.data.token) {
+                    localStorage.setItem('authToken', data.data.token);
+                    localStorage.setItem('sessionId', data.data.session_id);
+                    
+                    updateStatus('✅ Province admin login successful!', 'success');
+                    addResult('Province Login Success', `
+User: ${data.data.user.name}
+Email: ${data.data.user.email}
+Admin Level: ${data.data.user.admin_level}
+Province: ${data.data.user.province_code || 'N/A'}
+                    `, 'success');
+                } else {
+                    updateStatus('❌ Province login failed', 'error');
+                    addResult('Province Login Failed', JSON.stringify(data, null, 2), 'error');
+                }
+            } catch (error) {
+                updateStatus('❌ Province login error: ' + error.message, 'error');
+            }
+        }
+
+        async function testExpiredMembersAPI() {
+            updateStatus('Testing Expired Members API...', 'info');
+            
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                updateStatus('❌ No token found. Please login first.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/v1/statistics/expired-members', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('✅ Expired Members API working!', 'success');
+                    addResult('Expired Members API Success', `
+Total Expired: ${data.data.national_summary.total_expired.toLocaleString()}
+Expiring Soon: ${data.data.national_summary.total_expiring_soon.toLocaleString()}
+Expiring Urgent: ${data.data.national_summary.total_expiring_urgent.toLocaleString()}
+Total Members: ${data.data.national_summary.total_members.toLocaleString()}
+
+Top Province: ${data.data.province_breakdown[0].province_name} (${data.data.province_breakdown[0].expired_count} expired)
+                    `, 'success');
+                } else {
+                    updateStatus('❌ API call failed', 'error');
+                    addResult('API Failed', JSON.stringify(data, null, 2), 'error');
+                }
+            } catch (error) {
+                updateStatus('❌ API error: ' + error.message, 'error');
+                addResult('API Error', error.message, 'error');
+            }
+        }
+
+        async function testDashboardAPI() {
+            updateStatus('Testing Dashboard API...', 'info');
+            
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                updateStatus('❌ No token found. Please login first.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/v1/statistics/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('✅ Dashboard API working!', 'success');
+                    addResult('Dashboard API Success', `
+Total Members: ${data.data.total_members?.toLocaleString() || 'N/A'}
+Active Members: ${data.data.active_members?.toLocaleString() || 'N/A'}
+Expired Members: ${data.data.expired_members?.toLocaleString() || 'N/A'}
+                    `, 'success');
+                } else {
+                    updateStatus('❌ Dashboard API failed', 'error');
+                    addResult('Dashboard API Failed', JSON.stringify(data, null, 2), 'error');
+                }
+            } catch (error) {
+                updateStatus('❌ Dashboard API error: ' + error.message, 'error');
+            }
+        }
+
+        function refreshDashboard() {
+            updateStatus('Refreshing main dashboard...', 'info');
+            
+            // Open the main dashboard in a new tab
+            window.open('http://localhost:3000/dashboard', '_blank');
+            
+            addResult('Dashboard Refresh', 'Main dashboard opened in new tab. The expired members data should now load without 401 errors.', 'success');
+        }
+
+        // Auto-check authentication status on load
+        window.onload = function() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                updateStatus('Found existing token. You can test the APIs.', 'success');
+                addResult('Existing Token Found', `Token: ${token.substring(0, 30)}...`, 'info');
+            } else {
+                updateStatus('No token found. Please login first.', 'info');
+            }
+        };
+    </script>
+</body>
+</html>

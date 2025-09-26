@@ -1,0 +1,12 @@
+{
+  "meeting_type_id": 1,
+  "title": "Test Valid War Council Meeting",
+  "description": "Testing with valid meeting type and hierarchy level",
+  "meeting_date": "2024-12-31",
+  "meeting_time": "10:00:00",
+  "location": "Test Location - National HQ",
+  "hierarchy_level": "National",
+  "entity_type": "National",
+  "entity_id": 1,
+  "auto_send_invitations": false
+}

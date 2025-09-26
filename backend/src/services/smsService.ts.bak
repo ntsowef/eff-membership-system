@@ -1,0 +1,548 @@
+import { executeQuery } from '../config/database';
+import { logger } from '../utils/logger';
+import axios from 'axios';
+
+export interface SMSTemplate {
+  id?: number;
+  name: string;
+  description?: string;
+  content: string;
+  variables: string[];
+  category: 'campaign' | 'notification' | 'reminder' | 'announcement' | 'custom';
+  is_active: boolean;
+  created_by?: number;
+}
+
+export interface SMSCampaign {
+  id?: number;
+  name: string;
+  description?: string;
+  template_id?: number;
+  message_content: string;
+  target_type: 'all' | 'province' | 'district' | 'municipality' | 'ward' | 'custom' | 'list';
+  target_criteria: any;
+  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'paused' | 'cancelled' | 'failed';
+  scheduled_at?: Date;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  send_rate_limit: number;
+  retry_failed: boolean;
+  max_retries: number;
+  created_by?: number;
+}
+
+export interface SMSMessage {
+  id?: number;
+  campaign_id?: number;
+  recipient_phone: string;
+  recipient_name?: string;
+  recipient_member_id?: number;
+  message_content: string;
+  status: 'pending' | 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'expired';
+  provider_message_id?: string;
+  error_code?: string;
+  error_message?: string;
+  retry_count: number;
+  cost_per_sms: number;
+  total_cost: number;
+}
+
+export interface SMSContactList {
+  id?: number;
+  name: string;
+  description?: string;
+  total_contacts: number;
+  active_contacts: number;
+  is_active: boolean;
+  allow_duplicates: boolean;
+  created_by?: number;
+}
+
+// Legacy interfaces for backward compatibility
+export interface LegacySMSMessage {
+  to: string;
+  message: string;
+  from?: string;
+}
+
+export interface SMSResponse {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  provider?: string;
+}
+
+export interface SMSProvider {
+  name: string;
+  sendSMS(message: LegacySMSMessage): Promise<SMSResponse>;
+}
+
+// Twilio SMS Provider
+class TwilioProvider implements SMSProvider {
+  name = 'Twilio';
+  private accountSid: string;
+  private authToken: string;
+  private fromNumber: string;
+
+  constructor(accountSid: string, authToken: string, fromNumber: string) {
+    this.accountSid = accountSid;
+    this.authToken = authToken;
+    this.fromNumber = fromNumber;
+  }
+
+  async sendSMS(message: SMSMessage): Promise<SMSResponse> {
+    try {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
+      
+      const data = new URLSearchParams({
+        To: message.to,
+        From: message.from || this.fromNumber,
+        Body: message.message
+      });
+
+      const response = await axios.post(url, data, {
+        auth: {
+          username: this.accountSid,
+          password: this.authToken
+        },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+
+      return {
+        success: true,
+        messageId: response.data.sid,
+        provider: this.name
+      };
+    } catch (error: any) {
+      console.error('Twilio SMS error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+        provider: this.name
+      };
+    }
+  }
+}
+
+// Clickatell SMS Provider
+class ClickatellProvider implements SMSProvider {
+  name = 'Clickatell';
+  private apiKey: string;
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  async sendSMS(message: SMSMessage): Promise<SMSResponse> {
+    try {
+      const url = 'https://platform.clickatell.com/messages';
+      
+      const data = {
+        to: [message.to],
+        text: message.message
+      };
+
+      const response = await axios.post(url, data, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      return {
+        success: true,
+        messageId: response.data.messages?.[0]?.apiMessageId,
+        provider: this.name
+      };
+    } catch (error: any) {
+      console.error('Clickatell SMS error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message,
+        provider: this.name
+      };
+    }
+  }
+}
+
+// SMS Gateway Provider (Generic HTTP API)
+class SMSGatewayProvider implements SMSProvider {
+  name = 'SMS Gateway';
+  private apiUrl: string;
+  private apiKey: string;
+  private username?: string;
+  private password?: string;
+
+  constructor(apiUrl: string, apiKey: string, username?: string, password?: string) {
+    this.apiUrl = apiUrl;
+    this.apiKey = apiKey;
+    this.username = username;
+    this.password = password;
+  }
+
+  async sendSMS(message: SMSMessage): Promise<SMSResponse> {
+    try {
+      const data = {
+        to: message.to,
+        message: message.message,
+        from: message.from,
+        api_key: this.apiKey
+      };
+
+      const headers: any = {
+        'Content-Type': 'application/json'
+      };
+
+      if (this.username && this.password) {
+        headers['Authorization'] = `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`;
+      }
+
+      const response = await axios.post(this.apiUrl, data, { headers });
+
+      return {
+        success: true,
+        messageId: response.data.message_id || response.data.id,
+        provider: this.name
+      };
+    } catch (error: any) {
+      console.error('SMS Gateway error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+        provider: this.name
+      };
+    }
+  }
+}
+
+// SMPP SMS Provider
+class SMPPProvider implements SMSProvider {
+  name = 'SMPP';
+  private session: any;
+  private config: any;
+  private isConnected = false;
+  private messageQueue: Array<{
+    message: SMSMessage;
+    resolve: (value: SMSResponse) => void;
+    reject: (reason: any) => void
+  }> = [];
+
+  constructor(config: any) {
+    this.config = config;
+    this.initializeConnection();
+  }
+
+  private initializeConnection(): void {
+    try {
+      this.session = smpp.createSession({
+        host: this.config.host,
+        port: this.config.port || 2775,
+        debug: this.config.debug || false,
+        auto_enquire_link_period: this.config.enquire_link_period || 30000
+      });
+
+      this.session.on('connect', () => {
+        console.log('SMPP: Connected to SMSC');
+        this.bindTransceiver();
+      });
+
+      this.session.on('bind_transceiver_resp', (pdu: any) => {
+        if (pdu.command_status === 0) {
+          console.log('SMPP: Successfully bound as transceiver');
+          this.isConnected = true;
+          this.processMessageQueue();
+        } else {
+          console.error('SMPP: Bind failed with status:', pdu.command_status);
+        }
+      });
+
+      this.session.on('submit_sm_resp', (pdu: any) => {
+        console.log('SMPP: Message submitted with ID:', pdu.message_id);
+      });
+
+      this.session.on('deliver_sm', (pdu: any) => {
+        console.log('SMPP: Delivery report received:', pdu);
+        // Send deliver_sm_resp
+        this.session.deliver_sm_resp({
+          sequence_number: pdu.sequence_number,
+          command_status: 0
+        });
+      });
+
+      this.session.on('error', (error: any) => {
+        console.error('SMPP: Session error:', error);
+        this.isConnected = false;
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => this.reconnect(), 5000);
+      });
+
+      this.session.on('close', () => {
+        console.log('SMPP: Session closed');
+        this.isConnected = false;
+      });
+
+      this.session.connect();
+    } catch (error) {
+      console.error('SMPP: Failed to initialize connection:', error);
+    }
+  }
+
+  private bindTransceiver(): void {
+    this.session.bind_transceiver({
+      system_id: this.config.system_id,
+      password: this.config.password,
+      system_type: this.config.system_type || '',
+      interface_version: 0x34,
+      addr_ton: this.config.addr_ton || 0,
+      addr_npi: this.config.addr_npi || 0,
+      address_range: this.config.address_range || ''
+    }, (_pdu: any) => {
+      // Bind response handled in event listener
+    });
+  }
+
+  private reconnect(): void {
+    console.log('SMPP: Attempting to reconnect...');
+    try {
+      this.session.connect();
+    } catch (error) {
+      console.error('SMPP: Reconnection failed:', error);
+      setTimeout(() => this.reconnect(), 10000); // Try again in 10 seconds
+    }
+  }
+
+  private processMessageQueue(): void {
+    while (this.messageQueue.length > 0 && this.isConnected) {
+      const { message, resolve, reject } = this.messageQueue.shift()!;
+      this.sendSMSInternal(message).then(resolve).catch(reject);
+    }
+  }
+
+  async sendSMS(message: SMSMessage): Promise<SMSResponse> {
+    if (!this.isConnected) {
+      // Queue the message if not connected
+      return new Promise((resolve, reject) => {
+        this.messageQueue.push({ message, resolve, reject });
+
+        // Set a timeout for queued messages
+        setTimeout(() => {
+          const index = this.messageQueue.findIndex(item => item.resolve === resolve);
+          if (index !== -1) {
+            this.messageQueue.splice(index, 1);
+            reject(new Error('SMPP connection timeout'));
+          }
+        }, 30000); // 30 second timeout
+      });
+    }
+
+    return this.sendSMSInternal(message);
+  }
+
+  private async sendSMSInternal(message: SMSMessage): Promise<SMSResponse> {
+    return new Promise((resolve, reject) => {
+      try {
+        const submitOptions = {
+          source_addr_ton: this.config.source_addr_ton || 1,
+          source_addr_npi: this.config.source_addr_npi || 1,
+          source_addr: message.from || this.config.default_sender || 'GEOMAPS',
+          dest_addr_ton: this.config.dest_addr_ton || 1,
+          dest_addr_npi: this.config.dest_addr_npi || 1,
+          destination_addr: message.to.replace('+', ''),
+          esm_class: 0,
+          protocol_id: 0,
+          priority_flag: 0,
+          schedule_delivery_time: '',
+          validity_period: '',
+          registered_delivery: this.config.delivery_receipt ? 1 : 0,
+          replace_if_present_flag: 0,
+          data_coding: this.config.data_coding || 0,
+          sm_default_msg_id: 0,
+          short_message: message.message
+        };
+
+        this.session.submit_sm(submitOptions, (pdu: any) => {
+          if (pdu.command_status === 0) {
+            resolve({
+              success: true,
+              messageId: pdu.message_id,
+              provider: this.name
+            });
+          } else {
+            resolve({
+              success: false,
+              error: `SMPP error: ${pdu.command_status}`,
+              provider: this.name
+            });
+          }
+        });
+      } catch (error: any) {
+        resolve({
+          success: false,
+          error: error.message || 'SMPP send error',
+          provider: this.name
+        });
+      }
+    });
+  }
+
+  disconnect(): void {
+    if (this.session) {
+      this.session.close();
+      this.isConnected = false;
+    }
+  }
+}
+
+// Mock SMS Provider for testing
+class MockSMSProvider implements SMSProvider {
+  name = 'Mock SMS';
+
+  async sendSMS(message: SMSMessage): Promise<SMSResponse> {
+    console.log(`[MOCK SMS] To: ${message.to}, Message: ${message.message}`);
+
+    // Simulate random success/failure for testing
+    const success = Math.random() > 0.1; // 90% success rate
+
+    if (success) {
+      return {
+        success: true,
+        messageId: `mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        provider: this.name
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Mock SMS failure for testing',
+        provider: this.name
+      };
+    }
+  }
+}
+
+// SMS Service class
+class SMSService {
+  private provider: SMSProvider;
+
+  constructor() {
+    this.provider = this.initializeProvider();
+  }
+
+  private initializeProvider(): SMSProvider {
+    const smsConfig = config.sms || {};
+
+    switch (smsConfig.provider?.toLowerCase()) {
+      case 'twilio':
+        if (!smsConfig.twilio?.accountSid || !smsConfig.twilio?.authToken || !smsConfig.twilio?.fromNumber) {
+          console.warn('Twilio SMS configuration incomplete, falling back to mock provider');
+          return new MockSMSProvider();
+        }
+        return new TwilioProvider(
+          smsConfig.twilio.accountSid,
+          smsConfig.twilio.authToken,
+          smsConfig.twilio.fromNumber
+        );
+
+      case 'clickatell':
+        if (!smsConfig.clickatell?.apiKey) {
+          console.warn('Clickatell SMS configuration incomplete, falling back to mock provider');
+          return new MockSMSProvider();
+        }
+        return new ClickatellProvider(smsConfig.clickatell.apiKey);
+
+      case 'gateway':
+        if (!smsConfig.gateway?.apiUrl || !smsConfig.gateway?.apiKey) {
+          console.warn('SMS Gateway configuration incomplete, falling back to mock provider');
+          return new MockSMSProvider();
+        }
+        return new SMSGatewayProvider(
+          smsConfig.gateway.apiUrl,
+          smsConfig.gateway.apiKey,
+          smsConfig.gateway.username,
+          smsConfig.gateway.password
+        );
+
+      case 'smpp':
+        if (!smsConfig.smpp?.host || !smsConfig.smpp?.system_id || !smsConfig.smpp?.password) {
+          console.warn('SMPP SMS configuration incomplete, falling back to mock provider');
+          return new MockSMSProvider();
+        }
+        return new SMPPProvider(smsConfig.smpp);
+
+      case 'mock':
+      default:
+        return new MockSMSProvider();
+    }
+  }
+
+  async sendSMS(to: string, message: string, from?: string): Promise<SMSResponse> {
+    try {
+      // Validate phone number format (basic validation)
+      if (!this.isValidPhoneNumber(to)) {
+        return {
+          success: false,
+          error: 'Invalid phone number format',
+          provider: this.provider.name
+        };
+      }
+
+      // Format phone number (ensure it starts with +)
+      const formattedTo = this.formatPhoneNumber(to);
+
+      const smsMessage: SMSMessage = {
+        to: formattedTo,
+        message: message.substring(0, 1600), // Limit message length
+        from
+      };
+
+      return await this.provider.sendSMS(smsMessage);
+    } catch (error: any) {
+      console.error('SMS Service error:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown SMS error',
+        provider: this.provider.name
+      };
+    }
+  }
+
+  private isValidPhoneNumber(phoneNumber: string): boolean {
+    // Basic phone number validation - should be digits with optional + and spaces/dashes
+    const phoneRegex = /^[\+]?[1-9][\d\s\-\(\)]{7,15}$/;
+    return phoneRegex.test(phoneNumber.replace(/\s/g, ''));
+  }
+
+  private formatPhoneNumber(phoneNumber: string): string {
+    // Remove all non-digit characters except +
+    let formatted = phoneNumber.replace(/[^\d\+]/g, '');
+    
+    // If it doesn't start with +, add +27 for South African numbers (default)
+    if (!formatted.startsWith('+')) {
+      // If it starts with 0, replace with +27
+      if (formatted.startsWith('0')) {
+        formatted = '+27' + formatted.substring(1);
+      } else if (formatted.startsWith('27')) {
+        formatted = '+' + formatted;
+      } else {
+        // Default to South African country code
+        formatted = '+27' + formatted;
+      }
+    }
+    
+    return formatted;
+  }
+
+  getProviderName(): string {
+    return this.provider.name;
+  }
+
+  // Test SMS functionality
+  async testSMS(to: string): Promise<SMSResponse> {
+    const testMessage = `Test SMS from Membership System at ${new Date().toLocaleString()}`;
+    return await this.sendSMS(to, testMessage);
+  }
+}
+
+// Export singleton instance
+export const smsService = new SMSService();
+export { SMSService };

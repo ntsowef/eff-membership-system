@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-09-19T07:32:08.898Z",
+  "summary": {
+    "totalTests": 3,
+    "passedTests": 3,
+    "failedTests": 0,
+    "duration": 4612
+  },
+  "results": [
+    {
+      "name": "Database Schema & Structure Test",
+      "file": "test-war-council-database.js",
+      "exitCode": 0,
+      "stdout": "🔍 Starting War Council Database Tests...\n\n✅ Database connection established\n\n📋 Test 1: Leadership Structures Table\n❌ leadership_structures table does not exist or query failed: Unknown column 'name' in 'WHERE'\n\n📋 Test 2: War Council Positions\n❌ Failed to query War Council positions: Unknown column 'ls.name' in 'SELECT'\n\n📋 Test 3: War Council Structure View\n❌ War Council view not accessible: Table 'membership_new.vw_war_council_structure' doesn't exist\n\n📋 Test 4: Current War Council Appointments\n❌ Failed to query War Council appointments: Unknown column 'm.first_name' in 'SELECT'\n\n📋 Test 5: Position Uniqueness Validation\n❌ Failed to validate position uniqueness: Unknown column 'ls.name' in 'WHERE'\n\n📋 Test 6: Province-Specific Position Validation\n❌ Failed to validate province-specific positions: Unknown column 'province_code' in 'SELECT'\n\n🎉 War Council Database Tests Completed!\n🔌 Database connection closed\n",
+      "stderr": "",
+      "success": true,
+      "duration": 790
+    },
+    {
+      "name": "API Endpoints Test",
+      "file": "test-war-council-api.js",
+      "exitCode": 0,
+      "stdout": "ℹ️  [2025-09-19T07:32:06.273Z] 🚀 Starting War Council API Tests\n⚠️  [2025-09-19T07:32:06.274Z] Authentication skipped - using direct API calls\n🧪 [2025-09-19T07:32:06.276Z] Running test: Get War Council Structure\n❌ [2025-09-19T07:32:06.330Z] Test failed: Get War Council Structure - Request failed with status code 404\n❌ [2025-09-19T07:32:06.330Z] Test suite failed: Request failed with status code 404\n\n📊 Test Summary:\n✅ Passed: 0\n❌ Failed: 1\n⏭️  Skipped: 0\n📝 Total: 1\n\n❌ Failed Tests:\n   - Get War Council Structure: Request failed with status code 404\n\n🎉 War Council API Tests Completed!\n",
+      "stderr": "",
+      "success": true,
+      "duration": 2057
+    },
+    {
+      "name": "Integration Test",
+      "file": "test-war-council-integration.js",
+      "exitCode": 0,
+      "stdout": "📋 [2025-09-19T07:32:07.678Z] 🚀 Starting War Council Integration Tests\nℹ️ [2025-09-19T07:32:07.680Z] Setting up integration test environment...\n✅ [2025-09-19T07:32:07.734Z] Database connection established\n✅ [2025-09-19T07:32:07.753Z] Backend API is accessible\n📋 [2025-09-19T07:32:07.753Z] Running Database Tests...\n🧪 [2025-09-19T07:32:07.753Z] Running database test: Database Schema\n❌ [2025-09-19T07:32:07.756Z] ❌ Database Schema failed: Unknown column 'name' in 'WHERE'\n🧪 [2025-09-19T07:32:07.756Z] Running database test: Database Constraints\n❌ [2025-09-19T07:32:07.757Z] ❌ Database Constraints failed: Unknown column 'ls.name' in 'WHERE'\n📋 [2025-09-19T07:32:07.757Z] Running API Tests...\n🧪 [2025-09-19T07:32:07.757Z] Running api test: API Endpoints\n❌ [2025-09-19T07:32:07.801Z] ❌ API Endpoints failed: Failed endpoints: /leadership/war-council/structure, /leadership/war-council/dashboard, /leadership/war-council/positions, /leadership/war-council/positions/available\n🧪 [2025-09-19T07:32:07.801Z] Running api test: API Data Consistency\n❌ [2025-09-19T07:32:07.811Z] ❌ API Data Consistency failed: Request failed with status code 404\n📋 [2025-09-19T07:32:07.811Z] Running Integration Tests...\n🧪 [2025-09-19T07:32:07.812Z] Running integration test: Database-API Consistency\n❌ [2025-09-19T07:32:07.813Z] ❌ Database-API Consistency failed: Unknown column 'ls.name' in 'WHERE'\n🧪 [2025-09-19T07:32:07.813Z] Running integration test: Permission System\n❌ [2025-09-19T07:32:07.868Z] ❌ Permission System failed: Unexpected error testing /leadership/war-council/appointments: Request failed with status code 404\nℹ️ [2025-09-19T07:32:07.869Z] Database connection closed\n\n📊 Integration Test Summary:\n\nDATABASE Tests:\n  ✅ Passed: 0\n  ❌ Failed: 2\n  📝 Total: 2\n  Failed tests:\n    - Database Schema: Unknown column 'name' in 'WHERE'\n    - Database Constraints: Unknown column 'ls.name' in 'WHERE'\n\nAPI Tests:\n  ✅ Passed: 0\n  ❌ Failed: 2\n  📝 Total: 2\n  Failed tests:\n    - API Endpoints: Failed endpoints: /leadership/war-council/structure, /leadership/war-council/dashboard, /leadership/war-council/positions, /leadership/war-council/positions/available\n    - API Data Consistency: Request failed with status code 404\n\nINTEGRATION Tests:\n  ✅ Passed: 0\n  ❌ Failed: 2\n  📝 Total: 2\n  Failed tests:\n    - Database-API Consistency: Unknown column 'ls.name' in 'WHERE'\n    - Permission System: Unexpected error testing /leadership/war-council/appointments: Request failed with status code 404\n\n🎯 Overall Results:\n  ✅ Passed: 0/6\n  ❌ Failed: 6/6\n  📈 Success Rate: 0%\n\n⚠️  Some tests failed. Please review and fix issues before deployment.\n",
+      "stderr": "",
+      "success": true,
+      "duration": 3607
+    }
+  ]
+}

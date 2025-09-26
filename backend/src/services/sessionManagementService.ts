@@ -1,0 +1,637 @@
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { createDatabaseError, ValidationError } from '../middleware/errorHandler';
+import { cacheService } from './cacheService';
+import { redisService } from './redisService';
+import crypto from 'crypto';
+
+export interface UserSession {
+  id: number;
+  session_id: string;
+  user_id: number;
+  ip_address: string;
+  user_agent: string;
+  expires_at: string;
+  last_activity: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SessionLimits {
+  max_concurrent_sessions: number;
+  session_timeout_minutes: number;
+  force_single_session: boolean;
+}
+
+export interface ConcurrentSessionInfo {
+  current_sessions: number;
+  max_allowed: number;
+  can_create_new: boolean;
+  oldest_session?: UserSession;
+}
+
+export class SessionManagementService {
+  private static readonly SESSION_CACHE_PREFIX = 'session:';
+  private static readonly USER_SESSIONS_CACHE_PREFIX = 'user_sessions:';
+
+  // Enhanced session timeout settings (10 minutes for security)
+  private static readonly DEFAULT_SESSION_TIMEOUT_MINUTES = 10;
+  private static readonly SESSION_WARNING_MINUTES = 2; // Warning 2 minutes before expiry
+  private static readonly SESSION_EXTENSION_MINUTES = 10; // Extension duration
+
+  // Create new session with concurrent session management
+  static async createSession(
+    userId: number,
+    ipAddress: string,
+    userAgent: string
+  ): Promise<{ session_id: string; expires_at: Date; warnings?: string[] }> {
+    try {
+      const warnings: string[] = [];
+
+      // Get session limits for user (use enhanced timeout)
+      const limits = await this.getSessionLimits(userId);
+
+      // Override session timeout to 10 minutes for enhanced security
+      limits.session_timeout_minutes = this.DEFAULT_SESSION_TIMEOUT_MINUTES;
+
+      // Check current active sessions
+      const sessionInfo = await this.getConcurrentSessionInfo(userId);
+
+      // Handle session limits
+      if (!sessionInfo.can_create_new) {
+        if (limits.force_single_session) {
+          // Terminate all existing sessions
+          await this.terminateAllUserSessions(userId, 'New session created');
+          warnings.push('All previous sessions have been terminated due to single session policy');
+        } else {
+          // Terminate oldest session
+          if (sessionInfo.oldest_session) {
+            await this.terminateSession(sessionInfo.oldest_session.session_id, 'Session limit exceeded');
+            warnings.push('Oldest session terminated due to concurrent session limit');
+          }
+        }
+      }
+
+      // Generate session ID
+      const sessionId = this.generateSessionId();
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + limits.session_timeout_minutes);
+
+      // Create session in database
+      await executeQuery(`
+        INSERT INTO user_sessions (
+          session_id, user_id, ip_address, user_agent, expires_at, is_active
+        ) VALUES (?, ?, ?, ?, ?, TRUE)
+      `, [sessionId, userId, ipAddress, userAgent, expiresAt]);
+
+      // Cache session data in Redis
+      if (redisService.isRedisConnected()) {
+        await redisService.setSession(sessionId, {
+          userId,
+          ipAddress,
+          userAgent,
+          expiresAt: expiresAt.toISOString(),
+          isActive: true
+        }, limits.session_timeout_minutes * 60);
+      } else {
+        // Fallback to cache service
+        await cacheService.set(
+          `${this.SESSION_CACHE_PREFIX}${sessionId}`,
+          {
+            userId,
+            ipAddress,
+            userAgent,
+            expiresAt: expiresAt.toISOString(),
+            isActive: true
+          },
+          limits.session_timeout_minutes * 60
+        );
+      }
+
+      // Update user sessions cache
+      await this.updateUserSessionsCache(userId);
+
+      return {
+        session_id: sessionId,
+        expires_at: expiresAt,
+        warnings: warnings.length > 0 ? warnings : undefined
+      };
+    } catch (error) {
+      throw createDatabaseError('Failed to create session', error);
+    }
+  }
+
+  // Validate session
+  static async validateSession(sessionId: string): Promise<{
+    valid: boolean;
+    user_id?: number;
+    expires_at?: string;
+    needs_refresh?: boolean;
+  }> {
+    try {
+      // Check cache first
+      const cached = await cacheService.get(`${this.SESSION_CACHE_PREFIX}${sessionId}`);
+      
+      if (cached) {
+        const session = cached as any;
+        const now = new Date();
+        const expiresAt = new Date(session.expiresAt);
+
+        if (now < expiresAt && session.isActive) {
+          // Check if session needs refresh (less than 30 minutes remaining)
+          const minutesRemaining = (expiresAt.getTime() - now.getTime()) / (1000 * 60);
+          
+          return {
+            valid: true,
+            user_id: session.userId,
+            expires_at: session.expiresAt,
+            needs_refresh: minutesRemaining < 30
+          };
+        }
+      }
+
+      // Check database if not in cache or expired
+      const session = await executeQuerySingle(`
+        SELECT user_id, expires_at, is_active
+        FROM user_sessions 
+        WHERE session_id = ? AND expires_at > NOW() AND is_active = TRUE
+      `, [sessionId]);
+
+      if (session) {
+        // Refresh cache
+        const limits = await this.getSessionLimits(session.user_id);
+        await cacheService.set(
+          `${this.SESSION_CACHE_PREFIX}${sessionId}`,
+          {
+            userId: session.user_id,
+            expiresAt: session.expires_at,
+            isActive: session.is_active
+          },
+          limits.session_timeout_minutes * 60
+        );
+
+        return {
+          valid: true,
+          user_id: session.user_id,
+          expires_at: session.expires_at
+        };
+      }
+
+      return { valid: false };
+    } catch (error) {
+      return { valid: false };
+    }
+  }
+
+  // Refresh session
+  static async refreshSession(sessionId: string): Promise<{ success: boolean; expires_at?: Date }> {
+    try {
+      const validation = await this.validateSession(sessionId);
+      
+      if (!validation.valid || !validation.user_id) {
+        return { success: false };
+      }
+
+      const limits = await this.getSessionLimits(validation.user_id);
+      const newExpiresAt = new Date();
+      newExpiresAt.setMinutes(newExpiresAt.getMinutes() + limits.session_timeout_minutes);
+
+      // Update database
+      await executeQuery(`
+        UPDATE user_sessions 
+        SET expires_at = ?, last_activity = NOW()
+        WHERE session_id = ? AND is_active = TRUE
+      `, [newExpiresAt, sessionId]);
+
+      // Update cache
+      await cacheService.set(
+        `${this.SESSION_CACHE_PREFIX}${sessionId}`,
+        {
+          userId: validation.user_id,
+          expiresAt: newExpiresAt.toISOString(),
+          isActive: true
+        },
+        limits.session_timeout_minutes * 60
+      );
+
+      return {
+        success: true,
+        expires_at: newExpiresAt
+      };
+    } catch (error) {
+      return { success: false };
+    }
+  }
+
+  // Terminate session
+  static async terminateSession(sessionId: string, reason?: string): Promise<boolean> {
+    try {
+      // Get session info for cache cleanup
+      const session = await executeQuerySingle(`
+        SELECT user_id FROM user_sessions WHERE session_id = ?
+      `, [sessionId]);
+
+      // Deactivate session in database
+      await executeQuery(`
+        UPDATE user_sessions 
+        SET is_active = FALSE, last_activity = NOW()
+        WHERE session_id = ?
+      `, [sessionId]);
+
+      // Remove from cache
+      await cacheService.del(`${this.SESSION_CACHE_PREFIX}${sessionId}`);
+
+      // Update user sessions cache
+      if (session) {
+        await this.updateUserSessionsCache(session.user_id);
+      }
+
+      // Log session termination
+      if (session && reason) {
+        await executeQuery(`
+          INSERT INTO security_events (
+            user_id, event_type, ip_address, details, severity
+          ) VALUES (?, 'logout', '0.0.0.0', ?, 'low')
+        `, [session.user_id, JSON.stringify({ reason, session_id: sessionId })]);
+      }
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Terminate all user sessions
+  static async terminateAllUserSessions(userId: number, reason?: string): Promise<number> {
+    try {
+      // Get all active sessions
+      const sessions = await executeQuery(`
+        SELECT session_id FROM user_sessions 
+        WHERE user_id = ? AND is_active = TRUE
+      `, [userId]);
+
+      // Deactivate all sessions
+      const result = await executeQuery(`
+        UPDATE user_sessions 
+        SET is_active = FALSE, last_activity = NOW()
+        WHERE user_id = ? AND is_active = TRUE
+      `, [userId]);
+
+      // Remove from cache
+      for (const session of sessions) {
+        await cacheService.del(`${this.SESSION_CACHE_PREFIX}${session.session_id}`);
+      }
+
+      // Clear user sessions cache
+      await cacheService.del(`${this.USER_SESSIONS_CACHE_PREFIX}${userId}`);
+
+      // Log mass session termination
+      if (reason) {
+        await executeQuery(`
+          INSERT INTO security_events (
+            user_id, event_type, ip_address, details, severity
+          ) VALUES (?, 'logout', '0.0.0.0', ?, 'medium')
+        `, [userId, JSON.stringify({ reason, terminated_sessions: result.affectedRows })]);
+      }
+
+      return result.affectedRows;
+    } catch (error) {
+      throw createDatabaseError('Failed to terminate user sessions', error);
+    }
+  }
+
+  // Get user's active sessions
+  static async getUserActiveSessions(userId: number): Promise<UserSession[]> {
+    try {
+      // Check cache first
+      const cached = await cacheService.get(`${this.USER_SESSIONS_CACHE_PREFIX}${userId}`);
+      
+      if (cached) {
+        return cached as UserSession[];
+      }
+
+      // Get from database
+      const sessions = await executeQuery(`
+        SELECT * FROM user_sessions 
+        WHERE user_id = ? AND expires_at > NOW() AND is_active = TRUE
+        ORDER BY last_activity DESC
+      `, [userId]);
+
+      // Cache for 5 minutes
+      await cacheService.set(`${this.USER_SESSIONS_CACHE_PREFIX}${userId}`, sessions, 300);
+
+      return sessions;
+    } catch (error) {
+      throw createDatabaseError('Failed to get user active sessions', error);
+    }
+  }
+
+  // Get session limits for user
+  static async getSessionLimits(userId: number): Promise<SessionLimits> {
+    try {
+      const user = await executeQuerySingle(`
+        SELECT u.role_id, u.admin_level, r.name as role_name
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.id = ?
+      `, [userId]);
+
+      if (!user) {
+        throw new ValidationError('User not found');
+      }
+
+      // Get specific limits for user's role and admin level
+      const limits = await executeQuerySingle(`
+        SELECT max_concurrent_sessions, session_timeout_minutes, force_single_session
+        FROM concurrent_session_limits
+        WHERE role_id = ? AND admin_level = ?
+      `, [user.role_id, user.admin_level]);
+
+      if (limits) {
+        return {
+          max_concurrent_sessions: limits.max_concurrent_sessions,
+          session_timeout_minutes: limits.session_timeout_minutes,
+          force_single_session: limits.force_single_session
+        };
+      }
+
+      // Default limits
+      return {
+        max_concurrent_sessions: 3,
+        session_timeout_minutes: 1440, // 24 hours
+        force_single_session: false
+      };
+    } catch (error) {
+      // Return default limits on error
+      return {
+        max_concurrent_sessions: 3,
+        session_timeout_minutes: 1440,
+        force_single_session: false
+      };
+    }
+  }
+
+  // Get concurrent session info
+  static async getConcurrentSessionInfo(userId: number): Promise<ConcurrentSessionInfo> {
+    try {
+      const activeSessions = await this.getUserActiveSessions(userId);
+      const limits = await this.getSessionLimits(userId);
+
+      const oldestSession = activeSessions.length > 0 
+        ? activeSessions[activeSessions.length - 1] 
+        : undefined;
+
+      return {
+        current_sessions: activeSessions.length,
+        max_allowed: limits.max_concurrent_sessions,
+        can_create_new: activeSessions.length < limits.max_concurrent_sessions,
+        oldest_session: oldestSession
+      };
+    } catch (error) {
+      return {
+        current_sessions: 0,
+        max_allowed: 3,
+        can_create_new: true
+      };
+    }
+  }
+
+  // Clean up expired sessions
+  static async cleanupExpiredSessions(): Promise<number> {
+    try {
+      const result = await executeQuery(`
+        UPDATE user_sessions 
+        SET is_active = FALSE 
+        WHERE expires_at <= NOW() AND is_active = TRUE
+      `);
+
+      // Also clean up cache entries (this would be done by a background job in production)
+      // For now, we'll just return the count
+      return result.affectedRows;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  // Generate secure session ID
+  private static generateSessionId(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  // Update user sessions cache
+  private static async updateUserSessionsCache(userId: number): Promise<void> {
+    try {
+      const sessions = await executeQuery(`
+        SELECT * FROM user_sessions 
+        WHERE user_id = ? AND expires_at > NOW() AND is_active = TRUE
+        ORDER BY last_activity DESC
+      `, [userId]);
+
+      await cacheService.set(`${this.USER_SESSIONS_CACHE_PREFIX}${userId}`, sessions, 300);
+    } catch (error) {
+      // Ignore cache update errors
+    }
+  }
+
+  // Get session by session ID
+  static async getSession(sessionId: string): Promise<UserSession | null> {
+    try {
+      // Try cache first
+      if (redisService.isRedisConnected()) {
+        const cachedSession = await redisService.getSession(sessionId);
+        if (cachedSession) {
+          return cachedSession as UserSession;
+        }
+      } else {
+        const cachedSession = await cacheService.get(`${this.SESSION_CACHE_PREFIX}${sessionId}`);
+        if (cachedSession) {
+          return cachedSession as UserSession;
+        }
+      }
+
+      // Fallback to database
+      const session = await executeQuerySingle(`
+        SELECT * FROM user_sessions
+        WHERE session_id = ? AND is_active = TRUE
+      `, [sessionId]);
+
+      return session || null;
+    } catch (error) {
+      console.error('Failed to get session:', error);
+      return null;
+    }
+  }
+
+  // Check if session needs warning (2 minutes before expiry)
+  static async checkSessionWarning(sessionId: string): Promise<{ needsWarning: boolean; timeRemaining: number }> {
+    try {
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        return { needsWarning: false, timeRemaining: 0 };
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(session.expires_at);
+      const timeRemainingMs = expiresAt.getTime() - now.getTime();
+      const timeRemainingMinutes = Math.floor(timeRemainingMs / (1000 * 60));
+
+      const needsWarning = timeRemainingMinutes <= this.SESSION_WARNING_MINUTES && timeRemainingMinutes > 0;
+
+      return {
+        needsWarning,
+        timeRemaining: Math.max(0, timeRemainingMinutes)
+      };
+    } catch (error) {
+      console.error('Failed to check session warning:', error);
+      return { needsWarning: false, timeRemaining: 0 };
+    }
+  }
+
+  // Extend session by 10 minutes
+  static async extendSession(sessionId: string): Promise<{ success: boolean; newExpiryTime?: Date; error?: string }> {
+    try {
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        return { success: false, error: 'Session not found' };
+      }
+
+      const now = new Date();
+      const currentExpiry = new Date(session.expires_at);
+
+      // Check if session is still valid
+      if (currentExpiry <= now) {
+        return { success: false, error: 'Session has already expired' };
+      }
+
+      // Extend session by 10 minutes from current time
+      const newExpiryTime = new Date();
+      newExpiryTime.setMinutes(newExpiryTime.getMinutes() + this.SESSION_EXTENSION_MINUTES);
+
+      // Update database
+      await executeQuery(`
+        UPDATE user_sessions
+        SET expires_at = ?, last_activity = NOW()
+        WHERE session_id = ? AND is_active = TRUE
+      `, [newExpiryTime, sessionId]);
+
+      // Update cache
+      if (redisService.isRedisConnected()) {
+        await redisService.setSession(sessionId, {
+          ...session,
+          expires_at: newExpiryTime.toISOString()
+        }, this.SESSION_EXTENSION_MINUTES * 60);
+      } else {
+        await cacheService.set(
+          `${this.SESSION_CACHE_PREFIX}${sessionId}`,
+          {
+            ...session,
+            expires_at: newExpiryTime.toISOString()
+          },
+          this.SESSION_EXTENSION_MINUTES * 60
+        );
+      }
+
+      console.log(`🔄 Session extended: ${sessionId} extended until ${newExpiryTime.toISOString()}`);
+
+      return { success: true, newExpiryTime };
+    } catch (error) {
+      console.error('Failed to extend session:', error);
+      return { success: false, error: 'Failed to extend session' };
+    }
+  }
+
+  // Get session status for frontend
+  static async getSessionStatus(sessionId: string): Promise<{
+    isValid: boolean;
+    timeRemaining: number;
+    needsWarning: boolean;
+    canExtend: boolean;
+  }> {
+    try {
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        return { isValid: false, timeRemaining: 0, needsWarning: false, canExtend: false };
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(session.expires_at);
+      const timeRemainingMs = expiresAt.getTime() - now.getTime();
+      const timeRemainingMinutes = Math.floor(timeRemainingMs / (1000 * 60));
+
+      const isValid = timeRemainingMinutes > 0;
+      const needsWarning = timeRemainingMinutes <= this.SESSION_WARNING_MINUTES && timeRemainingMinutes > 0;
+      const canExtend = isValid && timeRemainingMinutes <= this.SESSION_WARNING_MINUTES;
+
+      return {
+        isValid,
+        timeRemaining: Math.max(0, timeRemainingMinutes),
+        needsWarning,
+        canExtend
+      };
+    } catch (error) {
+      console.error('Failed to get session status:', error);
+      return { isValid: false, timeRemaining: 0, needsWarning: false, canExtend: false };
+    }
+  }
+
+  // Terminate specific session for routes
+  static async terminateUserSession(sessionId: string, userId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Verify session belongs to user
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        return { success: false, error: 'Session not found' };
+      }
+
+      if (session.user_id !== userId) {
+        return { success: false, error: 'Unauthorized to terminate this session' };
+      }
+
+      // Terminate session using existing method
+      const success = await this.terminateSession(sessionId, 'Manual termination');
+      return { success };
+    } catch (error) {
+      console.error('Failed to terminate session:', error);
+      return { success: false, error: 'Failed to terminate session' };
+    }
+  }
+
+  // Terminate all user sessions except current one for routes
+  static async terminateAllOtherUserSessions(userId: number, currentSessionId?: string): Promise<{ terminated_count: number }> {
+    try {
+      let query = `
+        UPDATE user_sessions
+        SET is_active = FALSE
+        WHERE user_id = ? AND is_active = TRUE
+      `;
+      const params: any[] = [userId];
+
+      if (currentSessionId) {
+        query += ` AND session_id != ?`;
+        params.push(currentSessionId);
+      }
+
+      const result = await executeQuery(query, params);
+      const terminatedCount = result.affectedRows || 0;
+
+      // Clear cache for terminated sessions
+      const sessions = await executeQuery(`
+        SELECT session_id FROM user_sessions
+        WHERE user_id = ? AND is_active = FALSE
+      `, [userId]);
+
+      for (const session of sessions) {
+        if (redisService.isRedisConnected()) {
+          await redisService.deleteSession(session.session_id);
+        } else {
+          await cacheService.del(`${this.SESSION_CACHE_PREFIX}${session.session_id}`);
+        }
+      }
+
+      console.log(`🔒 Terminated ${terminatedCount} sessions for user ${userId}`);
+      return { terminated_count: terminatedCount };
+    } catch (error) {
+      console.error('Failed to terminate user sessions:', error);
+      return { terminated_count: 0 };
+    }
+  }
+}
