@@ -197,7 +197,7 @@ router.get('/me/membership-status', authenticate, async (req: Request, res: Resp
     }
 
     // Calculate membership details
-    const joinDate = new Date(member.date_joined || member.member_created_at);
+    const joinDate = new Date(member.date_joined || member.member_created_at || new Date());
     const expiryDate = new Date(member.expiry_date || member.membership_expiry || new Date());
     const today = new Date();
     const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
