@@ -2718,7 +2718,7 @@ router.get('/ward/:wardCode/audit-export',
             wordBuffer: wordBuffer,
             wardInfo: wardInfo,
             memberCount: members.length
-          } : null
+          } : undefined
         });
         console.log(`✅ Word Attendance Register created: ${wordFilename}`);
 
@@ -2753,7 +2753,7 @@ router.get('/ward/:wardCode/audit-export',
             pdfBuffer: pdfBuffer,
             wardInfo: wardInfo,
             memberCount: members.length
-          } : null
+          } : undefined
         });
         console.log(`✅ PDF Attendance Register created: ${pdfFilename}`);
 
