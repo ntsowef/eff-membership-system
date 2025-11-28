@@ -97,10 +97,13 @@ export const apiPatch = async <T = any>(endpoint: string, data?: any): Promise<A
   return response.data;
 };
 
-export const apiDelete = async <T = any>(endpoint: string): Promise<ApiResponse<T>> => {
-  const response = await api.delete(endpoint);
+export const apiDelete = async <T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
+  const response = await api.delete(endpoint, { data });
   return response.data;
 };
+
+// Export axios instance for direct use when needed
+export { api };
 
 // Geographic API functions
 export const geographicApi = {
@@ -114,6 +117,10 @@ export const geographicApi = {
   // Municipalities - Filter by district (corrected from province filtering)
   getMunicipalities: (districtCode?: string) =>
     apiGet('/geographic/municipalities', districtCode ? { district: districtCode } : {}),
+
+  // Get municipality by code
+  getMunicipalityByCode: (municipalityCode: string) =>
+    apiGet(`/geographic/municipalities/${municipalityCode}`),
 
   // Subregions - Filter by municipality
   getSubregions: (municipalityCode?: string) =>
@@ -160,7 +167,36 @@ export const membersApi = {
   getMemberStatistics: () => apiGet('/members/statistics'),
   exportMembers: (format: string, filters?: any) =>
     apiGet('/members/export', { format, ...filters }),
-  exportWardAudit: (wardCode: string) => apiGet(`/members/ward/${wardCode}/audit-export`),
+  exportWardAudit: async (wardCode: string, format: string = 'pdf') => {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.get(
+      `${API_BASE_URL}/members/ward/${wardCode}/audit-export`,
+      {
+        params: { format },
+        responseType: 'blob',
+        timeout: 60000,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
+  exportSubregionMembers: async (subregionCode: string, options?: { format?: string }) => {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.get(
+      `${API_BASE_URL}/members/subregion/${subregionCode}/export`,
+      {
+        params: options,
+        responseType: 'blob',
+        timeout: 60000,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
 };
 
 // Applications API functions
@@ -171,6 +207,7 @@ export const applicationsApi = {
   createApplication: (data: any) => apiPost('/membership-applications', data),
   updateApplication: (id: string, data: any) => apiPut(`/membership-applications/${id}`, data),
   deleteApplication: (id: string) => apiDelete(`/membership-applications/${id}`),
+  submitApplication: (id: string) => apiPost(`/membership-applications/${id}/submit`, {}),
 
   // Review actions
   reviewApplication: (id: string, reviewData: any) => apiPost(`/membership-applications/${id}/review`, reviewData),
@@ -263,6 +300,21 @@ export const viewsApi = {
     apiGet('/views/members-with-voting-districts', filters),
   getVotingDistrictSummary: (filters?: any) =>
     apiGet('/views/voting-district-summary', filters),
+  exportMembersWithVotingDistricts: async (filters?: any, format: string = 'pdf') => {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.get(
+      `${API_BASE_URL}/views/members-with-voting-districts/export`,
+      {
+        params: { ...filters, format },
+        responseType: 'blob',
+        timeout: 60000,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
 };
 
 // Analytics API functions
@@ -486,10 +538,15 @@ export const lookupApi = {
 export const systemApi = {
   getHealth: () => apiGet<SystemHealth>('/system/health'),
   getSystemInfo: () => apiGet('/system/info'),
+  getSystemOverview: () => apiGet('/system/overview'),
   getSystemLogs: (filters?: any) => apiGet('/system/logs', filters),
+  getLogDetail: (source: string, logId: number) => apiGet(`/system/logs/${source}/${logId}`),
   getSettings: () => apiGet('/system/settings'),
   getSetting: (key: string) => apiGet(`/system/settings/${key}`),
   updateSetting: (key: string, value: any) => apiPut(`/system/settings/${key}`, { value }),
+
+  // Export operations
+  exportLogsCSV: () => `${API_BASE_URL}/system/logs/export/csv`,
 
   // Backup operations
   createBackup: () => apiPost('/system/backups'),

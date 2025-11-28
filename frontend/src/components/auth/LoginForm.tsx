@@ -33,20 +33,15 @@ import { UserManagementAPI } from '../../lib/userManagementApi';
 const loginSchema = yup.object({
   email: yup.string().email('Invalid email').required('Email is required'),
   password: yup.string().required('Password is required')
-});
+}).required();
 
 const mfaSchema = yup.object({
   mfaToken: yup.string().length(6, 'MFA token must be 6 digits').required('MFA token is required')
-});
+}).required();
 
-interface LoginFormData {
-  email: string;
-  password: string;
-}
-
-interface MFAFormData {
-  mfaToken: string;
-}
+// Infer types from schemas to ensure compatibility with yupResolver
+type LoginFormData = yup.InferType<typeof loginSchema>;
+type MFAFormData = yup.InferType<typeof mfaSchema>;
 
 interface LoginFormProps {
   onLoginSuccess: (user: any, token: string) => void;

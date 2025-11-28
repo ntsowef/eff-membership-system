@@ -31,11 +31,10 @@ const forgotPasswordSchema = yup.object({
     .string()
     .email('Please enter a valid email address')
     .required('Email is required')
-});
+}).required();
 
-interface ForgotPasswordFormData {
-  email: string;
-}
+// Infer type from schema to ensure compatibility with yupResolver
+type ForgotPasswordFormData = yup.InferType<typeof forgotPasswordSchema>;
 
 const ForgotPasswordPage: React.FC = () => {
   const theme = useTheme();
