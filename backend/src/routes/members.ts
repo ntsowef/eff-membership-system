@@ -2674,7 +2674,18 @@ router.get('/ward/:wardCode/audit-export',
         fs.mkdirSync(tempDir, { recursive: true });
       }
 
-      const filesToGenerate: Array<{ path: string; type: string }> = [];
+      const filesToGenerate: Array<{
+        path: string;
+        type: string;
+        emailData?: {
+          userEmail: string;
+          userName: string;
+          wordBuffer?: Buffer;
+          pdfBuffer?: Buffer;
+          wardInfo: any;
+          memberCount: number;
+        }
+      }> = [];
 
       // Generate Excel file if requested
       if (format === 'excel' || format === 'both') {
