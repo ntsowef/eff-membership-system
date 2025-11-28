@@ -2733,39 +2733,64 @@ router.get('/ward/:wardCode/audit-export',
       }
 
       // Generate PDF file if requested using HTML-to-PDF conversion
+      // PDF is generated and emailed in background - immediate response to prevent timeout
       if (format === 'pdf') {
-        console.log('📄 PDF format requested - generating using HTML-to-PDF');
+        console.log('📄 PDF format requested - will generate and email in background');
 
-        const pdfFilename = `${baseFilename}.pdf`;
-        const pdfFilePath = path.join(tempDir, pdfFilename);
-
-        // Import HtmlPdfService dynamically
-        const { HtmlPdfService } = require('../services/htmlPdfService');
-        const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, members);
-        fs.writeFileSync(pdfFilePath, pdfBuffer);
-
-        filesToGenerate.push({
-          path: pdfFilePath,
-          type: 'pdf',
-          emailData: req.user?.email ? {
-            userEmail: req.user.email,
-            userName: req.user.name || req.user.email,
-            pdfBuffer: pdfBuffer,
-            wardInfo: wardInfo,
-            memberCount: members.length
-          } : undefined
-        });
-        console.log(`✅ PDF Attendance Register created: ${pdfFilename}`);
-
-        // Email will be triggered AFTER file is sent (see res.sendFile callback below)
-        if (req.user?.email) {
-          console.log(`📧 PDF email will be sent after file download completes`);
-          res.setHeader('X-Email-Status', 'pending');
-          res.setHeader('X-Email-Sent-To', req.user.email);
-        } else {
-          console.warn('⚠️ User email not available, skipping background email');
-          res.setHeader('X-Email-Status', 'no-email');
+        if (!req.user?.email) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email address is required for PDF downloads. Please update your profile.'
+          });
         }
+
+        const userEmail = req.user.email;
+        const userName = req.user.name || req.user.email;
+        const wardNumber = wardInfo.ward_number || wardCode;
+
+        // Return immediate response to prevent client timeout
+        console.log(`📧 Sending immediate response, PDF will be generated and emailed to ${userEmail}`);
+        res.json({
+          success: true,
+          message: `PDF Attendance Register is being generated and will be emailed to ${userEmail}`,
+          data: {
+            wardCode: wardCode,
+            wardNumber: wardNumber,
+            wardName: wardInfo.ward_name,
+            municipality: wardInfo.municipality_name,
+            memberCount: members.length,
+            email: userEmail,
+            format: 'pdf',
+            status: 'processing'
+          }
+        });
+
+        // Generate and email PDF in background (after response is sent)
+        setImmediate(async () => {
+          try {
+            console.log(`🔄 Background: Starting PDF generation for Ward ${wardNumber}...`);
+
+            const { HtmlPdfService } = require('../services/htmlPdfService');
+            const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, members);
+            console.log(`✅ Background: PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+
+            // Email the PDF
+            console.log(`📧 Background: Sending PDF to ${userEmail}...`);
+            await AttendanceRegisterEmailService.processAttendanceRegisterEmailWithBuffer({
+              userEmail: userEmail,
+              userName: userName,
+              pdfBuffer: pdfBuffer,
+              wardInfo: wardInfo,
+              memberCount: members.length
+            });
+            console.log(`✅ Background: PDF emailed successfully to ${userEmail}`);
+
+          } catch (error: any) {
+            console.error(`❌ Background: Failed to generate/email PDF for Ward ${wardNumber}:`, error);
+          }
+        });
+
+        return; // Exit early - response already sent
       }
 
       console.log(`📊 Total members: ${members.length}`);
