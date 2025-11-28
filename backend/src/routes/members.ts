@@ -11,7 +11,10 @@ import Joi from 'joi';
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { PDFExportService } from '../services/pdfExportService';
 import { ImportExportService } from '../services/importExportService';
+import { WordDocumentService } from '../services/wordDocumentService';
+// import { WordToPdfService } from '../services/wordToPdfService'; // Disabled due to compatibility issues
 import { emailService } from '../services/emailService';
+import { AttendanceRegisterEmailService } from '../services/attendanceRegisterEmailService';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -34,6 +37,7 @@ router.get('/',
       sortBy = 'member_id',
       sortOrder = 'desc',
       ward_code,
+      voting_district_code,
       municipality_code,
       municipal_code, // Support both naming conventions
       district_code,
@@ -42,6 +46,7 @@ router.get('/',
       race_id,
       age_min,
       age_max,
+      membership_type,
       has_email,
       has_cell_number,
       q: search
@@ -53,6 +58,7 @@ router.get('/',
 
     const filters: MemberFilters = {
       ward_code: ward_code as string,
+      voting_district_code: voting_district_code as string,
       municipality_code: (municipality_code || municipal_code) as string, // Support both naming conventions
       district_code: district_code as string,
       province_code: province_code as string,
@@ -60,6 +66,7 @@ router.get('/',
       race_id: race_id ? parseInt(race_id as string) : undefined,
       age_min: age_min ? parseInt(age_min as string) : undefined,
       age_max: age_max ? parseInt(age_max as string) : undefined,
+      membership_type: membership_type as string,
       has_email: has_email === 'true' ? true : has_email === 'false' ? false : undefined,
       has_cell_number: has_cell_number === 'true' ? true : has_cell_number === 'false' ? false : undefined,
       search: search as string
@@ -213,6 +220,7 @@ router.get('/provinces',
         province_name as name,
         COUNT(*) as member_count
       FROM vw_member_details
+      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
       GROUP BY province_code, province_name
       ORDER BY province_name
     `;
@@ -235,11 +243,12 @@ router.get('/regions',
         province_name,
         COUNT(*) as member_count
       FROM vw_member_details
+      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
     `;
 
     const params: any[] = [];
     if (province) {
-      query += ' WHERE province_code = ?';
+      query += ' AND province_code = ?';
       params.push(province);
     }
 
@@ -265,11 +274,12 @@ router.get('/municipalities',
         province_name,
         COUNT(*) as member_count
       FROM vw_member_details
+      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
     `;
 
     const params: any[] = [];
     if (region) {
-      query += ' WHERE district_code = ?';
+      query += ' AND district_code = ?';
       params.push(region);
     }
 
@@ -298,11 +308,12 @@ router.get('/wards',
         province_name,
         COUNT(*) as member_count
       FROM vw_member_details
+      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
     `;
 
     const params: any[] = [];
     if (municipality) {
-      query += ' WHERE municipality_code = ?';
+      query += ' AND municipality_code = ?';
       params.push(municipality);
     }
 
@@ -326,7 +337,7 @@ router.get('/directory',
       district: Joi.string().optional(),
       municipality: Joi.string().optional(),
       ward: Joi.string().optional(),
-      membership_status: Joi.string().valid('Active', 'Inactive', 'Pending', 'Suspended').optional(),
+      membership_status: Joi.string().valid('Active', 'Inactive', 'Pending', 'Suspended', 'Expired', 'Grace Period', 'Cancelled').optional(),
       membership_type: Joi.string().optional(),
       gender: Joi.string().valid('Male', 'Female', 'Other').optional(),
       sort_by: Joi.string().valid('first_name', 'last_name', 'created_at', 'membership_number').default('last_name'),
@@ -376,7 +387,7 @@ router.get('/directory',
         m.date_of_birth,
         COALESCE(m.gender_name, 'Unknown') as gender,
         m.id_number,
-        'Active' as membership_status,
+        COALESCE(m.membership_status, 'Unknown') as membership_status,
         'Standard' as membership_type,
         m.province_name,
         m.district_name,
@@ -691,7 +702,7 @@ router.get('/:id/activities',
         'membership' as type,
         CONCAT('Member joined in ', COALESCE(vd.voting_district_name, w.ward_name, m.ward_code)) as description,
         m.created_at as date
-      FROM members m
+      FROM members_consolidated m
       LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS UNSIGNED) = vd.voting_district_code
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       WHERE m.member_id = ?
@@ -711,10 +722,10 @@ router.get('/:id/activities',
       SELECT
         CONCAT('meeting_', ma.id) as id,
         'meeting' as type,
-        CONCAT('Attended meeting: ', COALESCE(m.title, 'Meeting')) as description,
+        CONCAT('Attended meeting: ', COALESCE(m.meeting_title, 'Meeting')) as description,
         ma.created_at as date
       FROM meeting_attendance ma
-      JOIN meetings m ON ma.meeting_id = m.id
+      JOIN meetings m ON ma.meeting_id = m.meeting_id
       WHERE ma.member_id = ? AND ma.attendance_status IN ('Present', 'Attended')
       ORDER BY ma.created_at DESC
       LIMIT 10
@@ -734,7 +745,7 @@ router.get('/:id/activities',
         'voting' as type,
         CONCAT('Registered to vote in ', COALESCE(vd.voting_district_name, w.ward_name, m.ward_code)) as description,
         COALESCE(m.voter_registration_date, m.created_at) as date
-      FROM members m
+      FROM members_consolidated m
       LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS UNSIGNED) = vd.voting_district_code
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       WHERE m.member_id = ? AND m.voter_registration_date IS NOT NULL
@@ -784,14 +795,607 @@ router.get('/id-number/:idNumber',
   })
 );
 
-// Get members by ward
-router.get('/ward/:wardCode',
-  validate({ params: commonSchemas.wardCode }),
+// Download sub-region members as Excel
+router.get('/subregion/:municipalityCode/download',
+  authenticate,
+  requirePermission('members.read'),
+  applyGeographicFilter,
+  validate({
+    params: Joi.object({
+      municipalityCode: Joi.string().required()
+    }),
+    query: Joi.object({
+      search: Joi.string().allow('').optional(), // Allow empty string
+      membership_status: Joi.string().valid('all', 'active', 'expired').optional(),
+      province_code: Joi.string().min(2).max(3).optional() // Allow province_code for filtering
+    })
+  }),
+  asyncHandler(async (req, res) => {
+    const { municipalityCode } = req.params;
+    const { search = '', membership_status = 'all' } = req.query;
+
+    console.log(`📥 Sub-region download request: municipalityCode=${municipalityCode}, search=${search}, membership_status=${membership_status}`);
+
+    // Build WHERE clause with PostgreSQL parameter placeholders
+    let whereClause = 'WHERE m.municipality_code = $1';
+    const params: any[] = [municipalityCode];
+
+    // Add search filter
+    if (search) {
+      const searchPattern = `%${search}%`;
+      whereClause += ` AND (
+        m.firstname LIKE $2 OR
+        m.surname LIKE $3 OR
+        m.id_number LIKE $4 OR
+        'MEM' || LPAD(m.member_id::TEXT, 6, '0') LIKE $5
+      )`;
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    // Add membership status filter
+    if (membership_status === 'active') {
+      // Active members: not expired OR in grace period (expired < 90 days)
+      whereClause += ' AND m.expiry_date >= CURRENT_DATE - INTERVAL \'90 days\'';
+    } else if (membership_status === 'expired') {
+      // Expired members: expired for more than 90 days
+      whereClause += ' AND m.expiry_date < CURRENT_DATE - INTERVAL \'90 days\'';
+    }
+    // 'all' includes active, grace period, and expired members
+
+    // Query to get members from members_consolidated (same table used by the view endpoint)
+    const query = `
+      SELECT
+        m.member_id,
+        'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
+        m.firstname,
+        m.surname,
+        m.id_number,
+        m.cell_number,
+        m.email,
+        m.residential_address,
+        m.ward_code,
+        w.ward_name,
+        m.municipality_code,
+        mu.municipality_name,
+        m.district_code,
+        d.district_name,
+        m.province_code,
+        p.province_name,
+        m.expiry_date,
+        CASE
+          WHEN m.expiry_date IS NULL THEN 'Inactive'
+          WHEN m.expiry_date >= CURRENT_DATE THEN 'Active'
+          WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+          ELSE 'Expired'
+        END as membership_status
+      FROM members_consolidated m
+      LEFT JOIN wards w ON m.ward_code = w.ward_code
+      LEFT JOIN municipalities mu ON m.municipality_code = mu.municipality_code
+      LEFT JOIN districts d ON m.district_code = d.district_code
+      LEFT JOIN provinces p ON m.province_code = p.province_code
+      ${whereClause}
+      ORDER BY m.firstname, m.surname
+    `;
+
+    console.log(`📝 Executing query with params:`, params);
+    const members = await executeQuery(query, params);
+    console.log(`✅ Found ${members.length} members for municipality ${municipalityCode}`);
+
+    // Create Excel workbook
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Sub-Region Members');
+
+    // Add headers
+    worksheet.columns = [
+      { header: 'Membership Number', key: 'membership_number', width: 18 },
+      { header: 'First Name', key: 'firstname', width: 20 },
+      { header: 'Surname', key: 'surname', width: 20 },
+      { header: 'ID Number', key: 'id_number', width: 15 },
+      { header: 'Cell Number', key: 'cell_number', width: 15 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Sub-Region', key: 'municipality_name', width: 30 },
+      { header: 'Ward', key: 'ward_name', width: 30 },
+      { header: 'District', key: 'district_name', width: 25 },
+      { header: 'Province', key: 'province_name', width: 20 },
+      { header: 'Membership Status', key: 'membership_status', width: 20 },
+      { header: 'Expiry Date', key: 'expiry_date', width: 15 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' }
+    };
+
+    // Add data rows
+    members.forEach((member: any) => {
+      worksheet.addRow({
+        membership_number: member.membership_number || '',
+        firstname: member.firstname || '',
+        surname: member.surname || '',
+        id_number: member.id_number || '',
+        cell_number: member.cell_number || '',
+        email: member.email || '',
+        municipality_name: member.municipality_name || '',
+        ward_name: member.ward_name || '',
+        district_name: member.district_name || '',
+        province_name: member.province_name || '',
+        membership_status: member.membership_status || '',
+        expiry_date: member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-ZA') : '',
+      });
+    });
+
+    // Generate filename
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `SubRegion_${municipalityCode}_Members_${timestamp}.xlsx`;
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+  })
+);
+
+// Download ward members as Excel
+router.get('/ward/:wardCode/download',
+  validate({
+    params: commonSchemas.wardCode,
+    query: Joi.object({
+      search: Joi.string().allow('').optional(), // Allow empty string
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional(),
+      province_code: Joi.string().min(2).max(3).optional() // Allow province_code for filtering
+    })
+  }),
   asyncHandler(async (req, res) => {
     const { wardCode } = req.params;
-    const members = await MemberModel.getMembersByWard(wardCode);
+    const { search = '', membership_status = 'all' } = req.query;
 
-    sendSuccess(res, members, `Members for ward ${wardCode} retrieved successfully`);
+    // Build WHERE clause
+    let whereClause = 'WHERE m.ward_code = ?';
+    const params: any[] = [wardCode];
+
+    // Add search filter
+    if (search) {
+      whereClause += ` AND (
+        m.firstname LIKE ? OR
+        m.surname LIKE ? OR
+        m.id_number LIKE ? OR
+        CONCAT('MEM', LPAD(m.member_id, 6, '0')) LIKE ?
+      )`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    // Add membership status filter
+    if (membership_status === 'good_standing') {
+      whereClause += ' AND ms.expiry_date >= CURRENT_DATE';
+    } else if (membership_status === 'expired') {
+      whereClause += ' AND ms.expiry_date < CURRENT_DATE';
+    }
+
+    // Get ward information
+    const wardInfoQuery = `
+      SELECT DISTINCT
+        ward_code,
+        ward_name,
+        ward_number,
+        municipality_code,
+        municipality_name,
+        district_code,
+        district_name,
+        province_code,
+        province_name
+      FROM vw_member_details
+      WHERE ward_code = ?
+      LIMIT 1
+    `;
+    const wardInfo = await executeQuerySingle(wardInfoQuery, [wardCode]);
+
+    if (!wardInfo) {
+      return res.status(404).json({
+        success: false,
+        message: `Ward ${wardCode} not found`
+      });
+    }
+
+    // Get all members (no pagination for download)
+    const membersQuery = `
+      SELECT
+        m.member_id,
+        CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+        m.firstname,
+        COALESCE(m.surname, '') as surname,
+        m.id_number,
+        COALESCE(m.email, '') as email,
+        COALESCE(m.cell_number, '') as cell_number,
+        m.gender_name,
+        m.date_of_birth,
+        ms.date_joined,
+        ms.expiry_date,
+        CASE
+          WHEN ms.expiry_date IS NULL THEN 'Unknown'
+          WHEN ms.expiry_date >= CURRENT_DATE THEN 'Good Standing'
+          ELSE 'Expired'
+        END as membership_status,
+        m.voting_district_code,
+        m.voting_district_name,
+        m.ward_code,
+        m.ward_name,
+        m.ward_number,
+        m.municipality_code,
+        m.municipality_name,
+        m.district_code,
+        m.district_name,
+        m.province_code,
+        m.province_name
+      FROM vw_member_details m
+      LEFT JOIN memberships ms ON m.member_id = ms.member_id
+      ${whereClause}
+      ORDER BY m.firstname, m.surname
+    `;
+    const members = await executeQuery(membersQuery, params);
+
+    // Create Excel workbook
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Ward Members');
+
+    // Add title
+    worksheet.mergeCells('A1:L1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = `Ward Members Report - ${wardInfo.ward_name}`;
+    titleCell.font = { size: 16, bold: true };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Add ward info
+    worksheet.mergeCells('A2:L2');
+    const infoCell = worksheet.getCell('A2');
+    infoCell.value = `${wardInfo.municipality_name}, ${wardInfo.district_name}, ${wardInfo.province_name}`;
+    infoCell.font = { size: 12 };
+    infoCell.alignment = { horizontal: 'center' };
+
+    // Add export date
+    worksheet.mergeCells('A3:L3');
+    const dateCell = worksheet.getCell('A3');
+    dateCell.value = `Generated: ${new Date().toLocaleString()}`;
+    dateCell.font = { size: 10, italic: true };
+    dateCell.alignment = { horizontal: 'center' };
+
+    // Add empty row
+    worksheet.addRow([]);
+
+    // Add headers
+    const headerRow = worksheet.addRow([
+      'Membership Number',
+      'First Name',
+      'Surname',
+      'ID Number',
+      'Email',
+      'Cell Number',
+      'Gender',
+      'Date of Birth',
+      'Date Joined',
+      'Expiry Date',
+      'Membership Status',
+      'Voting District'
+    ]);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+
+    // Add data rows
+    members.forEach((member: any) => {
+      worksheet.addRow([
+        member.membership_number,
+        member.firstname,
+        member.surname,
+        member.id_number,
+        member.email,
+        member.cell_number,
+        member.gender_name,
+        member.date_of_birth ? new Date(member.date_of_birth).toLocaleDateString() : '',
+        member.date_joined ? new Date(member.date_joined).toLocaleDateString() : '',
+        member.expiry_date ? new Date(member.expiry_date).toLocaleDateString() : '',
+        member.membership_status,
+        member.voting_district_name || ''
+      ]);
+    });
+
+    // Auto-fit columns
+    worksheet.columns.forEach((column: any) => {
+      let maxLength = 0;
+      column.eachCell?.({ includeEmpty: true }, (cell: any) => {
+        const columnLength = cell.value ? cell.value.toString().length : 10;
+        if (columnLength > maxLength) {
+          maxLength = columnLength;
+        }
+      });
+      column.width = Math.min(maxLength + 2, 50);
+    });
+
+    // Set response headers
+    const filename = `Ward_${wardInfo.ward_number}_${wardInfo.ward_name.replace(/[^a-zA-Z0-9]/g, '_')}_Members_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+  })
+);
+
+// Get members by sub-region (municipality) with pagination
+router.get('/subregion/:municipalityCode',
+  authenticate,
+  requirePermission('members.read'),
+  applyGeographicFilter,
+  validate({
+    params: Joi.object({
+      municipalityCode: Joi.string().required()
+    }),
+    query: Joi.object({
+      page: Joi.number().integer().min(1).default(1),
+      limit: Joi.number().integer().min(1).max(500).default(50),
+      search: Joi.string().allow('').optional(), // Allow empty string
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional(),
+      sort_by: Joi.string().valid('firstname', 'surname', 'member_id', 'membership_number', 'expiry_date').default('firstname'),
+      sort_order: Joi.string().valid('asc', 'desc').default('asc'),
+      province_code: Joi.string().min(2).max(3).optional() // Allow province_code for filtering
+    })
+  }),
+  asyncHandler(async (req, res) => {
+    const { municipalityCode } = req.params;
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      membership_status = 'all',
+      sort_by = 'firstname',
+      sort_order = 'asc'
+    } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const offset = (pageNum - 1) * limitNum;
+    const sortByStr = sort_by as string;
+    const sortOrderStr = (sort_order as string).toUpperCase();
+
+    // Build WHERE clause
+    let whereClause = 'WHERE m.municipality_code = ?';
+    const params: any[] = [municipalityCode];
+
+    // Add search filter
+    if (search) {
+      whereClause += ` AND (
+        m.firstname LIKE ? OR
+        m.surname LIKE ? OR
+        m.id_number LIKE ? OR
+        CONCAT('MEM', LPAD(m.member_id, 6, '0')) LIKE ?
+      )`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    // Add membership status filter
+    if (membership_status === 'good_standing') {
+      whereClause += ' AND ms.expiry_date >= CURRENT_DATE';
+    } else if (membership_status === 'expired') {
+      whereClause += ' AND ms.expiry_date < CURRENT_DATE';
+    }
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM members m
+      LEFT JOIN memberships ms ON m.member_id = ms.member_id
+      ${whereClause}
+    `;
+
+    const countResult = await executeQuerySingle<{ total: number }>(countQuery, params);
+    const total = countResult?.total || 0;
+
+    // Data query with pagination
+    const dataQuery = `
+      SELECT
+        m.member_id,
+        CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+        m.firstname,
+        m.surname,
+        m.id_number,
+        m.cell_number,
+        m.email,
+        m.residential_address,
+        m.ward_code,
+        w.ward_name,
+        m.municipality_code,
+        mu.municipality_name,
+        m.district_code,
+        d.district_name,
+        m.province_code,
+        p.province_name,
+        ms.expiry_date,
+        CASE
+          WHEN ms.expiry_date IS NULL THEN 'Unknown'
+          WHEN ms.expiry_date >= CURRENT_DATE THEN 'Good Standing'
+          WHEN ms.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+          ELSE 'Expired'
+        END as membership_status
+      FROM members m
+      LEFT JOIN memberships ms ON m.member_id = ms.member_id
+      LEFT JOIN wards w ON m.ward_code = w.ward_code
+      LEFT JOIN municipalities mu ON m.municipality_code = mu.municipality_code
+      LEFT JOIN districts d ON m.district_code = d.district_code
+      LEFT JOIN provinces p ON m.province_code = p.province_code
+      ${whereClause}
+      ORDER BY m.${sortByStr} ${sortOrderStr}
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(limitNum, offset);
+    const members = await executeQuery(dataQuery, params);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    sendPaginatedSuccess(res, members, {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages
+    }, 'Sub-region members retrieved successfully');
+  })
+);
+
+// Get members by ward with pagination
+router.get('/ward/:wardCode',
+  validate({
+    params: commonSchemas.wardCode,
+    query: Joi.object({
+      page: Joi.number().integer().min(1).default(1),
+      limit: Joi.number().integer().min(1).max(500).default(50),
+      search: Joi.string().optional(),
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional(),
+      sort_by: Joi.string().valid('firstname', 'surname', 'member_id', 'membership_number', 'expiry_date').default('firstname'),
+      sort_order: Joi.string().valid('asc', 'desc').default('asc')
+    })
+  }),
+  asyncHandler(async (req, res) => {
+    const { wardCode } = req.params;
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      membership_status = 'all',
+      sort_by = 'firstname',
+      sort_order = 'asc'
+    } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build WHERE clause
+    let whereClause = 'WHERE m.ward_code = ?';
+    const params: any[] = [wardCode];
+
+    // Add search filter
+    if (search) {
+      whereClause += ` AND (
+        m.firstname LIKE ? OR
+        m.surname LIKE ? OR
+        m.id_number LIKE ? OR
+        CONCAT('MEM', LPAD(m.member_id, 6, '0')) LIKE ?
+      )`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    // Add membership status filter
+    if (membership_status === 'good_standing') {
+      whereClause += ' AND ms.expiry_date >= CURRENT_DATE';
+    } else if (membership_status === 'expired') {
+      whereClause += ' AND ms.expiry_date < CURRENT_DATE';
+    }
+
+    // Get ward information
+    const wardInfoQuery = `
+      SELECT DISTINCT
+        ward_code,
+        ward_name,
+        ward_number,
+        municipality_code,
+        municipality_name,
+        district_code,
+        district_name,
+        province_code,
+        province_name
+      FROM vw_member_details
+      WHERE ward_code = ?
+      LIMIT 1
+    `;
+    const wardInfo = await executeQuerySingle(wardInfoQuery, [wardCode]);
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(DISTINCT m.member_id) as total
+      FROM vw_member_details m
+      LEFT JOIN memberships ms ON m.member_id = ms.member_id
+      ${whereClause}
+    `;
+    const countResult = await executeQuerySingle(countQuery, params);
+    const total = countResult?.total || 0;
+
+    // Get members with pagination
+    const sortColumnMap: Record<string, string> = {
+      'firstname': 'firstname',
+      'surname': 'surname',
+      'member_id': 'member_id',
+      'membership_number': 'member_id',
+      'expiry_date': 'expiry_date'
+    };
+    const sortColumn = sortColumnMap[sort_by as string] || 'firstname';
+
+    const membersQuery = `
+      SELECT
+        m.member_id,
+        CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+        m.firstname,
+        COALESCE(m.surname, '') as surname,
+        CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
+        m.id_number,
+        COALESCE(m.email, '') as email,
+        COALESCE(m.cell_number, '') as cell_number,
+        m.gender_name,
+        m.date_of_birth,
+        ms.date_joined,
+        ms.expiry_date,
+        CASE
+          WHEN ms.expiry_date IS NULL THEN 'Unknown'
+          WHEN ms.expiry_date >= CURRENT_DATE THEN 'Good Standing'
+          ELSE 'Expired'
+        END as membership_status,
+        m.voting_district_code,
+        m.voting_district_name,
+        m.ward_code,
+        m.ward_name,
+        m.ward_number,
+        m.municipality_code,
+        m.municipality_name,
+        m.district_code,
+        m.district_name,
+        m.province_code,
+        m.province_name
+      FROM vw_member_details m
+      LEFT JOIN memberships ms ON m.member_id = ms.member_id
+      ${whereClause}
+      ORDER BY m.${sortColumn} ${sort_order}
+      LIMIT ? OFFSET ?
+    `;
+    params.push(limitNum, offset);
+    const members = await executeQuery(membersQuery, params);
+
+    const pagination = {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+      hasNext: offset + limitNum < total,
+      hasPrev: offset > 0
+    };
+
+    sendSuccess(res, {
+      ward_info: wardInfo,
+      members,
+      pagination
+    }, `Members for ward ${wardCode} retrieved successfully`);
   })
 );
 
@@ -886,8 +1490,51 @@ router.put('/:id',
   })
 );
 
+// Check related records before deletion (warning endpoint)
+router.get('/:id/delete-check',
+  authenticate,
+  requirePermission('members.delete'),
+  validate({ params: commonSchemas.id }),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const memberId = parseInt(id);
+
+    // Check if member exists
+    const existingMember = await MemberModel.getMemberById(memberId);
+    if (!existingMember) {
+      throw new NotFoundError(`Member with ID ${id} not found`);
+    }
+
+    // Get related records count
+    const relatedRecords = await MemberModel.getRelatedRecordsCount(memberId);
+
+    const warnings: string[] = [];
+    if (relatedRecords.memberships > 0) {
+      warnings.push(`This member has ${relatedRecords.memberships} membership record(s) that will be deleted`);
+    }
+    if (relatedRecords.applications > 0) {
+      warnings.push(`This member has ${relatedRecords.applications} application(s) in the system`);
+    }
+    if (relatedRecords.hasUserAccount) {
+      warnings.push('This member has an associated user account');
+    }
+
+    sendSuccess(res, {
+      member_id: memberId,
+      member_name: `${existingMember.firstname} ${existingMember.surname || ''}`.trim(),
+      id_number: existingMember.id_number,
+      can_delete: true,
+      related_records: relatedRecords,
+      warnings: warnings,
+      cascade_info: 'Membership records will be automatically deleted due to CASCADE constraint'
+    }, 'Delete check completed');
+  })
+);
+
 // Delete member
 router.delete('/:id',
+  authenticate,
+  requirePermission('members.delete'),
   cacheInvalidationMiddleware(['member:*', 'analytics:*', 'statistics:*']),
   validate({ params: commonSchemas.id }),
   asyncHandler(async (req, res) => {
@@ -909,6 +1556,49 @@ router.delete('/:id',
     await CacheInvalidationHooks.onMemberChange('delete', memberId);
 
     sendSuccess(res, { deleted: true, member_id: memberId }, 'Member deleted successfully');
+  })
+);
+
+// Bulk delete members
+router.post('/bulk-delete',
+  authenticate,
+  requirePermission('members.delete'),
+  cacheInvalidationMiddleware(['member:*', 'analytics:*', 'statistics:*']),
+  validate({
+    body: Joi.object({
+      member_ids: Joi.array()
+        .items(Joi.number().integer().positive())
+        .min(1)
+        .max(100)
+        .required()
+        .messages({
+          'array.min': 'At least one member ID is required',
+          'array.max': 'Cannot delete more than 100 members at once',
+          'any.required': 'member_ids array is required'
+        })
+    })
+  }),
+  asyncHandler(async (req, res) => {
+    const { member_ids } = req.body;
+
+    // Perform bulk delete
+    const results = await MemberModel.bulkDeleteMembers(member_ids);
+
+    // Trigger cache invalidation for all deleted members
+    for (let i = 0; i < results.deleted; i++) {
+      await CacheInvalidationHooks.onMemberChange('delete', member_ids[i]);
+    }
+
+    const message = results.failed > 0
+      ? `Bulk delete completed with ${results.deleted} successful and ${results.failed} failed deletions`
+      : `Successfully deleted ${results.deleted} member(s)`;
+
+    sendSuccess(res, {
+      deleted: results.deleted,
+      failed: results.failed,
+      errors: results.errors,
+      total_requested: member_ids.length
+    }, message);
   })
 );
 
@@ -975,14 +1665,31 @@ router.get('/statistics/summary',
 
 // Get member statistics by provinces
 router.get('/stats/provinces',
+  validate({
+    query: Joi.object({
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional()
+    })
+  }),
   asyncHandler(async (req, res) => {
+    const { membership_status } = req.query;
+
+    let statusFilter = '';
+    if (membership_status === 'good_standing' || membership_status === 'active') {
+      // Active members: membership_status_id = 1 (Active/Good Standing)
+      statusFilter = 'AND m.membership_status_id = 1';
+    } else if (membership_status === 'expired') {
+      // Expired/Inactive members: membership_status_id IN (2, 3, 4)
+      statusFilter = 'AND m.membership_status_id IN (2, 3, 4)';
+    }
+
     const query = `
       SELECT
         p.province_code,
         p.province_name,
         COALESCE(COUNT(DISTINCT m.member_id), 0) as member_count
       FROM provinces p
-      LEFT JOIN vw_member_details m ON p.province_code = m.province_code
+      LEFT JOIN members_consolidated m ON p.province_code = m.province_code
+      WHERE 1=1 ${statusFilter}
       GROUP BY p.province_code, p.province_name
       ORDER BY member_count DESC
     `;
@@ -996,39 +1703,46 @@ router.get('/stats/provinces',
 router.get('/stats/districts',
   validate({
     query: Joi.object({
-      province: Joi.string().required()
+      province: Joi.string().required(),
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional()
     })
   }),
   asyncHandler(async (req, res) => {
-    const { province } = req.query;
+    const { province, membership_status } = req.query;
+
+    let statusFilter = '';
+    if (membership_status === 'good_standing' || membership_status === 'active') {
+      // Active members: membership_status_id = 1 (Active/Good Standing)
+      statusFilter = 'AND m.membership_status_id = 1';
+    } else if (membership_status === 'expired') {
+      // Expired/Inactive members: membership_status_id IN (2, 3, 4)
+      statusFilter = 'AND m.membership_status_id IN (2, 3, 4)';
+    }
 
     const query = `
       SELECT
         d.district_code,
         d.district_name,
-        COALESCE(
-          -- Direct members assigned to municipalities in this district
-          (SELECT COUNT(DISTINCT m1.member_id)
-           FROM municipalities mu1
-           JOIN vw_member_details m1 ON mu1.municipality_code = m1.municipality_code
-           WHERE mu1.district_code = d.district_code
-             AND mu1.municipality_type != 'Metro Sub-Region')
-          +
-          -- Members assigned to metro subregions in this district
-          (SELECT COUNT(DISTINCT m2.member_id)
-           FROM municipalities mu2
-           JOIN municipalities sub ON sub.parent_municipality_id = mu2.municipality_id
-           JOIN vw_member_details m2 ON sub.municipality_code = m2.municipality_code
-           WHERE mu2.district_code = d.district_code
-             AND mu2.municipality_type = 'Metropolitan')
-        , 0) as member_count
+        COUNT(DISTINCT m.member_id) as member_count
       FROM districts d
+      LEFT JOIN (
+        -- Get all members for this district through various paths
+        SELECT DISTINCT
+          m.member_id,
+          COALESCE(mu.district_code, parent_mu.district_code) as district_code
+        FROM members_consolidated m
+        LEFT JOIN wards w ON m.ward_code = w.ward_code
+        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        LEFT JOIN municipalities parent_mu ON mu.parent_municipality_id = parent_mu.municipality_id
+        WHERE m.province_code = ?
+          ${statusFilter.replace('m1.', 'm.')}
+      ) m ON d.district_code = m.district_code
       WHERE d.province_code = ?
       GROUP BY d.district_code, d.district_name
       ORDER BY member_count DESC
     `;
 
-    const data = await executeQuery(query, [province]);
+    const data = await executeQuery(query, [province, province]);
     sendSuccess(res, { data }, 'District member statistics retrieved successfully');
   })
 );
@@ -1037,11 +1751,26 @@ router.get('/stats/districts',
 router.get('/stats/municipalities',
   validate({
     query: Joi.object({
-      district: Joi.string().required()
+      district: Joi.string().required(),
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional()
     })
   }),
   asyncHandler(async (req, res) => {
-    const { district } = req.query;
+    const { district, membership_status } = req.query;
+
+    let statusFilter = '';
+    if (membership_status === 'good_standing') {
+      statusFilter = 'AND m1.expiry_date >= CURRENT_DATE';
+    } else if (membership_status === 'expired') {
+      statusFilter = 'AND m1.expiry_date < CURRENT_DATE';
+    }
+
+    let statusFilter2 = '';
+    if (membership_status === 'good_standing') {
+      statusFilter2 = 'AND m2.expiry_date >= CURRENT_DATE';
+    } else if (membership_status === 'expired') {
+      statusFilter2 = 'AND m2.expiry_date < CURRENT_DATE';
+    }
 
     const query = `
       SELECT
@@ -1051,14 +1780,16 @@ router.get('/stats/municipalities',
         COALESCE(
           -- Direct members assigned to this municipality
           (SELECT COUNT(DISTINCT m1.member_id)
-           FROM vw_member_details m1
-           WHERE m1.municipality_code = mu.municipality_code)
+           FROM members_consolidated m1
+           WHERE m1.municipality_code = mu.municipality_code
+             ${statusFilter})
           +
           -- Members assigned to subregions of this municipality (for metros)
           (SELECT COUNT(DISTINCT m2.member_id)
            FROM municipalities sub
-           JOIN vw_member_details m2 ON sub.municipality_code = m2.municipality_code
-           WHERE sub.parent_municipality_id = mu.municipality_id)
+           JOIN members_consolidated m2 ON sub.municipality_code = m2.municipality_code
+           WHERE sub.parent_municipality_id = mu.municipality_id
+             ${statusFilter2})
         , 0) as member_count
       FROM municipalities mu
       WHERE mu.district_code = ?
@@ -1076,21 +1807,38 @@ router.get('/stats/municipalities',
 router.get('/stats/wards',
   validate({
     query: Joi.object({
-      municipality: Joi.string().required()
+      municipality: Joi.string().required(),
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional()
     })
   }),
   asyncHandler(async (req, res) => {
-    const { municipality } = req.query;
+    const { municipality, membership_status } = req.query;
+
+    let statusFilter = '';
+    let countFilter = '';
+    if (membership_status === 'good_standing' || membership_status === 'active') {
+      // Active members: membership_status_id = 1 (Active/Good Standing)
+      statusFilter = 'AND m.membership_status_id = 1';
+      countFilter = 'CASE WHEN m.membership_status_id = 1 THEN m.member_id END';
+    } else if (membership_status === 'expired') {
+      // Expired/Inactive members: membership_status_id IN (2, 3, 4)
+      statusFilter = 'AND m.membership_status_id IN (2, 3, 4)';
+      countFilter = 'CASE WHEN m.membership_status_id IN (2, 3, 4) THEN m.member_id END';
+    } else {
+      // All members
+      countFilter = 'm.member_id';
+    }
 
     const query = `
       SELECT
         w.ward_code,
         w.ward_name,
-        COALESCE(COUNT(DISTINCT m.member_id), 0) as member_count
+        COALESCE(COUNT(DISTINCT ${countFilter}), 0) as member_count
       FROM wards w
-      LEFT JOIN vw_member_details m ON w.ward_code = m.ward_code
+      LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
       WHERE w.municipality_code = ?
         AND w.ward_code NOT IN ('99999999', '33333333', '22222222', '11111111')  -- Exclude special voting district codes
+        ${statusFilter}
       GROUP BY w.ward_code, w.ward_name
       ORDER BY member_count DESC
     `;
@@ -1104,11 +1852,19 @@ router.get('/stats/wards',
 router.get('/stats/subregions',
   validate({
     query: Joi.object({
-      municipality: Joi.string().required()
+      municipality: Joi.string().required(),
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional()
     })
   }),
   asyncHandler(async (req, res) => {
-    const { municipality } = req.query;
+    const { municipality, membership_status } = req.query;
+
+    let statusFilter = '';
+    if (membership_status === 'good_standing') {
+      statusFilter = 'AND m.expiry_date >= CURRENT_DATE';
+    } else if (membership_status === 'expired') {
+      statusFilter = 'AND m.expiry_date < CURRENT_DATE';
+    }
 
     const query = `
       SELECT
@@ -1121,12 +1877,10 @@ router.get('/stats/subregions',
       FROM municipalities sr
       JOIN municipalities pm ON sr.parent_municipality_id = pm.municipality_id
       LEFT JOIN wards w ON sr.municipality_code = w.municipality_code
-      LEFT JOIN members m ON w.ward_code = m.ward_code
-      LEFT JOIN memberships ms ON m.member_id = ms.member_id
-      LEFT JOIN membership_statuses mst ON ms.status_id = mst.status_id
-      WHERE pm.municipality_code = $1
+      LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
+      WHERE pm.municipality_code = ?
         AND sr.municipality_type = 'Metro Sub-Region'
-        AND (mst.is_active = TRUE OR mst.is_active IS NULL)
+        ${statusFilter}
       GROUP BY sr.municipality_code, sr.municipality_name, sr.municipality_type,
                pm.municipality_code, pm.municipality_name
       ORDER BY sr.municipality_name
@@ -1141,22 +1895,37 @@ router.get('/stats/subregions',
 router.get('/stats/voting-districts',
   validate({
     query: Joi.object({
-      ward: Joi.string().required()
+      ward: Joi.string().required(),
+      membership_status: Joi.string().valid('all', 'good_standing', 'expired').optional()
     })
   }),
   asyncHandler(async (req, res) => {
-    const { ward } = req.query;
+    const { ward, membership_status } = req.query;
 
-    // Query for regular voting districts from the view
+    let statusFilter = '';
+    if (membership_status === 'good_standing' || membership_status === 'active') {
+      // Active members: membership_status_id = 1 (Active/Good Standing)
+      statusFilter = 'AND m.membership_status_id = 1';
+    } else if (membership_status === 'expired') {
+      // Expired/Inactive members: membership_status_id IN (2, 3, 4)
+      statusFilter = 'AND m.membership_status_id IN (2, 3, 4)';
+    }
+
+    // Query for regular voting districts - need to recalculate counts with status filter
     const regularVotingDistrictsQuery = `
       SELECT
         vd.voting_district_code,
         vd.voting_district_name,
-        vd.voting_district_number,
-        vd.member_count,
+        COUNT(DISTINCT m.member_id) as member_count,
         'regular' as district_type
-      FROM voting_districts_with_members vd
+      FROM voting_districts vd
+      LEFT JOIN members_consolidated m ON vd.voting_district_code = m.voting_district_code
       WHERE vd.ward_code = ?
+        AND vd.is_active = TRUE
+        ${statusFilter}
+      GROUP BY vd.voting_district_code, vd.voting_district_name
+      HAVING COUNT(DISTINCT m.member_id) > 0
+      ORDER BY vd.voting_district_name
     `;
 
     // Query for special voting districts that exist in members table for this ward
@@ -1173,9 +1942,10 @@ router.get('/stats/voting-districts',
         NULL as voting_district_number,
         COUNT(*) as member_count,
         'special' as district_type
-      FROM members m
+      FROM members_consolidated m
       WHERE m.ward_code = ?
         AND m.voting_district_code IN ('33333333', '99999999', '22222222', '11111111')
+        ${statusFilter}
       GROUP BY m.voting_district_code
       HAVING COUNT(*) > 0
     `;
@@ -1226,24 +1996,24 @@ router.post('/bulk-action',
     switch (action) {
       case 'activate':
         // Since membership_status column doesn't exist, we'll update the updated_at timestamp
-        query = `UPDATE members SET updated_at = NOW() WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
+        query = `UPDATE members_consolidated SET updated_at = NOW() WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
         params = memberIds;
         result = await executeQuery(query, params);
         break;
       case 'deactivate':
         // Since membership_status column doesn't exist, we'll update the updated_at timestamp
-        query = `UPDATE members SET updated_at = NOW() WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
+        query = `UPDATE members_consolidated SET updated_at = NOW() WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
         params = memberIds;
         result = await executeQuery(query, params);
         break;
       case 'suspend':
         // Since membership_status column doesn't exist, we'll update the updated_at timestamp
-        query = `UPDATE members SET updated_at = NOW() WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
+        query = `UPDATE members_consolidated SET updated_at = NOW() WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
         params = memberIds;
         result = await executeQuery(query, params);
         break;
       case 'delete':
-        query = `DELETE FROM members WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
+        query = `DELETE FROM members_consolidated WHERE member_id IN (${memberIds.map(() => '?').join(',')})`;
         params = memberIds;
         result = await executeQuery(query, params);
         break;
@@ -1251,7 +2021,7 @@ router.post('/bulk-action',
         // Get member details for email sending
         const membersQuery = `
           SELECT member_id, firstname, surname, email
-          FROM members
+          FROM members_consolidated
           WHERE member_id IN (${memberIds.map(() => '?').join(',')})
           AND email IS NOT NULL
           AND email != ''
@@ -1674,7 +2444,7 @@ router.get('/:id',
         province_name,
         municipality_name,
         ward_number,
-        COALESCE(voting_station_name, 'Not Available') as voting_station_name,
+        COALESCE(voting_district_name, 'Not Available') as voting_district_name,
         'Standard' as membership_type,
         member_created_at as join_date,
         DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date
@@ -1698,15 +2468,22 @@ router.get('/:id',
   })
 );
 
-// Ward Audit Export - Export all members in a specific ward to Excel
+// Ward Audit Export - Export all members in a specific ward to Excel and Word
 router.get('/ward/:wardCode/audit-export',
   authenticate,
   requirePermission('members.read'),
   applyGeographicFilter,
-  validate({ params: commonSchemas.wardCode }),
+  validate({
+    params: commonSchemas.wardCode,
+    query: Joi.object({
+      format: Joi.string().valid('excel', 'word', 'pdf', 'both').default('pdf'),
+      province_code: Joi.string().min(2).max(3).optional() // Allow province_code for filtering
+    })
+  }),
   asyncHandler(async (req, res) => {
     try {
       const { wardCode } = req.params;
+      const { format = 'both' } = req.query;
 
       console.log(`🔄 Starting ward audit export for ward: ${wardCode}`);
 
@@ -1732,8 +2509,32 @@ router.get('/ward/:wardCode/audit-export',
         throw new NotFoundError(`Ward with code ${wardCode} not found`);
       }
 
+      // Authorization check: Verify user has access to this ward's province
+      if (req.user) {
+        const userProvinceCode = (req.user as any).province_code;
+        const wardProvinceCode = wardInfo.province_code;
+        const isNationalAdmin = req.user.admin_level === 'national' || req.user.role_name === 'super_admin';
+        const isProvincialAdmin = req.user.admin_level === 'province';
+
+        // Provincial admins can only access wards in their assigned province
+        if (isProvincialAdmin && userProvinceCode !== wardProvinceCode) {
+          console.log(`🚫 Authorization failed: User province ${userProvinceCode} does not match ward province ${wardProvinceCode}`);
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'PROVINCE_ACCESS_DENIED',
+              message: `You are not authorized to download attendance registers from ${wardInfo.province_name}. You can only access wards in your assigned province.`,
+              userProvince: userProvinceCode,
+              requestedProvince: wardProvinceCode
+            }
+          });
+        }
+
+        console.log(`✅ Authorization passed: User has access to ward in province ${wardProvinceCode}`);
+      }
+
       // Get all members in the ward with comprehensive details including voting stations
-      // Simplified query using only confirmed existing columns
+      // FIXED: Only include Active members (membership_status_id = 1) who are Registered voters (voter_status_id = 1)
       const membersQuery = `
         SELECT
           m.member_id,
@@ -1754,7 +2555,7 @@ router.get('/ward/:wardCode/audit-export',
           COALESCE(m.residential_address, '') as residential_address,
           '' as occupation_name,
           '' as qualification_name,
-          '' as voter_status,
+          COALESCE(voter_s.status_name, '') as voter_status,
           COALESCE(m.voter_registration_number, '') as voter_registration_number,
           m.voter_registration_date,
           COALESCE(m.voting_district_code, '') as voting_district_code,
@@ -1784,15 +2585,18 @@ router.get('/ward/:wardCode/audit-export',
           COALESCE(md.days_until_expiry, 0) as days_until_expiry,
           COALESCE(md.payment_method, 'N/A') as payment_method,
           COALESCE(md.payment_reference, 'N/A') as payment_reference
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
         LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
+        LEFT JOIN voter_statuses voter_s ON m.voter_status_id = voter_s.status_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
         LEFT JOIN districts d ON mu.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN vw_membership_details md ON m.member_id = md.member_id
         WHERE m.ward_code = ?
+          AND m.membership_status_id = 1  -- Only Active members
+          AND m.voter_status_id = 1        -- Only Registered voters
         ORDER BY m.firstname, m.surname
       `;
 
@@ -1816,8 +2620,8 @@ router.get('/ward/:wardCode/audit-export',
         'District': member.district_name || '',
         // Column 3: Municipality
         'Municipality': member.municipality_name || '',
-        // Column 4: Voting Station Name
-        'Voting Station Name': member.voting_station_name || '',
+        // Column 4: Voting District Name
+        'Voting District Name': member.voting_district_name || '',
         // Column 5: Ward Code
         'Ward Code': member.ward_code || '',
         // Column 6: First Name
@@ -1858,50 +2662,236 @@ router.get('/ward/:wardCode/audit-export',
         'Status': member.membership_status || ''
       }));
 
-      // Generate filename with ward info and timestamp
+      // Generate filenames for Attendance Register
       const timestamp = new Date().toISOString().split('T')[0];
-      const wardName = wardInfo.ward_name.replace(/[^a-zA-Z0-9]/g, '_');
       const municipalityName = wardInfo.municipality_name.replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `WARD_${wardCode}_${wardName}_${municipalityName}_AUDIT_${timestamp}.xlsx`;
+      const wardNumber = wardInfo.ward_number || wardCode;
+      const baseFilename = `ATTENDANCE_REGISTER_WARD_${wardNumber}_${municipalityName}_${timestamp}`;
 
-      // Ensure file processing directory exists
-      const fileProcessingDir = path.join(process.cwd(), 'uploads', 'excel-processing');
-      if (!fs.existsSync(fileProcessingDir)) {
-        fs.mkdirSync(fileProcessingDir, { recursive: true });
+      // Create temporary directory for downloads
+      const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
       }
 
-      const filePath = path.join(fileProcessingDir, filename);
+      const filesToGenerate: Array<{ path: string; type: string }> = [];
 
-      // Export to Excel using ImportExportService
-      await ImportExportService.writeFile(filePath, exportData, {
-        format: 'excel',
-        include_headers: true
-      });
+      // Generate Excel file if requested
+      if (format === 'excel' || format === 'both') {
+        const excelFilename = `${baseFilename}.xlsx`;
+        const excelFilePath = path.join(tempDir, excelFilename);
 
-      console.log(`✅ Ward audit export completed: ${filename}`);
-      console.log(`📁 File saved to file processing directory: ${filePath}`);
-      console.log(`📊 Exported ${members.length} members`);
+        await ImportExportService.writeFile(excelFilePath, exportData, {
+          format: 'excel',
+          include_headers: true
+        });
 
-      // Manually queue the file for processing with user tracking
-      const { FileWatcherService } = await import('../services/fileWatcherService');
-      const fileWatcher = FileWatcherService.getInstance();
-      const jobId = await fileWatcher.queueFileForProcessing(filePath, (req as any).user?.id);
+        filesToGenerate.push({ path: excelFilePath, type: 'excel' });
+        console.log(`✅ Excel Attendance Register created: ${excelFilename}`);
+      }
 
-      console.log(`🔄 File manually queued for voter verification processing (Job ID: ${jobId})`);
+      // Generate Word file if requested
+      if (format === 'word' || format === 'both') {
+        const wordFilename = `${baseFilename}.docx`;
+        const wordFilePath = path.join(tempDir, wordFilename);
 
-      // Return success response with file info and processing status
-      sendSuccess(res, {
-        message: `Ward audit export completed and queued for voter verification processing`,
-        filename: filename,
-        file_path: filePath,
-        job_id: jobId,
-        ward_info: wardInfo,
-        member_count: members.length,
-        export_timestamp: new Date().toISOString(),
-        columns_exported: Object.keys(exportData[0] || {}).length,
-        processing_status: 'queued',
-        processing_message: 'File has been queued for voter verification processing with user tracking'
-      });
+        const wordBuffer = await WordDocumentService.generateWardAttendanceRegister(wardInfo, members);
+        fs.writeFileSync(wordFilePath, wordBuffer);
+
+        filesToGenerate.push({ path: wordFilePath, type: 'word' });
+        console.log(`✅ Word Attendance Register created: ${wordFilename}`);
+
+        // Trigger background email process (fire-and-forget)
+        if (req.user?.email) {
+          AttendanceRegisterEmailService.processAttendanceRegisterEmail({
+            userEmail: req.user.email,
+            userName: req.user.name || req.user.email,
+            wordBuffer: wordBuffer,
+            wardInfo: wardInfo,
+            memberCount: members.length
+          }).catch(error => {
+            // Log error but don't fail the request
+            console.error('❌ Background email process failed (non-blocking):', error);
+            // Set header to indicate email failed
+            res.setHeader('X-Email-Status', 'failed');
+            res.setHeader('X-Email-Error', error.message || 'Unknown error');
+          });
+          console.log(`📧 Background email process initiated for ${req.user.email}`);
+          // Set header to indicate email is being sent
+          res.setHeader('X-Email-Status', 'sending');
+        } else {
+          console.warn('⚠️ User email not available, skipping background email');
+          res.setHeader('X-Email-Status', 'no-email');
+        }
+      }
+
+      // Generate PDF file if requested using HTML-to-PDF conversion
+      if (format === 'pdf') {
+        console.log('📄 PDF format requested - generating using HTML-to-PDF');
+
+        const pdfFilename = `${baseFilename}.pdf`;
+        const pdfFilePath = path.join(tempDir, pdfFilename);
+
+        // Import HtmlPdfService dynamically
+        const { HtmlPdfService } = require('../services/htmlPdfService');
+        const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, members);
+        fs.writeFileSync(pdfFilePath, pdfBuffer);
+
+        filesToGenerate.push({ path: pdfFilePath, type: 'pdf' });
+        console.log(`✅ PDF Attendance Register created: ${pdfFilename}`);
+
+        // Trigger background email process with HTML-based PDF (fire-and-forget)
+        if (req.user?.email) {
+          AttendanceRegisterEmailService.processAttendanceRegisterEmailFromHtml({
+            userEmail: req.user.email,
+            userName: req.user.name || req.user.email,
+            wardInfo: wardInfo,
+            members: members
+          }).catch(error => {
+            // Log error but don't fail the request
+            console.error('❌ Background email process failed (non-blocking):', error);
+            // Set header to indicate email failed
+            res.setHeader('X-Email-Status', 'failed');
+            res.setHeader('X-Email-Error', error.message || 'Unknown error');
+          });
+          console.log(`📧 Background HTML-based PDF email process initiated for ${req.user.email}`);
+          // Set header to indicate email is being sent
+          res.setHeader('X-Email-Status', 'sending');
+          res.setHeader('X-Email-Sent-To', req.user.email);
+        } else {
+          console.warn('⚠️ User email not available, skipping background email');
+          res.setHeader('X-Email-Status', 'no-email');
+        }
+      }
+
+      console.log(`📊 Total members: ${members.length}`);
+      console.log(`📋 Document type: Attendance Register for Ward ${wardNumber}`);
+
+      // If both files requested, create a zip archive
+      if (format === 'both' && filesToGenerate.length === 2) {
+        const archiver = require('archiver');
+        const zipFilename = `${baseFilename}.zip`;
+        const zipFilePath = path.join(tempDir, zipFilename);
+
+        const output = fs.createWriteStream(zipFilePath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        output.on('close', () => {
+          console.log(`✅ ZIP archive created: ${zipFilename} (${archive.pointer()} bytes)`);
+
+          // Set response headers for ZIP download
+          res.setHeader('Content-Type', 'application/zip');
+          res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+          res.setHeader('X-Ward-Code', wardCode);
+          res.setHeader('X-Ward-Name', wardInfo.ward_name);
+          res.setHeader('X-Municipality', wardInfo.municipality_name);
+          res.setHeader('X-Member-Count', members.length.toString());
+          res.setHeader('X-Document-Type', 'Attendance Register (Excel + Word)');
+          // Add custom header to indicate email will be sent
+          if (req.user?.email) {
+            res.setHeader('X-Email-Sent-To', req.user.email);
+          }
+
+          // Set a longer timeout for large files
+          res.setTimeout(300000); // 5 minutes
+
+          // Send ZIP file
+          res.sendFile(zipFilePath, (err) => {
+            if (err) {
+              console.error('❌ Error sending ZIP file:', err);
+              if (!res.headersSent) {
+                res.status(500).json({
+                  success: false,
+                  message: 'Failed to download attendance register'
+                });
+              }
+            } else {
+              console.log(`✅ Attendance Register ZIP downloaded successfully`);
+
+              // Clean up temporary files
+              setTimeout(() => {
+                try {
+                  [zipFilePath, ...filesToGenerate.map(f => f.path)].forEach(file => {
+                    if (fs.existsSync(file)) {
+                      fs.unlinkSync(file);
+                      console.log(`🗑️ Temporary file cleaned up: ${path.basename(file)}`);
+                    }
+                  });
+                } catch (cleanupError) {
+                  console.warn(`⚠️ Failed to clean up temporary files: ${cleanupError}`);
+                }
+              }, 5000);
+            }
+          });
+        });
+
+        archive.on('error', (err: any) => {
+          throw err;
+        });
+
+        archive.pipe(output);
+
+        // Add files to archive
+        filesToGenerate.forEach(file => {
+          archive.file(file.path, { name: path.basename(file.path) });
+        });
+
+        await archive.finalize();
+
+      } else {
+        // Send single file
+        const fileToSend = filesToGenerate[0];
+        let contentType: string;
+
+        if (fileToSend.type === 'excel') {
+          contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } else if (fileToSend.type === 'pdf') {
+          contentType = 'application/pdf';
+        } else {
+          contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        }
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${path.basename(fileToSend.path)}"`);
+        res.setHeader('X-Ward-Code', wardCode);
+        res.setHeader('X-Ward-Name', wardInfo.ward_name);
+        res.setHeader('X-Municipality', wardInfo.municipality_name);
+        res.setHeader('X-Member-Count', members.length.toString());
+        res.setHeader('X-Document-Type', `Attendance Register (${fileToSend.type})`);
+        // Add custom header to indicate email will be sent (only for Word format)
+        if (fileToSend.type === 'word' && req.user?.email) {
+          res.setHeader('X-Email-Sent-To', req.user.email);
+        }
+
+        // Set a longer timeout for large files
+        res.setTimeout(300000); // 5 minutes
+
+        res.sendFile(fileToSend.path, (err) => {
+          if (err) {
+            console.error('❌ Error sending file:', err);
+            if (!res.headersSent) {
+              res.status(500).json({
+                success: false,
+                message: 'Failed to download attendance register'
+              });
+            }
+          } else {
+            console.log(`✅ Attendance Register downloaded successfully: ${path.basename(fileToSend.path)}`);
+
+            // Clean up temporary file
+            setTimeout(() => {
+              try {
+                if (fs.existsSync(fileToSend.path)) {
+                  fs.unlinkSync(fileToSend.path);
+                  console.log(`🗑️ Temporary file cleaned up: ${path.basename(fileToSend.path)}`);
+                }
+              } catch (cleanupError) {
+                console.warn(`⚠️ Failed to clean up temporary file: ${cleanupError}`);
+              }
+            }, 5000);
+          }
+        });
+      }
 
     } catch (error: any) {
       console.error('❌ Ward audit export failed:', error);
