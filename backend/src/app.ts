@@ -104,6 +104,7 @@ import reportsRoutes from './routes/reports';
 import selfDataManagementRoutes from './routes/selfDataManagement';
 import internalRoutes from './routes/internal';
 import bulkUploadRoutes from './routes/bulkUploadRoutes';
+import metricsRoutes from './routes/metrics';
 import { createAuthRoutes } from './middleware/auth';
 import { cacheService } from './services/cacheService';
 import { cacheMetricsMiddleware } from './middleware/cacheMetrics';
@@ -291,6 +292,9 @@ app.use(`${apiPrefix}/reports`, reportsRoutes);
 app.use(`${apiPrefix}/self-data-management`, selfDataManagementRoutes);
 app.use(`${apiPrefix}/internal`, internalRoutes); // Internal API for Python scripts
 app.use(`${apiPrefix}/bulk-upload`, bulkUploadRoutes); // New bulk upload API
+
+// Prometheus metrics endpoint (outside API prefix for standard scraping)
+app.use('/metrics', metricsRoutes);
 
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
