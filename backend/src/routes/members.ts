@@ -2740,13 +2740,15 @@ router.get('/ward/:wardCode/audit-export',
         filesToGenerate.push({ path: pdfFilePath, type: 'pdf' });
         console.log(`✅ PDF Attendance Register created: ${pdfFilename}`);
 
-        // Trigger background email process with HTML-based PDF (fire-and-forget)
+        // Trigger background email process with already-generated PDF buffer (fire-and-forget)
+        // This avoids regenerating the PDF and causing timeout issues
         if (req.user?.email) {
-          AttendanceRegisterEmailService.processAttendanceRegisterEmailFromHtml({
+          AttendanceRegisterEmailService.processAttendanceRegisterEmailWithBuffer({
             userEmail: req.user.email,
             userName: req.user.name || req.user.email,
+            pdfBuffer: pdfBuffer,
             wardInfo: wardInfo,
-            members: members
+            memberCount: members.length
           }).catch(error => {
             // Log error but don't fail the request
             console.error('❌ Background email process failed (non-blocking):', error);
@@ -2754,7 +2756,7 @@ router.get('/ward/:wardCode/audit-export',
             res.setHeader('X-Email-Status', 'failed');
             res.setHeader('X-Email-Error', error.message || 'Unknown error');
           });
-          console.log(`📧 Background HTML-based PDF email process initiated for ${req.user.email}`);
+          console.log(`📧 Background PDF email process initiated for ${req.user.email}`);
           // Set header to indicate email is being sent
           res.setHeader('X-Email-Status', 'sending');
           res.setHeader('X-Email-Sent-To', req.user.email);
