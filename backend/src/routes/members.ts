@@ -2698,32 +2698,23 @@ router.get('/ward/:wardCode/audit-export',
         const wordBuffer = await WordDocumentService.generateWardAttendanceRegister(wardInfo, members);
         fs.writeFileSync(wordFilePath, wordBuffer);
 
-        filesToGenerate.push({ path: wordFilePath, type: 'word' });
+        filesToGenerate.push({
+          path: wordFilePath,
+          type: 'word',
+          emailData: req.user?.email ? {
+            userEmail: req.user.email,
+            userName: req.user.name || req.user.email,
+            wordBuffer: wordBuffer,
+            wardInfo: wardInfo,
+            memberCount: members.length
+          } : null
+        });
         console.log(`✅ Word Attendance Register created: ${wordFilename}`);
 
-        // Trigger background email process (fire-and-forget)
-        // Use setImmediate to ensure email sending happens AFTER response is sent
+        // Email will be triggered AFTER file is sent (see res.sendFile callback below)
         if (req.user?.email) {
-          const userEmail = req.user.email;
-          const userName = req.user.name || req.user.email;
-
-          // Schedule email to run after response is sent (true fire-and-forget)
-          setImmediate(() => {
-            AttendanceRegisterEmailService.processAttendanceRegisterEmail({
-              userEmail: userEmail,
-              userName: userName,
-              wordBuffer: wordBuffer,
-              wardInfo: wardInfo,
-              memberCount: members.length
-            }).catch(error => {
-              // Log error but don't fail the request
-              console.error('❌ Background email process failed (non-blocking):', error);
-            });
-          });
-
-          console.log(`📧 Background email process scheduled for ${userEmail}`);
-          // Set header to indicate email will be sent
-          res.setHeader('X-Email-Status', 'scheduled');
+          console.log(`📧 Word email will be sent after file download completes`);
+          res.setHeader('X-Email-Status', 'pending');
         } else {
           console.warn('⚠️ User email not available, skipping background email');
           res.setHeader('X-Email-Status', 'no-email');
@@ -2742,33 +2733,24 @@ router.get('/ward/:wardCode/audit-export',
         const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, members);
         fs.writeFileSync(pdfFilePath, pdfBuffer);
 
-        filesToGenerate.push({ path: pdfFilePath, type: 'pdf' });
+        filesToGenerate.push({
+          path: pdfFilePath,
+          type: 'pdf',
+          emailData: req.user?.email ? {
+            userEmail: req.user.email,
+            userName: req.user.name || req.user.email,
+            pdfBuffer: pdfBuffer,
+            wardInfo: wardInfo,
+            memberCount: members.length
+          } : null
+        });
         console.log(`✅ PDF Attendance Register created: ${pdfFilename}`);
 
-        // Trigger background email process with already-generated PDF buffer (fire-and-forget)
-        // Use setImmediate to ensure email sending happens AFTER response is sent
+        // Email will be triggered AFTER file is sent (see res.sendFile callback below)
         if (req.user?.email) {
-          const userEmail = req.user.email;
-          const userName = req.user.name || req.user.email;
-
-          // Schedule email to run after response is sent (true fire-and-forget)
-          setImmediate(() => {
-            AttendanceRegisterEmailService.processAttendanceRegisterEmailWithBuffer({
-              userEmail: userEmail,
-              userName: userName,
-              pdfBuffer: pdfBuffer,
-              wardInfo: wardInfo,
-              memberCount: members.length
-            }).catch(error => {
-              // Log error but don't fail the request
-              console.error('❌ Background email process failed (non-blocking):', error);
-            });
-          });
-
-          console.log(`📧 Background PDF email process scheduled for ${userEmail}`);
-          // Set header to indicate email will be sent
-          res.setHeader('X-Email-Status', 'scheduled');
-          res.setHeader('X-Email-Sent-To', userEmail);
+          console.log(`📧 PDF email will be sent after file download completes`);
+          res.setHeader('X-Email-Status', 'pending');
+          res.setHeader('X-Email-Sent-To', req.user.email);
         } else {
           console.warn('⚠️ User email not available, skipping background email');
           res.setHeader('X-Email-Status', 'no-email');
@@ -2888,6 +2870,27 @@ router.get('/ward/:wardCode/audit-export',
             }
           } else {
             console.log(`✅ Attendance Register downloaded successfully: ${path.basename(fileToSend.path)}`);
+
+            // Trigger email AFTER file has been sent successfully
+            if ((fileToSend as any).emailData) {
+              const emailData = (fileToSend as any).emailData;
+              console.log(`📧 File sent successfully, now triggering email to ${emailData.userEmail}`);
+
+              // Use setImmediate to ensure email happens after this callback completes
+              setImmediate(() => {
+                if (fileToSend.type === 'pdf') {
+                  AttendanceRegisterEmailService.processAttendanceRegisterEmailWithBuffer(emailData)
+                    .catch(error => {
+                      console.error('❌ Background PDF email process failed (non-blocking):', error);
+                    });
+                } else if (fileToSend.type === 'word') {
+                  AttendanceRegisterEmailService.processAttendanceRegisterEmail(emailData)
+                    .catch(error => {
+                      console.error('❌ Background Word email process failed (non-blocking):', error);
+                    });
+                }
+              });
+            }
 
             // Clean up temporary file
             setTimeout(() => {
