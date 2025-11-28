@@ -120,6 +120,10 @@ data/redis/*
 backups/postgres/*
 !backups/postgres/.gitkeep
 
+# Database migration backups (large SQL files)
+deployment/migration-backup/*.sql
+deployment/migration-backup/*.dump
+
 # Upload files (keep structure but ignore uploads)
 uploads/*
 !uploads/.gitkeep
