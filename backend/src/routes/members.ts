@@ -2702,23 +2702,28 @@ router.get('/ward/:wardCode/audit-export',
         console.log(`✅ Word Attendance Register created: ${wordFilename}`);
 
         // Trigger background email process (fire-and-forget)
+        // Use setImmediate to ensure email sending happens AFTER response is sent
         if (req.user?.email) {
-          AttendanceRegisterEmailService.processAttendanceRegisterEmail({
-            userEmail: req.user.email,
-            userName: req.user.name || req.user.email,
-            wordBuffer: wordBuffer,
-            wardInfo: wardInfo,
-            memberCount: members.length
-          }).catch(error => {
-            // Log error but don't fail the request
-            console.error('❌ Background email process failed (non-blocking):', error);
-            // Set header to indicate email failed
-            res.setHeader('X-Email-Status', 'failed');
-            res.setHeader('X-Email-Error', error.message || 'Unknown error');
+          const userEmail = req.user.email;
+          const userName = req.user.name || req.user.email;
+
+          // Schedule email to run after response is sent (true fire-and-forget)
+          setImmediate(() => {
+            AttendanceRegisterEmailService.processAttendanceRegisterEmail({
+              userEmail: userEmail,
+              userName: userName,
+              wordBuffer: wordBuffer,
+              wardInfo: wardInfo,
+              memberCount: members.length
+            }).catch(error => {
+              // Log error but don't fail the request
+              console.error('❌ Background email process failed (non-blocking):', error);
+            });
           });
-          console.log(`📧 Background email process initiated for ${req.user.email}`);
-          // Set header to indicate email is being sent
-          res.setHeader('X-Email-Status', 'sending');
+
+          console.log(`📧 Background email process scheduled for ${userEmail}`);
+          // Set header to indicate email will be sent
+          res.setHeader('X-Email-Status', 'scheduled');
         } else {
           console.warn('⚠️ User email not available, skipping background email');
           res.setHeader('X-Email-Status', 'no-email');
@@ -2741,25 +2746,29 @@ router.get('/ward/:wardCode/audit-export',
         console.log(`✅ PDF Attendance Register created: ${pdfFilename}`);
 
         // Trigger background email process with already-generated PDF buffer (fire-and-forget)
-        // This avoids regenerating the PDF and causing timeout issues
+        // Use setImmediate to ensure email sending happens AFTER response is sent
         if (req.user?.email) {
-          AttendanceRegisterEmailService.processAttendanceRegisterEmailWithBuffer({
-            userEmail: req.user.email,
-            userName: req.user.name || req.user.email,
-            pdfBuffer: pdfBuffer,
-            wardInfo: wardInfo,
-            memberCount: members.length
-          }).catch(error => {
-            // Log error but don't fail the request
-            console.error('❌ Background email process failed (non-blocking):', error);
-            // Set header to indicate email failed
-            res.setHeader('X-Email-Status', 'failed');
-            res.setHeader('X-Email-Error', error.message || 'Unknown error');
+          const userEmail = req.user.email;
+          const userName = req.user.name || req.user.email;
+
+          // Schedule email to run after response is sent (true fire-and-forget)
+          setImmediate(() => {
+            AttendanceRegisterEmailService.processAttendanceRegisterEmailWithBuffer({
+              userEmail: userEmail,
+              userName: userName,
+              pdfBuffer: pdfBuffer,
+              wardInfo: wardInfo,
+              memberCount: members.length
+            }).catch(error => {
+              // Log error but don't fail the request
+              console.error('❌ Background email process failed (non-blocking):', error);
+            });
           });
-          console.log(`📧 Background PDF email process initiated for ${req.user.email}`);
-          // Set header to indicate email is being sent
-          res.setHeader('X-Email-Status', 'sending');
-          res.setHeader('X-Email-Sent-To', req.user.email);
+
+          console.log(`📧 Background PDF email process scheduled for ${userEmail}`);
+          // Set header to indicate email will be sent
+          res.setHeader('X-Email-Status', 'scheduled');
+          res.setHeader('X-Email-Sent-To', userEmail);
         } else {
           console.warn('⚠️ User email not available, skipping background email');
           res.setHeader('X-Email-Status', 'no-email');
