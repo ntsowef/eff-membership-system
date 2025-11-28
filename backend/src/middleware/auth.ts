@@ -1107,6 +1107,27 @@ export const requireNationalAdminOnly = () => {
   };
 };
 
+// Super Admin Only restriction middleware - For the most sensitive features
+export const requireSuperAdminOnly = () => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      if (!req.user) {
+        throw new AuthenticationError('User not authenticated');
+      }
+
+      // Only Super Admin can access
+      if (req.user.role_name !== 'super_admin') {
+        throw new AuthorizationError('This feature is restricted to Super Admin users only');
+      }
+
+      console.log(`🔒 Super Admin Permission granted: User ${req.user.email} accessing super-admin-only features`);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
 // Election Management restriction middleware - National Admin only (updated from National and Provincial)
 export const requireElectionManagementPermission = () => {
   return (req: Request, res: Response, next: NextFunction): void => {
