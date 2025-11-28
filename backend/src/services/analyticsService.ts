@@ -124,18 +124,18 @@ export class AnalyticsService {
   // Get overview metrics
   private static async getOverviewMetrics(dateFilter: string, campaignFilter: string) {
     const query = `
-      SELECT 
+        SELECT
         COUNT(DISTINCT c.id) as total_campaigns,
         COUNT(DISTINCT CASE WHEN c.status IN ('Sending', 'Scheduled') THEN c.id END) as active_campaigns,
         COALESCE(SUM(c.total_sent), 0) as total_messages_sent,
         COALESCE(SUM(c.total_delivered), 0) as total_messages_delivered,
-        CASE 
-          WHEN SUM(c.total_sent) > 0 
+        CASE
+          WHEN SUM(c.total_sent) > 0
           THEN ROUND((SUM(c.total_delivered) / SUM(c.total_sent)) * 100, 2)
-          ELSE 0 
+          ELSE 0
         END as overall_delivery_rate
       FROM communication_campaigns c
-      WHERE 1=1 ${dateFilter} ${campaignFilter}
+      WHERE 1 = 1 ${dateFilter} ${campaignFilter}
     `;
 
     return await executeQuerySingle(query);
@@ -145,7 +145,7 @@ export class AnalyticsService {
   private static async getChannelStatistics(dateFilter: string, campaignFilter: string) {
     // Email statistics
     const emailStats = await executeQuerySingle(`
-      SELECT 
+        SELECT
         COUNT(*) as sent,
         SUM(CASE WHEN delivery_status IN ('Delivered', 'Opened', 'Clicked') THEN 1 ELSE 0 END) as delivered,
         SUM(CASE WHEN delivery_status = 'Opened' THEN 1 ELSE 0 END) as opened,
@@ -159,7 +159,7 @@ export class AnalyticsService {
 
     // SMS statistics
     const smsStats = await executeQuerySingle(`
-      SELECT 
+        SELECT
         COUNT(*) as sent,
         SUM(CASE WHEN delivery_status IN ('Delivered') THEN 1 ELSE 0 END) as delivered,
         SUM(CASE WHEN delivery_status IN ('Failed', 'Bounced') THEN 1 ELSE 0 END) as failed
@@ -170,7 +170,7 @@ export class AnalyticsService {
 
     // In-App statistics
     const inAppStats = await executeQuerySingle(`
-      SELECT 
+        SELECT
         COUNT(*) as sent,
         SUM(CASE WHEN delivery_status IN ('Delivered', 'Read') THEN 1 ELSE 0 END) as delivered,
         SUM(CASE WHEN delivery_status = 'Read' THEN 1 ELSE 0 END) as read
@@ -215,15 +215,15 @@ export class AnalyticsService {
     const dateTo = filters.date_to || new Date().toISOString().split('T')[0];
 
     const query = `
-      SELECT 
-        DATE(created_at) as date,
+      SELECT
+        md.created_at::DATE as date,
         COUNT(DISTINCT md.id) as messages_sent,
         COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Delivered', 'Opened', 'Clicked', 'Read') THEN md.id END) as messages_delivered,
         COUNT(DISTINCT c.id) as campaigns_launched
       FROM message_deliveries md
-      LEFT JOIN communication_campaigns c ON md.campaign_id = c.id AND DATE(c.created_at) = DATE(md.created_at)
-      WHERE DATE(md.created_at) BETWEEN ? AND ?
-      GROUP BY DATE(md.created_at)
+      LEFT JOIN communication_campaigns c ON md.campaign_id = c.id AND c.created_at::DATE = md.created_at::DATE
+      WHERE md.created_at::DATE BETWEEN $1 AND $2
+      GROUP BY md.created_at::DATE
       ORDER BY date ASC
     `;
 
@@ -236,21 +236,22 @@ export class AnalyticsService {
     const params: any[] = [];
 
     if (filters.geographic_filters?.province_codes?.length) {
-      whereClause += ' AND m.province_code IN (' + filters.geographic_filters.province_codes.map(() => '?').join(',') + ')';
+      const placeholders = filters.geographic_filters.province_codes.map((_, index) => `$${params.length + index + 1}`).join(',');
+      whereClause += ` AND m.province_code IN (${placeholders})`;
       params.push(...filters.geographic_filters.province_codes);
     }
 
     const query = `
-      SELECT 
+        SELECT
         m.province_code,
         p.province_name,
         COUNT(DISTINCT md.id) as total_recipients,
         ROUND(
-          (COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Delivered', 'Opened', 'Clicked', 'Read') THEN md.id END) / 
+          (COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Delivered', 'Opened', 'Clicked', 'Read') THEN md.id END) /
            COUNT(DISTINCT md.id)) * 100, 2
         ) as delivery_rate,
         ROUND(
-          (COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Opened', 'Clicked', 'Read') THEN md.id END) / 
+          (COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Opened', 'Clicked', 'Read') THEN md.id END) /
            COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Delivered', 'Opened', 'Clicked', 'Read') THEN md.id END)) * 100, 2
         ) as engagement_rate
       FROM message_deliveries md
@@ -271,23 +272,23 @@ export class AnalyticsService {
     const dateFilter = this.buildDateFilter(filters);
 
     const query = `
-      SELECT 
+        SELECT
         c.id,
         c.name,
         ROUND(
-          CASE WHEN c.total_sent > 0 
-          THEN (c.total_delivered / c.total_sent) * 100 
+          CASE WHEN c.total_sent > 0
+          THEN (c.total_delivered / c.total_sent) * 100
           ELSE 0 END, 2
         ) as delivery_rate,
         ROUND(
-          CASE WHEN c.total_delivered > 0 
-          THEN (c.total_opened / c.total_delivered) * 100 
+          CASE WHEN c.total_delivered > 0
+          THEN (c.total_opened / c.total_delivered) * 100
           ELSE 0 END, 2
         ) as engagement_rate,
         c.recipient_count as total_recipients
       FROM communication_campaigns c
       WHERE c.status = 'Completed' ${dateFilter}
-      ORDER BY delivery_rate DESC, engagement_rate DESC
+        ORDER BY delivery_rate DESC, engagement_rate DESC
       LIMIT 10
     `;
 
@@ -298,9 +299,9 @@ export class AnalyticsService {
   static async getCampaignComparison(campaignIds: number[]) {
     if (campaignIds.length === 0) return [];
 
-    const placeholders = campaignIds.map(() => '?').join(',');
+    const placeholders = campaignIds.map((_, index) => `$${index + 1}`).join(',');
     const query = `
-      SELECT 
+        SELECT
         c.id,
         c.name,
         c.campaign_type,
@@ -309,9 +310,9 @@ export class AnalyticsService {
         c.total_opened,
         c.total_clicked,
         c.total_failed,
-        ROUND((c.total_delivered / c.total_sent) * 100, 2) as delivery_rate,
-        ROUND((c.total_opened / c.total_delivered) * 100, 2) as open_rate,
-        ROUND((c.total_clicked / c.total_opened) * 100, 2) as click_rate,
+        ROUND((c.total_delivered::numeric / NULLIF(c.total_sent, 0)) * 100, 2) as delivery_rate,
+        ROUND((c.total_opened::numeric / NULLIF(c.total_delivered, 0)) * 100, 2) as open_rate,
+        ROUND((c.total_clicked::numeric / NULLIF(c.total_opened, 0)) * 100, 2) as click_rate,
         c.created_at,
         c.completed_at
       FROM communication_campaigns c
@@ -328,16 +329,16 @@ export class AnalyticsService {
     const dateTo = filters.date_to || new Date().toISOString().split('T')[0];
 
     const query = `
-      SELECT 
-        DATE(md.created_at) as date,
+      SELECT
+        md.created_at::DATE as date,
         md.delivery_channel,
         COUNT(*) as total_sent,
         COUNT(CASE WHEN md.delivery_status IN ('Delivered', 'Opened', 'Clicked', 'Read') THEN 1 END) as delivered,
         COUNT(CASE WHEN md.delivery_status IN ('Opened', 'Read') THEN 1 END) as opened,
         COUNT(CASE WHEN md.delivery_status = 'Clicked' THEN 1 END) as clicked
       FROM message_deliveries md
-      WHERE DATE(md.created_at) BETWEEN ? AND ?
-      GROUP BY DATE(md.created_at), md.delivery_channel
+      WHERE md.created_at::DATE BETWEEN $1 AND $2
+      GROUP BY md.created_at::DATE, md.delivery_channel
       ORDER BY date ASC, delivery_channel
     `;
 

@@ -19,7 +19,7 @@ export class ViewsService {
           m.id_number,
           m.firstname,
           m.surname,
-          CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
+          m.firstname || ' ' || COALESCE(m.surname || '') as full_name,
           m.age,
           m.date_of_birth,
           m.gender_id,
@@ -64,14 +64,9 @@ export class ViewsService {
           p.province_name,
           
           -- Geographic hierarchy as concatenated string
-          CONCAT(
-            p.province_name, ' → ',
-            d.district_name, ' → ',
-            mu.municipal_name, ' → ',
-            'Ward ', w.ward_number,
-            CASE 
+          p.province_name || ' → ' || d.district_name || ' → ' || mu.municipal_name || ' → ' || 'Ward ' || w.ward_number || CASE 
               WHEN vd.voting_district_name IS NOT NULL 
-              THEN CONCAT(' → VD ', vd.voting_district_number, ' (', vd.voting_district_name, ')')
+              THEN CONCAT(' → VD ' || vd.voting_district_number || ' (' || vd.voting_district_name || '')
               ELSE ''
             END
           ) as full_geographic_hierarchy,
@@ -110,7 +105,7 @@ export class ViewsService {
         FROM members m
 
         -- Geographic joins (complete hierarchy)
-        LEFT JOIN voting_districts vd ON REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(vd.vd_code AS CHAR), '.0', '')
+        LEFT JOIN voting_districts vd ON REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(vd.voting_district_code AS CHAR), '.0', '')
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipal_code = mu.municipal_code
         LEFT JOIN districts d ON mu.district_code = d.district_code
@@ -140,14 +135,14 @@ export class ViewsService {
           MIN(m.created_at) as first_member_joined,
           MAX(m.created_at) as latest_member_joined
         FROM voting_districts vd
-        LEFT JOIN members m ON REPLACE(CAST(vd.vd_code AS CHAR), '.0', '') = REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '')
+        LEFT JOIN members m ON REPLACE(CAST(vd.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '')
         LEFT JOIN wards w ON vd.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipal_code = mu.municipal_code
         LEFT JOIN districts d ON mu.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
         WHERE vd.is_active = TRUE
         GROUP BY 
-          vd.vd_code, vd.vd_name, vd.voting_district_number,
+          vd.voting_district_code, vd.voting_district_name, vd.voting_district_id,
           w.ward_code, w.ward_name, w.ward_number,
           mu.municipal_name, d.district_name, p.province_name
         ORDER BY p.province_name, d.district_name, w.ward_number, vd.voting_district_number
@@ -169,64 +164,85 @@ export class ViewsService {
   // Get members with voting district information
   static async getMembersWithVotingDistricts(filters: any = {}): Promise<any[]> {
     try {
-      let query = 'SELECT * FROM members_with_voting_districts WHERE 1=1';
+      let query = 'SELECT * FROM members_with_voting_districts WHERE 1= TRUE';
       const params: any[] = [];
 
+      let paramIndex = 1;
+
       if (filters.province_code) {
-        query += ' AND province_code = ?';
+        query += ` AND province_code = $${paramIndex}`;
         params.push(filters.province_code);
+        paramIndex++;
       }
 
       if (filters.district_code) {
-        query += ' AND district_code = ?';
+        query += ` AND district_code = $${paramIndex}`;
         params.push(filters.district_code);
+        paramIndex++;
       }
 
       if (filters.municipal_code) {
-        query += ' AND municipal_code = ?';
+        query += ` AND municipality_code = $${paramIndex}`;
         params.push(filters.municipal_code);
+        paramIndex++;
       }
 
       if (filters.ward_code) {
-        query += ' AND ward_code = ?';
+        query += ` AND ward_code = $${paramIndex}`;
         params.push(filters.ward_code);
+        paramIndex++;
       }
 
       if (filters.voting_district_code) {
-        query += " AND REPLACE(CAST(voting_district_code AS CHAR), '.0', '') = REPLACE(?, '.0', '')";
+        query += ` AND REPLACE(CAST(voting_district_code AS TEXT), '.0', '') = REPLACE(CAST($${paramIndex} AS TEXT), '.0', '')`;
         params.push(filters.voting_district_code);
+        paramIndex++;
       }
 
       if (filters.voting_station_id) {
-        query += ' AND voting_station_id = ?';
+        query += ` AND voting_station_id = $${paramIndex}`;
         params.push(filters.voting_station_id);
+        paramIndex++;
       }
 
       if (filters.voting_station_name) {
-        query += ' AND EXISTS (SELECT 1 FROM voting_stations vs WHERE vs.voting_station_id = voting_station_id AND vs.station_name LIKE ?)';
-        params.push(`%${filters.voting_station_name}%`);
+        query += ` AND EXISTS (SELECT 1 FROM voting_stations vs WHERE vs.voting_station_id = voting_station_id AND vs.station_name ILIKE $${paramIndex})`;
+        params.push('%' + filters.voting_station_name + '%');
+        paramIndex++;
       }
 
       if (filters.has_voting_district) {
-        query += ' AND has_voting_district = ?';
+        query += ` AND has_voting_district = $${paramIndex}`;
         params.push(filters.has_voting_district);
+        paramIndex++;
       }
 
       if (filters.age_group) {
-        query += ' AND age_group = ?';
+        query += ` AND age_group = $${paramIndex}`;
         params.push(filters.age_group);
+        paramIndex++;
       }
 
       if (filters.gender_id) {
-        query += ' AND gender_id = ?';
+        query += ` AND gender_id = $${paramIndex}`;
         params.push(filters.gender_id);
+        paramIndex++;
+      }
+
+      if (filters.search) {
+        query += ` AND (id_number LIKE $${paramIndex} OR full_name ILIKE $${paramIndex} OR membership_number LIKE $${paramIndex} OR cell_number LIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+        params.push('%' + filters.search + '%');
+        paramIndex++;
       }
 
       query += ' ORDER BY full_name';
 
       if (filters.limit) {
-        query += ' LIMIT ?';
+        query += ` LIMIT $${paramIndex}`;
         params.push(parseInt(filters.limit));
+        paramIndex++;
+      } else {
+        query += ' LIMIT 100'; // Default limit
       }
 
       return await executeQuery(query, params);
@@ -236,33 +252,33 @@ export class ViewsService {
   }
 
   // Get voting district summary
-  static async getVotingDistrictSummary(filters: any = {}): Promise<any[]> {
+  static async getVotingDistrictSummary(filters : any = {}): Promise<any[]> {
     try {
-      let query = 'SELECT * FROM members_by_voting_district_summary WHERE 1=1';
+      let query = 'SELECT * FROM members_by_voting_district_summary WHERE 1= TRUE';
       const params: any[] = [];
 
       if (filters.province_name) {
-        query += ' AND province_name = ?';
+        query += ' AND province_name = $1';
         params.push(filters.province_name);
       }
 
       if (filters.district_name) {
-        query += ' AND district_name = ?';
+        query += ' AND district_name = $1';
         params.push(filters.district_name);
       }
 
       if (filters.municipal_name) {
-        query += ' AND municipal_name = ?';
+        query += ' AND municipal_name = $1';
         params.push(filters.municipal_name);
       }
 
       if (filters.ward_code) {
-        query += ' AND ward_code = ?';
+        query += ' AND ward_code = $1';
         params.push(filters.ward_code);
       }
 
       if (filters.min_members) {
-        query += ' AND total_members >= ?';
+        query += ' AND total_members >= $1';
         params.push(parseInt(filters.min_members));
       }
 

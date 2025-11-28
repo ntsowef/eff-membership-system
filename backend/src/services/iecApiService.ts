@@ -55,10 +55,10 @@ class IECApiService {
       (requestConfig) => {
         // Add basic authentication
         const credentials = Buffer.from(
-          `${config.iec.username}:${config.iec.password}`
+          '${config.iec.username}:' + config.iec.password + ''
         ).toString('base64');
 
-        requestConfig.headers.Authorization = `Basic ${credentials}`;
+        requestConfig.headers.Authorization = 'Basic ' + credentials + '';
 
         // Rate limiting check
         this.checkRateLimit();
@@ -99,7 +99,7 @@ class IECApiService {
     
     // Check if rate limit exceeded
     if (this.rateLimitCount >= config.iec.rateLimit) {
-      throw new Error(`IEC API rate limit exceeded. Maximum ${config.iec.rateLimit} requests per minute.`);
+      throw new Error('IEC API rate limit exceeded. Maximum ' + config.iec.rateLimit + ' requests per minute.');
     }
     
     this.rateLimitCount++;
@@ -123,14 +123,14 @@ class IECApiService {
         case 500:
           return new Error('IEC API server error. Please try again later.');
         default:
-          return new Error(`IEC API error: ${message}`);
+          return new Error('IEC API error: ' + message + '');
       }
     } else if (error.request) {
       // Network error
       return new Error('IEC API network error. Please check your connection.');
     } else {
       // Other error
-      return new Error(`IEC API error: ${error.message}`);
+      return new Error('IEC API error: ' + error.message + '');
     }
   }
 
@@ -140,7 +140,7 @@ class IECApiService {
   async verifyVoter(idNumber: string): Promise<IECVoterDetails | null> {
     try {
       const response = await this.client.get<IECApiResponse<IECVoterDetails>>(
-        `/voters/verify/${idNumber}`
+        '/voters/verify/' + idNumber + ''
       );
 
       if (response.data.success && response.data.data) {
@@ -160,7 +160,7 @@ class IECApiService {
   async getVotingDistrictInfo(votingDistrictCode: string): Promise<IECVotingDistrictInfo | null> {
     try {
       const response = await this.client.get<IECApiResponse<IECVotingDistrictInfo>>(
-        `/voting-districts/${votingDistrictCode}`
+        '/voting-districts/' + votingDistrictCode + ''
       );
 
       if (response.data.success && response.data.data) {

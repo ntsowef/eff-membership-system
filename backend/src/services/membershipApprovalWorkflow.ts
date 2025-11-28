@@ -62,7 +62,7 @@ export class MembershipApprovalWorkflow {
 
         requiredFields.forEach(field => {
           if (!application[field]) {
-            blockingIssues.push(`Missing required field: ${field}`);
+            blockingIssues.push('Missing required field: ' + field + '');
           }
         });
 
@@ -85,14 +85,14 @@ export class MembershipApprovalWorkflow {
       
       if (application?.status === 'Approved') {
         approvalStatus = 'approved';
-      } else if (application?.status === 'Rejected') {
+      } else if (application.status === 'Rejected') {
         approvalStatus = 'rejected';
       } else if (blockingIssues.length === 0) {
         approvalStatus = 'ready_for_approval';
       }
 
       return {
-        application_id: applicationId,
+        application_id : applicationId,
         payment_status: paymentStatus,
         document_status: 'none', // Can be extended for document verification
         approval_status: approvalStatus,
@@ -121,8 +121,8 @@ export class MembershipApprovalWorkflow {
         LEFT JOIN payment_transactions pt ON ma.id = pt.application_id 
           AND pt.status = 'completed'
         WHERE ma.status IN ('Submitted', 'Under Review')
-        AND ma.party_declaration_accepted = 1
-        AND ma.constitution_accepted = 1
+        AND ma.party_declaration_accepted = TRUE
+        AND ma.constitution_accepted = TRUE
         AND ma.digital_signature IS NOT NULL
         AND pt.id IS NOT NULL
         ORDER BY ma.submitted_at ASC
@@ -167,7 +167,7 @@ export class MembershipApprovalWorkflow {
         
         if (!status.can_approve) {
           failed++;
-          errors.push(`Application ${applicationId}: ${status.blocking_issues.join(', ')}`);
+          errors.push('Application ' + applicationId + ': ' + status.blocking_issues.join(', '));
           continue;
         }
 
@@ -178,7 +178,7 @@ export class MembershipApprovalWorkflow {
       } catch (error) {
         failed++;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        errors.push(`Application ${applicationId}: ${errorMessage}`);
+        errors.push('Application ' + applicationId + ': ' + errorMessage);
       }
     }
 
@@ -205,12 +205,11 @@ export class MembershipApprovalWorkflow {
       const todayApplicationsQuery = `
         SELECT COUNT(*) as count 
         FROM membership_applications 
-        WHERE DATE(submitted_at) = ?
-      `;
+        WHERE submitted_at::DATE = $1 `;
       const todayApps = await executeQuerySingle(todayApplicationsQuery, [targetDate]);
 
       return {
-        daily_revenue: paymentStats.total_revenue || 0,
+        daily_revenue : paymentStats.total_revenue || 0,
         pending_verifications: pendingCash.length,
         failed_transactions: paymentStats.failed_transactions || 0,
         approval_ready_count: readyForApproval.length,
@@ -231,7 +230,7 @@ export class MembershipApprovalWorkflow {
       
       const detailedQuery = `
         SELECT 
-          DATE(pt.created_at) as transaction_date,
+          pt.created_at::DATE as transaction_date,
           pt.payment_method,
           COUNT(*) as transaction_count,
           SUM(pt.amount) as daily_total,
@@ -239,8 +238,8 @@ export class MembershipApprovalWorkflow {
           COUNT(CASE WHEN pt.status = 'failed' THEN 1 END) as failed_count,
           COUNT(CASE WHEN pt.status = 'verification_required' THEN 1 END) as pending_count
         FROM payment_transactions pt
-        WHERE DATE(pt.created_at) BETWEEN ? AND ?
-        GROUP BY DATE(pt.created_at), pt.payment_method
+        WHERE pt.created_at::DATE BETWEEN $1 AND $2
+        GROUP BY pt.created_at::DATE, pt.payment_method
         ORDER BY transaction_date DESC, pt.payment_method
       `;
 
@@ -262,7 +261,7 @@ export class MembershipApprovalWorkflow {
    */
   private static async getApplicationDetails(applicationId: number): Promise<any> {
     try {
-      const query = 'SELECT * FROM membership_applications WHERE id = ?';
+      const query = 'SELECT * FROM membership_applications WHERE id = $1';
       const result = await executeQuerySingle(query, [applicationId]);
       return result;
     } catch (error) {
@@ -273,19 +272,18 @@ export class MembershipApprovalWorkflow {
   /**
    * Send notification for payment verification
    */
-  static async notifyPaymentVerificationRequired(applicationId: number): Promise<void> {
+  static async notifyPaymentVerificationRequired(applicationId : number): Promise<void> {
     try {
       // This would integrate with email/SMS service
       // For now, we'll create a notification record
       const query = `
         INSERT INTO admin_notifications (
           type, title, message, application_id, created_at, is_read
-        ) VALUES (
-          'payment_verification', 
+        ) EXCLUDED.'payment_verification', 
           'Cash Payment Verification Required',
           'A cash payment requires verification for membership application',
-          ?, NOW(), 0
-        )
+          ?, CURRENT_TIMESTAMP, 0
+        
       `;
       
       await executeQuery(query, [applicationId]);
@@ -320,7 +318,7 @@ export class MembershipApprovalWorkflow {
           );
           approved++;
         } catch (error) {
-          console.error(`Failed to auto-approve application ${app.id}:`, error);
+          console.error('Failed to auto-approve application ' + app.id + ':', error);
         }
       }
 

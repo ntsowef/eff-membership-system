@@ -35,7 +35,7 @@ export class WebSocketService {
 
       // Use the same verifyToken function as REST API to ensure consistency
       const decoded = verifyToken(token);
-      socket.userId = decoded.id; // Note: JWT payload uses 'id', not 'userId'
+      socket.userId = decoded.id; // Note : JWT payload uses 'id', not 'userId'
       socket.userRole = decoded.role_name;
       socket.userType = decoded.admin_level;
 
@@ -48,7 +48,7 @@ export class WebSocketService {
   };
 
   private static handleConnection = (socket: any) => {
-    console.log(`🔌 Client connected: ${socket.id} (User: ${socket.userId})`);
+    console.log('🔌 Client connected: ' + socket.id + ' (User: ' + socket.userId + ')');
     
     this.connectedClients.set(socket.id, {
       userId: socket.userId,
@@ -58,12 +58,12 @@ export class WebSocketService {
     });
 
     // Join user-specific room
-    socket.join(`user:${socket.userId}`);
+    socket.join('user:' + socket.userId);
     
     // Handle file processing subscriptions
     socket.on('subscribe_file_processing', () => {
       socket.join('file_processing');
-      console.log(`📡 User ${socket.userId} subscribed to file processing updates`);
+      console.log('📡 User ' + socket.userId + ' subscribed to file processing updates');
       
       // Send current queue status immediately
       this.sendQueueStatus(socket);
@@ -71,14 +71,14 @@ export class WebSocketService {
 
     socket.on('unsubscribe_file_processing', () => {
       socket.leave('file_processing');
-      console.log(`📡 User ${socket.userId} unsubscribed from file processing updates`);
+      console.log('📡 User ' + socket.userId + ' unsubscribed from file processing updates');
     });
 
     socket.on('get_queue_status', async () => {
       await this.sendQueueStatus(socket);
     });
 
-    socket.on('get_job_history', async (data: { limit?: number }) => {
+    socket.on('get_job_history', async (data: { limit: number }) => {
       const history = await this.getJobHistory(data.limit || 50);
       socket.emit('job_history', history);
     });
@@ -88,7 +88,7 @@ export class WebSocketService {
     });
 
     socket.on('disconnect', () => {
-      console.log(`🔌 Client disconnected: ${socket.id}`);
+      console.log('🔌 Client disconnected: ' + socket.id);
       this.connectedClients.delete(socket.id);
     });
   };
@@ -153,9 +153,9 @@ export class WebSocketService {
 
   private static async cancelJob(jobId: string, userId: number): Promise<void> {
     try {
-      const job = await redisService.hgetall(`job:${jobId}`);
+      const job = await redisService.hgetall('job:' + jobId);
       if (job && job.status === 'queued') {
-        await redisService.hset(`job:${jobId}`, 'status', 'cancelled');
+        await redisService.hset('job:' + jobId, 'status', 'cancelled');
         
         this.broadcast('job_cancelled', {
           jobId,
@@ -179,7 +179,7 @@ export class WebSocketService {
 
   static sendToUser(userId: string, event: string, data: any): void {
     if (this.io) {
-      this.io.to(`user:${userId}`).emit(event, {
+      this.io.to('user:' + userId).emit(event, {
         ...data,
         timestamp: new Date().toISOString()
       });

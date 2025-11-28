@@ -43,7 +43,7 @@ export class FileWatcherService {
 
     // Ensure upload directory exists
     await fs.mkdir(this.uploadDir, { recursive: true });
-    console.log(`📁 Created upload directory: ${this.uploadDir}`);
+    console.log('📁 Created upload directory: ' + this.uploadDir + '');
 
     this.watcher = chokidar.watch(this.uploadDir, {
       ignored: [
@@ -66,14 +66,14 @@ export class FileWatcherService {
       .on('ready', () => console.log('📁 File watcher ready'));
 
     this.isRunning = true;
-    console.log(`📁 File watcher started monitoring: ${this.uploadDir}`);
+    console.log('📁 File watcher started monitoring: ' + this.uploadDir + '');
   }
 
   private async handleFileAdded(filePath: string): Promise<void> {
     const ext = path.extname(filePath).toLowerCase();
 
     if (!['.xlsx', '.xls'].includes(ext)) {
-      console.log(`📄 Ignoring non-Excel file: ${path.basename(filePath)}`);
+      console.log('📄 Ignoring non-Excel file: ' + path.basename(filePath) + '');
       return;
     }
 
@@ -83,7 +83,7 @@ export class FileWatcherService {
       // Check if this file is already being processed or queued
       const existingJob = await this.checkExistingJob(fileName);
       if (existingJob) {
-        console.log(`📄 File already queued or processing: ${fileName} (Job ID: ${existingJob.id})`);
+        console.log('📄 File already queued or processing: ${fileName} (Job ID: ' + existingJob.id + ')');
         return;
       }
 
@@ -109,9 +109,9 @@ export class FileWatcherService {
 
       // Add to Redis queue
       await redisService.lpush('excel_processing_queue', JSON.stringify(job));
-      await redisService.hset(`job:${job.id}`, job as any);
+      await redisService.hset('job:' + job.id + '', job as any);
 
-      console.log(`📄 Excel file queued for processing: ${fileName} (Ward: ${wardNumber})`);
+      console.log('📄 Excel file queued for processing: ${fileName} (Ward: ' + wardNumber + ')');
 
       // Broadcast to WebSocket (will be handled by WebSocketService)
       const { WebSocketService } = await import('./websocketService');
@@ -133,14 +133,13 @@ export class FileWatcherService {
       // Check database for existing job with same filename that's not completed or failed
       const query = `
         SELECT * FROM file_processing_jobs
-        WHERE file_name = ?
-        AND status IN ('queued', 'processing')
+        WHERE file_name = ? AND status IN ('queued', 'processing')
         ORDER BY created_at DESC
         LIMIT 1
       `;
 
       const results = await executeQuery(query, [fileName]);
-      return results.length > 0 ? results[0] : null;
+      return results.length > 0 ? results[0]  : null;
     } catch (error) {
       console.error('Error checking existing job:', error);
       return null;
@@ -161,7 +160,7 @@ export class FileWatcherService {
   private async storeJobInDatabase(job: FileProcessingJob): Promise<void> {
     const query = `
       INSERT INTO file_processing_jobs (
-        job_id, file_name, file_path, file_size, ward_number,
+        job_uuid, file_name, file_path, file_size, ward_number,
         status, progress, created_at, priority, user_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
@@ -227,9 +226,9 @@ export class FileWatcherService {
 
       // Add to Redis queue
       await redisService.lpush('excel_processing_queue', JSON.stringify(job));
-      await redisService.hset(`job:${job.id}`, job as any);
+      await redisService.hset('job:' + job.id + '', job as any);
 
-      console.log(`📄 Excel file manually queued for processing: ${fileName} (Ward: ${wardNumber}, User: ${userId})`);
+      console.log('📄 Excel file manually queued for processing: ${fileName} (Ward: ${wardNumber}, User: ' + userId + ')');
 
       // Broadcast to WebSocket
       const { WebSocketService } = await import('./websocketService');

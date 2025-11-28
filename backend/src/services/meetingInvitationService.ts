@@ -29,7 +29,7 @@ export class MeetingInvitationService {
     invitedBy: number = 1
   ): Promise<{ success: boolean; invitedCount: number; leaders: ProvincialLeader[] }> {
     try {
-      console.log(`🎯 Auto-inviting provincial leadership for meeting ${meetingId} in province ${provinceId}`);
+      console.log('🎯 Auto-inviting provincial leadership for meeting ${meetingId} in province ' + provinceId + '');
       
       // Get active provincial leadership for the specified province
       const leaders = await this.getProvincialLeadership(provinceId);
@@ -39,8 +39,8 @@ export class MeetingInvitationService {
         return { success: true, invitedCount: 0, leaders: [] };
       }
       
-      console.log(`📋 Found ${leaders.length} provincial leaders to invite:`, 
-        leaders.map(l => `${l.member_name} (${l.position_name})`));
+      console.log('📋 Found ' + leaders.length + ' provincial leaders to invite:', 
+        leaders.map(l => '${l.member_name} (' + l.position_name + ')'));
       
       // Create invitations for each leader
       let invitedCount = 0;
@@ -51,16 +51,16 @@ export class MeetingInvitationService {
             member_id: leader.member_id,
             invitation_status: 'Present', // Using 'Present' as default since table doesn't have 'Pending'
             invited_by: invitedBy,
-            invitation_notes: `Auto-invited as ${leader.position_name} for PCT meeting`
+            invitation_notes: 'Auto-invited as ' + leader.position_name + ' for PCT meeting'
           });
           invitedCount++;
-          console.log(`✅ Invited ${leader.member_name} (${leader.position_name})`);
+          console.log('✅ Invited ${leader.member_name} (' + leader.position_name + ')');
         } catch (error) {
-          console.error(`❌ Failed to invite ${leader.member_name}:`, error);
+          console.error('❌ Failed to invite ' + leader.member_name + ':', error);
         }
       }
       
-      console.log(`🎉 Successfully invited ${invitedCount}/${leaders.length} provincial leaders`);
+      console.log('🎉 Successfully invited ${invitedCount}/' + leaders.length + ' provincial leaders');
       
       return { success: true, invitedCount, leaders };
       
@@ -81,7 +81,7 @@ export class MeetingInvitationService {
           lp.position_name,
           lp.position_code,
           lp.order_index,
-          CONCAT(m.firstname, ' ', m.surname) as member_name,
+          m.firstname || ' ' || m.surname as member_name,
           m.email,
           m.cell_number as phone
         FROM leadership_appointments la
@@ -110,7 +110,7 @@ export class MeetingInvitationService {
       // Check if invitation already exists
       const existingQuery = `
         SELECT id FROM meeting_attendance 
-        WHERE meeting_id = ? AND member_id = ?
+        WHERE meeting_id = ? AND member_id = 
       `;
       const existing = await executeQuery(existingQuery, [
         invitationData.meeting_id, 
@@ -118,7 +118,7 @@ export class MeetingInvitationService {
       ]);
       
       if (existing.length > 0) {
-        console.log(`⚠️ Invitation already exists for member ${invitationData.member_id} in meeting ${invitationData.meeting_id}`);
+        console.log('⚠️ Invitation already exists for member ${invitationData.member_id} in meeting ' + invitationData.meeting_id + '');
         return existing[0].id;
       }
       
@@ -130,7 +130,7 @@ export class MeetingInvitationService {
           attendance_status,
           attendance_notes,
           recorded_by
-        ) VALUES (?, ?, ?, ?, ?)
+        ) EXCLUDED.?, ?, ?, ?, ?
       `;
 
       const result = await executeQuery(insertQuery, [
@@ -152,7 +152,7 @@ export class MeetingInvitationService {
    * Check if a meeting qualifies for automatic provincial invitations
    */
   static shouldAutoInviteProvincialLeadership(
-    meetingTitle: string, 
+    meetingTitle : string, 
     hierarchyLevel: string, 
     entityId: number
   ): boolean {
@@ -166,7 +166,7 @@ export class MeetingInvitationService {
     
     const shouldInvite = isPCTMeeting && isProvincialLevel && isGauteng;
     
-    console.log(`🤔 Auto-invite check: PCT=${isPCTMeeting}, Provincial=${isProvincialLevel}, Gauteng=${isGauteng} => ${shouldInvite}`);
+    console.log('🤔 Auto-invite check: PCT=${isPCTMeeting}, Provincial=${isProvincialLevel}, Gauteng=${isGauteng} => ' + shouldInvite + '');
     
     return shouldInvite;
   }
@@ -176,35 +176,56 @@ export class MeetingInvitationService {
    */
   static async getMeetingAttendance(meetingId: number) {
     try {
+      // Query meeting_invitations table which has the actual data
       const query = `
         SELECT
-          ma.*,
-          CONCAT(m.firstname, ' ', m.surname) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as member_number,
-          m.email,
+          mi.invitation_id,
+          mi.meeting_id,
+          mi.invitee_id as member_id,
+          mi.invitee_name as member_name,
+          mi.invitee_email as email,
+          mi.invitation_status,
+          mi.sent_at,
+          mi.delivered_at,
+          mi.opened_at,
+          mi.responded_at,
+          mi.response_message,
+          mi.created_at,
+          mi.updated_at,
           m.cell_number as phone,
-          CONCAT(recorder.firstname, ' ', recorder.surname) as recorded_by_name
-        FROM meeting_attendance ma
-        JOIN members m ON ma.member_id = m.member_id
-        LEFT JOIN members recorder ON ma.recorded_by = recorder.member_id
-        WHERE ma.meeting_id = ?
-        ORDER BY ma.created_at ASC
+          'MEM' || LPAD(CAST(mi.invitee_id AS TEXT), 6, '0') as member_number,
+          creator.firstname || ' ' || creator.surname as created_by_name
+        FROM meeting_invitations mi
+        LEFT JOIN members m ON mi.invitee_id = m.member_id
+        LEFT JOIN members creator ON mi.created_by = creator.member_id
+        WHERE mi.meeting_id = $1
+        AND LOWER(mi.invitee_type) = 'member'
+        ORDER BY mi.created_at ASC
       `;
-      
+
       const attendance = await executeQuery(query, [meetingId]);
-      
-      // Calculate summary
+
+      // Calculate summary based on invitation_status only
       const summary = {
         total_attendees: attendance.length,
-        present: attendance.filter((a: any) => a.attendance_status === 'Present').length,
-        absent: attendance.filter((a: any) => a.attendance_status === 'Absent').length,
-        excused: attendance.filter((a: any) => a.attendance_status === 'Excused').length,
-        late: attendance.filter((a: any) => a.attendance_status === 'Late').length,
-        pending: 0 // No pending status in current table schema
+        // Attendance status (not available in meeting_invitations table)
+        present: 0,
+        absent: 0,
+        excused: 0,
+        late: 0,
+        // Invitation status
+        sent: attendance.filter((a: any) => a.invitation_status === 'Sent').length,
+        delivered: attendance.filter((a: any) => a.invitation_status === 'Delivered').length,
+        opened: attendance.filter((a: any) => a.invitation_status === 'Opened').length,
+        accepted: attendance.filter((a: any) => a.invitation_status === 'Accepted').length,
+        declined: attendance.filter((a: any) => a.invitation_status === 'Declined').length,
+        tentative: attendance.filter((a: any) => a.invitation_status === 'Tentative').length,
+        no_response: attendance.filter((a: any) => a.invitation_status === 'No Response').length,
+        pending: attendance.filter((a: any) => !a.invitation_status || a.invitation_status === 'Sent').length
       };
-      
+
       return { attendance, summary };
-      
+
     } catch (error) {
       throw createDatabaseError('Failed to get meeting attendance', error);
     }

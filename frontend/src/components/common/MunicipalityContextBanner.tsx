@@ -45,7 +45,7 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
     return (
       <Chip
         icon={showIcon ? <LocationOn /> : undefined}
-        label={`${assignedMunicipality.name} Municipality`}
+        label={`${assignedMunicipality.name} Sub-Region`}
         color="primary"
         variant="outlined"
         size="small"
@@ -69,9 +69,9 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
         }}
       >
         {showIcon && (
-          <AdminPanelSettings 
-            color="primary" 
-            sx={{ fontSize: '1.2rem' }} 
+          <AdminPanelSettings
+            color="primary"
+            sx={{ fontSize: '1.2rem' }}
           />
         )}
         <Typography
@@ -84,7 +84,7 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
             gap: 0.5,
           }}
         >
-          {assignedMunicipality.name} Municipality Dashboard
+          {assignedMunicipality.name} Sub-Region Dashboard
         </Typography>
       </Box>
     );
@@ -135,24 +135,24 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
               mb: showDescription ? 0.5 : 0,
             }}
           >
-            {assignedMunicipality.name} Municipality
+            {assignedMunicipality.name} Sub-Region
           </Typography>
-          
+
           {showDescription && (
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ lineHeight: 1.4 }}
             >
-              You are viewing data and managing operations for {assignedMunicipality.name} Municipality{assignedProvince ? ` in ${assignedProvince.name} Province` : ''} only. 
-              All statistics, members, and leadership information are filtered to this municipality.
+              You are viewing data and managing operations for {assignedMunicipality.name} Sub-Region{assignedProvince ? ` in ${assignedProvince.name} Province` : ''} only.
+              All statistics, members, and leadership information are filtered to this sub-region.
             </Typography>
           )}
         </Box>
 
         <Chip
           icon={<Security />}
-          label="Municipality Admin"
+          label="Sub-Region Admin"
           color="primary"
           variant="outlined"
           size="small"

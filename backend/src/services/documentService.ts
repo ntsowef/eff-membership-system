@@ -18,13 +18,13 @@ export interface DocumentUploadRequest {
   category_id: number;
   uploaded_by: number;
   member_id?: number;
-  entity_type?: 'member' | 'application' | 'meeting' | 'renewal' | 'system' | 'user';
+  entity_type: 'member' | 'application' | 'meeting' | 'renewal' | 'system' | 'user';
   entity_id?: number;
   description?: string;
   tags?: string[];
   is_public?: boolean;
   is_sensitive?: boolean;
-  access_level?: 'public' | 'members' | 'admins' | 'restricted';
+  access_level: 'public' | 'members' | 'admins' | 'restricted';
   allowed_roles?: string[];
   allowed_users?: number[];
 }
@@ -210,7 +210,7 @@ export class DocumentService {
   }
 
   // Get document file
-  static async getDocumentFile(documentId: number, userId: number): Promise<{ filePath: string; document: any }> {
+  static async getDocumentFile(documentId : number, userId: number): Promise<{ filePath: string; document: any }> {
     try {
       const document = await DocumentModel.getDocumentById(documentId);
       if (!document) {

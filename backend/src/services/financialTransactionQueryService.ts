@@ -6,12 +6,12 @@ export interface TransactionQueryFilters {
   // Entity filters
   entity_type?: 'application' | 'renewal' | 'all';
   entity_id?: number;
-  
+
   // Status filters
   payment_status?: 'Pending' | 'Processing' | 'Completed' | 'Failed' | 'Cancelled';
   financial_status?: 'Pending' | 'Under Review' | 'Approved' | 'Rejected';
   workflow_stage?: string;
-  
+
   // Date filters
   date_from?: string;
   date_to?: string;
@@ -19,11 +19,11 @@ export interface TransactionQueryFilters {
   created_date_to?: string;
   reviewed_date_from?: string;
   reviewed_date_to?: string;
-  
+
   // Amount filters
   amount_min?: number;
   amount_max?: number;
-  
+
   // Member filters
   member_search?: string; // Search by name, email, or membership number
   member_id?: number;
@@ -31,15 +31,15 @@ export interface TransactionQueryFilters {
   district_code?: string;
   municipal_code?: string;
   ward_code?: string;
-  
+
   // Reviewer filters
   financial_reviewed_by?: number;
   final_reviewed_by?: number;
-  
+
   // Pagination
   limit?: number;
   offset?: number;
-  
+
   // Sorting
   sort_by?: 'created_at' | 'amount' | 'member_name' | 'status' | 'reviewed_at';
   sort_order?: 'ASC' | 'DESC';
@@ -96,64 +96,64 @@ export class FinancialTransactionQueryService {
 
       // Entity type filter
       if (filters.entity_type && filters.entity_type !== 'all') {
-        whereConditions.push('uft.transaction_type COLLATE utf8mb4_general_ci = ?');
-        queryParams.push(filters.entity_type === 'application' ? 'Application' : 'Renewal');
+        whereConditions.push('uft.transaction_type  = ? ');
+        queryParams.push(filters.entity_type === 'application' ? 'Application'  : 'Renewal');
       }
 
       // Entity ID filter
       if (filters.entity_id) {
-        whereConditions.push('uft.entity_id = ?');
+        whereConditions.push('uft.entity_id = ? ');
         queryParams.push(filters.entity_id);
       }
 
       // Status filters
       if (filters.payment_status) {
-        whereConditions.push('uft.payment_status COLLATE utf8mb4_general_ci = ?');
+        whereConditions.push('uft.payment_status  = $1');
         queryParams.push(filters.payment_status);
       }
 
       if (filters.financial_status) {
-        whereConditions.push('uft.financial_status COLLATE utf8mb4_general_ci = ?');
+        whereConditions.push('uft.financial_status  = $1');
         queryParams.push(filters.financial_status);
       }
 
       if (filters.workflow_stage) {
-        whereConditions.push('uft.workflow_stage = ?');
+        whereConditions.push('uft.workflow_stage = $1');
         queryParams.push(filters.workflow_stage);
       }
 
       // Date filters
       if (filters.date_from && filters.date_to) {
-        whereConditions.push('DATE(uft.created_at) BETWEEN ? AND ?');
+        whereConditions.push('uft.created_at : :DATE BETWEEN ? AND ');
         queryParams.push(filters.date_from, filters.date_to);
       } else if (filters.date_from) {
-        whereConditions.push('DATE(uft.created_at) >= ?');
+        whereConditions.push('uft.created_at : :DATE >= ? ');
         queryParams.push(filters.date_from);
       } else if (filters.date_to) {
-        whereConditions.push('DATE(uft.created_at) <= ?');
+        whereConditions.push('uft.created_at : :DATE <= $1');
         queryParams.push(filters.date_to);
       }
 
       // Created date filters
       if (filters.created_date_from && filters.created_date_to) {
-        whereConditions.push('DATE(uft.created_at) BETWEEN ? AND ?');
+        whereConditions.push('uft.created_at::DATE BETWEEN ? AND ');
         queryParams.push(filters.created_date_from, filters.created_date_to);
       }
 
       // Reviewed date filters
       if (filters.reviewed_date_from && filters.reviewed_date_to) {
-        whereConditions.push('DATE(COALESCE(uft.financial_reviewed_at, uft.final_reviewed_at)) BETWEEN ? AND ?');
+        whereConditions.push('COALESCE(uft.financial_reviewed_at, uft.final_reviewed_at : :DATE) BETWEEN ? AND ');
         queryParams.push(filters.reviewed_date_from, filters.reviewed_date_to);
       }
 
       // Amount filters
       if (filters.amount_min !== undefined) {
-        whereConditions.push('uft.amount >= ?');
+        whereConditions.push('uft.amount >= $1');
         queryParams.push(filters.amount_min);
       }
 
       if (filters.amount_max !== undefined) {
-        whereConditions.push('uft.amount <= ?');
+        whereConditions.push('uft.amount <= $1');
         queryParams.push(filters.amount_max);
       }
 
@@ -170,39 +170,39 @@ export class FinancialTransactionQueryService {
 
       // Member ID filter
       if (filters.member_id) {
-        whereConditions.push('uft.member_id = ?');
+        whereConditions.push('uft.member_id = $1');
         queryParams.push(filters.member_id);
       }
 
       // Geographic filters
       if (filters.province_code) {
-        whereConditions.push('uft.province_code = ?');
+        whereConditions.push('uft.province_code = $1');
         queryParams.push(filters.province_code);
       }
 
       if (filters.district_code) {
-        whereConditions.push('uft.district_code = ?');
+        whereConditions.push('uft.district_code = $1');
         queryParams.push(filters.district_code);
       }
 
       if (filters.municipal_code) {
-        whereConditions.push('uft.municipal_code = ?');
+        whereConditions.push('uft.municipal_code = $1');
         queryParams.push(filters.municipal_code);
       }
 
       if (filters.ward_code) {
-        whereConditions.push('uft.ward_code = ?');
+        whereConditions.push('uft.ward_code = $1');
         queryParams.push(filters.ward_code);
       }
 
       // Reviewer filters
       if (filters.financial_reviewed_by) {
-        whereConditions.push('uft.financial_reviewed_by = ?');
+        whereConditions.push('uft.financial_reviewed_by = $1');
         queryParams.push(filters.financial_reviewed_by);
       }
 
       if (filters.final_reviewed_by) {
-        whereConditions.push('uft.final_reviewed_by = ?');
+        whereConditions.push('uft.final_reviewed_by = $1');
         queryParams.push(filters.final_reviewed_by);
       }
 
@@ -218,7 +218,7 @@ export class FinancialTransactionQueryService {
       if (filters.overdue_only) {
         whereConditions.push(`(
           uft.financial_status = 'Under Review' AND 
-          uft.created_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)
+          uft.created_at < (CURRENT_TIMESTAMP - INTERVAL \'48 HOUR\')
         )`);
       }
 
@@ -234,13 +234,13 @@ export class FinancialTransactionQueryService {
         whereConditions.push(`(
           uft.financial_status IN ('Pending', 'Under Review') OR
           uft.payment_status IN ('Pending', 'Processing') OR
-          (uft.financial_status = 'Under Review' AND uft.created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR))
+          (uft.financial_status = 'Under Review' AND uft.created_at < (CURRENT_TIMESTAMP - INTERVAL \'24 HOUR\'))
         )`);
       }
 
       // Build WHERE clause
       const whereClause = whereConditions.length > 0 ? 
-        `WHERE ${whereConditions.join(' AND ')}` : '';
+        'WHERE ' + whereConditions.join(' AND ') + ''  : '';
 
       // Build ORDER BY clause
       const sortBy = filters.sort_by || 'created_at';
@@ -258,7 +258,7 @@ export class FinancialTransactionQueryService {
         FROM unified_financial_transactions uft
         ${whereClause}
       `;
-      
+
       const countResult = await executeQuerySingle(countQuery, queryParams);
       const totalCount = countResult?.total_count || 0;
 
@@ -267,19 +267,19 @@ export class FinancialTransactionQueryService {
         SELECT
           uft.*,
           CASE
-            WHEN uft.transaction_type COLLATE utf8mb4_general_ci = 'Application' THEN 'Application'
-            WHEN uft.transaction_type COLLATE utf8mb4_general_ci = 'Renewal' THEN 'Renewal'
+            WHEN uft.transaction_type = 'Application' THEN 'Application'
+            WHEN uft.transaction_type = 'Renewal' THEN 'Renewal'
             ELSE 'Unknown'
           END as entity_type_display,
           CASE
-            WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Approved' AND uft.payment_status COLLATE utf8mb4_general_ci = 'Completed' THEN 'Complete'
-            WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Rejected' OR uft.payment_status COLLATE utf8mb4_general_ci = 'Failed' THEN 'Failed'
-            WHEN uft.financial_status COLLATE utf8mb4_general_ci IN ('Pending', 'Under Review') THEN 'In Review'
+            WHEN uft.financial_status = 'Approved' AND uft.payment_status = 'Completed' THEN 'Complete'
+            WHEN uft.financial_status = 'Rejected' OR uft.payment_status = 'Failed' THEN 'Failed'
+            WHEN uft.financial_status IN ('Pending', 'Under Review') THEN 'In Review'
             ELSE 'Processing'
           END as overall_status,
-          DATEDIFF(NOW(), uft.created_at) as days_since_created,
+          (CURRENT_TIMESTAMP::DATE - uft.created_at::DATE) as days_since_created,
           CASE
-            WHEN uft.financial_reviewed_at IS NOT NULL THEN DATEDIFF(uft.financial_reviewed_at, uft.created_at)
+            WHEN uft.financial_reviewed_at IS NOT NULL THEN (uft.financial_reviewed_at::DATE - uft.created_at::DATE)
             ELSE NULL
           END as days_to_review
         FROM unified_financial_transactions uft
@@ -296,13 +296,13 @@ export class FinancialTransactionQueryService {
           COUNT(*) as filtered_count,
           COALESCE(SUM(uft.amount), 0) as total_amount,
           COALESCE(AVG(uft.amount), 0) as avg_amount,
-          COALESCE(SUM(CASE WHEN uft.payment_status COLLATE utf8mb4_general_ci = 'Completed' THEN uft.amount END), 0) as completed_amount,
-          COALESCE(SUM(CASE WHEN uft.payment_status COLLATE utf8mb4_general_ci IN ('Pending', 'Processing') THEN uft.amount END), 0) as pending_amount,
+          COALESCE(SUM(CASE WHEN uft.payment_status = 'Completed' THEN uft.amount END), 0) as completed_amount,
+          COALESCE(SUM(CASE WHEN uft.payment_status IN ('Pending', 'Processing') THEN uft.amount END), 0) as pending_amount,
           -- Status breakdown
-          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Pending' THEN 1 END) as status_pending,
-          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Under Review' THEN 1 END) as status_under_review,
-          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Approved' THEN 1 END) as status_approved,
-          COUNT(CASE WHEN uft.financial_status COLLATE utf8mb4_general_ci = 'Rejected' THEN 1 END) as status_rejected
+          COUNT(CASE WHEN uft.financial_status = 'Pending' THEN 1 END) as status_pending,
+          COUNT(CASE WHEN uft.financial_status = 'Under Review' THEN 1 END) as status_under_review,
+          COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) as status_approved,
+          COUNT(CASE WHEN uft.financial_status = 'Rejected' THEN 1 END) as status_rejected
         FROM unified_financial_transactions uft
         ${whereClause}
       `;
@@ -368,7 +368,7 @@ export class FinancialTransactionQueryService {
         GROUP BY uft.member_id, uft.member_name, uft.member_email, uft.membership_number
         ORDER BY uft.member_name ASC
         LIMIT ?
-      `, [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, limit]);
+      `, ['%' + searchTerm + '%', '%' + searchTerm + '%', '%' + searchTerm + '%', limit]);
 
       return members || [];
 
@@ -573,7 +573,7 @@ export class FinancialTransactionQueryService {
           };
 
         default:
-          throw new Error(`Unsupported export format: ${options.format}`);
+          throw new Error('Unsupported export format: ' + options.format + '');
       }
 
     } catch (error) {
@@ -589,7 +589,7 @@ export class FinancialTransactionQueryService {
   private static formatDate(date: Date | string, format?: string, customFormat?: string): string {
     if (!date) return '';
 
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = typeof date === 'string' ? new Date(date)  : date;
 
     switch (format) {
       case 'local':
@@ -632,7 +632,7 @@ export class FinancialTransactionQueryService {
         const value = row[header];
         // Escape commas and quotes in CSV
         if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-          return `"${value.replace(/"/g, '""')}"`;
+          return '"' + value.replace(/"/g, '""') + '"';
         }
         return value || '';
       }).join(',');
@@ -659,12 +659,12 @@ export class FinancialTransactionQueryService {
       const queryParams: any[] = [];
 
       if (filters.entity_type && filters.entity_type !== 'all') {
-        whereConditions.push('uft.transaction_type = ?');
-        queryParams.push(filters.entity_type === 'application' ? 'Application' : 'Renewal');
+        whereConditions.push('uft.transaction_type = ? ');
+        queryParams.push(filters.entity_type === 'application' ? 'Application'  : 'Renewal');
       }
 
       if (filters.date_from && filters.date_to) {
-        whereConditions.push('DATE(uft.created_at) BETWEEN ? AND ?');
+        whereConditions.push('uft.created_at::DATE BETWEEN ? AND ');
         queryParams.push(filters.date_from, filters.date_to);
       }
 
@@ -674,15 +674,15 @@ export class FinancialTransactionQueryService {
       // Time series data (daily aggregation)
       const timeSeries = await executeQuery(`
         SELECT
-          DATE(uft.created_at) as date,
+          uft.created_at::DATE as date,
           COUNT(*) as transaction_count,
           SUM(uft.amount) as total_amount,
           COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) as approved_count,
           COUNT(CASE WHEN uft.payment_status = 'Completed' THEN 1 END) as completed_count
         FROM unified_financial_transactions uft
         ${whereClause}
-        GROUP BY DATE(uft.created_at)
-        ORDER BY DATE(uft.created_at) DESC
+        GROUP BY uft.created_at::DATE
+        ORDER BY uft.created_at::DATE DESC
         LIMIT 30
       `, queryParams);
 
@@ -739,7 +739,7 @@ export class FinancialTransactionQueryService {
           u.name as reviewer_name,
           u.id as reviewer_id,
           COUNT(*) as reviews_completed,
-          AVG(DATEDIFF(uft.financial_reviewed_at, uft.created_at)) as avg_review_time_days,
+          AVG((uft.financial_reviewed_at::DATE - uft.created_at::DATE)) as avg_review_time_days,
           COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) as approved_count,
           COUNT(CASE WHEN uft.financial_status = 'Rejected' THEN 1 END) as rejected_count,
           ROUND(COUNT(CASE WHEN uft.financial_status = 'Approved' THEN 1 END) * 100.0 / COUNT(*), 2) as approval_rate

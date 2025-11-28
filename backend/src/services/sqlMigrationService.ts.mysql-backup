@@ -1,0 +1,251 @@
+import { executeQuery, executeQuerySingle, convertMySQLToPostgreSQL } from '../config/database-hybrid';
+
+// =====================================================================================
+// SQL MIGRATION SERVICE - Handles conversion of existing MySQL queries to PostgreSQL
+// =====================================================================================
+
+export class SQLMigrationService {
+  
+  // Convert and execute MySQL queries for PostgreSQL
+  static async executeConvertedQuery<T = any>(
+    mysqlQuery: string,
+    params?: any[]
+  ): Promise<T[]> {
+    try {
+      // Convert MySQL syntax to PostgreSQL
+      const pgQuery = this.convertComplexMySQLQuery(mysqlQuery);
+      return await executeQuery<T>(pgQuery, params);
+    } catch (error) {
+      console.error('❌ Error executing converted query:', error);
+      console.error('Original MySQL Query:', mysqlQuery);
+      throw error;
+    }
+  }
+
+  // Convert and execute single result MySQL queries
+  static async executeConvertedQuerySingle<T = any>(
+    mysqlQuery: string,
+    params?: any[]
+  ): Promise<T | null> {
+    const results = await this.executeConvertedQuery<T>(mysqlQuery, params);
+    return results.length > 0 ? results[0] : null;
+  }
+
+  // Advanced MySQL to PostgreSQL conversion
+  private static convertComplexMySQLQuery(query: string): string {
+    let convertedQuery = query;
+
+    // Handle SUBSTRING_INDEX function (MySQL specific)
+    convertedQuery = convertedQuery.replace(
+      /SUBSTRING_INDEX\(([^,]+),\s*'([^']+)',\s*(\d+)\)/g,
+      (match, str, delimiter, count) => {
+        if (count === '1') {
+          return `SPLIT_PART(${str}, '${delimiter}', 1)`;
+        } else if (count === '-1') {
+          return `SPLIT_PART(${str}, '${delimiter}', -1)`;
+        }
+        return `SPLIT_PART(${str}, '${delimiter}', ${count})`;
+      }
+    );
+
+    // Handle LOCATE function
+    convertedQuery = convertedQuery.replace(
+      /LOCATE\(([^,]+),\s*([^)]+)\)/g,
+      'POSITION($1 IN $2)'
+    );
+
+    // Handle LPAD function
+    convertedQuery = convertedQuery.replace(
+      /LPAD\(([^,]+),\s*(\d+),\s*'([^']+)'\)/g,
+      'LPAD($1::TEXT, $2, \'$3\')'
+    );
+
+    // Handle CONCAT function with multiple arguments
+    convertedQuery = convertedQuery.replace(
+      /CONCAT\(([^)]+)\)/g,
+      (match, args) => {
+        const argList = args.split(',').map((arg: string) => arg.trim());
+        return argList.join(' || ');
+      }
+    );
+
+    // Handle DATE_ADD function
+    convertedQuery = convertedQuery.replace(
+      /DATE_ADD\(([^,]+),\s*INTERVAL\s+(\d+)\s+(\w+)\)/g,
+      (match, date, amount, unit) => {
+        const pgUnit = unit.toLowerCase().replace(/s$/, ''); // Remove plural 's'
+        return `(${date} + INTERVAL '${amount} ${pgUnit}')`;
+      }
+    );
+
+    // Handle YEAR, MONTH, DAY functions
+    convertedQuery = convertedQuery.replace(/YEAR\(([^)]+)\)/g, 'EXTRACT(YEAR FROM $1)');
+    convertedQuery = convertedQuery.replace(/MONTH\(([^)]+)\)/g, 'EXTRACT(MONTH FROM $1)');
+    convertedQuery = convertedQuery.replace(/DAY\(([^)]+)\)/g, 'EXTRACT(DAY FROM $1)');
+
+    // Handle CURDATE() and NOW()
+    convertedQuery = convertedQuery.replace(/CURDATE\(\)/g, 'CURRENT_DATE');
+    convertedQuery = convertedQuery.replace(/NOW\(\)/g, 'CURRENT_TIMESTAMP');
+
+    // Handle IF function
+    convertedQuery = convertedQuery.replace(
+      /IF\(([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
+      'CASE WHEN $1 THEN $2 ELSE $3 END'
+    );
+
+    // Handle IFNULL function
+    convertedQuery = convertedQuery.replace(/IFNULL\(([^,]+),\s*([^)]+)\)/g, 'COALESCE($1, $2)');
+
+    // Handle MySQL specific LIMIT with OFFSET
+    convertedQuery = convertedQuery.replace(
+      /LIMIT\s+(\d+)\s*,\s*(\d+)/g,
+      'OFFSET $1 LIMIT $2'
+    );
+
+    // Handle AUTO_INCREMENT references (convert to SERIAL)
+    convertedQuery = convertedQuery.replace(/AUTO_INCREMENT/gi, 'SERIAL');
+
+    // Handle backticks (MySQL) to double quotes (PostgreSQL)
+    convertedQuery = convertedQuery.replace(/`([^`]+)`/g, '"$1"');
+
+    // Handle SHOW commands
+    convertedQuery = convertedQuery.replace(
+      /SHOW\s+TABLES\s+LIKE\s+"([^"]+)"/gi,
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE '$1'"
+    );
+
+    return convertedQuery;
+  }
+
+  // Specific conversions for common queries in your codebase
+  static convertMemberSearchQuery(query: string): string {
+    let converted = this.convertComplexMySQLQuery(query);
+    
+    // Handle member-specific conversions
+    converted = converted.replace(
+      /CONCAT\('MEM',\s*LPAD\(([^,]+),\s*6,\s*'0'\)\)/g,
+      "'MEM' || LPAD($1::TEXT, 6, '0')"
+    );
+
+    // Handle full name concatenation
+    converted = converted.replace(
+      /CONCAT\(([^,]+),\s*'\s*',\s*COALESCE\(([^,]+),\s*''\)\)/g,
+      '$1 || \' \' || COALESCE($2, \'\')'
+    );
+
+    return converted;
+  }
+
+  // Convert optimized member queries
+  static convertOptimizedMemberQuery(query: string): string {
+    let converted = this.convertComplexMySQLQuery(query);
+    
+    // Handle SUBSTRING_INDEX for name splitting
+    converted = converted.replace(
+      /SUBSTRING_INDEX\(full_name,\s*'\s*',\s*1\)/g,
+      'SPLIT_PART(full_name, \' \', 1)'
+    );
+
+    converted = converted.replace(
+      /CASE\s+WHEN\s+LOCATE\('\s*',\s*full_name\)\s*>\s*0\s+THEN\s+SUBSTRING\(full_name,\s*LOCATE\('\s*',\s*full_name\)\s*\+\s*1\)\s+ELSE\s+''\s+END/g,
+      'CASE WHEN POSITION(\' \' IN full_name) > 0 THEN SUBSTRING(full_name FROM POSITION(\' \' IN full_name) + 1) ELSE \'\' END'
+    );
+
+    return converted;
+  }
+
+  // Convert view creation queries
+  static convertViewQuery(query: string): string {
+    let converted = this.convertComplexMySQLQuery(query);
+    
+    // Handle CREATE OR REPLACE VIEW
+    converted = converted.replace(/CREATE\s+VIEW/gi, 'CREATE OR REPLACE VIEW');
+    
+    // Handle MySQL specific view syntax
+    converted = converted.replace(/FORCE\s+INDEX\s*\([^)]+\)/gi, '');
+    
+    return converted;
+  }
+
+  // Test query conversion without execution
+  static testQueryConversion(mysqlQuery: string): {
+    original: string;
+    converted: string;
+    warnings: string[];
+  } {
+    const warnings: string[] = [];
+    const converted = this.convertComplexMySQLQuery(mysqlQuery);
+    
+    // Check for potential issues
+    if (mysqlQuery.includes('FORCE INDEX')) {
+      warnings.push('FORCE INDEX removed - PostgreSQL uses different query optimization');
+    }
+    
+    if (mysqlQuery.includes('AUTO_INCREMENT')) {
+      warnings.push('AUTO_INCREMENT converted to SERIAL - verify sequence behavior');
+    }
+    
+    if (mysqlQuery.includes('SHOW ')) {
+      warnings.push('SHOW commands converted to PostgreSQL system catalog queries');
+    }
+
+    return {
+      original: mysqlQuery,
+      converted,
+      warnings
+    };
+  }
+
+  // Batch convert multiple queries
+  static async batchConvertQueries(queries: Array<{
+    name: string;
+    query: string;
+    params?: any[];
+  }>): Promise<Array<{
+    name: string;
+    success: boolean;
+    result?: any;
+    error?: string;
+  }>> {
+    const results: Array<{
+      name: string;
+      success: boolean;
+      result?: any;
+      error?: string;
+    }> = [];
+
+    for (const { name, query, params } of queries) {
+      try {
+        const result = await this.executeConvertedQuery(query, params);
+        results.push({
+          name,
+          success: true,
+          result
+        });
+      } catch (error) {
+        results.push({
+          name,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    return results;
+  }
+
+  // Get PostgreSQL equivalent for MySQL system queries
+  static getPostgreSQLSystemQuery(mysqlSystemQuery: string): string {
+    const systemQueries: Record<string, string> = {
+      'SHOW TABLES': "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+      'SHOW STATUS LIKE "Threads_connected"': 'SELECT count(*) as value FROM pg_stat_activity',
+      'SHOW VARIABLES LIKE "max_connections"': 'SELECT setting as value FROM pg_settings WHERE name = \'max_connections\'',
+      'SELECT CONNECTION_ID()': 'SELECT pg_backend_pid()',
+      'SELECT DATABASE()': 'SELECT current_database()',
+      'SELECT USER()': 'SELECT current_user',
+      'SELECT VERSION()': 'SELECT version()'
+    };
+
+    return systemQueries[mysqlSystemQuery.toUpperCase()] || mysqlSystemQuery;
+  }
+}

@@ -5,6 +5,7 @@ import { asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { MembershipExpirationModel } from '../models/membershipExpiration';
 import { SMSService } from '../services/smsService';
 import { PDFExportService } from '../services/pdfExportService';
+import { authenticate, requirePermission, applyGeographicFilter, logProvinceAccess } from '../middleware/auth';
 
 const router = Router();
 
@@ -246,8 +247,27 @@ router.post('/update-activity-status',
 
 // Get Enhanced Status Overview using database views
 router.get('/enhanced-overview',
+  authenticate,
+  requirePermission('membership_expiration_read'),
+  applyGeographicFilter,
+  validate({
+    query: Joi.object({
+      // Geographic filtering parameters added by middleware
+      province_code: Joi.string().optional(),
+      district_code: Joi.string().optional(),
+      municipal_code: Joi.string().optional(),
+      municipality_code: Joi.string().optional(),
+      ward_code: Joi.string().optional()
+    })
+  }),
   asyncHandler(async (req, res) => {
-    const enhancedOverview = await MembershipExpirationModel.getEnhancedStatusOverview();
+    // Extract geographic context from middleware
+    const { province_code, municipality_code } = req.query;
+
+    const enhancedOverview = await MembershipExpirationModel.getEnhancedStatusOverview({
+      province_code: province_code as string,
+      municipality_code: municipality_code as string
+    });
 
     sendSuccess(res, {
       enhanced_overview: enhancedOverview,
@@ -263,16 +283,29 @@ router.get('/enhanced-overview',
 
 // Get Members Expiring Soon using database view
 router.get('/expiring-soon',
+  authenticate,
+  requirePermission('members.read'),
+  applyGeographicFilter,
   validate({
     query: Joi.object({
       priority: Joi.string().valid('Urgent (1 Week)', 'High Priority (2 Weeks)', 'Medium Priority (1 Month)', 'all').optional(),
       page: Joi.number().integer().min(1).optional(),
       limit: Joi.number().integer().min(1).max(1000).optional(),
       sort_by: Joi.string().valid('days_until_expiry', 'expiry_date', 'full_name', 'municipality_name').optional(),
-      sort_order: Joi.string().valid('asc', 'desc').optional()
+      sort_order: Joi.string().valid('asc', 'desc').optional(),
+      // Geographic filtering parameters added by middleware
+      province_code: Joi.string().optional(),
+      district_code: Joi.string().optional(),
+      municipal_code: Joi.string().optional(),
+      municipality_code: Joi.string().optional(),
+      ward_code: Joi.string().optional()
     })
   }),
   asyncHandler(async (req, res) => {
+    // Log geographic access for audit
+    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+    await logProvinceAccess(req, 'membership_expiration_expiring_soon_access', geographicContext?.province_code);
+
     const {
       priority = 'all',
       page = 1,
@@ -281,12 +314,18 @@ router.get('/expiring-soon',
       sort_order = 'asc'
     } = req.query;
 
+    // Extract geographic filters from middleware
+    const provinceContext = (req as any).provinceContext;
+    const municipalityContext = (req as any).municipalityContext;
+
     const result = await MembershipExpirationModel.getExpiringSoonMembers({
       priority: priority as string,
       page: page as number,
       limit: limit as number,
       sort_by: sort_by as string,
-      sort_order: sort_order as string
+      sort_order: sort_order as string,
+      province_code: provinceContext?.province_code || municipalityContext?.province_code,
+      municipality_code: municipalityContext?.municipal_code
     });
 
     sendSuccess(res, {
@@ -304,16 +343,29 @@ router.get('/expiring-soon',
 
 // Get Expired Members using database view
 router.get('/expired',
+  authenticate,
+  requirePermission('members.read'),
+  applyGeographicFilter,
   validate({
     query: Joi.object({
       category: Joi.string().valid('Recently Expired', 'Expired 1-3 Months', 'Expired 3-12 Months', 'Expired Over 1 Year', 'all').optional(),
       page: Joi.number().integer().min(1).optional(),
       limit: Joi.number().integer().min(1).max(1000).optional(),
       sort_by: Joi.string().valid('days_expired', 'expiry_date', 'full_name', 'municipality_name').optional(),
-      sort_order: Joi.string().valid('asc', 'desc').optional()
+      sort_order: Joi.string().valid('asc', 'desc').optional(),
+      // Geographic filtering parameters added by middleware
+      province_code: Joi.string().optional(),
+      district_code: Joi.string().optional(),
+      municipal_code: Joi.string().optional(),
+      municipality_code: Joi.string().optional(),
+      ward_code: Joi.string().optional()
     })
   }),
   asyncHandler(async (req, res) => {
+    // Log geographic access for audit
+    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+    await logProvinceAccess(req, 'membership_expiration_expired_access', geographicContext?.province_code);
+
     const {
       category = 'all',
       page = 1,
@@ -322,12 +374,18 @@ router.get('/expired',
       sort_order = 'asc'
     } = req.query;
 
+    // Extract geographic filters from middleware
+    const provinceContext = (req as any).provinceContext;
+    const municipalityContext = (req as any).municipalityContext;
+
     const result = await MembershipExpirationModel.getExpiredMembers({
       category: category as string,
       page: page as number,
       limit: limit as number,
       sort_by: sort_by as string,
-      sort_order: sort_order as string
+      sort_order: sort_order as string,
+      province_code: provinceContext?.province_code || municipalityContext?.province_code,
+      municipality_code: municipalityContext?.municipal_code
     });
 
     sendSuccess(res, {

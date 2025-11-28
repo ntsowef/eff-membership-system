@@ -43,6 +43,7 @@ import {
   Logout,
   AccountCircle,
   AccountTree,
+  CloudUpload,
 } from '@mui/icons-material';
 import { useAuth } from '../../store';
 import LogoutButton from '../auth/LogoutButton';
@@ -73,6 +74,13 @@ const menuItems: MenuItem[] = [
     path: '/admin/dashboard',
   },
   {
+    id: 'hierarchical-dashboard',
+    label: 'Hierarchical Dashboard',
+    icon: <AccountTree />,
+    path: '/admin/dashboard/hierarchical',
+    adminLevels: ['national', 'province', 'municipality'], // National, Province, and Municipal Admin only
+  },
+  {
     id: 'members',
     label: 'Members',
     icon: <People />,
@@ -88,6 +96,12 @@ const menuItems: MenuItem[] = [
         label: 'Add Member',
         icon: <PersonAdd />,
         path: '/admin/members/new',
+      },
+      {
+        id: 'members-bulk-upload',
+        label: 'Bulk Upload',
+        icon: <CloudUpload />,
+        path: '/admin/members/bulk-upload',
       },
       {
         id: 'membership-expiration',
@@ -152,7 +166,7 @@ const menuItems: MenuItem[] = [
     label: 'Elections',
     icon: <HowToVote />,
     path: '/admin/elections',
-    requireElectionManagement: true, // Only National and Provincial Admin
+    adminLevels: ['national'], // Only National Admin
   },
   {
     id: 'meetings',
@@ -197,14 +211,14 @@ const menuItems: MenuItem[] = [
     label: 'Financial Dashboard',
     icon: <AccountBalance />,
     path: '/admin/financial-dashboard',
-    permissions: ['financial.view_dashboard', 'financial.view_all_transactions'],
+    adminLevels: ['national'], // Only National Admin
   },
   {
     id: 'financial-transactions',
     label: 'Transaction History',
     icon: <History />,
     path: '/admin/financial-transactions',
-    permissions: ['financial.view_all_transactions', 'financial.view_dashboard'],
+    adminLevels: ['national'], // Only National Admin
   },
   {
     id: 'analytics',
@@ -230,6 +244,20 @@ const menuItems: MenuItem[] = [
         path: '/admin/reports',
       },
     ],
+  },
+  {
+    id: 'ward-audit',
+    label: 'Ward Audit System',
+    icon: <HowToReg />,
+    children: [
+      {
+        id: 'ward-audit-dashboard',
+        label: 'Ward Compliance',
+        icon: <Assessment />,
+        path: '/admin/ward-audit',
+      },
+    ],
+    adminLevels: ['national', 'province'], // National and Provincial Admin only
   },
   {
     id: 'audit',
@@ -291,10 +319,11 @@ const menuItems: MenuItem[] = [
     adminLevels: ['national'], // National Admin only
   },
   {
-    id: 'demo',
-    label: 'Permission Demo',
+    id: 'profile',
+    label: 'Profile & Settings',
     icon: <AccountCircle />,
-    path: '/admin/demo/permissions',
+    path: '/admin/profile',
+    // Available to all authenticated users
   },
 ];
 
@@ -323,7 +352,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       const userAdminLevel = user?.admin_level;
       const isSuperAdmin = user?.role_name === 'super_admin';
 
-      if (!isSuperAdmin && (!userAdminLevel || !item.adminLevels.includes(userAdminLevel))) {
+      // Allow super admins to bypass admin level restrictions
+      if (isSuperAdmin) {
+        return true;
+      }
+
+      // Check if user's admin level is in the allowed list (excluding 'none')
+      if (!userAdminLevel || userAdminLevel === 'none' || !item.adminLevels.includes(userAdminLevel as any)) {
         return false;
       }
     }

@@ -41,15 +41,15 @@ export class SMSDeliveryTrackingService {
         INSERT INTO sms_delivery_tracking (
           message_id, provider_message_id, status, delivery_timestamp,
           error_code, error_message, retry_count, cost, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-          status = VALUES(status),
-          delivery_timestamp = VALUES(delivery_timestamp),
-          error_code = VALUES(error_code),
-          error_message = VALUES(error_message),
-          retry_count = VALUES(retry_count),
-          cost = VALUES(cost),
-          updated_at = NOW()
+        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+        ON CONFLICT (message_id) DO UPDATE SET
+          status = EXCLUDED.status,
+          delivery_timestamp = EXCLUDED.delivery_timestamp,
+          error_code = EXCLUDED.error_code,
+          error_message = EXCLUDED.error_message,
+          retry_count = EXCLUDED.retry_count,
+          cost = EXCLUDED.cost,
+          updated_at = CURRENT_TIMESTAMP
       `;
 
       await executeQuery(query, [
@@ -86,15 +86,14 @@ export class SMSDeliveryTrackingService {
         SELECT message_id, provider_message_id, status, delivery_timestamp,
                error_code, error_message, retry_count, cost
         FROM sms_delivery_tracking
-        WHERE message_id = ?
-        ORDER BY created_at DESC
+        WHERE message_id = ? ORDER BY created_at DESC
         LIMIT 1
       `;
 
       const result = await executeQuerySingle(query, [messageId]);
       return result || null;
 
-    } catch (error: any) {
+    } catch (error : any) {
       logger.error('Failed to get SMS delivery status', {
         error: error.message,
         messageId
@@ -106,14 +105,15 @@ export class SMSDeliveryTrackingService {
   // Get failed messages that can be retried
   static async getRetryableMessages(retryConfig: RetryConfig = this.DEFAULT_RETRY_CONFIG): Promise<DeliveryStatus[]> {
     try {
+      const placeholders = retryConfig.retryableErrors.map((_, index) => `$${index + 2}`).join(', ');
       const query = `
         SELECT message_id, provider_message_id, status, delivery_timestamp,
                error_code, error_message, retry_count, cost
         FROM sms_delivery_tracking
         WHERE status = 'failed'
-          AND retry_count < ?
-          AND (error_message IS NULL OR error_message IN (${retryConfig.retryableErrors.map(() => '?').join(', ')}))
-          AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+          AND retry_count < $1
+          AND (error_message IS NULL OR error_message IN (${placeholders}))
+          AND created_at > (CURRENT_TIMESTAMP - INTERVAL '24 HOUR')
         ORDER BY created_at ASC
         LIMIT 100
       `;
@@ -123,7 +123,7 @@ export class SMSDeliveryTrackingService {
       
       return results || [];
 
-    } catch (error: any) {
+    } catch (error : any) {
       logger.error('Failed to get retryable SMS messages', {
         error: error.message
       });
@@ -139,9 +139,8 @@ export class SMSDeliveryTrackingService {
         SET status = 'pending',
             retry_count = retry_count + 1,
             error_message = COALESCE(?, error_message),
-            updated_at = NOW()
-        WHERE message_id = ?
-      `;
+            updated_at = CURRENT_TIMESTAMP
+        WHERE message_id = ? `;
 
       await executeQuery(query, [errorMessage || null, messageId]);
 
@@ -150,7 +149,7 @@ export class SMSDeliveryTrackingService {
         errorMessage
       });
 
-    } catch (error: any) {
+    } catch (error : any) {
       logger.error('Failed to mark SMS message for retry', {
         error: error.message,
         messageId
@@ -172,21 +171,21 @@ export class SMSDeliveryTrackingService {
       let timeCondition = '';
       switch (timeframe) {
         case 'hour':
-          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)';
+          timeCondition = 'created_at > (CURRENT_TIMESTAMP - INTERVAL \'1 HOUR\')';
           break;
         case 'day':
-          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)';
+          timeCondition = 'created_at > (CURRENT_TIMESTAMP - INTERVAL \'1 DAY\')';
           break;
         case 'week':
-          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 WEEK)';
+          timeCondition = 'created_at > (CURRENT_TIMESTAMP - INTERVAL \'1 WEEK\')';
           break;
         case 'month':
-          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 MONTH)';
+          timeCondition = 'created_at > (CURRENT_TIMESTAMP - INTERVAL \'1 MONTH\')';
           break;
       }
 
       const query = `
-        SELECT 
+        SELECT
           COUNT(*) as total_messages,
           SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,

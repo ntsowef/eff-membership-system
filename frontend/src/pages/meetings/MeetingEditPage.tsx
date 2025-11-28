@@ -56,7 +56,7 @@ const MeetingEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+
   const [formData, setFormData] = useState<UpdateMeetingData>({
     title: '',
     description: '',
@@ -68,6 +68,17 @@ const MeetingEditPage: React.FC = () => {
     max_attendees: 50,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Validate meeting ID
+  const isValidId = id && id !== 'undefined' && id !== 'null' && !isNaN(parseInt(id));
+
+  // Redirect if invalid ID
+  React.useEffect(() => {
+    if (!isValidId) {
+      console.error('Invalid meeting ID:', id);
+      navigate('/admin/meetings');
+    }
+  }, [id, isValidId, navigate]);
 
   // Fetch meeting details
   const { data: meetingData, isLoading: isLoadingMeeting, error: meetingError } = useQuery({
@@ -81,7 +92,7 @@ const MeetingEditPage: React.FC = () => {
         return getMockMeetingById(parseInt(id || '1'));
       }
     },
-    enabled: !!id,
+    enabled: isValidId,
   });
 
   const meeting = (meetingData as any)?.data?.meeting || (meetingData as any)?.meeting;

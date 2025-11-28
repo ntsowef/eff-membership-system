@@ -171,6 +171,11 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
     return isNaN(numAmount) ? 'R0.00' : `R${numAmount.toFixed(2)}`;
   };
 
+  const formatNumber = (value: any): string => {
+    const numValue = typeof value === 'number' ? value : parseFloat(value || '0');
+    return isNaN(numValue) ? '0' : numValue.toLocaleString();
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -215,7 +220,7 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                 <Box>
                   <Typography variant="h4" color="primary.main" fontWeight="bold">
-                    {renewal_statistics.total_renewals_this_month.toLocaleString()}
+                    {formatNumber(renewal_statistics.total_renewals_this_month)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Total Renewals
@@ -257,7 +262,7 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                 <Box>
                   <Typography variant="h4" color="warning.main" fontWeight="bold">
-                    {renewal_statistics.pending_renewals.toLocaleString()}
+                    {formatNumber(renewal_statistics.pending_renewals)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Pending Renewals

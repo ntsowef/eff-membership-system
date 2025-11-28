@@ -47,13 +47,23 @@ export class EmailService {
   // Initialize email transporter
   private initializeTransporter(): void {
     try {
-      const emailConfig: EmailConfig = {
-        host: process.env.SMTP_HOST || 'localhost',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
+      // Support both SMTP_* and MAIL_* environment variables
+      const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'localhost';
+      const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587');
+      const user = process.env.SMTP_USER || process.env.MAIL_USERNAME || '';
+      const pass = process.env.SMTP_PASS || process.env.MAIL_PASSWORD || '';
+      const secure = process.env.SMTP_SECURE === 'true' || process.env.MAIL_ENCRYPTION === 'ssl';
+
+      const emailConfig: any = {
+        host,
+        port,
+        secure,
         auth: {
-          user: process.env.SMTP_USER || '',
-          pass: process.env.SMTP_PASS || ''
+          user,
+          pass
+        },
+        tls: {
+          rejectUnauthorized: false // Accept self-signed certificates
         }
       };
 
@@ -99,7 +109,7 @@ export class EmailService {
       }
 
       const mailOptions = {
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        from: process.env.SMTP_FROM || process.env.MAIL_FROM_ADDRESS || process.env.SMTP_USER || process.env.MAIL_USERNAME,
         to: emailData.to,
         cc: emailData.cc,
         bcc: emailData.bcc,
@@ -128,7 +138,7 @@ export class EmailService {
   ): Promise<boolean> {
     const templates = {
       'Submitted': {
-        subject: `Application Submitted - ${applicationNumber}`,
+        subject: 'Application Submitted - ' + applicationNumber,
         html: `
           <h2>Application Submitted Successfully</h2>
           <p>Dear ${applicantName},</p>
@@ -140,7 +150,7 @@ export class EmailService {
         `
       },
       'Under Review': {
-        subject: `Application Under Review - ${applicationNumber}`,
+        subject: 'Application Under Review - ' + applicationNumber,
         html: `
           <h2>Application Under Review</h2>
           <p>Dear ${applicantName},</p>
@@ -151,7 +161,7 @@ export class EmailService {
         `
       },
       'Approved': {
-        subject: `Application Approved - ${applicationNumber}`,
+        subject: 'Application Approved - ' + applicationNumber,
         html: `
           <h2>Congratulations! Application Approved</h2>
           <p>Dear ${applicantName},</p>
@@ -162,7 +172,7 @@ export class EmailService {
         `
       },
       'Rejected': {
-        subject: `Application Status - ${applicationNumber}`,
+        subject: 'Application Status - ' + applicationNumber,
         html: `
           <h2>Application Status Update</h2>
           <p>Dear ${applicantName},</p>
@@ -341,7 +351,7 @@ export class EmailService {
     } catch (error) {
       return {
         success: false,
-        message: `Email configuration error: ${error}`
+        message: 'Email configuration error: ' + error + ''
       };
     }
   }

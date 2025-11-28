@@ -19,7 +19,7 @@ export class DeliveryTrackingService {
         INSERT INTO message_deliveries (
           message_id, campaign_id, recipient_type, recipient_id,
           recipient_email, recipient_phone, delivery_channel, delivery_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Queued')
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Queued')
       `;
 
       const params = [
@@ -41,7 +41,7 @@ export class DeliveryTrackingService {
 
   // Update delivery status
   static async updateDeliveryStatus(
-    deliveryId: number,
+    deliveryId : number,
     status: DeliveryStatus,
     externalMessageId?: string,
     failureReason?: string,
@@ -52,13 +52,12 @@ export class DeliveryTrackingService {
       const params: any[] = [];
 
       // Set status
-      updates.push('delivery_status = ?');
+      updates.push('delivery_status = ? ');
       params.push(status);
 
       // Set timestamp based on status
       switch (status) {
-        case 'Sent':
-          updates.push('sent_at = CURRENT_TIMESTAMP');
+        case 'Sent' : updates.push('sent_at = CURRENT_TIMESTAMP');
           break;
         case 'Delivered':
           updates.push('delivered_at = CURRENT_TIMESTAMP');
@@ -73,7 +72,7 @@ export class DeliveryTrackingService {
         case 'Bounced':
           updates.push('failed_at = CURRENT_TIMESTAMP');
           if (failureReason) {
-            updates.push('failure_reason = ?');
+            updates.push('failure_reason = ? ');
             params.push(failureReason);
           }
           break;
@@ -81,20 +80,20 @@ export class DeliveryTrackingService {
 
       // Set external message ID if provided
       if (externalMessageId) {
-        updates.push('external_message_id = ?');
+        updates.push('external_message_id = $1');
         params.push(externalMessageId);
       }
 
       // Set tracking data if provided
       if (trackingData) {
-        updates.push('tracking_data = ?');
+        updates.push('tracking_data = $1');
         params.push(JSON.stringify(trackingData));
       }
 
       updates.push('updated_at = CURRENT_TIMESTAMP');
       params.push(deliveryId);
 
-      const query = `UPDATE message_deliveries SET ${updates.join(', ')} WHERE id = ?`;
+      const query = 'UPDATE message_deliveries SET ' + updates.join(', ') + ' WHERE id = $1';
       const result = await executeQuery(query, params);
 
       // Update campaign statistics if this is part of a campaign
@@ -109,11 +108,11 @@ export class DeliveryTrackingService {
   }
 
   // Update campaign statistics based on delivery updates
-  private static async updateCampaignStats(deliveryId: number): Promise<void> {
+  private static async updateCampaignStats(deliveryId : number): Promise<void> {
     try {
       // Get delivery record with campaign info
       const delivery = await executeQuerySingle(
-        'SELECT campaign_id, delivery_status FROM message_deliveries WHERE id = ?',
+        'SELECT campaign_id, delivery_status FROM message_deliveries WHERE id = ? ',
         [deliveryId]
       );
 
@@ -130,12 +129,12 @@ export class DeliveryTrackingService {
           SUM(CASE WHEN delivery_status = 'Opened' THEN 1 ELSE 0 END) as total_opened,
           SUM(CASE WHEN delivery_status = 'Clicked' THEN 1 ELSE 0 END) as total_clicked
         FROM message_deliveries 
-        WHERE campaign_id = ?
+        WHERE campaign_id = $1
       `, [delivery.campaign_id]);
 
       // Update campaign with new stats
       await CommunicationCampaignModel.updateCampaign(delivery.campaign_id, {
-        total_sent: stats.total_sent,
+        total_sent : stats.total_sent,
         total_delivered: stats.total_delivered,
         total_failed: stats.total_failed,
         total_opened: stats.total_opened,
@@ -146,13 +145,13 @@ export class DeliveryTrackingService {
       const pendingCount = await executeQuerySingle(`
         SELECT COUNT(*) as count 
         FROM message_deliveries 
-        WHERE campaign_id = ? AND delivery_status IN ('Queued', 'Sending')
+        WHERE campaign_id = $1 AND delivery_status IN ('Queued', 'Sending')
       `, [delivery.campaign_id]);
 
       if (pendingCount.count === 0) {
         // All messages processed, mark campaign as completed
         await CommunicationCampaignModel.updateCampaign(delivery.campaign_id, {
-          status: 'Completed',
+          status : 'Completed',
           completed_at: new Date().toISOString()
         });
       }
@@ -172,15 +171,14 @@ export class DeliveryTrackingService {
           COUNT(*) as count,
           AVG(TIMESTAMPDIFF(SECOND, queued_at, delivered_at)) as avg_delivery_time
         FROM message_deliveries 
-        WHERE campaign_id = ?
-        GROUP BY delivery_channel, delivery_status
+        WHERE campaign_id = $1 GROUP BY delivery_channel, delivery_status
         ORDER BY delivery_channel, delivery_status
       `;
 
       const stats = await executeQuery(query, [campaignId]);
 
       // Organize stats by channel
-      const channelStats: Record<string, any> = {};
+      const channelStats : Record<string, any> = {};
       
       stats.forEach((stat: any) => {
         if (!channelStats[stat.delivery_channel]) {
@@ -240,13 +238,12 @@ export class DeliveryTrackingService {
     try {
       const query = `
         SELECT * FROM message_deliveries 
-        WHERE message_id = ?
-        ORDER BY created_at ASC
+        WHERE message_id = $1 ORDER BY created_at ASC
       `;
 
       const deliveries = await executeQuery(query, [messageId]);
       
-      return deliveries.map((delivery: any) => ({
+      return deliveries.map((delivery : any) => ({
         ...delivery,
         tracking_data: delivery.tracking_data ? JSON.parse(delivery.tracking_data) : null
       }));
@@ -266,12 +263,12 @@ export class DeliveryTrackingService {
     try {
       // Find delivery record by external message ID
       const delivery = await executeQuerySingle(
-        'SELECT id FROM message_deliveries WHERE external_message_id = ?',
+        'SELECT id FROM message_deliveries WHERE external_message_id = ? ',
         [externalMessageId]
       );
 
       if (!delivery) {
-        console.warn(`No delivery record found for external message ID: ${externalMessageId}`);
+        console.warn('No delivery record found for external message ID : ' + externalMessageId + '');
         return false;
       }
 
@@ -296,37 +293,37 @@ export class DeliveryTrackingService {
     campaignId?: number
   ): Promise<any> {
     try {
-      let whereClause = 'WHERE 1=1';
+      let whereClause = 'WHERE 1= TRUE';
       const params: any[] = [];
 
       if (dateFrom) {
-        whereClause += ' AND created_at >= ?';
+        whereClause += ' AND created_at >= ? ';
         params.push(dateFrom);
       }
 
       if (dateTo) {
-        whereClause += ' AND created_at <= ?';
+        whereClause += ' AND created_at <= $1';
         params.push(dateTo);
       }
 
       if (campaignId) {
-        whereClause += ' AND campaign_id = ?';
+        whereClause += ' AND campaign_id = $1';
         params.push(campaignId);
       }
 
       const query = `
-        SELECT 
-          DATE(created_at) as date,
+        SELECT
+          created_at::DATE as date,
           delivery_channel,
           COUNT(*) as total_sent,
           SUM(CASE WHEN delivery_status IN ('Delivered', 'Opened', 'Clicked') THEN 1 ELSE 0 END) as delivered,
           SUM(CASE WHEN delivery_status IN ('Failed', 'Bounced') THEN 1 ELSE 0 END) as failed,
           SUM(CASE WHEN delivery_status = 'Opened' THEN 1 ELSE 0 END) as opened,
           SUM(CASE WHEN delivery_status = 'Clicked' THEN 1 ELSE 0 END) as clicked,
-          AVG(TIMESTAMPDIFF(SECOND, queued_at, delivered_at)) as avg_delivery_time
-        FROM message_deliveries 
+          AVG(EXTRACT(EPOCH FROM (delivered_at - queued_at))) as avg_delivery_time
+        FROM message_deliveries
         ${whereClause}
-        GROUP BY DATE(created_at), delivery_channel
+        GROUP BY created_at::DATE, delivery_channel
         ORDER BY date DESC, delivery_channel
       `;
 
@@ -351,26 +348,26 @@ export class DeliveryTrackingService {
   static async retryFailedDeliveries(campaignId?: number, maxAge?: number): Promise<number> {
     try {
       let whereClause = `
-        WHERE delivery_status IN ('Failed', 'Bounced') 
+        WHERE delivery_status IN ('Failed', 'Bounced')
         AND retry_count < max_retries
-        AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+        AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)
       `;
       const params: any[] = [];
 
       if (campaignId) {
-        whereClause += ' AND campaign_id = ?';
+        whereClause += ' AND campaign_id = $1';
         params.push(campaignId);
       }
 
       if (maxAge) {
-        whereClause += ' AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)';
+        whereClause += ' AND created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL $1 HOUR)';
         params.push(maxAge);
       }
 
       // Get failed deliveries to retry
       const failedDeliveries = await executeQuery(`
         SELECT id, message_id, retry_count, max_retries
-        FROM message_deliveries 
+        FROM message_deliveries
         ${whereClause}
         LIMIT 100
       `, params);
@@ -385,18 +382,18 @@ export class DeliveryTrackingService {
 
         // Update delivery record for retry
         await executeQuery(`
-          UPDATE message_deliveries 
-          SET delivery_status = 'Queued', 
+          UPDATE message_deliveries
+          SET delivery_status = 'Queued',
               retry_count = retry_count + 1,
-              next_retry_at = ?,
+              next_retry_at = $1,
               updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+          WHERE id = $2
         `, [nextRetry.toISOString(), delivery.id]);
 
         retryCount++;
       }
 
-      console.log(`🔄 Scheduled ${retryCount} deliveries for retry`);
+      console.log(`Scheduled ${retryCount} deliveries for retry`);
       return retryCount;
     } catch (error) {
       throw createDatabaseError('Failed to retry failed deliveries', error);

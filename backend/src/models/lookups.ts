@@ -165,10 +165,10 @@ export class LookupModel {
     }
   }
 
-  // Qualification level lookups
+  // Qualification level lookups - Fixed: use qualifications table with level_order column
   static async getAllQualificationLevels(): Promise<QualificationLevel[]> {
     try {
-      const query = 'SELECT * FROM qualification_levels ORDER BY qualification_level';
+      const query = 'SELECT qualification_id, qualification_name, level_order as qualification_level, created_at FROM qualifications ORDER BY level_order';
       return await executeQuery<QualificationLevel>(query);
     } catch (error) {
       throw createDatabaseError('Failed to fetch qualification levels', error);

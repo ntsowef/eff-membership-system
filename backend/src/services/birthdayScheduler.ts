@@ -2,10 +2,10 @@ import BirthdaySMSService from './birthdaySMSService';
 
 // Create a simple logger if it doesn't exist
 const logger = {
-  info: (message: string, meta?: any) => console.log(`[INFO] ${message}`, meta || ''),
-  error: (message: string, meta?: any) => console.error(`[ERROR] ${message}`, meta || ''),
-  warn: (message: string, meta?: any) => console.warn(`[WARN] ${message}`, meta || ''),
-  debug: (message: string, meta?: any) => console.debug(`[DEBUG] ${message}`, meta || '')
+  info: (message: string, meta?: any) => console.log('[INFO]', message, meta || ''),
+  error: (message: string, meta?: any) => console.error('[ERROR]', message, meta || ''),
+  warn: (message: string, meta?: any) => console.warn('[WARN]', message, meta || ''),
+  debug: (message: string, meta?: any) => console.debug('[DEBUG]', message, meta || '')
 };
 
 export class BirthdayScheduler {

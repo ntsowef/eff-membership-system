@@ -19,10 +19,23 @@ import { useActivityTracker } from './hooks/useActivityTracker';
 import SessionWarningDialog from './components/common/SessionWarningDialog';
 import { MaintenanceProvider } from './contexts/MaintenanceContext';
 import { setupMaintenanceInterceptor } from './utils/maintenanceInterceptor';
+import { ErrorBoundary } from './pages/errors';
+import { setupGlobalErrorHandlers } from './hooks/useErrorHandler';
+import { setupErrorInterceptor } from './utils/errorInterceptor';
 // import WebSocketProvider from './components/providers/WebSocketProvider'; // Removed WebSocket
 
 // Setup maintenance interceptor
 setupMaintenanceInterceptor();
+
+// Setup global error handlers
+setupGlobalErrorHandlers();
+
+// Setup error interceptor for API calls
+setupErrorInterceptor({
+  enableAutoRedirect: true,
+  enableLogging: process.env.NODE_ENV === 'development',
+  excludedStatusCodes: [401], // Don't auto-redirect on auth failures
+});
 
 // Inner App component that uses hooks
 const AppContent: React.FC = () => {
@@ -47,13 +60,15 @@ const AppContent: React.FC = () => {
           <MaintenanceProvider>
             <LoadingProvider>
               <NotificationProvider>
-                <AppRoutes />
-                {/* Session Warning Dialog - only show for authenticated users */}
-                {isAuthenticated && (
-                  <SessionWarningDialog
-                    open={showWarning}
-                  />
-                )}
+                <ErrorBoundary>
+                  <AppRoutes />
+                  {/* Session Warning Dialog - only show for authenticated users */}
+                  {isAuthenticated && (
+                    <SessionWarningDialog
+                      open={showWarning}
+                    />
+                  )}
+                </ErrorBoundary>
               </NotificationProvider>
             </LoadingProvider>
           </MaintenanceProvider>

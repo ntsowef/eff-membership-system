@@ -148,18 +148,28 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
       params.append('sort', 'meeting_date');
       params.append('order', 'desc');
 
-      return await apiGet(`/hierarchical-meetings?${params.toString()}`);
+      const result = await apiGet(`/hierarchical-meetings?${params.toString()}`);
+      console.log('🔍 Hierarchical Meetings API Response:', result);
+      return result;
     },
   });
 
   // Fetch meeting statistics
   const { data: statisticsData, isLoading: statisticsLoading } = useQuery({
     queryKey: ['hierarchical-meeting-statistics'],
-    queryFn: () => apiGet('/hierarchical-meetings/statistics'),
+    queryFn: async () => {
+      const result = await apiGet('/hierarchical-meetings/statistics');
+      console.log('🔍 Statistics API Response:', result);
+      return result;
+    },
   });
 
-  const meetings: HierarchicalMeeting[] = meetingsData?.data?.meetings || [];
-  const statistics: MeetingStatistics[] = statisticsData?.data?.statistics || [];
+  // The apiGet function unwraps the response, so we access meetings directly
+  const meetings: HierarchicalMeeting[] = (meetingsData as any)?.meetings || [];
+  const statistics: MeetingStatistics[] = (statisticsData as any)?.statistics || [];
+
+  console.log('📊 Meetings extracted:', meetings.length, 'meetings');
+  console.log('📊 Statistics extracted:', statistics.length, 'stats');
 
   // Delete meeting mutation
   const deleteMeetingMutation = useMutation({
@@ -309,7 +319,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="This Week"
-              value={statistics.reduce((sum, stat) => sum + stat.this_week_meetings, 0)}
+              value={statistics.reduce((sum, stat) => sum + (parseInt(stat.this_week_meetings, 10) || 0), 0)}
               icon={CalendarToday}
               color="success"
               trend={{ value: 8, isPositive: true }}
@@ -318,7 +328,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="Avg Attendance"
-              value={`${Math.round(statistics.reduce((sum, stat) => sum + stat.avg_attendance, 0) / statistics.length || 0)}%`}
+              value={`${Math.round(statistics.reduce((sum, stat) => sum + (parseFloat(stat.avg_attendance) || 0), 0) / statistics.length || 0)}%`}
               icon={People}
               color="info"
               trend={{ value: 5, isPositive: true }}
@@ -352,11 +362,11 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
                       size="small"
                     />
                     <Typography variant="body1">
-                      {stats.reduce((sum, stat) => sum + stat.total_meetings, 0)} meetings
+                      {stats.reduce((sum, stat) => sum + (parseInt(stat.total_meetings, 10) || 0), 0)} meetings
                     </Typography>
                     <Box sx={{ ml: 'auto' }}>
                       <Typography variant="caption" color="text.secondary">
-                        {stats.reduce((sum, stat) => sum + stat.completed_meetings, 0)} completed
+                        {stats.reduce((sum, stat) => sum + (parseInt(stat.completed_meetings, 10) || 0), 0)} completed
                       </Typography>
                     </Box>
                   </Box>

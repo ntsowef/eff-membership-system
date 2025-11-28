@@ -89,7 +89,7 @@ export class ChartGenerationService {
                 const total = genderData.total;
                 const value = context.parsed;
                 const percentage = ((value / total) * 100).toFixed(1);
-                return `${context.label}: ${value.toLocaleString()} (${percentage}%)`;
+                return '${context.label}: ${value.toLocaleString()} (' + percentage + '%)';
               }
             }
           }
@@ -154,8 +154,9 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const value = context.parsed.y;
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                return `${context.label}: ${value.toLocaleString()} (${percentage}%)`;
+                if (value === null || value === undefined) return '';
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1)  : '0.0';
+                return '${context.label}: ${value.toLocaleString()} (' + percentage + '%)';
               }
             }
           }
@@ -224,7 +225,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const item = topRaces[context.dataIndex];
-                return `${item.race_name}: ${item.count.toLocaleString()} (${item.percentage}%)`;
+                return '${item.race_name}: ${item.count.toLocaleString()} (' + item.percentage + '%)';
               }
             }
           }
@@ -270,7 +271,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const item = topLanguages[context.dataIndex];
-                return `${item.language_name}: ${item.count.toLocaleString()} (${item.percentage}%)`;
+                return '${item.language_name}: ${item.count.toLocaleString()} (' + item.percentage + '%)';
               }
             }
           }
@@ -341,7 +342,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const item = topOccupations[context.dataIndex];
-                return `${item.category_name}: ${item.count.toLocaleString()} (${item.percentage}%)`;
+                return '${item.category_name}: ${item.count.toLocaleString()} (' + item.percentage + '%)';
               }
             }
           }
@@ -426,7 +427,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const item = chartData[context.dataIndex];
-                return `${item.province_name}: ${item.member_count.toLocaleString()} (${item.percentage}%)`;
+                return '${item.province_name}: ${item.member_count.toLocaleString()} (' + item.percentage + '%)';
               }
             }
           }
@@ -471,7 +472,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const item = provinces[context.dataIndex];
-                return `${item.province_name}: ${item.member_count.toLocaleString()} members (${item.percentage}%)`;
+                return '${item.province_name}: ${item.member_count.toLocaleString()} members (' + item.percentage + '%)';
               }
             }
           }
@@ -563,7 +564,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const region = regions[context.dataIndex];
-                return `${region.region_name}: ${region.member_count.toLocaleString()} members (${region.percentage}%)`;
+                return '${region.region_name}: ${region.member_count.toLocaleString()} members (' + region.percentage + '%)';
               }
             }
           }
@@ -652,10 +653,10 @@ export class ChartGenerationService {
               label: (context) => {
                 if (context.datasetIndex === 0) {
                   const region = regions[context.dataIndex];
-                  const status = region.above_average ? 'Above Average' : 'Below Average';
-                  return `${region.region_name}: ${region.member_count.toLocaleString()} (${status})`;
+                  const status = region.above_average ? 'Above Average'  : 'Below Average';
+                  return '${region.region_name}: ${region.member_count.toLocaleString()} (' + status + ')';
                 } else {
-                  return `Average: ${averageLine.toLocaleString()}`;
+                  return 'Average: ' + averageLine.toLocaleString() + '';
                 }
               }
             }
@@ -765,7 +766,9 @@ export class ChartGenerationService {
           tooltip: {
             callbacks: {
               label: (context) => {
-                return `${context.dataset.label}: ${context.parsed.y.toLocaleString()} members`;
+                const value = context.parsed.y;
+                if (value === null || value === undefined) return '';
+                return '${context.dataset.label}: ' + value.toLocaleString() + ' members';
               }
             }
           }
@@ -805,7 +808,7 @@ export class ChartGenerationService {
     const configuration: ChartConfiguration = {
       type: 'bar',
       data: {
-        labels: registration_patterns.map((pattern: any) => `Day ${pattern.day_of_month}`),
+        labels: registration_patterns.map((pattern: any) => 'Day ' + pattern.day_of_month + ''),
         datasets: [{
           label: 'Registrations',
           data: registration_patterns.map((pattern: any) => pattern.registrations),
@@ -829,7 +832,7 @@ export class ChartGenerationService {
           tooltip: {
             callbacks: {
               label: (context) => {
-                return `${context.parsed.y} registrations on day ${registration_patterns[context.dataIndex].day_of_month}`;
+                return '${context.parsed.y} registrations on day ' + registration_patterns[context.dataIndex].day_of_month + '';
               }
             }
           }
@@ -898,7 +901,7 @@ export class ChartGenerationService {
             callbacks: {
               label: (context) => {
                 const province = topProvinces[context.dataIndex];
-                return `${province.province_name}: ${province.member_count.toLocaleString()} (${province.percentage}%)`;
+                return '${province.province_name}: ${province.member_count.toLocaleString()} (' + province.percentage + '%)';
               }
             }
           }

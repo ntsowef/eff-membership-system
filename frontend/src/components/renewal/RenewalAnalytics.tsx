@@ -42,11 +42,27 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 
 interface RenewalAnalyticsData {
-  renewal_trends: any[];
-  revenue_analysis: any;
-  retention_metrics: any;
-  payment_method_analysis: any;
-  geographic_performance: any[];
+  renewal_performance: {
+    total_renewals_ytd: number;
+    renewal_rate: number;
+    revenue_ytd: number;
+    average_renewal_amount: number;
+    month_over_month_growth: number;
+  };
+  geographic_breakdown: any[];
+  timing_analysis: {
+    early_renewals: number;
+    on_time_renewals: number;
+    late_renewals: number;
+    expired_members: number;
+  };
+  payment_method_analysis: any[];
+  retention_metrics: {
+    first_year_retention: number;
+    multi_year_retention: number;
+    churn_rate: number;
+    lifetime_value: number;
+  };
 }
 
 interface RenewalAnalyticsProps {
@@ -69,11 +85,11 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
         }
       });
       console.log('Renewal Analytics API Response:', response.data);
-      
-      if (response.data && response.data.data && response.data.data.renewal_analytics) {
-        return response.data.data.renewal_analytics as RenewalAnalyticsData;
+
+      if (response.data && response.data.data && response.data.data.analytics) {
+        return response.data.data.analytics as RenewalAnalyticsData;
       }
-      
+
       throw new Error('Invalid renewal analytics data structure');
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -135,10 +151,22 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
     return null;
   }
 
-  const { renewal_trends, revenue_analysis, retention_metrics, payment_method_analysis, geographic_performance } = analyticsData;
+  const { renewal_performance, timing_analysis, retention_metrics, payment_method_analysis, geographic_breakdown } = analyticsData;
 
-  const formatCurrency = (amount: number) => `R${amount.toLocaleString()}`;
-  const formatPercentage = (value: number) => `${value.toFixed(1)}%`;
+  const formatNumber = (value: any): string => {
+    const numValue = typeof value === 'number' ? value : parseFloat(value || '0');
+    return isNaN(numValue) ? '0' : numValue.toLocaleString();
+  };
+
+  const formatCurrency = (amount: any) => {
+    const numAmount = typeof amount === 'number' ? amount : parseFloat(amount || '0');
+    return isNaN(numAmount) ? 'R0.00' : `R${numAmount.toLocaleString()}`;
+  };
+
+  const formatPercentage = (value: any) => {
+    const numValue = typeof value === 'number' ? value : parseFloat(value || '0');
+    return isNaN(numValue) ? '0.0%' : `${numValue.toFixed(1)}%`;
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -194,7 +222,7 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
             <Grid item xs={12} sm={6} md={4}>
               <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
                 <Typography variant="h4" color="success.contrastText" fontWeight="bold">
-                  {formatCurrency(revenue_analysis.total_revenue_ytd)}
+                  {formatCurrency(renewal_performance.revenue_ytd)}
                 </Typography>
                 <Typography variant="body2" color="success.contrastText">
                   Total Revenue YTD
@@ -204,21 +232,21 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
             <Grid item xs={12} sm={6} md={4}>
               <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
                 <Typography variant="h4" color="primary.contrastText" fontWeight="bold">
-                  {formatCurrency(revenue_analysis.average_monthly_revenue)}
+                  {formatCurrency(renewal_performance.average_renewal_amount)}
                 </Typography>
                 <Typography variant="body2" color="primary.contrastText">
-                  Average Monthly Revenue
+                  Average Renewal Amount
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
                 <Typography variant="h4" color="info.contrastText" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                  {formatPercentage(revenue_analysis.revenue_growth_rate)}
-                  {revenue_analysis.revenue_growth_rate >= 0 ? <TrendingUp /> : <TrendingDown />}
+                  {formatPercentage(renewal_performance.month_over_month_growth)}
+                  {renewal_performance.month_over_month_growth >= 0 ? <TrendingUp /> : <TrendingDown />}
                 </Typography>
                 <Typography variant="body2" color="info.contrastText">
-                  Revenue Growth Rate
+                  Month-over-Month Growth
                 </Typography>
               </Box>
             </Grid>
@@ -227,12 +255,12 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
           <Grid container spacing={2} sx={{ mt: 2 }}>
             <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
-                Average Renewal Amount: <strong>{formatCurrency(revenue_analysis.average_renewal_amount)}</strong>
+                Total Renewals YTD: <strong>{formatNumber(renewal_performance.total_renewals_ytd)}</strong>
               </Typography>
             </Grid>
             <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
-                Highest Revenue Month: <strong>{revenue_analysis.highest_revenue_month}</strong>
+                Renewal Rate: <strong>{formatPercentage(renewal_performance.renewal_rate)}</strong>
               </Typography>
             </Grid>
           </Grid>
@@ -386,37 +414,37 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
                   <TableHead>
                     <TableRow>
                       <TableCell>Province</TableCell>
-                      <TableCell align="right">Renewals</TableCell>
+                      <TableCell align="right">Avg Amount</TableCell>
                       <TableCell align="right">Rate</TableCell>
                       <TableCell align="right">Revenue</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {geographic_performance.slice(0, 8).map((province) => (
+                    {geographic_breakdown.slice(0, 8).map((province) => (
                       <TableRow key={province.province} hover>
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
-                            {province.province}
+                            {province.province || 'Unknown'}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {province.total_members.toLocaleString()} members
+                            {formatNumber(province.total_renewals)} renewals
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {province.renewals_this_month.toLocaleString()}
+                            {formatCurrency(province.average_amount || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
-                          <Chip 
-                            label={`${province.renewal_rate}%`}
-                            color={parseFloat(province.renewal_rate) >= 90 ? 'success' : parseFloat(province.renewal_rate) >= 80 ? 'warning' : 'error'}
+                          <Chip
+                            label={formatPercentage(province.renewal_rate || 0)}
+                            color={(province.renewal_rate || 0) >= 90 ? 'success' : (province.renewal_rate || 0) >= 80 ? 'warning' : 'error'}
                             size="small"
                           />
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(province.revenue)}
+                            {formatCurrency(province.revenue || 0)}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -450,7 +478,13 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
                 </TableRow>
               </TableHead>
               <TableBody>
-                {renewal_trends.slice(-6).map((trend) => (
+                {/* Timing Analysis Data */}
+                {[
+                  { month: 'Early Renewals', total_renewals: timing_analysis.early_renewals, successful_renewals: timing_analysis.early_renewals, failed_renewals: 0, revenue: 0, renewal_rate: '100' },
+                  { month: 'On-Time Renewals', total_renewals: timing_analysis.on_time_renewals, successful_renewals: timing_analysis.on_time_renewals, failed_renewals: 0, revenue: 0, renewal_rate: '100' },
+                  { month: 'Late Renewals', total_renewals: timing_analysis.late_renewals, successful_renewals: timing_analysis.late_renewals, failed_renewals: 0, revenue: 0, renewal_rate: '100' },
+                  { month: 'Expired Members', total_renewals: timing_analysis.expired_members, successful_renewals: 0, failed_renewals: timing_analysis.expired_members, revenue: 0, renewal_rate: '0' }
+                ].map((trend) => (
                   <TableRow key={trend.month} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
@@ -458,16 +492,16 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      {trend.total_renewals.toLocaleString()}
+                      {formatNumber(trend.total_renewals)}
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" color="success.main">
-                        {trend.successful_renewals.toLocaleString()}
+                        {formatNumber(trend.successful_renewals)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" color="error.main">
-                        {trend.failed_renewals.toLocaleString()}
+                        {formatNumber(trend.failed_renewals)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">

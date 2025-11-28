@@ -38,7 +38,7 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
   selectedProvince,
   selectedMunicipality,
   onMunicipalityChange,
-  label = 'Municipality',
+  label = 'Sub-Region',
   showAllOption = true,
   disabled = false,
   size = 'medium',
@@ -205,11 +205,11 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
           {showAllOption && (
             <MenuItem value="">
               <Box display="flex" alignItems="center" gap={1}>
-                <Typography>All Municipalities</Typography>
-                <Chip 
-                  label={`${availableMunicipalities.length} municipalities`} 
-                  size="small" 
-                  variant="outlined" 
+                <Typography>All Sub-Regions</Typography>
+                <Chip
+                  label={`${availableMunicipalities.length} sub-regions`}
+                  size="small"
+                  variant="outlined"
                 />
               </Box>
             </MenuItem>

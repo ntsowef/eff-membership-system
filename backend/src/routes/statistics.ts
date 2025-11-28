@@ -411,12 +411,15 @@ router.get('/dashboard',
   applyGeographicFilter,
   asyncHandler(async (req, res) => {
     // Get geographic context from middleware
-    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext || (req as any).wardContext;
     const provinceCode = geographicContext?.province_code;
     const municipalCode = geographicContext?.municipal_code;
+    const wardCode = geographicContext?.ward_code;
 
     // Log access for audit
-    if (municipalCode) {
+    if (wardCode) {
+      console.log(`🔒 Loading dashboard data for ward: ${wardCode}`);
+    } else if (municipalCode) {
       console.log(`🔒 Loading dashboard data for municipality: ${municipalCode}`);
     } else if (provinceCode) {
       await logProvinceAccess(req, 'dashboard_access', provinceCode);
@@ -430,22 +433,52 @@ router.get('/dashboard',
       const municipalityStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURDATE() OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURDATE() THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURDATE() THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as month_registrations
+          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
         FROM vw_member_details m
         LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE m.municipality_code = ?
+        WHERE m.municipality_code = $1
       `;
 
       const [municipalityStats] = await executeQuery(municipalityStatsQuery, [municipalCode]);
 
-      // Format the data to match the expected structure
+      // Get geographic counts for municipality
+      const geoStatsQuery = `
+        SELECT
+          COUNT(DISTINCT w.ward_code) as total_wards,
+          1 as total_municipalities,
+          COUNT(DISTINCT d.district_code) as total_districts,
+          COUNT(DISTINCT p.province_code) as total_provinces
+        FROM wards w
+        LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        WHERE m.municipality_code = $1
+      `;
+      const [geoStats] = await executeQuery(geoStatsQuery, [municipalCode]);
+
+      // Format the data to match the expected structure (same as national admin)
       systemStats = {
+        totals: {
+          members: municipalityStats.total_members || 0,
+          memberships: municipalityStats.total_members || 0,
+          active_memberships: municipalityStats.active_members || 0,
+          provinces: geoStats?.total_provinces || 0,
+          districts: geoStats?.total_districts || 0,
+          municipalities: geoStats?.total_municipalities || 1,
+          wards: geoStats?.total_wards || 0,
+          voting_stations: 0
+        },
+        growth: {
+          members_this_month: municipalityStats.month_registrations || 0,
+          members_last_month: 0,
+          growth_rate: 0
+        },
         total_members: municipalityStats.total_members || 0,
         active_members: municipalityStats.active_members || 0,
         expired_members: municipalityStats.expired_members || 0,
@@ -475,27 +508,137 @@ router.get('/dashboard',
         municipality_filter: municipalCode
       };
 
+    } else if (wardCode) {
+      // Ward admin - get ward-specific data
+      const wardStatsQuery = `
+        SELECT
+          COUNT(m.member_id) as total_members,
+          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          0 as pending_members,
+          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM vw_member_details m
+        LEFT JOIN memberships ms ON m.member_id = ms.member_id
+        WHERE m.ward_code = $1
+      `;
+
+      const [wardStats] = await executeQuery(wardStatsQuery, [wardCode]);
+
+      // Get geographic counts for ward
+      const geoStatsQuery = `
+        SELECT
+          1 as total_wards,
+          COUNT(DISTINCT m.municipality_code) as total_municipalities,
+          COUNT(DISTINCT d.district_code) as total_districts,
+          COUNT(DISTINCT p.province_code) as total_provinces
+        FROM wards w
+        LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        WHERE w.ward_code = $1
+      `;
+      const [geoStats] = await executeQuery(geoStatsQuery, [wardCode]);
+
+      // Format the data to match the expected structure (same as national admin)
+      systemStats = {
+        totals: {
+          members: wardStats.total_members || 0,
+          memberships: wardStats.total_members || 0,
+          active_memberships: wardStats.active_members || 0,
+          provinces: geoStats?.total_provinces || 0,
+          districts: geoStats?.total_districts || 0,
+          municipalities: geoStats?.total_municipalities || 0,
+          wards: geoStats?.total_wards || 1,
+          voting_stations: 0
+        },
+        growth: {
+          members_this_month: wardStats.month_registrations || 0,
+          members_last_month: 0,
+          growth_rate: 0
+        },
+        total_members: wardStats.total_members || 0,
+        active_members: wardStats.active_members || 0,
+        expired_members: wardStats.expired_members || 0,
+        expiring_soon_members: wardStats.expiring_soon_members || 0,
+        pending_members: wardStats.pending_members || 0,
+        today_registrations: wardStats.today_registrations || 0,
+        week_registrations: wardStats.week_registrations || 0,
+        month_registrations: wardStats.month_registrations || 0,
+        ward_filter: wardCode
+      };
+
+      // Get basic trends and demographics for ward
+      trends = {
+        monthly_registrations: [],
+        status_distribution: [
+          { status: 'active', count: wardStats.active_members || 0 },
+          { status: 'expired', count: wardStats.expired_members || 0 },
+          { status: 'pending', count: wardStats.pending_members || 0 }
+        ],
+        expiry_analysis: [],
+        ward_filter: wardCode
+      };
+
+      demographics = {
+        gender_distribution: [],
+        age_distribution: [],
+        ward_filter: wardCode
+      };
+
     } else if (provinceCode) {
       // Provincial admin - get province-specific data
       const provinceStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURDATE() OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURDATE() THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURDATE() THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as month_registrations
+          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
         FROM vw_member_details m
         LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE m.province_code = ?
+        WHERE m.province_code = $1
       `;
 
       const [provinceStats] = await executeQuery(provinceStatsQuery, [provinceCode]);
 
-      // Format the data to match the expected structure
+      // Get geographic counts for province
+      const geoStatsQuery = `
+        SELECT
+          COUNT(DISTINCT w.ward_code) as total_wards,
+          COUNT(DISTINCT m.municipality_code) as total_municipalities,
+          COUNT(DISTINCT d.district_code) as total_districts,
+          1 as total_provinces
+        FROM provinces p
+        LEFT JOIN districts d ON p.province_code = d.province_code
+        LEFT JOIN municipalities m ON d.district_code = m.district_code
+        LEFT JOIN wards w ON m.municipality_code = w.municipality_code
+        WHERE p.province_code = $1
+      `;
+      const [geoStats] = await executeQuery(geoStatsQuery, [provinceCode]);
+
+      // Format the data to match the expected structure (same as national admin)
       systemStats = {
+        totals: {
+          members: provinceStats.total_members || 0,
+          memberships: provinceStats.total_members || 0,
+          active_memberships: provinceStats.active_members || 0,
+          provinces: geoStats?.total_provinces || 1,
+          districts: geoStats?.total_districts || 0,
+          municipalities: geoStats?.total_municipalities || 0,
+          wards: geoStats?.total_wards || 0,
+          voting_stations: 0
+        },
+        growth: {
+          members_this_month: provinceStats.month_registrations || 0,
+          members_last_month: 0,
+          growth_rate: 0
+        },
         total_members: provinceStats.total_members || 0,
         active_members: provinceStats.active_members || 0,
         expired_members: provinceStats.expired_members || 0,
@@ -532,6 +675,8 @@ router.get('/dashboard',
         StatisticsModel.getMembershipTrends(6),
         StatisticsModel.getDemographicBreakdown()
       ]);
+
+      console.log('📊 National Admin Dashboard - System Stats:', JSON.stringify(systemStats, null, 2));
     }
 
     const dashboardData = {
@@ -557,14 +702,38 @@ router.get('/dashboard',
         total_expired: systemStats.expired_members || 0,
         total_expiring_soon: systemStats.expiring_soon_members || 0,
         filtered_by_province: !!provinceCode,
-        province_code: provinceCode || null
+        filtered_by_municipality: !!municipalCode,
+        filtered_by_ward: !!wardCode,
+        province_code: provinceCode || null,
+        municipality_code: municipalCode || null,
+        ward_code: wardCode || null
       },
       province_context: provinceCode ? {
         province_code: provinceCode,
         filtered_by_province: true
       } : {
         filtered_by_province: false
-      }
+      },
+      municipality_context: municipalCode ? {
+        municipality_code: municipalCode,
+        filtered_by_municipality: true
+      } : {
+        filtered_by_municipality: false
+      },
+      ward_context: wardCode ? {
+        ward_code: wardCode,
+        filtered_by_ward: true
+      } : {
+        filtered_by_ward: false
+      },
+      // Add context information for easy access
+      totalMembers: systemStats.total_members || 0,
+      provinceCode: provinceCode || null,
+      municipalityCode: municipalCode || null,
+      wardCode: wardCode || null,
+      provinceFilterApplied: provinceCode || null,
+      municipalityFilterApplied: municipalCode || null,
+      wardFilterApplied: wardCode || null
     };
 
     sendSuccess(res, dashboardData, 'Dashboard statistics retrieved successfully');

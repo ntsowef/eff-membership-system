@@ -44,17 +44,39 @@ export class OptimizedMemberModel {
         return cachedMember as OptimizedMemberData;
       }
 
-      // Use optimized stored procedure
-      const query = 'CALL sp_get_member_by_id_number_optimized(?)';
-      const results = await executeQuery(query, [idNumber]);
-      
-      // Handle stored procedure result format
-      const memberData = results[0]?.[0] || null;
-      
+      // Use direct query (PostgreSQL compatible)
+      const query = `
+        SELECT
+          m.member_id,
+          CONCAT('MEM', LPAD(m.member_id::TEXT, 6, '0')) as membership_number,
+          m.firstname as first_name,
+          COALESCE(m.surname, '') as last_name,
+          COALESCE(m.email, '') as email,
+          COALESCE(m.cell_number, '') as phone_number,
+          p.province_name,
+          mu.municipality_name,
+          w.ward_number,
+          COALESCE(vs.station_name, 'Not Available') as voting_station_name,
+          'Standard' as membership_type,
+          m.created_at as join_date,
+          m.created_at + INTERVAL '365 days' as expiry_date,
+          m.id_number
+        FROM members m
+        LEFT JOIN wards w ON m.ward_code = w.ward_code
+        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        LEFT JOIN districts d ON mu.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
+        WHERE m.id_number = $1
+        LIMIT 1
+      `;
+
+      const memberData = await executeQuerySingle<OptimizedMemberData>(query, [idNumber]);
+
       if (memberData) {
         // Cache the result
         await cacheService.set(cacheKey, memberData, this.MEMBER_CACHE_TTL);
-        
+
         // Also cache by member_id for cross-referencing
         const memberIdCacheKey = `${this.CACHE_PREFIX_MEMBER_ID}${memberData.member_id}`;
         await cacheService.set(memberIdCacheKey, memberData, this.MEMBER_CACHE_TTL);
@@ -63,8 +85,8 @@ export class OptimizedMemberModel {
       return memberData;
     } catch (error) {
       console.error('Error in getMemberByIdNumberOptimized:', error);
-      
-      // Fallback to direct query if stored procedure fails
+
+      // Fallback to direct query if main query fails
       return this.getMemberByIdNumberFallback(idNumber);
     }
   }
@@ -82,17 +104,39 @@ export class OptimizedMemberModel {
         return cachedMember as OptimizedMemberData;
       }
 
-      // Use optimized stored procedure
-      const query = 'CALL sp_get_member_by_id_optimized(?)';
-      const results = await executeQuery(query, [memberId]);
-      
-      // Handle stored procedure result format
-      const memberData = results[0]?.[0] || null;
-      
+      // Use direct query (PostgreSQL compatible)
+      const query = `
+        SELECT
+          m.member_id,
+          CONCAT('MEM', LPAD(m.member_id::TEXT, 6, '0')) as membership_number,
+          m.firstname as first_name,
+          COALESCE(m.surname, '') as last_name,
+          COALESCE(m.email, '') as email,
+          COALESCE(m.cell_number, '') as phone_number,
+          p.province_name,
+          mu.municipality_name,
+          w.ward_number,
+          COALESCE(vs.station_name, 'Not Available') as voting_station_name,
+          'Standard' as membership_type,
+          m.created_at as join_date,
+          m.created_at + INTERVAL '365 days' as expiry_date,
+          m.id_number
+        FROM members m
+        LEFT JOIN wards w ON m.ward_code = w.ward_code
+        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        LEFT JOIN districts d ON mu.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
+        WHERE m.member_id = $1
+        LIMIT 1
+      `;
+
+      const memberData = await executeQuerySingle<OptimizedMemberData>(query, [memberId]);
+
       if (memberData) {
         // Cache the result
         await cacheService.set(cacheKey, memberData, this.MEMBER_CACHE_TTL);
-        
+
         // Also cache by id_number for cross-referencing
         if (memberData.id_number) {
           const idNumberCacheKey = `${this.CACHE_PREFIX_ID_NUMBER}${memberData.id_number}`;
@@ -103,8 +147,8 @@ export class OptimizedMemberModel {
       return memberData;
     } catch (error) {
       console.error('Error in getMemberByIdOptimized:', error);
-      
-      // Fallback to direct query if stored procedure fails
+
+      // Fallback to direct query if main query fails
       return this.getMemberByIdFallback(memberId);
     }
   }
@@ -114,65 +158,29 @@ export class OptimizedMemberModel {
    */
   private static async getMemberByIdNumberFallback(idNumber: string): Promise<OptimizedMemberData | null> {
     try {
-      // First try the cache table
-      const cacheQuery = `
+      // Use vw_member_details view directly (PostgreSQL compatible)
+      const fallbackQuery = `
         SELECT
           member_id,
-          membership_number,
-          SUBSTRING_INDEX(full_name, ' ', 1) as first_name,
-          CASE
-            WHEN LOCATE(' ', full_name) > 0
-            THEN SUBSTRING(full_name, LOCATE(' ', full_name) + 1)
-            ELSE ''
-          END as last_name,
-          email,
-          phone as phone_number,
+          CONCAT('MEM', LPAD(member_id::TEXT, 6, '0')) as membership_number,
+          firstname as first_name,
+          COALESCE(surname, '') as last_name,
+          COALESCE(email, '') as email,
+          COALESCE(cell_number, '') as phone_number,
           province_name,
           municipality_name,
           ward_number,
-          voting_station_name,
+          COALESCE(voting_station_name, 'Not Available') as voting_station_name,
           'Standard' as membership_type,
-          join_date,
-          expiry_date,
+          member_created_at as join_date,
+          member_created_at + INTERVAL '365 days' as expiry_date,
           id_number
-        FROM member_cache_summary
-        WHERE id_number = ?
-          AND membership_status = 'Active'
+        FROM vw_member_details
+        WHERE id_number = $1
         LIMIT 1
       `;
 
-      try {
-        return await executeQuerySingle<OptimizedMemberData>(cacheQuery, [idNumber]);
-      } catch (cacheError: any) {
-        // If cache table doesn't exist, fall back to vw_member_details
-        if (cacheError.code === 'ER_NO_SUCH_TABLE') {
-          console.log('Cache table not found, using vw_member_details fallback');
-
-          const fallbackQuery = `
-            SELECT
-              member_id,
-              CONCAT('MEM', LPAD(member_id, 6, '0')) as membership_number,
-              firstname as first_name,
-              COALESCE(surname, '') as last_name,
-              COALESCE(email, '') as email,
-              COALESCE(cell_number, '') as phone_number,
-              province_name,
-              municipality_name,
-              ward_number,
-              COALESCE(voting_station_name, 'Not Available') as voting_station_name,
-              'Standard' as membership_type,
-              member_created_at as join_date,
-              DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date,
-              id_number
-            FROM vw_member_details
-            WHERE id_number = ?
-            LIMIT 1
-          `;
-
-          return await executeQuerySingle<OptimizedMemberData>(fallbackQuery, [idNumber]);
-        }
-        throw cacheError;
-      }
+      return await executeQuerySingle<OptimizedMemberData>(fallbackQuery, [idNumber]);
     } catch (error) {
       console.error('Error in fallback query:', error);
       throw new DatabaseError('Failed to fetch member data', error);
@@ -184,63 +192,28 @@ export class OptimizedMemberModel {
    */
   private static async getMemberByIdFallback(memberId: string): Promise<OptimizedMemberData | null> {
     try {
-      // First try the cache table
-      const cacheQuery = `
+      // Use vw_member_details view directly (PostgreSQL compatible)
+      const fallbackQuery = `
         SELECT
           member_id,
-          membership_number,
-          SUBSTRING_INDEX(full_name, ' ', 1) as first_name,
-          CASE
-            WHEN LOCATE(' ', full_name) > 0
-            THEN SUBSTRING(full_name, LOCATE(' ', full_name) + 1)
-            ELSE ''
-          END as last_name,
-          email,
-          phone as phone_number,
+          CONCAT('MEM', LPAD(member_id::TEXT, 6, '0')) as membership_number,
+          firstname as first_name,
+          COALESCE(surname, '') as last_name,
+          COALESCE(email, '') as email,
+          COALESCE(cell_number, '') as phone_number,
           province_name,
           municipality_name,
           ward_number,
-          voting_station_name,
+          COALESCE(voting_station_name, 'Not Available') as voting_station_name,
           'Standard' as membership_type,
-          join_date,
-          expiry_date
-        FROM member_cache_summary
-        WHERE member_id = ?
-          AND membership_status = 'Active'
+          member_created_at as join_date,
+          member_created_at + INTERVAL '365 days' as expiry_date
+        FROM vw_member_details
+        WHERE member_id = $1
         LIMIT 1
       `;
 
-      try {
-        return await executeQuerySingle<OptimizedMemberData>(cacheQuery, [memberId]);
-      } catch (cacheError: any) {
-        // If cache table doesn't exist, fall back to vw_member_details
-        if (cacheError.code === 'ER_NO_SUCH_TABLE') {
-          console.log('Cache table not found, using vw_member_details fallback for member ID lookup');
-
-          const fallbackQuery = `
-            SELECT
-              member_id,
-              CONCAT('MEM', LPAD(member_id, 6, '0')) as membership_number,
-              firstname as first_name,
-              COALESCE(surname, '') as last_name,
-              COALESCE(email, '') as email,
-              COALESCE(cell_number, '') as phone_number,
-              province_name,
-              municipality_name,
-              ward_number,
-              COALESCE(voting_station_name, 'Not Available') as voting_station_name,
-              'Standard' as membership_type,
-              member_created_at as join_date,
-              DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date
-            FROM vw_member_details
-            WHERE member_id = ?
-            LIMIT 1
-          `;
-
-          return await executeQuerySingle<OptimizedMemberData>(fallbackQuery, [memberId]);
-        }
-        throw cacheError;
-      }
+      return await executeQuerySingle<OptimizedMemberData>(fallbackQuery, [memberId]);
     } catch (error) {
       console.error('Error in member ID fallback query:', error);
       throw new DatabaseError('Failed to fetch member data', error);

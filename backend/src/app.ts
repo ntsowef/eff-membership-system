@@ -8,7 +8,7 @@ import { createServer } from 'http';
 import 'express-async-errors';
 
 import { config, validateConfig, logConfig } from './config/config';
-import { initializeDatabase } from './config/database';
+import { initializeDatabase } from './config/database-hybrid';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { redisService } from './services/redisService';
 
@@ -27,6 +27,9 @@ import lookupRoutes from './routes/lookups';
 import statisticsRoutes from './routes/statistics';
 import membershipExpirationRoutes from './routes/membershipExpiration';
 import membershipRenewalRoutes from './routes/membershipRenewal';
+import renewalAdministrativeRoutes from './routes/renewalAdministrative';
+import renewalBulkUploadRoutes from './routes/renewalBulkUpload';
+import memberApplicationBulkUploadRoutes from './routes/memberApplicationBulkUpload';
 import digitalMembershipCardsRoutes from './routes/digitalMembershipCards';
 import optimizedDigitalCardsRoutes from './routes/optimizedDigitalCards';
 import maintenanceRoutes from './routes/maintenance';
@@ -39,12 +42,16 @@ import {
   healthCheckMiddleware,
   requestQueueMiddleware
 } from './middleware/rateLimiting';
+
+// Import background jobs
+import { MeetingStatusJob } from './jobs/meetingStatusJob';
 import meetingRoutes from './routes/meetings';
 import hierarchicalMeetingRoutes from './routes/hierarchicalMeetings';
 import meetingDocumentRoutes from './routes/meetingDocuments';
 import memberSearchRoutes from './routes/memberSearch';
 import memberAuditRoutes from './routes/memberAudit';
 import wardMembershipAuditRoutes from './routes/wardMembershipAudit';
+import wardAuditRoutes from './routes/wardAudit';
 
 import documentsRoutes from './routes/documents';
 import leadershipRoutes from './routes/leadership';
@@ -84,6 +91,7 @@ import { SMSProviderMonitoringService } from './services/smsProviderMonitoringSe
 import { WebSocketService } from './services/websocketService';
 import { FileWatcherService } from './services/fileWatcherService';
 import { FileProcessingQueueManager } from './services/fileProcessingQueueManager';
+import { QueueService } from './services/queueService';
 import securityMiddleware from './middleware/securityMiddleware';
 import { maintenanceModeMiddleware, scheduledMaintenanceChecker } from './middleware/maintenanceMode';
 
@@ -199,6 +207,9 @@ app.use(`${apiPrefix}/lookups`, lookupRoutes);
 app.use(`${apiPrefix}/statistics`, statisticsRoutes);
 app.use(`${apiPrefix}/membership-expiration`, membershipExpirationRoutes);
 app.use(`${apiPrefix}/membership-renewal`, membershipRenewalRoutes);
+app.use(`${apiPrefix}/renewal-admin`, renewalAdministrativeRoutes);
+app.use(`${apiPrefix}/renewal-bulk-upload`, renewalBulkUploadRoutes);
+app.use(`${apiPrefix}/member-application-bulk-upload`, memberApplicationBulkUploadRoutes);
 app.use(`${apiPrefix}/digital-cards`, digitalMembershipCardsRoutes);
 app.use(`${apiPrefix}/optimized-cards`, optimizedDigitalCardsRoutes); // High-performance card generation
 app.use(`${apiPrefix}/voter-verifications`, voterVerificationRoutes);
@@ -207,6 +218,7 @@ app.use(`${apiPrefix}/renewals`, membershipRenewalRoutes);
 app.use(`${apiPrefix}/search`, memberSearchRoutes);
 app.use(`${apiPrefix}/audit`, memberAuditRoutes);
 app.use(`${apiPrefix}/audit/ward-membership`, wardMembershipAuditRoutes);
+app.use(`${apiPrefix}/ward-audit`, wardAuditRoutes);
 
 app.use(`${apiPrefix}/documents`, documentsRoutes);
 app.use(`${apiPrefix}/leadership`, leadershipRoutes);
@@ -318,6 +330,10 @@ const startServer = async (): Promise<void> => {
     // Initialize cache service
     await cacheService.connect();
 
+    // Initialize queue service (after database is ready)
+    QueueService.initialize();
+    console.log('✅ Queue service initialized');
+
     // Start performance monitoring
     performanceMonitor.startMonitoring(30000); // Monitor every 30 seconds
     console.log('✅ Performance monitoring started');
@@ -355,6 +371,10 @@ const startServer = async (): Promise<void> => {
       setInterval(scheduledMaintenanceChecker, 60000);
       console.log(`🔧 Scheduled Maintenance Checker: Active`);
 
+      // Start meeting status update job (every 5 minutes)
+      MeetingStatusJob.start();
+      console.log(`📅 Meeting Status Update Job: Active`);
+
       // Log configuration
       logConfig();
     });
@@ -368,6 +388,9 @@ const startServer = async (): Promise<void> => {
 
       // Stop SMS provider monitoring
       SMSProviderMonitoringService.stopMonitoring();
+
+      // Stop meeting status job
+      MeetingStatusJob.stop();
 
       // WebSocket service removed
 

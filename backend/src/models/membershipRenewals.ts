@@ -736,9 +736,9 @@ export class MembershipRenewalModel {
           COUNT(CASE WHEN r.renewal_status = 'Expired' THEN 1 END) as expired_renewals,
           COUNT(CASE WHEN r.renewal_due_date < CURDATE() AND r.renewal_status != 'Completed' THEN 1 END) as overdue_renewals,
           COUNT(CASE WHEN r.grace_period_end_date IS NOT NULL AND r.grace_period_end_date >= CURDATE() THEN 1 END) as grace_period_renewals,
-          SUM(r.final_amount) as total_revenue,
-          SUM(CASE WHEN r.payment_status = 'Completed' THEN r.final_amount ELSE 0 END) as collected_revenue,
-          AVG(r.final_amount) as average_renewal_amount,
+          SUM(r.renewal_amount) as total_revenue,
+          SUM(CASE WHEN r.payment_status = 'Completed' THEN r.renewal_amount ELSE 0 END) as collected_revenue,
+          AVG(r.renewal_amount) as average_renewal_amount,
           COUNT(CASE WHEN r.payment_status = 'Completed' THEN 1 END) as paid_renewals,
           ROUND((COUNT(CASE WHEN r.renewal_status = 'Completed' THEN 1 END) / COUNT(*)) * 100, 2) as completion_rate,
           ROUND((COUNT(CASE WHEN r.payment_status = 'Completed' THEN 1 END) / COUNT(*)) * 100, 2) as payment_rate

@@ -1,5 +1,6 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
+import { getConnection } from '../config/database-hybrid';
 
 // TypeScript interfaces for the database views
 export interface ExpiringSoonMember {
@@ -36,6 +37,28 @@ export interface ExpiredMember {
 
 export class MembershipExpirationModel {
 
+  // Helper method to execute PostgreSQL queries directly
+  static async executePostgreSQLQuery(query: string, params: any[] = []): Promise<any[]> {
+    const client = await getConnection();
+    try {
+      const result = await client.query(query, params);
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Helper method to execute PostgreSQL queries and return single result
+  static async executePostgreSQLQuerySingle(query: string, params: any[] = []): Promise<any> {
+    const client = await getConnection();
+    try {
+      const result = await client.query(query, params);
+      return result.rows[0] || null;
+    } finally {
+      client.release();
+    }
+  }
+
   // Get members expiring soon using the database view
   static async getExpiringSoonMembers(options: {
     priority?: string;
@@ -43,6 +66,8 @@ export class MembershipExpirationModel {
     limit?: number;
     sort_by?: string;
     sort_order?: string;
+    province_code?: string;
+    municipality_code?: string;
   } = {}): Promise<{
     members: ExpiringSoonMember[];
     total_count: number;
@@ -54,16 +79,30 @@ export class MembershipExpirationModel {
         page = 1,
         limit = 50,
         sort_by = 'days_until_expiry',
-        sort_order = 'asc'
+        sort_order = 'asc',
+        province_code,
+        municipality_code
       } = options;
 
       const offset = (page - 1) * limit;
 
-      // Build WHERE clause for priority filter
-      let whereClause = '';
+      // Build WHERE clause for priority and geographic filters
+      const whereConditions: string[] = [];
+
       if (priority !== 'all') {
-        whereClause = `WHERE renewal_priority = '${priority}'`;
+        whereConditions.push(`renewal_priority = '${priority}'`);
       }
+
+      // Apply geographic filtering
+      if (province_code) {
+        whereConditions.push(`province_code = '${province_code}'`);
+      }
+
+      if (municipality_code) {
+        whereConditions.push(`municipality_code = '${municipality_code}'`);
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
       // Build ORDER BY clause
       const validSortFields = ['days_until_expiry', 'expiry_date', 'full_name', 'municipality_name'];
@@ -93,7 +132,7 @@ export class MembershipExpirationModel {
         LIMIT ${limit} OFFSET ${offset}
       `;
 
-      const members = await executeQuery<ExpiringSoonMember>(membersQuery);
+      const members = await this.executePostgreSQLQuery(membersQuery);
 
       // Get total count
       const countQuery = `
@@ -101,14 +140,15 @@ export class MembershipExpirationModel {
         FROM vw_expiring_soon
         ${whereClause}
       `;
-      const countResult = await executeQuerySingle<{ total_count: number }>(countQuery);
+      const countResult = await this.executePostgreSQLQuerySingle(countQuery);
 
-      // Get priority summary
+      // Get priority summary with geographic filtering
       const prioritySummaryQuery = `
         SELECT
           renewal_priority,
           COUNT(*) as count
         FROM vw_expiring_soon
+        ${whereClause}
         GROUP BY renewal_priority
         ORDER BY
           CASE renewal_priority
@@ -117,7 +157,7 @@ export class MembershipExpirationModel {
             WHEN 'Medium Priority (1 Month)' THEN 3
           END
       `;
-      const prioritySummary = await executeQuery(prioritySummaryQuery);
+      const prioritySummary = await this.executePostgreSQLQuery(prioritySummaryQuery);
 
       return {
         members,
@@ -137,6 +177,8 @@ export class MembershipExpirationModel {
     limit?: number;
     sort_by?: string;
     sort_order?: string;
+    province_code?: string;
+    municipality_code?: string;
   } = {}): Promise<{
     members: ExpiredMember[];
     total_count: number;
@@ -148,16 +190,30 @@ export class MembershipExpirationModel {
         page = 1,
         limit = 50,
         sort_by = 'days_expired',
-        sort_order = 'asc'
+        sort_order = 'asc',
+        province_code,
+        municipality_code
       } = options;
 
       const offset = (page - 1) * limit;
 
-      // Build WHERE clause for category filter
-      let whereClause = '';
+      // Build WHERE clause for category and geographic filters
+      const whereConditions: string[] = [];
+
       if (category !== 'all') {
-        whereClause = `WHERE expiry_category = '${category}'`;
+        whereConditions.push(`expiry_category = '${category}'`);
       }
+
+      // Apply geographic filtering
+      if (province_code) {
+        whereConditions.push(`province_code = '${province_code}'`);
+      }
+
+      if (municipality_code) {
+        whereConditions.push(`municipality_code = '${municipality_code}'`);
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
       // Build ORDER BY clause
       const validSortFields = ['days_expired', 'expiry_date', 'full_name', 'municipality_name'];
@@ -187,7 +243,7 @@ export class MembershipExpirationModel {
         LIMIT ${limit} OFFSET ${offset}
       `;
 
-      const members = await executeQuery<ExpiredMember>(membersQuery);
+      const members = await this.executePostgreSQLQuery(membersQuery);
 
       // Get total count
       const countQuery = `
@@ -195,14 +251,15 @@ export class MembershipExpirationModel {
         FROM vw_expired_memberships
         ${whereClause}
       `;
-      const countResult = await executeQuerySingle<{ total_count: number }>(countQuery);
+      const countResult = await this.executePostgreSQLQuerySingle(countQuery);
 
-      // Get category summary
+      // Get category summary with geographic filtering
       const categorySummaryQuery = `
         SELECT
           expiry_category,
           COUNT(*) as count
         FROM vw_expired_memberships
+        ${whereClause}
         GROUP BY expiry_category
         ORDER BY
           CASE expiry_category
@@ -212,7 +269,7 @@ export class MembershipExpirationModel {
             WHEN 'Expired Over 1 Year' THEN 4
           END
       `;
-      const categorySummary = await executeQuery(categorySummaryQuery);
+      const categorySummary = await this.executePostgreSQLQuery(categorySummaryQuery);
 
       return {
         members,
@@ -226,7 +283,10 @@ export class MembershipExpirationModel {
   }
 
   // Get enhanced status overview using both views
-  static async getEnhancedStatusOverview(): Promise<{
+  static async getEnhancedStatusOverview(options: {
+    province_code?: string;
+    municipality_code?: string;
+  } = {}): Promise<{
     expiring_soon_summary: any;
     expired_summary: any;
     total_expiring_soon: number;
@@ -235,12 +295,30 @@ export class MembershipExpirationModel {
     recently_expired: number;
   }> {
     try {
+      // Build WHERE clause for geographic filtering
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (options.province_code) {
+        whereConditions.push(`province_code = $${paramIndex++}`);
+        params.push(options.province_code);
+      }
+
+      if (options.municipality_code) {
+        whereConditions.push(`municipality_code = $${paramIndex++}`);
+        params.push(options.municipality_code);
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
       // Get expiring soon summary
       const expiringSoonSummaryQuery = `
         SELECT
           renewal_priority,
           COUNT(*) as count
         FROM vw_expiring_soon
+        ${whereClause}
         GROUP BY renewal_priority
         ORDER BY
           CASE renewal_priority
@@ -249,7 +327,7 @@ export class MembershipExpirationModel {
             WHEN 'Medium Priority (1 Month)' THEN 3
           END
       `;
-      const expiringSoonSummary = await executeQuery(expiringSoonSummaryQuery);
+      const expiringSoonSummary = await this.executePostgreSQLQuery(expiringSoonSummaryQuery, params);
 
       // Get expired summary
       const expiredSummaryQuery = `
@@ -257,6 +335,7 @@ export class MembershipExpirationModel {
           expiry_category,
           COUNT(*) as count
         FROM vw_expired_memberships
+        ${whereClause}
         GROUP BY expiry_category
         ORDER BY
           CASE expiry_category
@@ -266,19 +345,32 @@ export class MembershipExpirationModel {
             WHEN 'Expired Over 1 Year' THEN 4
           END
       `;
-      const expiredSummary = await executeQuery(expiredSummaryQuery);
+      const expiredSummary = await this.executePostgreSQLQuery(expiredSummaryQuery, params);
 
-      // Get totals
-      const totalExpiringSoonQuery = `SELECT COUNT(*) as total FROM vw_expiring_soon`;
-      const totalExpiredQuery = `SELECT COUNT(*) as total FROM vw_expired_memberships`;
-      const urgentRenewalsQuery = `SELECT COUNT(*) as total FROM vw_expiring_soon WHERE renewal_priority = 'Urgent (1 Week)'`;
-      const recentlyExpiredQuery = `SELECT COUNT(*) as total FROM vw_expired_memberships WHERE expiry_category = 'Recently Expired'`;
+      // Get totals with geographic filtering
+      const totalExpiringSoonQuery = `SELECT COUNT(*) as total FROM vw_expiring_soon ${whereClause}`;
+      const totalExpiredQuery = `SELECT COUNT(*) as total FROM vw_expired_memberships ${whereClause}`;
+
+      // For urgent renewals and recently expired, we need to combine WHERE clauses
+      const urgentWhereClause = whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')} AND renewal_priority = 'Urgent (1 Week)'`
+        : `WHERE renewal_priority = 'Urgent (1 Week)'`;
+      const recentlyExpiredWhereClause = whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')} AND expiry_category = 'Recently Expired'`
+        : `WHERE expiry_category = 'Recently Expired'`;
+
+      const urgentRenewalsQuery = `SELECT COUNT(*) as total FROM vw_expiring_soon ${urgentWhereClause}`;
+      const recentlyExpiredQuery = `SELECT COUNT(*) as total FROM vw_expired_memberships ${recentlyExpiredWhereClause}`;
+
+      // For urgent and recently expired queries, we need to add the additional parameter
+      const urgentParams = [...params];
+      const recentlyExpiredParams = [...params];
 
       const [totalExpiringSoon, totalExpired, urgentRenewals, recentlyExpired] = await Promise.all([
-        executeQuerySingle<{ total: number }>(totalExpiringSoonQuery),
-        executeQuerySingle<{ total: number }>(totalExpiredQuery),
-        executeQuerySingle<{ total: number }>(urgentRenewalsQuery),
-        executeQuerySingle<{ total: number }>(recentlyExpiredQuery)
+        this.executePostgreSQLQuerySingle(totalExpiringSoonQuery, params),
+        this.executePostgreSQLQuerySingle(totalExpiredQuery, params),
+        this.executePostgreSQLQuerySingle(urgentRenewalsQuery, urgentParams),
+        this.executePostgreSQLQuerySingle(recentlyExpiredQuery, recentlyExpiredParams)
       ]);
 
       return {
@@ -658,7 +750,7 @@ export class MembershipExpirationModel {
         expiration_count: number;
       }>(trendsQuery);
 
-      const totalExpirations = expirationPatterns.reduce((sum, pattern) => sum + pattern.expiration_count, 0);
+      const totalExpirations = expirationPatterns.reduce((sum: number, pattern: any) => sum + pattern.expiration_count, 0);
       
       // Mock renewal rate calculation
       const renewalRate = include_renewal_rates ? '75.5' : '0';

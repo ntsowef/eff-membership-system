@@ -1,6 +1,5 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
-
 export interface RenewalPricingTier {
   tier_id: number;
   tier_name: string;
@@ -127,24 +126,23 @@ export class RenewalPricingService {
           COALESCE(ms.membership_amount, 500.00) as current_membership_amount,
           CASE 
             WHEN m.member_created_at IS NOT NULL THEN 
-              DATE_ADD(m.member_created_at, INTERVAL 365 DAY)
-            ELSE DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+              (m.member_created_at + INTERVAL '365 DAY\')
+            ELSE (CURRENT_DATE + INTERVAL '30 DAY')
           END as membership_expiry_date,
           CASE 
             WHEN m.member_created_at IS NOT NULL THEN 
-              DATEDIFF(DATE_ADD(m.member_created_at, INTERVAL 365 DAY), CURDATE())
+              ((m.member_created_at + INTERVAL '365 DAY\')::date - CURRENT_DATE::date)
             ELSE 30
           END as days_until_expiry,
-          TIMESTAMPDIFF(YEAR, m.date_of_birth, CURDATE()) as member_age,
+          EXTRACT(YEAR FROM AGE(CURRENT_DATE, m.date_of_birth)) as member_age,
           m.province_name
         FROM vw_member_details m
         LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE m.member_id = ?
-        LIMIT 1
+        WHERE m.member_id = $1 LIMIT 1
       `;
 
       const memberData = await executeQuerySingle<{
-        member_id: number;
+        member_id : number;
         membership_type: string;
         current_membership_amount: number;
         membership_expiry_date: string;
@@ -154,7 +152,7 @@ export class RenewalPricingService {
       }>(memberQuery, [memberId]);
 
       if (!memberData) {
-        throw new Error(`Member not found: ${memberId}`);
+        throw new Error('Member not found: ' + memberId + '');
       }
 
       // Determine pricing tier based on member characteristics
@@ -281,7 +279,7 @@ export class RenewalPricingService {
         const calculation = await this.calculateMemberRenewalPricing(memberId);
         calculations.push(calculation);
       } catch (error) {
-        console.error(`Failed to calculate pricing for member ${memberId}:`, error);
+        console.error('Failed to calculate pricing for member ' + memberId + ':', error);
         // Continue with other members
       }
     }
@@ -305,7 +303,7 @@ export class RenewalPricingService {
           COUNT(*) as total_members_due,
           AVG(500.00) as avg_amount
         FROM vw_member_details
-        WHERE DATE_ADD(member_created_at, INTERVAL 365 DAY) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY)
+        WHERE (member_created_at + INTERVAL '365 DAY') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '90 DAY')
       `;
 
       const membersDue = await executeQuerySingle<{
@@ -317,15 +315,15 @@ export class RenewalPricingService {
       const tierBreakdownQuery = `
         SELECT
           CASE
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) < 25 THEN 'Student Membership'
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) >= 65 THEN 'Senior Membership'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth)) < 25 THEN 'Student Membership'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth)) >= 65 THEN 'Senior Membership'
             WHEN COALESCE(ms.membership_amount, 500) > 600 THEN 'Premium Membership'
             ELSE 'Standard Membership'
           END as tier_name,
           COUNT(*) as member_count
         FROM vw_member_details m
         LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE DATE_ADD(m.member_created_at, INTERVAL 365 DAY) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY)
+        WHERE (m.member_created_at + INTERVAL '365 DAY') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '90 DAY')
         GROUP BY tier_name
       `;
 
@@ -452,7 +450,7 @@ export class RenewalPricingService {
       // Generate recommendations
       const recommendations: string[] = [];
       if (discountOpportunities.length > 0) {
-        recommendations.push(`${discountOpportunities.length} members eligible for early bird discounts`);
+        recommendations.push('' + discountOpportunities.length + ' members eligible for early bird discounts');
       }
       if (calculations.some(c => c.late_fee > 0)) {
         recommendations.push('Some members have late fees - consider grace period extension');

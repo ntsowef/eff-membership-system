@@ -723,7 +723,7 @@ router.get('/ward/:wardCode/details',
 
       const [wardInfo, wardTrends, municipalityWards] = await Promise.all([
         executeQuery(wardInfoQuery, [wardCode]),
-        executeQuery(wardTrendsQuery, [wardCode]),
+        executeQuery(wardTrendsQuery, []), // No parameters needed for empty trends query
         executeQuery(municipalityWardsQuery, [wardCode, wardCode])
       ]);
 

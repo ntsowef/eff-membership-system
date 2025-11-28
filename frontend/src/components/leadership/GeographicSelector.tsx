@@ -239,13 +239,13 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               </Link>
             )}
             {selectedMunicipality && (
-              <Link 
-                component="button" 
-                variant="body2" 
+              <Link
+                component="button"
+                variant="body2"
                 onClick={() => handleMunicipalityChange(selectedMunicipality)}
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
-                {getHierarchyIcon('Municipality')}
+                {getHierarchyIcon('Sub-Region')}
                 {selectedMunicipality.municipality_name}
               </Link>
             )}

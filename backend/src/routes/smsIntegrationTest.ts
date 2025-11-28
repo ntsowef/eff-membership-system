@@ -4,8 +4,20 @@ import { SMSDeliveryTrackingService } from '../services/smsDeliveryTrackingServi
 import { SMSProviderMonitoringService } from '../services/smsProviderMonitoringService';
 import { authenticate, requireSMSPermission } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { config } from '../config/config';
 
 const router = Router();
+
+// Get default SMS sender number based on provider
+const getDefaultFromNumber = (): string => {
+  const provider = config.sms?.provider || 'mock';
+  if (provider === 'twilio') {
+    return config.sms?.twilio?.fromNumber || 'EFF';
+  } else if (provider === 'jsonApplink') {
+    return config.sms?.jsonApplink?.fromNumber || 'EFF';
+  }
+  return 'EFF'; // Default sender ID
+};
 
 // Test SMS provider integration
 router.post('/test-integration', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -30,7 +42,7 @@ router.post('/test-integration', authenticate, requireSMSPermission(), async (re
 
     // Test 1: Basic SMS sending
     try {
-      const sendResult = await SMSService.sendSMS(test_phone_number, testMessage);
+      const sendResult = await SMSService.sendSMS(test_phone_number, testMessage, getDefaultFromNumber());
       testResults.push({
         test: 'Basic SMS Sending',
         success: sendResult.success,
@@ -111,7 +123,7 @@ router.post('/test-integration', authenticate, requireSMSPermission(), async (re
     try {
       const rateLimitResults: Array<{attempt: number; success: boolean; error?: string}> = [];
       for (let i = 0; i < 3; i++) {
-        const result = await SMSService.sendSMS(test_phone_number, `Rate limit test ${i + 1}`);
+        const result = await SMSService.sendSMS(test_phone_number, `Rate limit test ${i + 1}`, getDefaultFromNumber());
         rateLimitResults.push({
           attempt: i + 1,
           success: result.success,
@@ -223,7 +235,7 @@ router.post('/test-error-scenarios', authenticate, requireSMSPermission(), async
 
     // Test 1: Invalid phone number
     try {
-      const result = await SMSService.sendSMS('invalid-phone', 'Test message');
+      const result = await SMSService.sendSMS('invalid-phone', 'Test message', getDefaultFromNumber());
       errorTests.push({
         test: 'Invalid Phone Number',
         expected_failure: true,
@@ -243,7 +255,7 @@ router.post('/test-error-scenarios', authenticate, requireSMSPermission(), async
 
     // Test 2: Empty message
     try {
-      const result = await SMSService.sendSMS('+27123456789', '');
+      const result = await SMSService.sendSMS('+27123456789', '', getDefaultFromNumber());
       errorTests.push({
         test: 'Empty Message',
         expected_failure: true,
@@ -264,7 +276,7 @@ router.post('/test-error-scenarios', authenticate, requireSMSPermission(), async
     // Test 3: Very long message (over SMS limit)
     try {
       const longMessage = 'A'.repeat(1000); // 1000 characters
-      const result = await SMSService.sendSMS('+27123456789', longMessage);
+      const result = await SMSService.sendSMS('+27123456789', longMessage, getDefaultFromNumber());
       errorTests.push({
         test: 'Long Message (1000 chars)',
         expected_failure: false, // Should handle long messages

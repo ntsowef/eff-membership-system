@@ -1,0 +1,1004 @@
+[
+  {
+    "file": "analyticsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 18
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 8
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "birthdayScheduler.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 4
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "birthdaySMSService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 61
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 4
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 7
+      },
+      {
+        "pattern": "Date function: YEAR() → EXTRACT(YEAR FROM ...)",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 3
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "cacheInvalidationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 7
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "cacheService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 5
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "chartGenerationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "communicationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 34
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "comprehensiveFinancialService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 56
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 2
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 7
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 10
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 3
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 4
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "databaseOptimization.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 19
+      },
+      {
+        "pattern": "String function: SUBSTRING_INDEX() → SPLIT_PART()",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "deliveryTrackingService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 45
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 2
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "documentService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 13
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "emailService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 16
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "fileProcessingQueueManager.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 22
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "fileWatcherService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 19
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "financialTransactionQueryService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 88
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 3
+      },
+      {
+        "pattern": "Date function: DATE_SUB() → INTERVAL subtraction",
+        "matches": 2
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 9
+      },
+      {
+        "pattern": "Date function: DATEDIFF() → date subtraction",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "hierarchicalMeetingService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 26
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "iecApiService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 14
+      }
+    ],
+    "hasChanges": false
+  },
+  {
+    "file": "iecElectoralEventsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 28
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 5
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 8
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "iecGeographicMappingService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 61
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 9
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "iecLgeBallotResultsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 44
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 5
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "importExportService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 61
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 9
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 4
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 4
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 5
+      },
+      {
+        "pattern": "Date function: DATEDIFF() → date subtraction",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "leadershipService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 42
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 2
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 2
+      },
+      {
+        "pattern": "String function: LPAD() with text casting",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "maintenanceModeService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 41
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 9
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "meetingInvitationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 12
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 4
+      },
+      {
+        "pattern": "String function: LPAD() with text casting",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "meetingNotificationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 32
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 3
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "memberAuditService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 23
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 1
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 4
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "membershipApprovalService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 47
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 6
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "membershipApprovalWorkflow.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 11
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 4
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "mfaService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 24
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 3
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "monitoringService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 21
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 3
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "paymentService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 43
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 4
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "pdfExportService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 84
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 2
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 4
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "performanceMonitoring.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 10
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "queueService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 22
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 5
+      },
+      {
+        "pattern": "Date function: DATE_SUB() → INTERVAL subtraction",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "redisService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 9
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "renewalAnalyticsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 18
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 11
+      },
+      {
+        "pattern": "Date function: DATE_ADD() → INTERVAL addition",
+        "matches": 4
+      },
+      {
+        "pattern": "Date function: YEAR() → EXTRACT(YEAR FROM ...)",
+        "matches": 12
+      },
+      {
+        "pattern": "Date function: DATEDIFF() → date subtraction",
+        "matches": 4
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "renewalPricingService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 6
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 9
+      },
+      {
+        "pattern": "Date function: DATE_ADD() → INTERVAL addition",
+        "matches": 7
+      },
+      {
+        "pattern": "Date function: DATEDIFF() → date subtraction",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "renewalProcessingService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 25
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 3
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 2
+      },
+      {
+        "pattern": "Date function: DATE_ADD() → INTERVAL addition",
+        "matches": 3
+      },
+      {
+        "pattern": "Date function: YEAR() → EXTRACT(YEAR FROM ...)",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: DATEDIFF() → date subtraction",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "renewalService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 18
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 4
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "securityService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 39
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 17
+      },
+      {
+        "pattern": "Date function: DATE_SUB() → INTERVAL subtraction",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 6
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "sessionManagementService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 35
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 7
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "smsDeliveryTrackingService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 24
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 6
+      },
+      {
+        "pattern": "Date function: DATE_SUB() → INTERVAL subtraction",
+        "matches": 5
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "smsManagementService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 88
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 2
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "smsProviderMonitoringService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 25
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "smsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 33
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 10
+      },
+      {
+        "pattern": "Date function: DATE_SUB() → INTERVAL subtraction",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: DATE_ADD() → INTERVAL addition",
+        "matches": 2
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: DATEDIFF() → date subtraction",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "sqlMigrationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 9
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 1
+      },
+      {
+        "pattern": "String function: LPAD() with text casting",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "twoTierApprovalService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 130
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 5
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 4
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "unifiedFinancialDashboardService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 24
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 3
+      },
+      {
+        "pattern": "Date function: CURDATE() → CURRENT_DATE",
+        "matches": 8
+      },
+      {
+        "pattern": "Date function: DATE_SUB() → INTERVAL subtraction",
+        "matches": 1
+      },
+      {
+        "pattern": "Date function: DATE() → ::DATE casting",
+        "matches": 10
+      },
+      {
+        "pattern": "UPSERT: ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET",
+        "matches": 2
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 10
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 1
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "userManagementService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 25
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "viewsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 16
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 2
+      },
+      {
+        "pattern": "String function: CONCAT() → || operator",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "voterVerificationService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 69
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "votingDistrictsService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 25
+      },
+      {
+        "pattern": "Date function: NOW() → CURRENT_TIMESTAMP",
+        "matches": 1
+      },
+      {
+        "pattern": "UPSERT: VALUES() → EXCLUDED.",
+        "matches": 1
+      },
+      {
+        "pattern": "Boolean: = 1 → = TRUE",
+        "matches": 2
+      }
+    ],
+    "hasChanges": true
+  },
+  {
+    "file": "websocketService.ts",
+    "changes": [
+      {
+        "pattern": "Parameter placeholders: ? → $1, $2, $3",
+        "matches": 3
+      }
+    ],
+    "hasChanges": true
+  }
+]

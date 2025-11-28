@@ -23,11 +23,21 @@ import {
   Home,
   Business,
   TrendingUp,
+  CloudUpload,
+  History,
+  Warning,
+  Gavel,
+  Timeline,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import RenewalDashboard from '../../components/renewal/RenewalDashboard';
 import RenewalAnalytics from '../../components/renewal/RenewalAnalytics';
 import BulkRenewalProcessor from '../../components/renewal/BulkRenewalProcessor';
+import BulkUploadManager from '../../components/renewal/BulkUploadManager';
+import UploadHistoryTab from '../../components/renewal/UploadHistoryTab';
+import FraudCasesTab from '../../components/renewal/FraudCasesTab';
+import ApprovalQueueTab from '../../components/renewal/ApprovalQueueTab';
+import AuditTrailTab from '../../components/renewal/AuditTrailTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -206,18 +216,54 @@ const RenewalManagement: React.FC = () => {
       <Paper sx={{ mx: 3, mb: 3 }}>
         {/* Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={activeTab} onChange={handleTabChange} aria-label="renewal management tabs">
-            <Tab 
-              label="Dashboard" 
-              icon={<Dashboard />} 
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            aria-label="renewal management tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab
+              label="Dashboard"
+              icon={<Dashboard />}
               iconPosition="start"
-              {...a11yProps(0)} 
+              {...a11yProps(0)}
             />
-            <Tab 
-              label="Analytics" 
-              icon={<Analytics />} 
+            <Tab
+              label="Analytics"
+              icon={<Analytics />}
               iconPosition="start"
-              {...a11yProps(1)} 
+              {...a11yProps(1)}
+            />
+            <Tab
+              label="Bulk Upload"
+              icon={<CloudUpload />}
+              iconPosition="start"
+              {...a11yProps(2)}
+            />
+            <Tab
+              label="Upload History"
+              icon={<History />}
+              iconPosition="start"
+              {...a11yProps(3)}
+            />
+            <Tab
+              label="Fraud Cases"
+              icon={<Warning />}
+              iconPosition="start"
+              {...a11yProps(4)}
+            />
+            <Tab
+              label="Approval Queue"
+              icon={<Gavel />}
+              iconPosition="start"
+              {...a11yProps(5)}
+            />
+            <Tab
+              label="Audit Trail"
+              icon={<Timeline />}
+              iconPosition="start"
+              {...a11yProps(6)}
             />
           </Tabs>
         </Box>
@@ -233,6 +279,26 @@ const RenewalManagement: React.FC = () => {
 
         <TabPanel value={activeTab} index={1}>
           <RenewalAnalytics />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={2}>
+          <BulkUploadManager />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={3}>
+          <UploadHistoryTab />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={4}>
+          <FraudCasesTab />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={5}>
+          <ApprovalQueueTab />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={6}>
+          <AuditTrailTab />
         </TabPanel>
       </Paper>
 

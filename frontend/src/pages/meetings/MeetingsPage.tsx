@@ -125,15 +125,9 @@ const MeetingsPage: React.FC = () => {
       params.append('sort', 'start_datetime');
       params.append('order', 'desc');
 
-      try {
-        const result = await apiGet(`/meetings?${params.toString()}`);
-        console.log('API Response:', result);
-        return result;
-      } catch (error) {
-        // Fallback to mock data for development when API fails
-        console.log('API failed, using mock meetings data for development', error);
-        return getMockMeetings();
-      }
+      const result = await apiGet(`/meetings?${params.toString()}`);
+      console.log('✅ Meetings API Response:', result);
+      return result;
     },
   });
 
@@ -210,6 +204,7 @@ const MeetingsPage: React.FC = () => {
 
   const handleViewMeeting = () => {
     if (selectedMeeting) {
+      // Navigate to full detail page
       navigate(`/admin/meetings/${selectedMeeting.id}`);
     }
     handleMenuClose();

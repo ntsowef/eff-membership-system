@@ -118,17 +118,22 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
 
   const { national_summary, province_breakdown, filtered_by_province, filtered_by_municipality } = expiredData;
 
-  // Calculate percentages
-  const expiredPercentage = national_summary.total_members > 0 
-    ? (national_summary.total_expired / national_summary.total_members) * 100 
-    : 0;
-  
-  const expiringSoonPercentage = national_summary.total_members > 0 
-    ? (national_summary.total_expiring_soon / national_summary.total_members) * 100 
+  // Calculate percentages with proper numeric conversion
+  const totalMembers = parseInt(national_summary.total_members, 10) || 0;
+  const totalExpired = parseInt(national_summary.total_expired, 10) || 0;
+  const totalExpiringSoon = parseInt(national_summary.total_expiring_soon, 10) || 0;
+  const totalExpiringUrgent = parseInt(national_summary.total_expiring_urgent, 10) || 0;
+
+  const expiredPercentage = totalMembers > 0
+    ? (totalExpired / totalMembers) * 100
     : 0;
 
-  const urgentPercentage = national_summary.total_members > 0 
-    ? (national_summary.total_expiring_urgent / national_summary.total_members) * 100 
+  const expiringSoonPercentage = totalMembers > 0
+    ? (totalExpiringSoon / totalMembers) * 100
+    : 0;
+
+  const urgentPercentage = totalMembers > 0
+    ? (totalExpiringUrgent / totalMembers) * 100
     : 0;
 
   return (
@@ -169,7 +174,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center" p={2} bgcolor={theme.palette.error.light} borderRadius={1}>
               <Typography variant="h4" color="error.contrastText" fontWeight="bold">
-                {national_summary.total_expired.toLocaleString()}
+                {totalExpired.toLocaleString()}
               </Typography>
               <Typography variant="body2" color="error.contrastText">
                 Expired Members
@@ -183,7 +188,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center" p={2} bgcolor={theme.palette.warning.light} borderRadius={1}>
               <Typography variant="h4" color="warning.contrastText" fontWeight="bold">
-                {national_summary.total_expiring_soon.toLocaleString()}
+                {totalExpiringSoon.toLocaleString()}
               </Typography>
               <Typography variant="body2" color="warning.contrastText">
                 Expiring Soon (30 days)
@@ -197,7 +202,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center" p={2} bgcolor={theme.palette.info.light} borderRadius={1}>
               <Typography variant="h4" color="info.contrastText" fontWeight="bold">
-                {national_summary.total_expiring_urgent.toLocaleString()}
+                {totalExpiringUrgent.toLocaleString()}
               </Typography>
               <Typography variant="body2" color="info.contrastText">
                 Urgent (7 days)
@@ -211,7 +216,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
           <Grid item xs={12} sm={6} md={3}>
             <Box textAlign="center" p={2} bgcolor={theme.palette.success.light} borderRadius={1}>
               <Typography variant="h4" color="success.contrastText" fontWeight="bold">
-                {(national_summary.total_members - national_summary.total_expired - national_summary.total_expiring_soon).toLocaleString()}
+                {(totalMembers - totalExpired - totalExpiringSoon).toLocaleString()}
               </Typography>
               <Typography variant="body2" color="success.contrastText">
                 Active Members
@@ -234,12 +239,17 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
             
             <List dense>
               {province_breakdown
-                .sort((a, b) => (b.expired_count + b.expiring_soon_count) - (a.expired_count + a.expiring_soon_count))
+                .sort((a, b) => {
+                  const aTotal = (parseInt(a.expired_count, 10) || 0) + (parseInt(a.expiring_soon_count, 10) || 0);
+                  const bTotal = (parseInt(b.expired_count, 10) || 0) + (parseInt(b.expiring_soon_count, 10) || 0);
+                  return bTotal - aTotal;
+                })
                 .slice(0, 5) // Show top 5 provinces with most expired/expiring members
                 .map((province) => {
-                  const totalAtRisk = province.expired_count + province.expiring_soon_count;
-                  const riskPercentage = province.total_members > 0 
-                    ? (totalAtRisk / province.total_members) * 100 
+                  const totalAtRisk = (parseInt(province.expired_count, 10) || 0) + (parseInt(province.expiring_soon_count, 10) || 0);
+                  const provinceTotalMembers = parseInt(province.total_members, 10) || 0;
+                  const riskPercentage = provinceTotalMembers > 0
+                    ? (totalAtRisk / provinceTotalMembers) * 100
                     : 0;
 
                   return (
@@ -270,13 +280,13 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
                             </Typography>
                             <span style={{ display: 'flex', gap: '8px' }}>
                               <Chip
-                                label={`${province.expired_count} expired`}
+                                label={`${parseInt(province.expired_count, 10) || 0} expired`}
                                 size="small"
                                 color="error"
                                 variant="outlined"
                               />
                               <Chip
-                                label={`${province.expiring_soon_count} expiring`}
+                                label={`${parseInt(province.expiring_soon_count, 10) || 0} expiring`}
                                 size="small"
                                 color="warning"
                                 variant="outlined"

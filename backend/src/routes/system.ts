@@ -2,9 +2,15 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { cacheService } from '../services/cacheService';
 import { dbOptimizationService } from '../services/databaseOptimization';
 import { MonitoringService } from '../services/monitoringService';
+import { BackupService } from '../services/backupService';
 import { authenticate, requireAdminLevel } from '../middleware/auth';
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { config } from '../config/config';
 import { logAudit } from '../middleware/auditLogger';
 import { AuditAction, EntityType } from '../models/auditLogs';
+import { AuditLogModel } from '../models/auditLogs';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -43,6 +49,144 @@ router.get('/health', authenticate, requireAdminLevel(1), async (req: Request, r
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Get system logs (real data from database)
+router.get('/logs', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const {
+      level,
+      category,
+      limit = '50',
+      offset = '0',
+      startDate,
+      endDate
+    } = req.query;
+
+    // Build WHERE clause
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (level) {
+      conditions.push(`level = $${paramIndex++}`);
+      params.push(level);
+    }
+
+    if (category) {
+      conditions.push(`category = $${paramIndex++}`);
+      params.push(category);
+    }
+
+    if (startDate) {
+      conditions.push(`created_at >= $${paramIndex++}`);
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      conditions.push(`created_at <= $${paramIndex++}`);
+      params.push(endDate);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Fetch logs from multiple sources and combine them
+    const [auditLogs, systemLogs, activityLogs] = await Promise.all([
+      // Audit logs
+      executeQuery(`
+        SELECT
+          al.audit_id as id,
+          'audit' as source,
+          CASE
+            WHEN al.action IN ('login', 'logout', 'login_failed') THEN 'info'
+            WHEN al.action IN ('delete', 'permission_revoked') THEN 'warning'
+            ELSE 'info'
+          END as level,
+          CASE
+            WHEN al.entity_type = 'user' THEN 'Authentication'
+            WHEN al.entity_type = 'system' THEN 'System'
+            WHEN al.entity_type = 'member' THEN 'Members'
+            ELSE 'General'
+          END as category,
+          CONCAT(COALESCE(u.name, 'System'), ' performed ', al.action, ' on ', al.entity_type) as message,
+          jsonb_build_object(
+            'action', al.action,
+            'entity_type', al.entity_type,
+            'entity_id', al.entity_id,
+            'user', COALESCE(u.name, 'System'),
+            'ip_address', al.ip_address
+          ) as details,
+          al.created_at as timestamp
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.user_id
+        ORDER BY al.created_at DESC
+        LIMIT 20
+      `, []),
+
+      // System logs (if table exists)
+      executeQuery(`
+        SELECT
+          sl.id,
+          'system' as source,
+          sl.level,
+          sl.category,
+          sl.message,
+          sl.details,
+          sl.created_at as timestamp
+        FROM system_logs sl
+        ORDER BY sl.created_at DESC
+        LIMIT 20
+      `, []).catch(() => []),
+
+      // User activity logs
+      executeQuery(`
+        SELECT
+          ual.log_id as id,
+          'activity' as source,
+          CASE
+            WHEN ual.response_status >= 500 THEN 'error'
+            WHEN ual.response_status >= 400 THEN 'warning'
+            ELSE 'info'
+          END as level,
+          COALESCE(ual.resource_type, 'General') as category,
+          CONCAT(COALESCE(u.name, 'User'), ' - ', ual.action_type, ' ', COALESCE(ual.resource_type, '')) as message,
+          jsonb_build_object(
+            'action_type', ual.action_type,
+            'resource_type', ual.resource_type,
+            'resource_id', ual.resource_id,
+            'request_method', ual.request_method,
+            'request_url', ual.request_url,
+            'response_status', ual.response_status,
+            'response_time_ms', ual.response_time_ms,
+            'ip_address', ual.ip_address::text,
+            'user', COALESCE(u.name, 'User')
+          ) as details,
+          ual.created_at as timestamp
+        FROM user_activity_logs ual
+        LEFT JOIN users u ON ual.user_id = u.user_id
+        ORDER BY ual.created_at DESC
+        LIMIT 20
+      `, []).catch(() => [])
+    ]);
+
+    // Combine and sort all logs
+    const allLogs = [...auditLogs, ...systemLogs, ...activityLogs]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, parseInt(limit as string));
+
+    res.json({
+      success: true,
+      message: 'System logs retrieved successfully',
+      data: {
+        logs: allLogs,
+        total: allLogs.length
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching system logs:', error);
     next(error);
   }
 });
@@ -467,6 +611,380 @@ router.post('/metrics/log', authenticate, requireAdminLevel(3), async (req: Requ
     res.json({
       success: true,
       message: 'Performance metrics logged successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all system settings
+router.get('/settings', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await executeQuery(`
+      SELECT
+        id,
+        setting_key,
+        setting_value,
+        setting_type,
+        description
+      FROM system_settings
+      ORDER BY setting_key
+    `);
+
+    // Handle both array and object with rows property
+    const settings = Array.isArray(result) ? result : (result.rows || []);
+
+    // Parse values based on type
+    const parsedSettings = settings.map((setting: any) => {
+      let value = setting.setting_value;
+
+      switch (setting.setting_type) {
+        case 'boolean':
+          value = value === 'true' || value === '1' || value === 1 || value === true;
+          break;
+        case 'integer':
+          value = parseInt(value, 10);
+          break;
+        case 'float':
+          value = parseFloat(value);
+          break;
+        case 'json':
+          try {
+            value = JSON.parse(value);
+          } catch (e) {
+            // Keep as string if JSON parse fails
+          }
+          break;
+        default:
+          // string - keep as is
+          break;
+      }
+
+      return {
+        id: setting.id,
+        setting_key: setting.setting_key,
+        setting_value: setting.setting_value,
+        setting_type: setting.setting_type,
+        description: setting.description,
+        value
+      };
+    });
+
+    res.json({
+      success: true,
+      message: 'System settings retrieved successfully',
+      data: {
+        settings: parsedSettings
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching system settings:', error);
+    next(error);
+  }
+});
+
+// Get a specific system setting
+router.get('/settings/:key', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { key } = req.params;
+
+    const setting = await executeQuerySingle(`
+      SELECT
+        id,
+        setting_key,
+        setting_value,
+        setting_type,
+        description
+      FROM system_settings
+      WHERE setting_key = $1
+    `, [key]);
+
+    if (!setting) {
+      return res.status(404).json({
+        success: false,
+        message: 'Setting not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Parse value based on type
+    let value = setting.setting_value;
+    switch (setting.setting_type) {
+      case 'boolean':
+        value = value === 'true' || value === '1' || value === 1 || value === true;
+        break;
+      case 'integer':
+        value = parseInt(value, 10);
+        break;
+      case 'float':
+        value = parseFloat(value);
+        break;
+      case 'json':
+        try {
+          value = JSON.parse(value);
+        } catch (e) {
+          // Keep as string if JSON parse fails
+        }
+        break;
+    }
+
+    res.json({
+      success: true,
+      message: 'System setting retrieved successfully',
+      data: {
+        setting: {
+          id: setting.id,
+          setting_key: setting.setting_key,
+          setting_value: setting.setting_value,
+          setting_type: setting.setting_type,
+          description: setting.description,
+          value
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching system setting:', error);
+    next(error);
+  }
+});
+
+// Update a system setting
+router.put('/settings/:key',
+  authenticate,
+  requireAdminLevel(1),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { key } = req.params;
+      const { value } = req.body;
+
+      if (value === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Value is required',
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Check if setting exists
+      const existingSetting = await executeQuerySingle(`
+        SELECT id, setting_key, setting_value, setting_type FROM system_settings WHERE setting_key = $1
+      `, [key]);
+
+      if (!existingSetting) {
+        return res.status(404).json({
+          success: false,
+          message: 'Setting not found',
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Convert value to string for storage
+      let stringValue: string;
+      switch (existingSetting.setting_type) {
+        case 'boolean':
+          stringValue = value ? 'true' : 'false';
+          break;
+        case 'json':
+          stringValue = JSON.stringify(value);
+          break;
+        default:
+          stringValue = String(value);
+          break;
+      }
+
+      // Get old value for audit log
+      const oldValue = existingSetting.setting_type === 'boolean'
+        ? (existingSetting.setting_value === 'true' || existingSetting.setting_value === '1')
+        : existingSetting.setting_value;
+
+      // Update the setting
+      await executeQuery(`
+        UPDATE system_settings
+        SET setting_value = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE setting_key = $2
+      `, [stringValue, key]);
+
+      // Log audit trail
+      const userId = (req as any).user?.id;
+      if (userId) {
+        await logAudit(
+          userId,
+          AuditAction.UPDATE,
+          EntityType.SYSTEM,
+          undefined,
+          { setting_key: key, old_value: oldValue },
+          { setting_key: key, new_value: value },
+          req
+        );
+      }
+
+      // Special handling for SMS enable/disable
+      if (key === 'enable_sms_notifications') {
+        // Update .env.postgres file
+        const envPath = path.resolve(__dirname, '../../.env.postgres');
+        if (fs.existsSync(envPath)) {
+          let envContent = fs.readFileSync(envPath, 'utf8');
+          const smsEnabledValue = value ? 'true' : 'false';
+
+          // Replace SMS_ENABLED value
+          if (envContent.includes('SMS_ENABLED=')) {
+            envContent = envContent.replace(/SMS_ENABLED=.*/g, `SMS_ENABLED=${smsEnabledValue}`);
+          } else {
+            // Add if not exists
+            envContent += `\nSMS_ENABLED=${smsEnabledValue}\n`;
+          }
+
+          fs.writeFileSync(envPath, envContent, 'utf8');
+        }
+
+        // Update runtime config
+        if (config.sms) {
+          config.sms.enabled = value;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'System setting updated successfully',
+        data: {
+          setting_key: key,
+          setting_value: value
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ==================== BACKUP ROUTES ====================
+
+// Create a new backup
+router.post('/backups', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log('🔄 Starting database backup...');
+
+    const backup = await BackupService.createBackup();
+
+    // Log audit
+    await logAudit(
+      req.user!.id,
+      AuditAction.CREATE,
+      EntityType.SYSTEM,
+      backup.backup_id,
+      null,
+      { filename: backup.filename, size: backup.size },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Backup created successfully',
+      data: {
+        ...backup,
+        sizeFormatted: BackupService.formatBytes(backup.size)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Backup creation failed:', error);
+    next(error);
+  }
+});
+
+// List all backups
+router.get('/backups', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const backups = await BackupService.listBackups();
+
+    // Format sizes
+    const formattedBackups = backups.map(backup => ({
+      ...backup,
+      sizeFormatted: BackupService.formatBytes(backup.size)
+    }));
+
+    res.json({
+      success: true,
+      message: 'Backups retrieved successfully',
+      data: { backups: formattedBackups, total: backups.length },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get backup statistics
+router.get('/backups/stats', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const stats = await BackupService.getBackupStats();
+
+    res.json({
+      success: true,
+      message: 'Backup statistics retrieved successfully',
+      data: {
+        ...stats,
+        totalSizeFormatted: BackupService.formatBytes(stats.totalSize),
+        latestBackup: stats.latestBackup ? {
+          ...stats.latestBackup,
+          sizeFormatted: BackupService.formatBytes(stats.latestBackup.size)
+        } : null
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Download a backup
+router.get('/backups/:id/download', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const backupId = parseInt(req.params.id);
+    const { filepath, filename } = await BackupService.getBackupFile(backupId);
+
+    // Log audit
+    await logAudit(
+      req.user!.id,
+      AuditAction.READ,
+      EntityType.SYSTEM,
+      backupId,
+      null,
+      { action: 'download_backup', filename },
+      req
+    );
+
+    res.download(filepath, filename);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete a backup
+router.delete('/backups/:id', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const backupId = parseInt(req.params.id);
+
+    await BackupService.deleteBackup(backupId);
+
+    // Log audit
+    await logAudit(
+      req.user!.id,
+      AuditAction.DELETE,
+      EntityType.SYSTEM,
+      backupId,
+      { backup_id: backupId },
+      null,
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Backup deleted successfully',
       timestamp: new Date().toISOString()
     });
   } catch (error) {

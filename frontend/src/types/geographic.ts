@@ -69,6 +69,8 @@ export interface GeographicHierarchy {
   district_name: string;
   municipal_code: string;
   municipal_name: string;
+  subregion_code?: string;
+  subregion_name?: string;
   ward_code: string;
   ward_name: string;
   ward_number: string;
@@ -82,10 +84,37 @@ export interface GeographicFilters {
   province_code?: string;
   district_code?: string;
   municipal_code?: string;
+  subregion_code?: string;
   ward_code?: string;
   voting_district_code?: string;
   is_active?: boolean;
   search?: string;
+}
+
+export interface Municipality {
+  municipality_code: string;
+  municipality_name: string;
+  district_code: string;
+  province_code: string;
+  municipality_type: 'Local' | 'Metropolitan' | 'District' | 'Metro Sub-Region';
+  parent_municipality_id?: number | null;
+  parent_municipality_code?: string | null;
+  parent_municipality_name?: string | null;
+  district_name?: string;
+  province_name?: string;
+  member_count?: number;
+}
+
+export interface Subregion {
+  municipality_code: string;
+  municipality_name: string;
+  parent_municipality_code: string;
+  parent_municipality_name: string;
+  district_code: string;
+  province_code: string;
+  district_name?: string;
+  province_name?: string;
+  member_count?: number;
 }
 
 export interface GeographicStatistics {

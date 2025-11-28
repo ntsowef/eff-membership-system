@@ -398,6 +398,37 @@ const HierarchicalDashboard: React.FC = () => {
   // Get municipality context for municipality admin restrictions
   const municipalityContext = useMunicipalityContext();
 
+  // Fetch dashboard data - Always call useQuery, but control with enabled
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['hierarchical-dashboard', level, code],
+    queryFn: () => {
+      if (!level) {
+        return Promise.reject(new Error('Level is required'));
+      }
+      return apiGet<DashboardData>(`/members/dashboard/stats/${level}${code ? `/${code}` : ''}`);
+    },
+    enabled: !!level && (level === 'national' || (!!code && code !== 'undefined')),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 2,
+  });
+
+  // Auto-redirect to appropriate level when no level is provided
+  useEffect(() => {
+    if (!level) {
+      // Redirect based on user's admin level
+      if (municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedMunicipality) {
+        navigate(`/admin/dashboard/hierarchical/municipality/${municipalityContext.assignedMunicipality.code}`, { replace: true });
+      } else if (provinceContext.shouldRestrictToProvince && provinceContext.assignedProvince) {
+        navigate(`/admin/dashboard/hierarchical/province/${provinceContext.assignedProvince.code}`, { replace: true });
+      } else if (provinceContext.isNationalAdmin) {
+        navigate('/admin/dashboard/hierarchical/national', { replace: true });
+      } else {
+        // Default to national for other cases
+        navigate('/admin/dashboard/hierarchical/national', { replace: true });
+      }
+    }
+  }, [level, provinceContext, municipalityContext, navigate]);
+
   // Auto-redirect provincial admins to their province dashboard
   useEffect(() => {
     if (provinceContext.shouldRestrictToProvince &&
@@ -416,6 +447,17 @@ const HierarchicalDashboard: React.FC = () => {
       navigate(`/admin/dashboard/hierarchical/municipality/${municipalityContext.assignedMunicipality.code}`, { replace: true });
     }
   }, [municipalityContext, level, code, navigate]);
+
+  // Show loading state while redirecting
+  if (!level) {
+    return (
+      <Container>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
 
   // Validate level parameter
   const currentLevel = level as keyof typeof LEVEL_CONFIG;
@@ -468,15 +510,6 @@ const HierarchicalDashboard: React.FC = () => {
       </Container>
     );
   }
-
-  // Fetch dashboard data
-  const { data: dashboardData, isLoading, error } = useQuery({
-    queryKey: ['hierarchical-dashboard', level, code],
-    queryFn: () => apiGet<DashboardData>(`/members/dashboard/stats/${level}${code ? `/${code}` : ''}`),
-    enabled: !!level && (level === 'national' || !!code),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: 2,
-  });
 
   // Generate breadcrumbs based on current level and entity
   const generateBreadcrumbs = () => {

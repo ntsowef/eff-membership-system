@@ -31,8 +31,22 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    // Get token from localStorage (try both possible keys)
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    // Try to get token from multiple sources
+    let token = localStorage.getItem('authToken') || localStorage.getItem('token');
+
+    // If not found, try Zustand persisted storage
+    if (!token) {
+      const authStorage = localStorage.getItem('auth-storage');
+      if (authStorage) {
+        try {
+          const parsed = JSON.parse(authStorage);
+          token = parsed.state?.token;
+        } catch (error) {
+          console.error('Failed to parse auth-storage:', error);
+        }
+      }
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -101,7 +115,11 @@ export const geographicApi = {
   getMunicipalities: (districtCode?: string) =>
     apiGet('/geographic/municipalities', districtCode ? { district: districtCode } : {}),
 
-  // Wards - Filter by municipality
+  // Subregions - Filter by municipality
+  getSubregions: (municipalityCode?: string) =>
+    apiGet('/geographic/subregions', municipalityCode ? { municipality: municipalityCode } : {}),
+
+  // Wards - Filter by municipality or subregion
   getWards: (municipalCode?: string) =>
     apiGet('/geographic/wards', municipalCode ? { municipality: municipalCode } : {}),
 
@@ -422,6 +440,30 @@ export const enhancedPaymentApi = {
   rejectPayment: (paymentId: string, data: any) => apiPost(`/payments/${paymentId}/reject`, data),
 };
 
+// Member API functions
+export const memberApi = {
+  // Get all members
+  getMembers: (params?: any) => apiGet('/members', params),
+
+  // Get member by ID
+  getMemberById: (id: number) => apiGet(`/members/${id}`),
+
+  // Create new member
+  createMember: (data: any) => apiPost('/members', data),
+
+  // Update member
+  updateMember: (id: number, data: any) => apiPut(`/members/${id}`, data),
+
+  // Delete member
+  deleteMember: (id: number) => apiDelete(`/members/${id}`),
+
+  // Get member directory
+  getMemberDirectory: (params?: any) => apiGet('/members/directory', params),
+
+  // Get member by ID number
+  getMemberByIdNumber: (idNumber: string) => apiGet(`/members/id-number/${idNumber}`),
+};
+
 // Lookup Data API with type safety
 export const lookupApi = {
   // All Lookups
@@ -433,19 +475,81 @@ export const lookupApi = {
   getCitizenships: () => apiGet('/lookups/citizenships'),
   getLanguages: () => apiGet('/lookups/languages'),
   getOccupationCategories: () => apiGet('/lookups/occupation-categories'),
-  getQualifications: () => apiGet('/lookups/qualifications'),
-  getMaritalStatuses: () => apiGet('/lookups/marital-statuses'),
-  getEmploymentStatuses: () => apiGet('/lookups/employment-statuses'),
+  getOccupations: (categoryId?: number) => apiGet('/lookups/occupations', categoryId ? { category_id: categoryId } : {}),
+  getQualificationLevels: () => apiGet('/lookups/qualification-levels'),
+  getSubscriptionTypes: () => apiGet('/lookups/subscription-types'),
+  getMembershipStatuses: (activeOnly?: boolean) => apiGet('/lookups/membership-statuses', activeOnly ? { active_only: true } : {}),
+  getVotingStations: (params?: any) => apiGet('/lookups/voting-stations', params),
 };
 
 // System API functions with type safety
 export const systemApi = {
-  getHealth: () => apiGet<SystemHealth>('/health'),
+  getHealth: () => apiGet<SystemHealth>('/system/health'),
   getSystemInfo: () => apiGet('/system/info'),
   getSystemLogs: (filters?: any) => apiGet('/system/logs', filters),
-  backupDatabase: () => apiPost('/system/backup'),
+  getSettings: () => apiGet('/system/settings'),
+  getSetting: (key: string) => apiGet(`/system/settings/${key}`),
+  updateSetting: (key: string, value: any) => apiPut(`/system/settings/${key}`, { value }),
+
+  // Backup operations
+  createBackup: () => apiPost('/system/backups'),
   getBackups: () => apiGet('/system/backups'),
-  restoreBackup: (backupId: string) => apiPost(`/system/restore/${backupId}`),
+  getBackupStats: () => apiGet('/system/backups/stats'),
+  downloadBackup: (backupId: number) => `${API_BASE_URL}/system/backups/${backupId}/download`,
+  deleteBackup: (backupId: number) => apiDelete(`/system/backups/${backupId}`),
+};
+
+// Member Application Bulk Upload API
+export const memberApplicationBulkUploadApi = {
+  // Upload file
+  uploadFile: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.post(
+      `${API_BASE_URL}/member-application-bulk-upload/upload`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
+
+  // Get upload status
+  getUploadStatus: (uploadUuid: string) =>
+    apiGet(`/member-application-bulk-upload/status/${uploadUuid}`),
+
+  // Get upload records
+  getUploadRecords: (uploadUuid: string, params?: any) =>
+    apiGet(`/member-application-bulk-upload/records/${uploadUuid}`, params),
+
+  // Get recent uploads
+  getRecentUploads: (limit?: number) =>
+    apiGet('/member-application-bulk-upload/recent', limit ? { limit } : {}),
+
+  // Download template
+  downloadTemplate: async () => {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.get(
+      `${API_BASE_URL}/member-application-bulk-upload/download-template`,
+      {
+        responseType: 'blob',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
+
+  // Cancel upload
+  cancelUpload: (uploadUuid: string) =>
+    apiPost(`/member-application-bulk-upload/cancel/${uploadUuid}`, {}),
 };
 
 export default api;

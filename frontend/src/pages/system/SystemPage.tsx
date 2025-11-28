@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -36,7 +36,8 @@ import {
   InputLabel,
   Select,
   LinearProgress,
-  Avatar
+  Avatar,
+  CircularProgress
 } from '@mui/material';
 import {
   Settings,
@@ -65,10 +66,11 @@ import {
   Save,
   RestartAlt
 } from '@mui/icons-material';
-// import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-// import { apiGet, apiPost, apiPatch } from '../../lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { systemApi } from '../../services/api';
 import MaintenanceModeControl from '../../components/admin/MaintenanceModeControl';
 import MaintenanceIndicator from '../../components/common/MaintenanceIndicator';
+import { useNotification } from '../../hooks/useNotification';
 
 // Interfaces
 interface SystemInfo {
@@ -117,6 +119,108 @@ const SystemPage: React.FC = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [selectedSetting, setSelectedSetting] = useState<SystemSetting | null>(null);
   const [settingValue, setSettingValue] = useState<string | boolean | number>('');
+  const { showSuccess, showError } = useNotification();
+  const queryClient = useQueryClient();
+
+  // Fetch system settings from API
+  const { data: settingsData, isLoading: settingsLoading, refetch: refetchSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      const response = await systemApi.getSettings();
+      return response.data;
+    },
+  });
+
+  // Fetch system logs from API
+  const { data: logsData, isLoading: logsLoading } = useQuery({
+    queryKey: ['system-logs'],
+    queryFn: async () => {
+      const response = await systemApi.getSystemLogs();
+      return response.data;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch backup statistics
+  const { data: backupStats, isLoading: backupStatsLoading, refetch: refetchBackupStats } = useQuery({
+    queryKey: ['backup-stats'],
+    queryFn: async () => {
+      const response = await systemApi.getBackupStats();
+      return response.data;
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  // Fetch backup list
+  const { data: backupsData, isLoading: backupsLoading, refetch: refetchBackups } = useQuery({
+    queryKey: ['backups'],
+    queryFn: async () => {
+      const response = await systemApi.getBackups();
+      return response.data;
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  // Create backup mutation
+  const createBackupMutation = useMutation({
+    mutationFn: () => systemApi.createBackup(),
+    onSuccess: () => {
+      showSuccess('Backup created successfully');
+      refetchBackupStats();
+      refetchBackups();
+    },
+    onError: (error: any) => {
+      showError(error.response?.data?.message || 'Failed to create backup');
+    }
+  });
+
+  // Delete backup mutation
+  const deleteBackupMutation = useMutation({
+    mutationFn: (backupId: number) => systemApi.deleteBackup(backupId),
+    onSuccess: () => {
+      showSuccess('Backup deleted successfully');
+      refetchBackupStats();
+      refetchBackups();
+    },
+    onError: (error: any) => {
+      showError(error.response?.data?.message || 'Failed to delete backup');
+    }
+  });
+
+  // Handle backup creation
+  const handleCreateBackup = () => {
+    if (window.confirm('Are you sure you want to create a database backup? This may take a few minutes.')) {
+      createBackupMutation.mutate();
+    }
+  };
+
+  // Handle backup download
+  const handleDownloadBackup = (backupId: number) => {
+    const downloadUrl = systemApi.downloadBackup(backupId);
+    window.open(downloadUrl, '_blank');
+  };
+
+  // Handle backup deletion
+  const handleDeleteBackup = (backupId: number) => {
+    if (window.confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
+      deleteBackupMutation.mutate(backupId);
+    }
+  };
+
+  // Update setting mutation
+  const updateSettingMutation = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: any }) => {
+      return await systemApi.updateSetting(key, value);
+    },
+    onSuccess: () => {
+      showSuccess('Setting updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      setSettingsDialogOpen(false);
+    },
+    onError: (error: any) => {
+      showError(error.response?.data?.message || 'Failed to update setting');
+    },
+  });
 
   // Mock data - in real implementation, these would come from APIs
   const systemInfo: SystemInfo = {
@@ -138,133 +242,56 @@ const SystemPage: React.FC = () => {
     responseTime: 145
   };
 
-  const systemSettings: SystemSetting[] = [
-    {
-      id: 'app_name',
-      category: 'General',
-      name: 'Application Name',
-      description: 'The display name of the application',
-      value: 'Membership Management System',
-      type: 'string'
-    },
-    {
-      id: 'maintenance_mode',
-      category: 'General',
-      name: 'Maintenance Mode',
-      description: 'Enable maintenance mode to restrict access',
-      value: false,
-      type: 'boolean'
-    },
-    {
-      id: 'max_upload_size',
-      category: 'General',
-      name: 'Max Upload Size (MB)',
-      description: 'Maximum file upload size in megabytes',
-      value: 10,
-      type: 'number'
-    },
-    {
-      id: 'session_timeout',
-      category: 'Security',
-      name: 'Session Timeout (minutes)',
-      description: 'User session timeout duration',
-      value: 60,
-      type: 'number'
-    },
-    {
-      id: 'password_policy',
-      category: 'Security',
-      name: 'Password Policy',
-      description: 'Password complexity requirements',
-      value: 'strong',
-      type: 'select',
-      options: ['weak', 'medium', 'strong', 'very_strong']
-    },
-    {
-      id: 'two_factor_auth',
-      category: 'Security',
-      name: 'Two-Factor Authentication',
-      description: 'Require 2FA for all users',
-      value: true,
-      type: 'boolean'
-    },
-    {
-      id: 'email_notifications',
-      category: 'Notifications',
-      name: 'Email Notifications',
-      description: 'Enable email notifications',
-      value: true,
-      type: 'boolean'
-    },
-    {
-      id: 'sms_notifications',
-      category: 'Notifications',
-      name: 'SMS Notifications',
-      description: 'Enable SMS notifications',
-      value: false,
-      type: 'boolean'
-    },
-    {
-      id: 'backup_frequency',
-      category: 'Backup',
-      name: 'Backup Frequency',
-      description: 'Automated backup frequency',
-      value: 'daily',
-      type: 'select',
-      options: ['hourly', 'daily', 'weekly', 'monthly']
-    },
-    {
-      id: 'backup_retention',
-      category: 'Backup',
-      name: 'Backup Retention (days)',
-      description: 'Number of days to retain backups',
-      value: 30,
-      type: 'number'
-    }
-  ];
+  // Map database settings to UI format
+  const systemSettings: SystemSetting[] = settingsData?.settings?.map((setting: any) => {
+    // Map setting_key to UI-friendly format
+    const categoryMap: Record<string, string> = {
+      'membership_fee': 'General',
+      'membership_duration': 'General',
+      'renewal_reminder_days': 'Notifications',
+      'system_email': 'Notifications',
+      'enable_sms_notifications': 'Notifications',
+      'analytics_cache_duration': 'General',
+    };
 
-  const systemLogs: SystemLog[] = [
-    {
-      id: '1',
-      timestamp: '2025-08-26T15:30:00Z',
-      level: 'info',
-      category: 'Authentication',
-      message: 'User login successful',
-      details: 'User: admin@example.com, IP: 192.168.1.100'
-    },
-    {
-      id: '2',
-      timestamp: '2025-08-26T15:25:00Z',
-      level: 'warning',
-      category: 'Performance',
-      message: 'High memory usage detected',
-      details: 'Memory usage: 85%, Threshold: 80%'
-    },
-    {
-      id: '3',
-      timestamp: '2025-08-26T15:20:00Z',
-      level: 'error',
-      category: 'Database',
-      message: 'Database connection timeout',
-      details: 'Connection pool exhausted, retrying...'
-    },
-    {
-      id: '4',
-      timestamp: '2025-08-26T15:15:00Z',
-      level: 'info',
-      category: 'System',
-      message: 'Backup completed successfully',
-      details: 'Backup size: 2.3GB, Duration: 45 minutes'
-    },
-    {
-      id: '5',
-      timestamp: '2025-08-26T15:10:00Z',
-      level: 'debug',
-      category: 'API',
-      message: 'API rate limit exceeded',
-      details: 'Client: 192.168.1.200, Endpoint: /api/v1/members'
+    const nameMap: Record<string, string> = {
+      'membership_fee': 'Membership Fee (ZAR)',
+      'membership_duration': 'Membership Duration (months)',
+      'renewal_reminder_days': 'Renewal Reminder Days',
+      'system_email': 'System Email',
+      'enable_sms_notifications': 'SMS Notifications',
+      'analytics_cache_duration': 'Analytics Cache Duration (seconds)',
+    };
+
+    // Map backend types to frontend types
+    let frontendType: 'string' | 'boolean' | 'number' | 'select' = 'string';
+    if (setting.setting_type === 'boolean') {
+      frontendType = 'boolean';
+    } else if (setting.setting_type === 'integer' || setting.setting_type === 'float') {
+      frontendType = 'number';
+    } else if (setting.setting_type === 'string') {
+      frontendType = 'string';
     }
-  ];
+
+    return {
+      id: setting.setting_key,
+      category: categoryMap[setting.setting_key] || 'General',
+      name: nameMap[setting.setting_key] || setting.setting_key,
+      description: setting.description || '',
+      value: setting.value,
+      type: frontendType,
+    };
+  }) || [];
+
+  // Map real logs from API
+  const systemLogs: SystemLog[] = (logsData?.logs || []).map((log: any) => ({
+    id: String(log.id),
+    timestamp: log.timestamp,
+    level: log.level,
+    category: log.category,
+    message: log.message,
+    details: typeof log.details === 'object' ? JSON.stringify(log.details, null, 2) : log.details
+  }));
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -288,9 +315,10 @@ const SystemPage: React.FC = () => {
 
   const handleSettingSave = () => {
     if (selectedSetting) {
-      // In real implementation, this would call an API to update the setting
-      console.log('Saving setting:', selectedSetting.id, 'Value:', settingValue);
-      setSettingsDialogOpen(false);
+      updateSettingMutation.mutate({
+        key: selectedSetting.id,
+        value: settingValue
+      });
       setSelectedSetting(null);
       setSettingValue('');
     }
@@ -573,16 +601,36 @@ const SystemPage: React.FC = () => {
               Configure system-wide settings and preferences
             </Typography>
 
-            {/* Settings by Category */}
-            {['General', 'Security', 'Notifications', 'Backup'].map((category) => (
-              <Box key={category} sx={{ mb: 4 }}>
-                <Typography variant="h6" gutterBottom color="primary.main">
-                  {category}
+            {/* Loading State */}
+            {settingsLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <LinearProgress sx={{ width: '100%' }} />
+              </Box>
+            )}
+
+            {/* No Settings Message */}
+            {!settingsLoading && systemSettings.length === 0 && (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body1" color="text.secondary">
+                  No system settings found. Please check database configuration.
                 </Typography>
-                <List>
-                  {systemSettings
-                    .filter(setting => setting.category === category)
-                    .map((setting) => (
+              </Box>
+            )}
+
+            {/* Settings by Category */}
+            {!settingsLoading && systemSettings.length > 0 && ['General', 'Security', 'Notifications', 'Backup'].map((category) => {
+              const categorySettings = systemSettings.filter(setting => setting.category === category);
+
+              // Only show category if it has settings
+              if (categorySettings.length === 0) return null;
+
+              return (
+                <Box key={category} sx={{ mb: 4 }}>
+                  <Typography variant="h6" gutterBottom color="primary.main">
+                    {category}
+                  </Typography>
+                  <List>
+                    {categorySettings.map((setting) => (
                       <Fragment key={setting.id}>
                         <ListItem>
                           <ListItemText
@@ -594,7 +642,13 @@ const SystemPage: React.FC = () => {
                               {setting.type === 'boolean' ? (
                                 <Switch
                                   checked={setting.value as boolean}
-                                  onChange={() => console.log('Toggle setting:', setting.id)}
+                                  onChange={(e) => {
+                                    updateSettingMutation.mutate({
+                                      key: setting.id,
+                                      value: e.target.checked
+                                    });
+                                  }}
+                                  disabled={updateSettingMutation.isPending}
                                 />
                               ) : (
                                 <Chip
@@ -615,9 +669,10 @@ const SystemPage: React.FC = () => {
                         <Divider />
                       </Fragment>
                     ))}
-                </List>
-              </Box>
-            ))}
+                  </List>
+                </Box>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -742,25 +797,43 @@ const SystemPage: React.FC = () => {
               <Button
                 variant="outlined"
                 startIcon={<Refresh />}
-                onClick={() => console.log('Refresh logs')}
+                onClick={() => window.location.reload()}
               >
                 Refresh
               </Button>
             </Box>
 
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Timestamp</TableCell>
-                    <TableCell>Level</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Message</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {systemLogs.map((log) => (
+            {/* Loading State */}
+            {logsLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {/* Empty State */}
+            {!logsLoading && systemLogs.length === 0 && (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body1" color="text.secondary">
+                  No system logs found. Logs will appear here as system activities occur.
+                </Typography>
+              </Box>
+            )}
+
+            {/* Logs Table */}
+            {!logsLoading && systemLogs.length > 0 && (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Timestamp</TableCell>
+                      <TableCell>Level</TableCell>
+                      <TableCell>Category</TableCell>
+                      <TableCell>Message</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {systemLogs.map((log) => (
                     <TableRow key={log.id} hover>
                       <TableCell>
                         <Typography variant="body2">
@@ -794,10 +867,11 @@ const SystemPage: React.FC = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </CardContent>
         </Card>
       )}
@@ -820,39 +894,62 @@ const SystemPage: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       Backup Status
                     </Typography>
-                    <List>
-                      <ListItem>
-                        <ListItemText
-                          primary="Last Backup"
-                          secondary="2025-08-26 03:00 AM"
-                        />
-                        <ListItemSecondaryAction>
-                          <Chip label="Success" color="success" size="small" />
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                      <ListItem>
-                        <ListItemText
-                          primary="Backup Size"
-                          secondary="2.3 GB"
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemText
-                          primary="Next Scheduled"
-                          secondary="2025-08-27 03:00 AM"
-                        />
-                      </ListItem>
-                    </List>
-                    <Box sx={{ mt: 2 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={<Backup />}
-                        fullWidth
-                        onClick={() => console.log('Start backup')}
-                      >
-                        Start Backup Now
-                      </Button>
-                    </Box>
+                    {backupStatsLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <>
+                        <List>
+                          <ListItem>
+                            <ListItemText
+                              primary="Last Backup"
+                              secondary={
+                                backupStats?.latestBackup
+                                  ? new Date(backupStats.latestBackup.created_at).toLocaleString()
+                                  : 'No backups yet'
+                              }
+                            />
+                            <ListItemSecondaryAction>
+                              <Chip
+                                label={backupStats?.latestBackup?.status || 'N/A'}
+                                color={backupStats?.latestBackup?.status === 'success' ? 'success' : 'default'}
+                                size="small"
+                              />
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                          <ListItem>
+                            <ListItemText
+                              primary="Backup Size"
+                              secondary={backupStats?.latestBackup?.sizeFormatted || 'N/A'}
+                            />
+                          </ListItem>
+                          <ListItem>
+                            <ListItemText
+                              primary="Total Backups"
+                              secondary={`${backupStats?.successfulBackups || 0} successful, ${backupStats?.failedBackups || 0} failed`}
+                            />
+                          </ListItem>
+                          <ListItem>
+                            <ListItemText
+                              primary="Total Storage Used"
+                              secondary={backupStats?.totalSizeFormatted || '0 Bytes'}
+                            />
+                          </ListItem>
+                        </List>
+                        <Box sx={{ mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={createBackupMutation.isPending ? <CircularProgress size={16} /> : <Backup />}
+                            fullWidth
+                            onClick={handleCreateBackup}
+                            disabled={createBackupMutation.isPending}
+                          >
+                            {createBackupMutation.isPending ? 'Creating Backup...' : 'Start Backup Now'}
+                          </Button>
+                        </Box>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>
@@ -863,28 +960,57 @@ const SystemPage: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       Backup History
                     </Typography>
-                    <List>
-                      {[
-                        { date: '2025-08-26', size: '2.3 GB', status: 'success' },
-                        { date: '2025-08-25', size: '2.2 GB', status: 'success' },
-                        { date: '2025-08-24', size: '2.1 GB', status: 'success' },
-                        { date: '2025-08-23', size: '2.0 GB', status: 'failed' }
-                      ].map((backup, index) => (
-                        <ListItem key={index}>
-                          <ListItemText
-                            primary={backup.date}
-                            secondary={backup.size}
-                          />
-                          <ListItemSecondaryAction>
-                            <Chip
-                              label={backup.status}
-                              color={backup.status === 'success' ? 'success' : 'error'}
-                              size="small"
+                    {backupsLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                        <CircularProgress />
+                      </Box>
+                    ) : backupsData?.backups?.length === 0 ? (
+                      <Box sx={{ textAlign: 'center', py: 3 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No backups found. Create your first backup above.
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <List>
+                        {backupsData?.backups?.slice(0, 10).map((backup: any) => (
+                          <ListItem
+                            key={backup.backup_id}
+                            secondaryAction={
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Chip
+                                  label={backup.status}
+                                  color={backup.status === 'success' ? 'success' : 'error'}
+                                  size="small"
+                                />
+                                {backup.status === 'success' && (
+                                  <>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDownloadBackup(backup.backup_id)}
+                                      title="Download backup"
+                                    >
+                                      <CloudSync />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDeleteBackup(backup.backup_id)}
+                                      title="Delete backup"
+                                    >
+                                      <Delete />
+                                    </IconButton>
+                                  </>
+                                )}
+                              </Box>
+                            }
+                          >
+                            <ListItemText
+                              primary={new Date(backup.created_at).toLocaleString()}
+                              secondary={`${backup.sizeFormatted} • ${backup.filename}`}
                             />
-                          </ListItemSecondaryAction>
-                        </ListItem>
-                      ))}
-                    </List>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>
@@ -1012,9 +1138,13 @@ const SystemPage: React.FC = () => {
         <DialogTitle>
           Edit Setting: {selectedSetting?.name}
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             {selectedSetting?.description}
+          </Typography>
+
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+            Current Value: <strong>{String(selectedSetting?.value)}</strong>
           </Typography>
 
           {selectedSetting?.type === 'string' && (

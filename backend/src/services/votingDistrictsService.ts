@@ -38,44 +38,44 @@ export class VotingDistrictsService {
         JOIN districts d ON m.district_code = d.district_code
         JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN members mem ON vd.vd_code = mem.voting_district_code
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (filters.province_code) {
-        query += ' AND p.province_code = ?';
+        query += ' AND p.province_code = ? ';
         params.push(filters.province_code);
       }
 
       if (filters.district_code) {
-        query += ' AND d.district_code = ?';
+        query += ' AND d.district_code = $1';
         params.push(filters.district_code);
       }
 
       if (filters.municipal_code) {
-        query += ' AND m.municipal_code = ?';
+        query += ' AND m.municipal_code = $1';
         params.push(filters.municipal_code);
       }
 
       if (filters.ward_code) {
-        query += ' AND w.ward_code = ?';
+        query += ' AND w.ward_code = $1';
         params.push(filters.ward_code);
       }
 
       if (filters.voting_district_code) {
-        query += ' AND vd.voting_district_code = ?';
+        query += ' AND vd.voting_district_code = $1';
         params.push(filters.voting_district_code);
       }
 
       if (filters.is_active !== undefined) {
-        query += ' AND vd.is_active = ?';
+        query += ' AND vd.is_active = $1';
         params.push(filters.is_active);
       }
 
       if (filters.search) {
         query += ' AND (vd.voting_district_name LIKE ? OR vd.voting_district_number LIKE ? OR vd.voting_district_code LIKE ?)';
-        const searchTerm = `%${filters.search}%`;
+        const searchTerm = '%' + filters.search + '%';
         params.push(searchTerm, searchTerm, searchTerm);
       }
 
@@ -91,22 +91,23 @@ export class VotingDistrictsService {
   }
 
   // Get voting districts by ward
-  static async getVotingDistrictsByWard(wardCode: string): Promise<VotingDistrict[]> {
+  static async getVotingDistrictsByWard(wardCode  : string): Promise<VotingDistrict[]> {
     try {
-      // Use the new view for better performance and consistency
+      // Join with wards table to get ward information
       const query = `
         SELECT
-          voting_district_code,
-          voting_district_name,
-          voting_district_number,
-          ward_code,
-          is_active,
-          ward_name,
-          ward_number,
-          member_count
-        FROM voting_districts_with_members
-        WHERE ward_code = ?
-        ORDER BY voting_district_number
+          vdm.voting_district_code,
+          vdm.voting_district_name,
+          vdm.voting_district_number,
+          vdm.ward_code,
+          vdm.is_active,
+          w.ward_name,
+          w.ward_number,
+          vdm.member_count
+        FROM voting_districts_with_members vdm
+        LEFT JOIN wards w ON vdm.ward_code = w.ward_code
+        WHERE vdm.ward_code = ?
+        ORDER BY vdm.voting_district_number
       `;
 
       return await executeQuery(query, [wardCode]);
@@ -116,7 +117,7 @@ export class VotingDistrictsService {
   }
 
   // Get single voting district by code
-  static async getVotingDistrictByCode(votingDistrictCode: string): Promise<VotingDistrict | null> {
+  static async getVotingDistrictByCode(votingDistrictCode : string): Promise<VotingDistrict | null> {
     try {
       const query = `
         SELECT
@@ -142,8 +143,7 @@ export class VotingDistrictsService {
         JOIN districts d ON mu.district_code = d.district_code
         JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN members m ON vd.voting_district_code = m.voting_district_code
-        WHERE vd.voting_district_code = ?
-        GROUP BY vd.voting_district_code
+        WHERE vd.voting_district_code = ? GROUP BY vd.voting_district_code
       `;
 
       return await executeQuerySingle(query, [votingDistrictCode]);
@@ -153,12 +153,12 @@ export class VotingDistrictsService {
   }
 
   // Create new voting district
-  static async createVotingDistrict(data: VotingDistrictCreateRequest): Promise<number> {
+  static async createVotingDistrict(data : VotingDistrictCreateRequest): Promise<number> {
     try {
       const query = `
         INSERT INTO voting_districts (
           vd_code, vd_name, ward_code
-        ) VALUES (?, ?, ?)
+        ) EXCLUDED.?, ?, ?
       `;
 
       const result = await executeQuery(query, [
@@ -183,27 +183,27 @@ export class VotingDistrictsService {
       const params: any[] = [];
 
       if (data.voting_district_name !== undefined) {
-        updates.push('vd_name = ?');
+        updates.push(`vd_name = $${params.length + 1}`);
         params.push(data.voting_district_name);
       }
 
       if (data.ward_code !== undefined) {
-        updates.push('ward_code = ?');
+        updates.push(`ward_code = $${params.length + 1}`);
         params.push(data.ward_code);
       }
 
       if (data.latitude !== undefined) {
-        updates.push('latitude = ?');
+        updates.push(`latitude = $${params.length + 1}`);
         params.push(data.latitude);
       }
 
       if (data.longitude !== undefined) {
-        updates.push('longitude = ?');
+        updates.push(`longitude = $${params.length + 1}`);
         params.push(data.longitude);
       }
 
       if (data.is_active !== undefined) {
-        updates.push('is_active = ?');
+        updates.push(`is_active = $${params.length + 1}`);
         params.push(data.is_active);
       }
 
@@ -211,13 +211,13 @@ export class VotingDistrictsService {
         return false;
       }
 
-      updates.push('updated_at = NOW()');
+      updates.push('updated_at = CURRENT_TIMESTAMP');
       params.push(votingDistrictCode);
 
       const query = `
         UPDATE voting_districts
         SET ${updates.join(', ')}
-        WHERE vd_code = ?
+        WHERE vd_code = $${params.length + 1}
       `;
 
       const result = await executeQuery(query, params);
@@ -228,9 +228,9 @@ export class VotingDistrictsService {
   }
 
   // Delete voting district
-  static async deleteVotingDistrict(votingDistrictCode: string): Promise<boolean> {
+  static async deleteVotingDistrict(votingDistrictCode : string): Promise<boolean> {
     try {
-      const query = 'DELETE FROM voting_districts WHERE vd_code = ?';
+      const query = 'DELETE FROM voting_districts WHERE vd_code = $1';
       const result = await executeQuery(query, [votingDistrictCode]);
       return result.affectedRows > 0;
     } catch (error) {
@@ -315,28 +315,28 @@ export class VotingDistrictsService {
     try {
       let query = `
         SELECT * FROM geographic_hierarchy_complete
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (filters.province_code) {
-        query += ' AND province_code = ?';
+        query += ' AND province_code = $1';
         params.push(filters.province_code);
       }
 
       if (filters.district_code) {
-        query += ' AND district_code = ?';
+        query += ' AND district_code = $1';
         params.push(filters.district_code);
       }
 
       if (filters.municipal_code) {
-        query += ' AND municipal_code = ?';
+        query += ' AND municipal_code = $1';
         params.push(filters.municipal_code);
       }
 
       if (filters.ward_code) {
-        query += ' AND ward_code = ?';
+        query += ' AND ward_code = $1';
         params.push(filters.ward_code);
       }
 

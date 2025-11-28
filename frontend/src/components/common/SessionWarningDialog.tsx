@@ -81,20 +81,6 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
     }, 100);
   }, [handleActivityDetected]);
 
-  const handleExtend = async () => {
-    const success = await extendSession();
-    if (success && onClose) {
-      onClose();
-    }
-  };
-
-  const handleDismiss = () => {
-    dismissWarning();
-    if (onClose) {
-      onClose();
-    }
-  };
-
   const handleLogoutClick = () => {
     handleLogout();
     if (onClose) {
@@ -159,10 +145,13 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
   return (
     <Dialog
       open={open}
-      onClose={handleDismiss}
+      onClose={() => {}} // Prevent manual closing - only auto-dismiss on activity
       maxWidth="sm"
       fullWidth
       disableEscapeKeyDown
+      BackdropProps={{
+        onClick: (e) => e.stopPropagation() // Prevent backdrop click from closing
+      }}
       PaperProps={{
         sx: {
           borderRadius: 2,
@@ -193,35 +182,31 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
           </Typography>
         </Box>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Would you like to extend your session to continue working?
-        </Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            ✨ Your session will be automatically extended when you:
+          </Typography>
+          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+            <li>Move your mouse</li>
+            <li>Press any key</li>
+            <li>Click anywhere on the page</li>
+          </Box>
+        </Alert>
 
-        <Typography variant="body2" color="primary.main" sx={{ fontStyle: 'italic' }}>
-          💡 Tip: Your session will be automatically extended if you move your mouse, press any key, or click anywhere.
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+          No action required - just continue working normally
         </Typography>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'center' }}>
         <Button
           onClick={handleLogoutClick}
           color="error"
           variant="outlined"
           startIcon={<LogoutIcon />}
-          disabled={isExtending}
+          size="large"
         >
           Logout Now
-        </Button>
-        
-        <Button
-          onClick={handleExtend}
-          color="primary"
-          variant="contained"
-          startIcon={isExtending ? <CircularProgress size={16} /> : <RefreshIcon />}
-          disabled={isExtending || !sessionStatus.canExtend}
-          sx={{ minWidth: 140 }}
-        >
-          {isExtending ? 'Extending...' : 'Extend Session'}
         </Button>
       </DialogActions>
     </Dialog>

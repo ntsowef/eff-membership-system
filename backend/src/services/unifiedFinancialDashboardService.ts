@@ -74,8 +74,8 @@ export class UnifiedFinancialDashboardService {
     try {
       console.log('🔍 getDashboardMetrics called with:', { dateFrom, dateTo, userRole });
       const dateFilter = dateFrom && dateTo ?
-        `AND DATE(uft.created_at) BETWEEN '${dateFrom}' AND '${dateTo}'` :
-        `AND DATE(uft.created_at) = CURDATE()`;
+        `AND uft.created_at::DATE BETWEEN '${dateFrom}' AND '${dateTo}'` :
+        `AND uft.created_at::DATE = CURRENT_DATE`;
 
       // Overview metrics
       console.log('🔍 Executing overview query...');
@@ -84,13 +84,13 @@ export class UnifiedFinancialDashboardService {
           COUNT(*) as total_transactions,
           COALESCE(SUM(amount), 0) as total_revenue,
           COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as pending_reviews,
-          COUNT(CASE WHEN DATE(created_at) = CURDATE() AND payment_status = 'Completed' THEN 1 END) as completed_today,
+          COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND payment_status = 'Completed' THEN 1 END) as completed_today,
           -- Revenue growth (placeholder calculation)
           5.2 as revenue_growth_percentage,
           -- Average processing time (placeholder)
           18.5 as avg_processing_time_hours
         FROM unified_financial_transactions uft
-        WHERE 1=1 ${dateFilter}
+        WHERE 1 = 1 ${dateFilter}
       `);
 
       // Application metrics
@@ -98,16 +98,16 @@ export class UnifiedFinancialDashboardService {
         SELECT
           COUNT(*) as total_applications,
           COALESCE(SUM(amount), 0) as applications_revenue,
-          COUNT(CASE WHEN financial_status COLLATE utf8mb4_general_ci IN ('Pending', 'Under Review') THEN 1 END) as pending_financial_review,
-          COUNT(CASE WHEN DATE(created_at) = CURDATE() AND financial_status COLLATE utf8mb4_general_ci = 'Approved' THEN 1 END) as approved_today,
+          COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as pending_financial_review,
+          COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND financial_status = 'Approved' THEN 1 END) as approved_today,
           -- Rejection rate calculation
           CASE
             WHEN COUNT(*) > 0 THEN
-              ROUND((COUNT(CASE WHEN financial_status COLLATE utf8mb4_general_ci = 'Rejected' THEN 1 END) * 100.0) / COUNT(*), 2)
+              ROUND((COUNT(CASE WHEN financial_status = 'Rejected' THEN 1 END) * 100.0) / COUNT(*), 2)
             ELSE 0
           END as rejection_rate
         FROM unified_financial_transactions uft
-        WHERE transaction_type COLLATE utf8mb4_general_ci = 'Application' ${dateFilter}
+        WHERE transaction_type = 'Application' ${dateFilter}
       `);
 
       // Renewal metrics
@@ -115,16 +115,16 @@ export class UnifiedFinancialDashboardService {
         SELECT
           COUNT(*) as total_renewals,
           COALESCE(SUM(amount), 0) as renewals_revenue,
-          COUNT(CASE WHEN financial_status COLLATE utf8mb4_general_ci IN ('Pending', 'Under Review') THEN 1 END) as pending_financial_review,
-          COUNT(CASE WHEN DATE(created_at) = CURDATE() AND workflow_stage COLLATE utf8mb4_general_ci = 'Payment Approved' THEN 1 END) as processed_today,
+          COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as pending_financial_review,
+          COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND workflow_stage = 'Payment Approved' THEN 1 END) as processed_today,
           -- Success rate calculation
           CASE
             WHEN COUNT(*) > 0 THEN
-              ROUND((COUNT(CASE WHEN financial_status COLLATE utf8mb4_general_ci = 'Approved' THEN 1 END) * 100.0) / COUNT(*), 2)
+              ROUND((COUNT(CASE WHEN financial_status = 'Approved' THEN 1 END) * 100.0) / COUNT(*), 2)
             ELSE 0
           END as success_rate
         FROM unified_financial_transactions uft
-        WHERE transaction_type COLLATE utf8mb4_general_ci = 'Renewal' ${dateFilter}
+        WHERE transaction_type = 'Renewal' ${dateFilter}
       `);
 
       // Performance metrics
@@ -132,12 +132,12 @@ export class UnifiedFinancialDashboardService {
         SELECT 
           COUNT(DISTINCT u.id) as active_reviewers,
           AVG(24.0) as avg_review_time, -- Placeholder
-          COUNT(CASE WHEN DATE(COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at)) = CURDATE() THEN 1 END) as reviews_completed_today,
+          COUNT(CASE WHEN COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at::DATE) = CURRENT_DATE THEN 1 END) as reviews_completed_today,
           85.5 as efficiency_score -- Placeholder
         FROM users u
         LEFT JOIN membership_applications ma ON u.id = ma.financial_reviewed_by
         LEFT JOIN membership_renewals mr ON u.id = mr.financial_reviewed_by
-        WHERE u.role_id = (SELECT id FROM roles WHERE name COLLATE utf8mb4_general_ci = 'financial_reviewer')
+        WHERE u.role_id = (SELECT id FROM roles WHERE name  = 'financial_reviewer')
           AND u.is_active = 1
       `);
 
@@ -190,8 +190,8 @@ export class UnifiedFinancialDashboardService {
           COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as current_queue_size,
           -- Processing rate calculation (reviews per hour)
           CASE
-            WHEN COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) > 0 THEN
-              ROUND(COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) / 24.0, 1)
+            WHEN COUNT(CASE WHEN created_at::DATE = CURRENT_DATE THEN 1 END) > 0 THEN
+              ROUND(COUNT(CASE WHEN created_at::DATE = CURRENT_DATE THEN 1 END) / 24.0, 1)
             ELSE 0
           END as processing_rate_per_hour,
           -- System load (placeholder)
@@ -231,40 +231,36 @@ export class UnifiedFinancialDashboardService {
     limit: number = 30
   ): Promise<TrendData[]> {
     try {
-      let dateFormat: string;
       let groupBy: string;
 
       switch (period) {
         case 'weekly':
-          dateFormat = '%Y-%u';
-          groupBy = 'YEARWEEK(created_at)';
+          groupBy = 'TO_CHAR(created_at, \'YYYY-WW\')';
           break;
         case 'monthly':
-          dateFormat = '%Y-%m';
-          groupBy = 'DATE_FORMAT(created_at, "%Y-%m")';
+          groupBy = 'TO_CHAR(created_at, \'YYYY-MM\')';
           break;
         default:
-          dateFormat = '%Y-%m-%d';
-          groupBy = 'DATE(created_at)';
+          groupBy = 'created_at::DATE';
       }
 
       const trends = await executeQuery(`
         SELECT
-          DATE_FORMAT(created_at, '${dateFormat}') as period,
-          COUNT(CASE WHEN transaction_type COLLATE utf8mb4_general_ci = 'Application' THEN 1 END) as applications_count,
-          COUNT(CASE WHEN transaction_type COLLATE utf8mb4_general_ci = 'Renewal' THEN 1 END) as renewals_count,
-          COALESCE(SUM(CASE WHEN payment_status COLLATE utf8mb4_general_ci = 'Completed' THEN amount END), 0) as total_revenue,
+          ${groupBy} as period,
+          COUNT(CASE WHEN transaction_type = 'Application' THEN 1 END) as applications_count,
+          COUNT(CASE WHEN transaction_type = 'Renewal' THEN 1 END) as renewals_count,
+          COALESCE(SUM(CASE WHEN payment_status = 'Completed' THEN amount END), 0) as total_revenue,
           CASE
             WHEN COUNT(*) > 0 THEN
-              ROUND((COUNT(CASE WHEN financial_status COLLATE utf8mb4_general_ci = 'Approved' THEN 1 END) * 100.0) / COUNT(*), 2)
+              ROUND((COUNT(CASE WHEN financial_status = 'Approved' THEN 1 END) * 100.0) / COUNT(*), 2)
             ELSE 0
           END as approval_rate,
           AVG(24.0) as processing_time -- Placeholder
         FROM unified_financial_transactions uft
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL ${limit} ${period.toUpperCase().slice(0, -2)})
+        WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '${limit} ${period.slice(0, -2)}'
         GROUP BY ${groupBy}
         ORDER BY period DESC
-        LIMIT ?
+        LIMIT $1
       `, [limit]);
 
       return trends || [];
@@ -317,7 +313,7 @@ export class UnifiedFinancialDashboardService {
         SELECT COUNT(*) as count
         FROM unified_financial_transactions uft
         WHERE financial_status = 'Under Review'
-          AND created_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)
+          AND created_at < (CURRENT_TIMESTAMP - INTERVAL \'48 HOUR\')
       `);
 
       if (overdueCount && overdueCount.count > 0) {
@@ -335,7 +331,7 @@ export class UnifiedFinancialDashboardService {
       const criticalKPIs = await executeQuery(`
         SELECT kpi_name, current_value, target_value, performance_status
         FROM financial_kpi_tracking
-        WHERE measurement_date = CURDATE()
+        WHERE measurement_date = CURRENT_DATE
           AND performance_status IN ('needs_improvement', 'critical')
       `);
 
@@ -386,7 +382,7 @@ export class UnifiedFinancialDashboardService {
       const cached = await executeQuerySingle(`
         SELECT cache_data, expires_at
         FROM financial_dashboard_cache
-        WHERE cache_key = ? AND expires_at > NOW() AND is_valid = TRUE
+        WHERE cache_key = $1 AND expires_at > CURRENT_TIMESTAMP AND is_valid = TRUE
       `, [cacheKey]);
 
       if (cached) {
@@ -403,11 +399,11 @@ export class UnifiedFinancialDashboardService {
       await executeQuery(`
         INSERT INTO financial_dashboard_cache (
           cache_key, cache_data, cache_type, expires_at, data_size_bytes
-        ) VALUES (?, ?, 'dashboard_metrics', ?, ?)
-        ON DUPLICATE KEY UPDATE
-          cache_data = VALUES(cache_data),
-          expires_at = VALUES(expires_at),
-          data_size_bytes = VALUES(data_size_bytes),
+        ) VALUES ($1, $2, 'dashboard_metrics', $3, $4)
+        ON CONFLICT (cache_key) DO UPDATE SET
+          cache_data = EXCLUDED.cache_data,
+          expires_at = EXCLUDED.expires_at,
+          data_size_bytes = EXCLUDED.data_size_bytes,
           generated_at = CURRENT_TIMESTAMP,
           is_valid = TRUE
       `, [
@@ -425,13 +421,13 @@ export class UnifiedFinancialDashboardService {
   }
 
   // Update daily financial summary
-  static async updateDailyFinancialSummary(date?: string): Promise<void> {
+  static async updateDailyFinancialSummary(date? : string): Promise<void> {
     try {
       const targetDate = date || new Date().toISOString().split('T')[0];
 
       // Call the stored procedure if it exists, otherwise use direct SQL
       try {
-        await executeQuery('CALL UpdateDailyFinancialSummary(?)', [targetDate]);
+        await executeQuery('CALL UpdateDailyFinancialSummary($1)', [targetDate]);
       } catch (procError) {
         // Fallback to direct SQL update
         await executeQuery(`
@@ -442,7 +438,7 @@ export class UnifiedFinancialDashboardService {
             renewals_total_amount, total_transactions, total_revenue
           )
           SELECT
-            ? as summary_date,
+            $1 as summary_date,
             COUNT(CASE WHEN transaction_type = 'Application' THEN 1 END),
             COUNT(CASE WHEN transaction_type = 'Application' AND amount > 0 THEN 1 END),
             COUNT(CASE WHEN transaction_type = 'Application' AND payment_status = 'Completed' THEN 1 END),
@@ -454,14 +450,14 @@ export class UnifiedFinancialDashboardService {
             COUNT(*),
             COALESCE(SUM(CASE WHEN payment_status = 'Completed' THEN amount END), 0)
           FROM unified_financial_transactions uft
-          WHERE DATE(created_at) = ?
-          ON DUPLICATE KEY UPDATE
-            applications_submitted = VALUES(applications_submitted),
-            applications_total_amount = VALUES(applications_total_amount),
-            renewals_submitted = VALUES(renewals_submitted),
-            renewals_total_amount = VALUES(renewals_total_amount),
-            total_transactions = VALUES(total_transactions),
-            total_revenue = VALUES(total_revenue),
+          WHERE created_at::DATE = $2
+          ON CONFLICT (summary_date) DO UPDATE SET
+            applications_submitted = EXCLUDED.applications_submitted,
+            applications_total_amount = EXCLUDED.applications_total_amount,
+            renewals_submitted = EXCLUDED.renewals_submitted,
+            renewals_total_amount = EXCLUDED.renewals_total_amount,
+            total_transactions = EXCLUDED.total_transactions,
+            total_revenue = EXCLUDED.total_revenue,
             updated_at = CURRENT_TIMESTAMP
         `, [targetDate, targetDate]);
       }

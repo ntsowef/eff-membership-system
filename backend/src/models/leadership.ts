@@ -322,29 +322,30 @@ export class LeadershipModel {
             WHEN COUNT(la.id) > 0 THEN 'Filled'
             ELSE 'Vacant'
           END as position_status,
-          GROUP_CONCAT(
-            TRIM(CONCAT(COALESCE(m.firstname, ''), ' ', COALESCE(m.surname, '')))
-            SEPARATOR ', '
+          STRING_AGG(
+            TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')),
+            ', '
           ) as current_holders
         FROM leadership_positions lp
         LEFT JOIN leadership_appointments la ON lp.id = la.position_id
           AND la.appointment_status = 'Active'
-          ${entityId ? 'AND la.entity_id = ?' : ''}
         LEFT JOIN vw_member_details m ON la.member_id = m.member_id
         WHERE lp.is_active = TRUE
       `;
       const params: any[] = [];
-
-      if (entityId) {
-        params.push(entityId);
-      }
 
       if (hierarchyLevel) {
         query += ' AND lp.hierarchy_level = ?';
         params.push(hierarchyLevel);
       }
 
-      query += ' GROUP BY lp.id ORDER BY lp.hierarchy_level, lp.order_index';
+      // Filter positions by entity_id if specified
+      if (entityId) {
+        query += ' AND lp.entity_id = ?';
+        params.push(entityId);
+      }
+
+      query += ' GROUP BY lp.id ORDER BY lp.hierarchy_level, lp.position_order';
 
       return await executeQuery(query, params);
     } catch (error) {
@@ -369,7 +370,7 @@ export class LeadershipModel {
     filters: LeadershipFilters = {}
   ): Promise<LeadershipAppointmentDetails[]> {
     try {
-      let whereClause = 'WHERE la.appointment_status = "Active"';
+      let whereClause = "WHERE la.appointment_status = 'Active'";
       const params: any[] = [];
 
       if (filters.hierarchy_level) {
@@ -402,9 +403,9 @@ export class LeadershipModel {
           la.*,
           lp.position_name,
           lp.position_code,
-          TRIM(CONCAT(COALESCE(m.firstname, ''), ' ', COALESCE(m.surname, ''))) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as member_number,
-          TRIM(CONCAT(COALESCE(appointer.firstname, ''), ' ', COALESCE(appointer.surname, ''))) as appointed_by_name,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
           CASE
             WHEN la.hierarchy_level = 'National' THEN 'National Level'
             WHEN la.hierarchy_level = 'Province' THEN p.province_name
@@ -431,16 +432,20 @@ export class LeadershipModel {
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
         LEFT JOIN members m ON la.member_id = m.member_id
         LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
-        LEFT JOIN provinces p ON la.entity_id = p.id AND la.hierarchy_level = 'Province'
-        LEFT JOIN districts d ON la.entity_id = d.id AND la.hierarchy_level = 'District'
-        LEFT JOIN municipalities mun ON la.entity_id = mun.id AND la.hierarchy_level = 'Municipality'
-        LEFT JOIN wards w ON la.entity_id = w.id AND la.hierarchy_level = 'Ward'
+        LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
+        LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
         -- Additional joins to build formatted location for Municipality and Ward
-        LEFT JOIN provinces p_from_mun ON mun.province_code = p_from_mun.province_code
+        -- For municipalities: join through districts to get province
+        LEFT JOIN districts d_from_mun ON mun.district_code = d_from_mun.district_code
+        LEFT JOIN provinces p_from_mun ON d_from_mun.province_code = p_from_mun.province_code
+        -- For wards: join through municipalities and districts to get province
         LEFT JOIN municipalities mun_from_ward ON w.municipality_code = mun_from_ward.municipality_code
-        LEFT JOIN provinces p_from_ward ON w.province_code = p_from_ward.province_code
+        LEFT JOIN districts d_from_ward ON mun_from_ward.district_code = d_from_ward.district_code
+        LEFT JOIN provinces p_from_ward ON d_from_ward.province_code = p_from_ward.province_code
         ${whereClause}
-        ORDER BY la.hierarchy_level, lp.order_index, la.start_date DESC
+        ORDER BY la.hierarchy_level, lp.position_order, la.start_date DESC
         LIMIT ? OFFSET ?
       `;
 
@@ -506,10 +511,10 @@ export class LeadershipModel {
           la.*,
           lp.position_name,
           lp.position_code,
-          TRIM(CONCAT(COALESCE(m.firstname, ''), ' ', COALESCE(m.surname, ''))) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as member_number,
-          TRIM(CONCAT(COALESCE(appointer.firstname, ''), ' ', COALESCE(appointer.surname, ''))) as appointed_by_name,
-          TRIM(CONCAT(COALESCE(terminator.firstname, ''), ' ', COALESCE(terminator.surname, ''))) as terminated_by_name,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name,
           CASE
             WHEN la.hierarchy_level = 'National' THEN 'National Level'
             WHEN la.hierarchy_level = 'Province' THEN p.province_name
@@ -523,10 +528,10 @@ export class LeadershipModel {
         LEFT JOIN members m ON la.member_id = m.member_id
         LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
         LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
-        LEFT JOIN provinces p ON la.entity_id = p.id AND la.hierarchy_level = 'Province'
-        LEFT JOIN districts d ON la.entity_id = d.id AND la.hierarchy_level = 'District'
-        LEFT JOIN municipalities mun ON la.entity_id = mun.id AND la.hierarchy_level = 'Municipality'
-        LEFT JOIN wards w ON la.entity_id = w.id AND la.hierarchy_level = 'Ward'
+        LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
+        LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
         ${whereClause}
         ORDER BY la.start_date DESC, la.created_at DESC
         LIMIT ? OFFSET ?
@@ -629,10 +634,10 @@ export class LeadershipModel {
           la.*,
           lp.position_name,
           lp.position_code,
-          TRIM(CONCAT(COALESCE(m.firstname, ''), ' ', COALESCE(m.surname, ''))) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as member_number,
-          TRIM(CONCAT(COALESCE(appointer.firstname, ''), ' ', COALESCE(appointer.surname, ''))) as appointed_by_name,
-          TRIM(CONCAT(COALESCE(terminator.firstname, ''), ' ', COALESCE(terminator.surname, ''))) as terminated_by_name
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
         LEFT JOIN members m ON la.member_id = m.member_id
@@ -695,10 +700,10 @@ export class LeadershipModel {
           la.*,
           lp.position_name,
           lp.position_code,
-          TRIM(CONCAT(COALESCE(m.firstname, ''), ' ', COALESCE(m.surname, ''))) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as member_number,
-          TRIM(CONCAT(COALESCE(appointer.firstname, ''), ' ', COALESCE(appointer.surname, ''))) as appointed_by_name,
-          TRIM(CONCAT(COALESCE(terminator.firstname, ''), ' ', COALESCE(terminator.surname, ''))) as terminated_by_name,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name,
           CASE
             WHEN la.hierarchy_level = 'National' THEN 'National Level'
             WHEN la.hierarchy_level = 'Province' THEN p.province_name
@@ -711,9 +716,9 @@ export class LeadershipModel {
         LEFT JOIN members m ON la.member_id = m.member_id
         LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
         LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
-        LEFT JOIN provinces p ON la.entity_id = p.id AND la.hierarchy_level = 'Province'
-        LEFT JOIN municipalities mun ON la.entity_id = mun.id AND la.hierarchy_level = 'Municipality'
-        LEFT JOIN wards w ON la.entity_id = w.id AND la.hierarchy_level = 'Ward'
+        LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
         WHERE la.member_id = ?
         ORDER BY la.start_date DESC
       `;
@@ -737,7 +742,7 @@ export class LeadershipModel {
       `;
 
       const result = await executeQuerySingle<{ count: number }>(query, [positionId, hierarchyLevel, entityId]);
-      return (result?.count || 0) === 0;
+      return Number(result?.count || 0) === 0;
     } catch (error) {
       throw createDatabaseError('Failed to check position vacancy', error);
     }
@@ -751,11 +756,11 @@ export class LeadershipModel {
           lp.id as position_id,
           lp.position_name,
           lp.position_code,
-          lp.order_index,
+          lp.position_order,
           la.id as appointment_id,
           la.member_id,
-          TRIM(CONCAT(COALESCE(m.firstname, ''), ' ', COALESCE(m.surname, ''))) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           la.appointment_type,
           la.start_date,
           la.end_date,
@@ -767,7 +772,7 @@ export class LeadershipModel {
           AND la.appointment_status = 'Active'
         LEFT JOIN members m ON la.member_id = m.member_id
         WHERE lp.hierarchy_level = ? AND lp.is_active = TRUE
-        ORDER BY lp.order_index
+        ORDER BY lp.position_order
       `;
 
       return await executeQuery(query, [hierarchyLevel, entityId, hierarchyLevel]);
@@ -828,14 +833,15 @@ export class LeadershipModel {
             ELSE 'Unknown'
           END as entity_name
         FROM leadership_elections le
-        LEFT JOIN leadership_positions lp ON le.position_id = lp.id
+        LEFT JOIN leadership_election_candidates lec ON le.election_id = lec.election_id
+        LEFT JOIN leadership_positions lp ON lec.position_id = lp.id
         LEFT JOIN members creator ON le.created_by = creator.member_id
         LEFT JOIN election_candidates ec ON le.id = ec.election_id
         LEFT JOIN election_candidates winner_ec ON le.id = winner_ec.election_id AND winner_ec.is_winner = TRUE
         LEFT JOIN members winner ON winner_ec.member_id = winner.member_id
-        LEFT JOIN provinces p ON le.entity_id = p.id AND le.hierarchy_level = 'Province'
-        LEFT JOIN municipalities mun ON le.entity_id = mun.id AND le.hierarchy_level = 'Municipality'
-        LEFT JOIN wards w ON le.entity_id = w.id AND le.hierarchy_level = 'Ward'
+        LEFT JOIN provinces p ON le.entity_id = p.province_id AND le.hierarchy_level = 'Province'
+        LEFT JOIN municipalities mun ON le.entity_id = mun.municipality_id AND le.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON le.entity_id = w.ward_id AND le.hierarchy_level = 'Ward'
       `;
 
       const conditions: string[] = [];
@@ -937,8 +943,8 @@ export class LeadershipModel {
       const query = `
         SELECT
           ec.*,
-          CONCAT(m.firstname, ' ', m.surname) as candidate_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+          m.firstname || ' ' || m.surname as candidate_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           m.email,
           m.cell_number as phone_number
         FROM election_candidates ec
@@ -998,8 +1004,8 @@ export class LeadershipModel {
       const query = `
         SELECT
           ec.*,
-          CONCAT(m.firstname, ' ', m.surname) as candidate_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+          m.firstname || ' ' || m.surname as candidate_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           ROUND((ec.votes_received * 100.0 / NULLIF(le.total_votes_cast, 0)), 2) as vote_percentage
         FROM election_candidates ec
         LEFT JOIN members m ON ec.member_id = m.member_id
@@ -1064,8 +1070,8 @@ export class LeadershipModel {
       let query = `
         SELECT
           m.member_id,
-          CONCAT(m.firstname, ' ', m.surname) as member_name,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+          m.firstname || ' ' || m.surname as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           m.email,
           m.cell_number as phone_number
         FROM members m
@@ -1077,13 +1083,13 @@ export class LeadershipModel {
       // Add hierarchy-specific filters
       if (hierarchyLevel !== 'National') {
         if (hierarchyLevel === 'Province') {
-          query += ' AND EXISTS (SELECT 1 FROM provinces p WHERE p.id = ? AND p.province_code = SUBSTRING(m.ward_code, 1, 3))';
+          query += ' AND EXISTS (SELECT 1 FROM provinces p WHERE p.province_id = ? AND p.province_code = SUBSTRING(m.ward_code, 1, 3))';
           params.push(entityId);
         } else if (hierarchyLevel === 'Municipality') {
-          query += ' AND EXISTS (SELECT 1 FROM municipalities mun WHERE mun.id = ? AND mun.municipality_code = SUBSTRING(m.ward_code, 1, 6))';
+          query += ' AND EXISTS (SELECT 1 FROM municipalities mun WHERE mun.municipality_id = ? AND mun.municipality_code = SUBSTRING(m.ward_code, 1, 6))';
           params.push(entityId);
         } else if (hierarchyLevel === 'Ward') {
-          query += ' AND EXISTS (SELECT 1 FROM wards w WHERE w.id = ? AND w.ward_code = m.ward_code)';
+          query += ' AND EXISTS (SELECT 1 FROM wards w WHERE w.ward_id = ? AND w.ward_code = m.ward_code)';
           params.push(entityId);
         }
       }
@@ -1118,10 +1124,9 @@ export class LeadershipModel {
             ELSE NULL
           END as province_name
         FROM leadership_positions lp
-        LEFT JOIN leadership_structures ls ON lp.structure_id = ls.id
-        WHERE ls.structure_code = 'WCS'
+        WHERE lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
           AND lp.is_active = TRUE
-        ORDER BY lp.order_index
+        ORDER BY lp.position_order
       `;
       return await executeQuery(query, []);
     } catch (error) {
@@ -1150,15 +1155,14 @@ export class LeadershipModel {
         SELECT COUNT(*) as count
         FROM leadership_appointments la
         JOIN leadership_positions lp ON la.position_id = lp.id
-        JOIN leadership_structures ls ON lp.structure_id = ls.id
         WHERE lp.id = ?
-          AND ls.structure_code = 'WCS'
+          AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
           AND la.appointment_status = 'Active'
           AND la.hierarchy_level = 'National'
           AND la.entity_id = 1
       `;
       const result = await executeQuerySingle(query, [positionId]);
-      return result.count === 0;
+      return Number(result.count) === 0;
     } catch (error) {
       throw createDatabaseError('Failed to check War Council position vacancy', error);
     }
@@ -1188,8 +1192,7 @@ export class LeadershipModel {
             ELSE NULL
           END as province_name
         FROM leadership_positions lp
-        LEFT JOIN leadership_structures ls ON lp.structure_id = ls.id
-        WHERE lp.id = ? AND ls.structure_code = 'WCS'
+        WHERE lp.id = ? AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
       `;
       const position = await executeQuerySingle(positionQuery, [positionId]);
 
@@ -1218,9 +1221,8 @@ export class LeadershipModel {
         SELECT lp.position_name
         FROM leadership_appointments la
         JOIN leadership_positions lp ON la.position_id = lp.id
-        JOIN leadership_structures ls ON lp.structure_id = ls.id
         WHERE la.member_id = ?
-          AND ls.structure_code = 'WCS'
+          AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
           AND la.appointment_status = 'Active'
           AND la.hierarchy_level = 'National'
           AND la.entity_id = 1

@@ -26,12 +26,12 @@ async function resolveEntityIdFromCodes(hierarchyLevel: string, province_code?: 
   const entity_type = mapHierarchyToEntityType(hierarchyLevel);
   try {
     if (entity_type === 'Province' && province_code) {
-      const row = await executeQuerySingle<any>("SELECT id FROM provinces WHERE province_code = ?", [province_code]);
-      return { entity_id: row?.id, entity_type };
+      const row = await executeQuerySingle<any>("SELECT province_id FROM provinces WHERE province_code = ?", [province_code]);
+      return { entity_id: row?.province_id, entity_type };
     }
     if (entity_type === 'Municipality' && municipality_code) {
-      const row = await executeQuerySingle<any>("SELECT id FROM municipalities WHERE municipality_code = ?", [municipality_code]);
-      return { entity_id: row?.id, entity_type };
+      const row = await executeQuerySingle<any>("SELECT municipality_id FROM municipalities WHERE municipality_code = ?", [municipality_code]);
+      return { entity_id: row?.municipality_id, entity_type };
     }
     if (entity_type === 'Ward' && ward_code) {
       const row = await executeQuerySingle<any>("SELECT id FROM wards WHERE ward_code = ?", [ward_code]);
@@ -242,11 +242,25 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       throw new ValidationError(`Meeting type "${meetingType.type_name}" is not valid for ${value.hierarchy_level} level meetings`);
     }
 
+    // Map hierarchy_level to database values
+    // Frontend uses: 'Provincial', 'Municipal', 'Regional'
+    // Database expects: 'Province', 'Municipality', 'Region'
+    const hierarchyLevelMap: Record<string, string> = {
+      'National': 'National',
+      'Provincial': 'Province',
+      'Regional': 'Region',
+      'Municipal': 'Municipality',
+      'Ward': 'Ward',
+      'Branch': 'Branch'
+    };
+
+    const dbHierarchyLevel = hierarchyLevelMap[value.hierarchy_level] || value.hierarchy_level;
+
     // Create meeting data
     const meetingData: CreateMeetingData = {
       title: value.title, // Fixed: use 'title' instead of 'meeting_title'
       meeting_type_id: value.meeting_type_id,
-      hierarchy_level: value.hierarchy_level,
+      hierarchy_level: dbHierarchyLevel,
       entity_id: value.entity_id,
       entity_type: value.entity_type,
       meeting_date: value.meeting_date,
@@ -302,7 +316,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
           voting_rights: target.voting_rights,
           invitation_priority: target.invitation_priority,
           invitation_method: 'System',
-          invitation_status: 'Pending'
+          invitation_status: 'Sent'
         });
       }
 
@@ -426,7 +440,7 @@ router.post('/:meetingId/send-invitations', async (req: Request, res: Response, 
           voting_rights: target.voting_rights,
           invitation_priority: target.invitation_priority,
           invitation_method: 'System',
-          invitation_status: 'Pending'
+          invitation_status: 'Sent'
         });
       }
     }
@@ -478,6 +492,55 @@ router.post('/:meetingId/send-reminders', async (req: Request, res: Response, ne
         reminders_sent: result.sent,
         reminders_failed: result.failed
       },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get meeting statistics
+ * NOTE: This route MUST be before /:meetingId to avoid matching "statistics" as a meetingId
+ */
+router.get('/statistics', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const statistics = await HierarchicalMeetingService.getMeetingStatistics();
+
+    res.json({
+      success: true,
+      message: 'Meeting statistics retrieved successfully',
+      data: {
+        statistics
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get a single hierarchical meeting by ID
+ */
+router.get('/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.meetingId);
+
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    // Get meeting details
+    const meeting = await MeetingModel.getMeetingById(meetingId);
+
+    if (!meeting) {
+      throw new NotFoundError('Meeting not found');
+    }
+
+    res.json({
+      success: true,
+      message: 'Meeting retrieved successfully',
+      data: { meeting },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -560,7 +623,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       limit: parseInt(limit as string),
       offset: parseInt(offset as string),
       sort: sort as string,
-      order: order as 'asc' | 'desc'
+      order$1: order as 'asc' | 'desc'
     });
 
     res.json({
@@ -582,18 +645,85 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 /**
- * Get meeting statistics
+ * Update a hierarchical meeting
  */
-router.get('/statistics', async (_req: Request, res: Response, next: NextFunction) => {
+router.put('/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const statistics = await HierarchicalMeetingService.getMeetingStatistics();
+    const meetingId = parseInt(req.params.meetingId);
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    // Validate request body (allow partial updates)
+    const { error, value } = createHierarchicalMeetingSchema.fork(
+      Object.keys(createHierarchicalMeetingSchema.describe().keys),
+      (schema) => schema.optional()
+    ).validate(req.body);
+
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    // Check if meeting exists
+    const existingMeeting = await MeetingModel.getMeetingById(meetingId);
+    if (!existingMeeting) {
+      throw new NotFoundError('Meeting not found');
+    }
+
+    // Map hierarchy_level to database values
+    const hierarchyLevelMap: Record<string, string> = {
+      'National': 'National',
+      'Provincial': 'Province',
+      'Regional': 'Region',
+      'Municipal': 'Municipality',
+      'Ward': 'Ward',
+      'Branch': 'Branch'
+    };
+
+    // Prepare update data
+    const updateData: any = {};
+    if (value.title) updateData.meeting_title = value.title;
+    if (value.meeting_type_id) updateData.meeting_type_id = value.meeting_type_id;
+    if (value.hierarchy_level) {
+      updateData.hierarchy_level = hierarchyLevelMap[value.hierarchy_level] || value.hierarchy_level;
+    }
+    if (value.entity_id !== undefined) updateData.entity_id = value.entity_id;
+    if (value.entity_type) updateData.entity_type = value.entity_type;
+    if (value.location) updateData.location = value.location;
+    if (value.virtual_meeting_link) updateData.virtual_meeting_link = value.virtual_meeting_link;
+    if (value.meeting_platform) updateData.meeting_platform = value.meeting_platform;
+    if (value.description) updateData.description = value.description;
+    if (value.objectives) updateData.objectives = value.objectives;
+    if (value.agenda_summary) updateData.agenda_summary = value.agenda_summary;
+    if (value.quorum_required !== undefined) updateData.quorum_required = value.quorum_required;
+    if (value.duration_minutes) updateData.duration_minutes = value.duration_minutes;
+    if (value.meeting_chair_id !== undefined) updateData.meeting_chair_id = value.meeting_chair_id;
+    if (value.meeting_secretary_id !== undefined) updateData.meeting_secretary_id = value.meeting_secretary_id;
+
+    // Handle date and time
+    if (value.meeting_date && value.meeting_time) {
+      const dateStr = value.meeting_date.split('T')[0];
+      const timeStr = value.meeting_time.includes(':') ? value.meeting_time : `${value.meeting_time}:00`;
+      updateData.meeting_date = `${dateStr}T${timeStr}:00.000Z`;
+    }
+
+    if (value.end_time) {
+      updateData.end_time = value.end_time;
+    }
+
+    // Update the meeting
+    await MeetingModel.updateMeeting(meetingId, updateData);
+
+    // Fetch updated meeting
+    const updatedMeeting = await MeetingModel.getMeetingById(meetingId);
 
     res.json({
       success: true,
-      message: 'Meeting statistics retrieved successfully',
+      message: 'Meeting updated successfully',
       data: {
-        statistics
-      }
+        meeting: updatedMeeting
+      },
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     next(error);

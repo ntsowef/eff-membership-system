@@ -165,8 +165,30 @@ export class MemberModel {
       }
 
       if (filters.municipality_code) {
-        whereClause += ' AND municipality_code = ?';
-        params.push(filters.municipality_code);
+        // Check if this is a metropolitan municipality by querying for subregions
+        // Metropolitan municipalities have subregions (e.g., JHB has JHB001, JHB002, etc.)
+        const subregionsQuery = `
+          SELECT municipality_code
+          FROM municipalities
+          WHERE parent_municipality_id = (
+            SELECT municipality_id
+            FROM municipalities
+            WHERE municipality_code = ?
+          )
+        `;
+        const subregions = await executeQuery<{ municipality_code: string }>(subregionsQuery, [filters.municipality_code]);
+
+        if (subregions.length > 0) {
+          // This is a metro with subregions - include both the metro and all its subregions
+          const municipalityCodes = [filters.municipality_code, ...subregions.map(s => s.municipality_code)];
+          const placeholders = municipalityCodes.map(() => '?').join(',');
+          whereClause += ` AND municipality_code IN (${placeholders})`;
+          params.push(...municipalityCodes);
+        } else {
+          // Regular municipality or subregion - filter directly
+          whereClause += ' AND municipality_code = ?';
+          params.push(filters.municipality_code);
+        }
       }
 
       if (filters.district_code) {
@@ -245,8 +267,30 @@ export class MemberModel {
       }
 
       if (filters.municipality_code) {
-        whereClause += ' AND municipality_code = ?';
-        params.push(filters.municipality_code);
+        // Check if this is a metropolitan municipality by querying for subregions
+        // Metropolitan municipalities have subregions (e.g., JHB has JHB001, JHB002, etc.)
+        const subregionsQuery = `
+          SELECT municipality_code
+          FROM municipalities
+          WHERE parent_municipality_id = (
+            SELECT municipality_id
+            FROM municipalities
+            WHERE municipality_code = ?
+          )
+        `;
+        const subregions = await executeQuery<{ municipality_code: string }>(subregionsQuery, [filters.municipality_code]);
+
+        if (subregions.length > 0) {
+          // This is a metro with subregions - include both the metro and all its subregions
+          const municipalityCodes = [filters.municipality_code, ...subregions.map(s => s.municipality_code)];
+          const placeholders = municipalityCodes.map(() => '?').join(',');
+          whereClause += ` AND municipality_code IN (${placeholders})`;
+          params.push(...municipalityCodes);
+        } else {
+          // Regular municipality or subregion - filter directly
+          whereClause += ' AND municipality_code = ?';
+          params.push(filters.municipality_code);
+        }
       }
 
       if (filters.district_code) {

@@ -1,7 +1,6 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import { RenewalPricingService } from './renewalPricingService';
-
 export interface RenewalProcessingOptions {
   member_id: number;
   renewal_type: 'standard' | 'discounted' | 'complimentary' | 'upgrade';
@@ -57,14 +56,13 @@ export class RenewalProcessingService {
           COALESCE(surname, '') as surname,
           email,
           COALESCE(cell_number, '') as phone_number,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as current_expiry_date,
+          (member_created_at + INTERVAL '365 DAY\') as current_expiry_date,
           province_name
         FROM vw_member_details 
-        WHERE member_id = ?
-      `;
+        WHERE member_id = ? `;
       
       const memberData = await executeQuerySingle<{
-        member_id: number;
+        member_id : number;
         firstname: string;
         surname: string;
         email: string;
@@ -74,7 +72,7 @@ export class RenewalProcessingService {
       }>(memberQuery, [options.member_id]);
 
       if (!memberData) {
-        throw new Error(`Member not found: ${options.member_id}`);
+        throw new Error('Member not found: ' + options.member_id + '');
       }
 
       // Calculate pricing for validation
@@ -83,13 +81,12 @@ export class RenewalProcessingService {
       // Validate payment amount (allow some tolerance for manual adjustments)
       const amountDifference = Math.abs(options.amount_paid - pricingCalculation.final_amount);
       if (amountDifference > 50 && options.renewal_type !== 'complimentary') {
-        console.warn(`Payment amount variance detected: Expected R${pricingCalculation.final_amount}, Received R${options.amount_paid}`);
+        console.warn('Payment amount variance detected: Expected R${pricingCalculation.final_amount}, Received R' + options.amount_paid + '');
       }
 
       // Generate renewal and transaction IDs
       const renewalId = `REN_${options.member_id}_${Date.now()}`;
       const transactionId = `TXN_${Date.now()}_${Date.now().toString(36).substr(-9)}`;
-
       // Calculate new expiry date
       const currentExpiryDate = new Date(memberData.current_expiry_date);
       const newExpiryDate = new Date(currentExpiryDate);
@@ -98,7 +95,6 @@ export class RenewalProcessingService {
       // Process renewal in database
       let isSuccess = true;
       let errorMessage = '';
-
       try {
         // Insert renewal record into database
         const insertRenewalQuery = `
@@ -106,8 +102,10 @@ export class RenewalProcessingService {
             member_id, renewal_year, renewal_type, renewal_status,
             renewal_due_date, renewal_completed_date, final_amount,
             payment_method, payment_status, processed_by, renewal_notes, created_at
-          ) VALUES (?, YEAR(CURDATE()), ?, 'Completed', ?, NOW(), ?, ?, 'Completed', ?, ?, NOW())
-        `;
+          ) VALUES (
+            $1, EXTRACT(YEAR FROM CURRENT_DATE), $2, 'Completed',
+            $3, CURRENT_TIMESTAMP, $4, $5, 'Completed', $6, $7, CURRENT_TIMESTAMP
+          )`;
 
         await executeQuery(insertRenewalQuery, [
           options.member_id,
@@ -122,8 +120,8 @@ export class RenewalProcessingService {
         // Update member expiry date
         const updateMemberQuery = `
           UPDATE members
-          SET expiry_date = ?, updated_at = NOW()
-          WHERE member_id = ?
+          SET expiry_date = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE member_id = $2
         `;
 
         await executeQuery(updateMemberQuery, [
@@ -139,7 +137,7 @@ export class RenewalProcessingService {
       
       if (isSuccess) {
         console.log(`Renewal processed successfully: ${renewalId}`);
-        
+
         // Member expiry date updated in database above
         console.log(`Member ${options.member_id} expiry updated from ${currentExpiryDate.toISOString().split('T')[0]} to ${newExpiryDate.toISOString().split('T')[0]}`);
         
@@ -150,11 +148,10 @@ export class RenewalProcessingService {
       }
 
       const processingTime = `${Date.now() - startTime}ms`;
-
       return {
         renewal_id: renewalId,
         member_id: options.member_id,
-        member_name: `${memberData.firstname} ${memberData.surname}`.trim(),
+        member_name: '${memberData.firstname} ' + memberData.surname + ''.trim(),
         renewal_status: isSuccess ? 'completed' : 'failed',
         payment_status: isSuccess ? 'completed' : 'failed',
         old_expiry_date: currentExpiryDate.toISOString().split('T')[0],
@@ -168,7 +165,6 @@ export class RenewalProcessingService {
 
     } catch (error: any) {
       const processingTime = `${Date.now() - startTime}ms`;
-
       return {
         renewal_id: `REN_ERROR_${options.member_id}_${Date.now()}`,
         member_id: options.member_id,
@@ -178,7 +174,7 @@ export class RenewalProcessingService {
         old_expiry_date: new Date().toISOString().split('T')[0],
         new_expiry_date: new Date().toISOString().split('T')[0],
         amount_paid: 0,
-        transaction_id: `TXN_ERROR_${Date.now()}`,
+        transaction_id: 'TXN_ERROR_' + Date.now() + '',
         processing_time: processingTime,
         success: false,
         error: error?.message || 'Unknown error'
@@ -188,7 +184,7 @@ export class RenewalProcessingService {
 
   // Process bulk renewals
   static async processBulkRenewals(
-    memberIds: number[],
+    memberIds : number[],
     renewalOptions: Omit<RenewalProcessingOptions, 'member_id'>
   ): Promise<BulkRenewalResult> {
     const startTime = Date.now();
@@ -214,7 +210,6 @@ export class RenewalProcessingService {
     const failedRenewals = renewalDetails.filter(r => !r.success).length;
     const totalRevenue = renewalDetails.reduce((sum, r) => sum + r.amount_paid, 0);
     const processingTime = `${Date.now() - startTime}ms`;
-
     return {
       successful_renewals: successfulRenewals,
       failed_renewals: failedRenewals,
@@ -239,11 +234,11 @@ export class RenewalProcessingService {
   ): Promise<void> {
     try {
       // In real implementation, this would integrate with email/SMS service
-      console.log(`Sending renewal confirmation to ${memberData.email}:`);
-      console.log(`- Renewal ID: ${renewalId}`);
-      console.log(`- Amount Paid: R${amountPaid}`);
-      console.log(`- New Expiry Date: ${newExpiryDate.toISOString().split('T')[0]}`);
-      console.log(`- Member: ${memberData.firstname} ${memberData.surname}`);
+      console.log('Sending renewal confirmation to ' + memberData.email + ':');
+      console.log('- Renewal ID: ' + renewalId + '');
+      console.log('- Amount Paid: R' + amountPaid + '');
+      console.log('- New Expiry Date: ' + newExpiryDate.toISOString().split('T')[0] + '');
+      console.log('- Member: ${memberData.firstname} ' + memberData.surname + '');
       
       // Simulate email/SMS sending delay
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -297,15 +292,14 @@ export class RenewalProcessingService {
           member_id,
           firstname,
           COALESCE(surname, '') as surname,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as current_expiry_date,
-          DATEDIFF(DATE_ADD(member_created_at, INTERVAL 365 DAY), CURDATE()) as days_until_expiry,
+          (member_created_at + INTERVAL '365 DAY\') as current_expiry_date,
+          ((member_created_at + INTERVAL '365 DAY')::date - CURRENT_DATE::date) as days_until_expiry,
           'Active' as member_status
         FROM vw_member_details 
-        WHERE member_id = ?
-      `;
+        WHERE member_id = ? `;
       
       const memberData = await executeQuerySingle<{
-        member_id: number;
+        member_id : number;
         firstname: string;
         surname: string;
         current_expiry_date: string;

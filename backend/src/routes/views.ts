@@ -31,6 +31,7 @@ router.get('/members-with-voting-districts',
       has_voting_district: req.query.has_voting_district as string,
       age_group: req.query.age_group as string,
       gender_id: req.query.gender_id as string,
+      search: req.query.search as string,
       limit: req.query.limit as string
     };
 

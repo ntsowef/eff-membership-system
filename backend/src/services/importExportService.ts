@@ -70,7 +70,7 @@ export class ImportExportService {
       // Log import start
       await executeQuery(`
         INSERT INTO import_export_logs (import_id, user_id, operation_type, entity_type, total_records, status, created_at)
-        VALUES (?, ?, 'import', 'members', ?, 'processing', NOW())
+        EXCLUDED.? , , 'import', 'members', $3, 'processing', CURRENT_TIMESTAMP
       `, [importId, userId, data.length]);
 
       // Process in batches
@@ -82,8 +82,8 @@ export class ImportExportService {
       // Update import log
       await executeQuery(`
         UPDATE import_export_logs 
-        SET successful_records = ?, failed_records = ?, status = 'completed', completed_at = NOW()
-        WHERE import_id = ?
+        SET successful_records = $1, failed_records = , status = 'completed', completed_at = CURRENT_TIMESTAMP
+        WHERE import_id = $1
       `, [result.successful_imports, result.failed_imports, importId]);
 
       return result;
@@ -93,7 +93,7 @@ export class ImportExportService {
   }
 
   static async exportMembers(
-    userId: number,
+    userId : number,
     options: ExportOptions,
     filters: any = {}
   ): Promise<string> {
@@ -124,34 +124,34 @@ export class ImportExportService {
           m.created_at,
           m.updated_at
         FROM members m
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const queryParams: any[] = [];
 
       // Apply filters
       if (filters.hierarchy_level) {
-        query += ' AND m.hierarchy_level = ?';
+        query += ' AND m.hierarchy_level = ? ';
         queryParams.push(filters.hierarchy_level);
       }
 
       if (filters.entity_id) {
-        query += ' AND m.entity_id = ?';
+        query += ' AND m.entity_id = $1';
         queryParams.push(filters.entity_id);
       }
 
       if (filters.membership_status) {
-        query += ' AND m.membership_status = ?';
+        query += ' AND m.membership_status = $1';
         queryParams.push(filters.membership_status);
       }
 
       if (filters.date_from) {
-        query += ' AND m.created_at >= ?';
+        query += ' AND m.created_at >= $1';
         queryParams.push(filters.date_from);
       }
 
       if (filters.date_to) {
-        query += ' AND m.created_at <= ?';
+        query += ' AND m.created_at <= $1';
         queryParams.push(filters.date_to);
       }
 
@@ -162,11 +162,11 @@ export class ImportExportService {
       // Log export start
       await executeQuery(`
         INSERT INTO import_export_logs (import_id, user_id, operation_type, entity_type, total_records, status, created_at)
-        VALUES (?, ?, 'export', 'members', ?, 'processing', NOW())
+        EXCLUDED.$1, , 'export', 'members', $3, 'processing', CURRENT_TIMESTAMP
       `, [exportId, userId, members.length]);
 
       // Generate file
-      const fileName = `members_export_${exportId}.${options.format === 'excel' ? 'xlsx' : options.format}`;
+      const fileName = 'members_export_${exportId}.' + options.format === 'excel' ? 'xlsx'  : options.format + '';
       const filePath = path.join(process.cwd(), 'exports', fileName);
 
       // Ensure exports directory exists
@@ -180,8 +180,8 @@ export class ImportExportService {
       // Update export log
       await executeQuery(`
         UPDATE import_export_logs 
-        SET file_path = ?, status = 'completed', completed_at = NOW()
-        WHERE import_id = ?
+        SET file_path = ? , status = 'completed', completed_at = CURRENT_TIMESTAMP
+        WHERE import_id = $1
       `, [filePath, exportId]);
 
       return filePath;
@@ -192,7 +192,7 @@ export class ImportExportService {
 
   // Meeting Import/Export
   static async importMeetings(
-    filePath: string,
+    filePath : string,
     userId: number,
     options: ImportOptions = {
       skip_duplicates: true,
@@ -261,34 +261,34 @@ export class ImportExportService {
           m.location,
           m.virtual_link,
           m.status,
-          CONCAT(u.firstname, ' ', u.surname) as created_by_name,
+          u.firstname || ' ' || u.surname as created_by_name,
           m.created_at
         FROM meetings m
         LEFT JOIN meeting_types mt ON m.meeting_type_id = mt.id
         LEFT JOIN users u ON m.created_by = u.id
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const queryParams: any[] = [];
 
       // Apply filters
       if (filters.hierarchy_level) {
-        query += ' AND m.hierarchy_level = ?';
+        query += ' AND m.hierarchy_level = ? ';
         queryParams.push(filters.hierarchy_level);
       }
 
       if (filters.status) {
-        query += ' AND m.status = ?';
+        query += ' AND m.status = $1';
         queryParams.push(filters.status);
       }
 
       if (filters.date_from) {
-        query += ' AND m.scheduled_date >= ?';
+        query += ' AND m.scheduled_date >= $1';
         queryParams.push(filters.date_from);
       }
 
       if (filters.date_to) {
-        query += ' AND m.scheduled_date <= ?';
+        query += ' AND m.scheduled_date <= $1';
         queryParams.push(filters.date_to);
       }
 
@@ -296,7 +296,7 @@ export class ImportExportService {
 
       const meetings = await executeQuery(query, queryParams);
 
-      const fileName = `meetings_export_${exportId}.${options.format === 'excel' ? 'xlsx' : options.format}`;
+      const fileName = 'meetings_export_${exportId}.' + options.format === 'excel' ? 'xlsx'  : options.format + '';
       const filePath = path.join(process.cwd(), 'exports', fileName);
 
       await this.writeFile(filePath, meetings, options);
@@ -320,7 +320,7 @@ export class ImportExportService {
         SELECT 
           la.id,
           lp.title as position,
-          CONCAT(m.firstname, ' ', m.surname) as member_name,
+          m.firstname || ' ' || m.surname as member_name,
           m.member_id,
           la.hierarchy_level,
           la.entity_id,
@@ -328,24 +328,24 @@ export class ImportExportService {
           la.start_date,
           la.end_date,
           la.status,
-          CONCAT(appointed_by.firstname, ' ', appointed_by.surname) as appointed_by_name,
+          appointed_by.firstname || ' ' || appointed_by.surname as appointed_by_name,
           la.created_at
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
         LEFT JOIN members m ON la.member_id = m.id
         LEFT JOIN users appointed_by ON la.appointed_by = appointed_by.id
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const queryParams: any[] = [];
 
       if (filters.hierarchy_level) {
-        query += ' AND la.hierarchy_level = ?';
+        query += ' AND la.hierarchy_level = ? ';
         queryParams.push(filters.hierarchy_level);
       }
 
       if (filters.status) {
-        query += ' AND la.status = ?';
+        query += ' AND la.status = $1';
         queryParams.push(filters.status);
       }
 
@@ -353,7 +353,7 @@ export class ImportExportService {
 
       const leadership = await executeQuery(query, queryParams);
 
-      const fileName = `leadership_export_${exportId}.${options.format === 'excel' ? 'xlsx' : options.format}`;
+      const fileName = 'leadership_export_${exportId}.' + options.format === 'excel' ? 'xlsx'  : options.format + '';
       const filePath = path.join(process.cwd(), 'exports', fileName);
 
       await this.writeFile(filePath, leadership, options);
@@ -392,7 +392,7 @@ export class ImportExportService {
           throw new ValidationError('Invalid report type');
       }
 
-      const fileName = `${reportType}_${exportId}.${options.format === 'excel' ? 'xlsx' : options.format}`;
+      const fileName = '${reportType}_${exportId}.' + options.format === 'excel' ? 'xlsx' : options.format + '';
       const filePath = path.join(process.cwd(), 'exports', fileName);
 
       await this.writeFile(filePath, data, options);
@@ -408,7 +408,7 @@ export class ImportExportService {
     const ext = path.extname(filePath).toLowerCase();
     
     if (!this.SUPPORTED_FORMATS.includes(ext.substring(1))) {
-      throw new ValidationError(`Unsupported file format: ${ext}`);
+      throw new ValidationError('Unsupported file format: ' + ext + '');
     }
 
     const stats = fs.statSync(filePath);
@@ -482,7 +482,7 @@ export class ImportExportService {
           row: rowIndex,
           field,
           value: row[field],
-          error: `${field} is required`
+          error: '' + field + ' is required'
         });
       }
     }
@@ -499,10 +499,10 @@ export class ImportExportService {
 
     // Check for duplicate email
     if (row.email) {
-      const existing = await executeQuerySingle('SELECT id FROM members WHERE email = ?', [row.email]);
+      const existing = await executeQuerySingle('SELECT id FROM members WHERE email = ? ', [row.email]);
       if (existing) {
         result.errors.push({
-          row: rowIndex,
+          row : rowIndex,
           field: 'email',
           value: row.email,
           error: 'Email already exists'
@@ -519,7 +519,7 @@ export class ImportExportService {
         member_id, firstname, surname, email, phone, date_of_birth, gender,
         id_number, address, city, province, postal_code, hierarchy_level,
         entity_id, membership_type, membership_status, join_date, created_by, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', NOW(), ?, NOW())
+      ) EXCLUDED.? , , $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'Active', CURRENT_TIMESTAMP, $16, CURRENT_TIMESTAMP
     `, [
       memberId, row.firstname, row.surname, row.email, row.phone,
       row.date_of_birth, row.gender, row.id_number, row.address,
@@ -528,7 +528,7 @@ export class ImportExportService {
     ]);
   }
 
-  private static async validateMeetingData(row: any, rowIndex: number, result: ImportResult): Promise<void> {
+  private static async validateMeetingData(row : any, rowIndex: number, result: ImportResult): Promise<void> {
     const requiredFields = ['title', 'scheduled_date', 'hierarchy_level'];
     
     for (const field of requiredFields) {
@@ -537,7 +537,7 @@ export class ImportExportService {
           row: rowIndex,
           field,
           value: row[field],
-          error: `${field} is required`
+          error: '' + field + ' is required'
         });
       }
     }
@@ -548,7 +548,7 @@ export class ImportExportService {
       INSERT INTO meetings (
         title, description, meeting_type_id, hierarchy_level, entity_id,
         scheduled_date, duration_minutes, location, virtual_link, status, created_by, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Scheduled', ?, NOW())
+      ) EXCLUDED.? , , $3, $4, $5, $6, $7, $8, $9, 'Scheduled', $10, CURRENT_TIMESTAMP
     `, [
       row.title, row.description, row.meeting_type_id || 1, row.hierarchy_level,
       row.entity_id || 1, row.scheduled_date, row.duration_minutes || 60,
@@ -556,30 +556,30 @@ export class ImportExportService {
     ]);
   }
 
-  private static generateImportId(): string {
-    return `IMP_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  private static generateImportId() : string {
+    return 'IMP_${Date.now()}_' + Math.random().toString(36).substring(2, 8).toUpperCase() + '';
   }
 
   private static async generateMemberId(): Promise<string> {
     const year = new Date().getFullYear();
     const count = await executeQuerySingle(
-      'SELECT COUNT(*) as count FROM members WHERE member_id LIKE ?',
-      [`${year}%`]
+      'SELECT COUNT(*) as count FROM members WHERE member_id LIKE ? ',
+      ['' + year + '%']
     );
     const sequence = (count?.count || 0) + 1;
-    return `${year}${sequence.toString().padStart(6, '0')}`;
+    return '${year}' + sequence.toString().padStart(6, '0') + '';
   }
 
   // Analytics data methods
-  private static async getMembershipSummaryData(filters: any): Promise<any[]> {
+  private static async getMembershipSummaryData(filters : any): Promise<any[]> {
     return await executeQuery(`
       SELECT
         hierarchy_level,
         membership_status,
         COUNT(*) as count,
-        AVG(DATEDIFF(NOW(), join_date)) as avg_tenure_days
+        AVG((CURRENT_TIMESTAMP::DATE - join_date::DATE)) as avg_tenure_days
       FROM members
-      WHERE 1=1
+      WHERE 1= TRUE
       GROUP BY hierarchy_level, membership_status
       ORDER BY hierarchy_level, membership_status
     `);
@@ -603,10 +603,10 @@ export class ImportExportService {
     return await executeQuery(`
       SELECT
         lp.title as position,
-        CONCAT(m.firstname, ' ', m.surname) as member_name,
+        m.firstname || ' ' || m.surname as member_name,
         la.start_date,
         la.end_date,
-        DATEDIFF(COALESCE(la.end_date, NOW()), la.start_date) as tenure_days,
+        (COALESCE(la.end_date::DATE - CURRENT_TIMESTAMP::DATE), la.start_date) as tenure_days,
         la.status
       FROM leadership_appointments la
       JOIN leadership_positions lp ON la.position_id = lp.id
@@ -620,7 +620,7 @@ export class ImportExportService {
       SELECT
         e.title as election_title,
         lp.title as position,
-        CONCAT(m.firstname, ' ', m.surname) as candidate_name,
+        m.firstname || ' ' || m.surname as candidate_name,
         COUNT(ev.id) as votes_received,
         CASE WHEN ec.is_winner = 1 THEN 'Winner' ELSE 'Candidate' END as result
       FROM elections e
@@ -674,7 +674,7 @@ export class ImportExportService {
       throw new ValidationError('Invalid entity type for template');
     }
 
-    const fileName = `${entityType}_import_template.${format === 'excel' ? 'xlsx' : 'csv'}`;
+    const fileName = '${entityType}_import_template.' + format === 'excel' ? 'xlsx' : 'csv' + '';
     const filePath = path.join(process.cwd(), 'templates', fileName);
 
     // Ensure templates directory exists

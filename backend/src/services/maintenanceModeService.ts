@@ -174,8 +174,8 @@ export class MaintenanceModeService {
           scheduled_end = ?,
           affected_modules = ?,
           enabled_by = ?,
-          enabled_at = NOW(),
-          updated_at = NOW()
+          enabled_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
         ORDER BY id DESC 
         LIMIT 1
       `, [
@@ -214,8 +214,8 @@ export class MaintenanceModeService {
         SET 
           is_enabled = FALSE,
           disabled_by = ?,
-          disabled_at = NOW(),
-          updated_at = NOW()
+          disabled_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
         ORDER BY id DESC 
         LIMIT 1
       `, [userId]);
@@ -256,7 +256,7 @@ export class MaintenanceModeService {
           auto_enable = TRUE,
           auto_disable = TRUE,
           enabled_by = ?,
-          updated_at = NOW()
+          updated_at = CURRENT_TIMESTAMP
         ORDER BY id DESC 
         LIMIT 1
       `, [
@@ -300,21 +300,20 @@ export class MaintenanceModeService {
     try {
       // Get user info
       const user = await executeQuerySingle(`
-        SELECT email FROM users WHERE id = ?
-      `, [userId]);
+        SELECT email FROM users WHERE id = ? `, [userId]);
 
       await executeQuery(`
         INSERT INTO maintenance_mode_logs (
           action, maintenance_level, message, scheduled_start, scheduled_end,
           bypass_settings, user_id, user_email, ip_address, user_agent
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       `, [
         action,
         details?.maintenance_level || null,
         details?.message || null,
         details?.scheduled_start || null,
         details?.scheduled_end || null,
-        details ? JSON.stringify(details) : null,
+        details ? JSON.stringify(details)  : null,
         userId,
         user?.email || null,
         ipAddress || null,
@@ -362,9 +361,8 @@ export class MaintenanceModeService {
       ) {
         await executeQuery(`
           UPDATE maintenance_mode 
-          SET is_enabled = TRUE, enabled_at = NOW(), updated_at = NOW()
-          WHERE id = ?
-        `, [maintenanceMode.id]);
+          SET is_enabled = TRUE, enabled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? `, [maintenanceMode.id]);
 
         await this.logMaintenanceAction('auto_enabled', maintenanceMode.enabled_by || 0);
         await this.clearCache();
@@ -379,15 +377,15 @@ export class MaintenanceModeService {
       ) {
         await executeQuery(`
           UPDATE maintenance_mode 
-          SET is_enabled = FALSE, disabled_at = NOW(), updated_at = NOW()
-          WHERE id = ?
+          SET is_enabled = FALSE, disabled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
         `, [maintenanceMode.id]);
 
         await this.logMaintenanceAction('auto_disabled', maintenanceMode.enabled_by || 0);
         await this.clearCache();
       }
     } catch (error) {
-      console.error('Error checking scheduled maintenance:', error);
+      console.error('Error checking scheduled maintenance : ', error);
     }
   }
 }

@@ -5,7 +5,7 @@ export const CacheInvalidationPatterns = {
   // Member-related cache patterns
   MEMBER: {
     ALL: 'member:*',
-    SPECIFIC: (id: number) => `member:*:${id}`,
+    SPECIFIC: (id: number) => 'member:*:' + id + '',
     LIST: 'member:*/list*',
     COUNT: 'member:*/count*'
   },
@@ -144,7 +144,7 @@ export const cacheInvalidationService = new CacheInvalidationService();
 export const CacheInvalidationHooks = {
   
   // Hook for member operations
-  onMemberChange: async (operation: 'create' | 'update' | 'delete', memberId?: number) => {
+  onMemberChange: async (operation: 'create' | 'update' | 'delete', memberId: number) => {
     console.log(`Member ${operation} detected, invalidating caches...`);
     await cacheInvalidationService.invalidateMemberCaches(memberId);
     
@@ -180,33 +180,33 @@ export const CacheInvalidationHooks = {
   // Hook for meeting operations
   onMeetingChange: async (operation: 'create' | 'update' | 'delete') => {
     console.log(`Meeting ${operation} detected, invalidating caches...`);
-    
+
     await cacheInvalidationService.invalidateAnalyticsCaches([
       CacheInvalidationPatterns.ANALYTICS.MEETINGS,
       CacheInvalidationPatterns.ANALYTICS.DASHBOARD
     ]);
   },
-  
+
   // Hook for leadership operations
   onLeadershipChange: async (operation: 'create' | 'update' | 'delete') => {
     console.log(`Leadership ${operation} detected, invalidating caches...`);
-    
+
     await cacheInvalidationService.invalidateAnalyticsCaches([
       CacheInvalidationPatterns.ANALYTICS.LEADERSHIP,
       CacheInvalidationPatterns.ANALYTICS.DASHBOARD
     ]);
   },
-  
+
   // Hook for geographic data changes
   onGeographicDataChange: async (operation: 'create' | 'update' | 'delete') => {
     console.log(`Geographic data ${operation} detected, invalidating caches...`);
     await cacheInvalidationService.invalidateGeographicCaches();
   },
-  
+
   // Hook for lookup data changes
-  onLookupDataChange: async (operation: 'create' | 'update' | 'delete', type?: string) => {
+  onLookupDataChange: async (operation: 'create' | 'update' | 'delete', type: string) => {
     console.log(`Lookup data ${operation} detected, invalidating caches...`);
-    
+
     if (type) {
       const specificPattern = (CacheInvalidationPatterns.LOOKUP as any)[type.toUpperCase()];
       if (specificPattern) {
@@ -221,7 +221,7 @@ export const CacheInvalidationHooks = {
   // Hook for bulk operations
   onBulkOperation: async (operation: string, affectedCount: number) => {
     console.log(`Bulk ${operation} completed (${affectedCount} records), invalidating all caches...`);
-    
+
     // For bulk operations, it's safer to invalidate all caches
     await cacheInvalidationService.invalidateAllCaches();
   }

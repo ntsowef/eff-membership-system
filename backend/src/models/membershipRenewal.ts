@@ -55,16 +55,16 @@ export class MembershipRenewalModel {
     try {
       // Get renewal statistics for current month
       const renewalStatsQuery = `
-        SELECT 
-          COUNT(*) as total_renewals,
-          SUM(CASE WHEN renewal_status = 'pending' THEN 1 ELSE 0 END) as pending_renewals,
-          SUM(CASE WHEN renewal_status = 'completed' THEN 1 ELSE 0 END) as completed_renewals,
-          SUM(CASE WHEN renewal_status = 'expired' OR payment_status = 'failed' THEN 1 ELSE 0 END) as failed_renewals,
-          SUM(CASE WHEN payment_status = 'completed' THEN amount_paid ELSE 0 END) as total_revenue,
-          AVG(CASE WHEN payment_status = 'completed' THEN amount_paid ELSE NULL END) as avg_amount
-        FROM membership_renewals 
-        WHERE MONTH(created_at) = MONTH(CURDATE()) 
-        AND YEAR(created_at) = YEAR(CURDATE())
+        SELECT
+          COALESCE(COUNT(*), 0) as total_renewals,
+          COALESCE(SUM(CASE WHEN renewal_status = 'pending' THEN 1 ELSE 0 END), 0) as pending_renewals,
+          COALESCE(SUM(CASE WHEN renewal_status = 'completed' THEN 1 ELSE 0 END), 0) as completed_renewals,
+          COALESCE(SUM(CASE WHEN renewal_status = 'expired' OR payment_status = 'failed' THEN 1 ELSE 0 END), 0) as failed_renewals,
+          COALESCE(SUM(CASE WHEN payment_status = 'completed' THEN renewal_amount ELSE 0 END), 0) as total_revenue,
+          COALESCE(AVG(CASE WHEN payment_status = 'completed' THEN renewal_amount ELSE NULL END), 0) as avg_amount
+        FROM membership_renewals
+        WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
       `;
 
       // Try to get real renewal statistics, fallback to calculated estimates
@@ -96,18 +96,18 @@ export class MembershipRenewalModel {
 
       // Get upcoming expirations (members who need renewal)
       const upcomingExpirationsQuery = `
-        SELECT 
+        SELECT
           member_id,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           email,
           COALESCE(cell_number, '') as phone_number,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date,
-          DATEDIFF(DATE_ADD(member_created_at, INTERVAL 365 DAY), CURDATE()) as days_until_expiry,
+          (member_created_at + INTERVAL '365 days') as expiry_date,
+          EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE)::INTEGER as days_until_expiry,
           province_name
-        FROM vw_member_details 
-        WHERE DATE_ADD(member_created_at, INTERVAL 365 DAY) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
-        ORDER BY DATE_ADD(member_created_at, INTERVAL 365 DAY) ASC
+        FROM vw_member_details
+        WHERE (member_created_at + INTERVAL '365 days') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '60 days')
+        ORDER BY (member_created_at + INTERVAL '365 days') ASC
         LIMIT 50
       `;
       
@@ -124,7 +124,7 @@ export class MembershipRenewalModel {
 
       // Get recent member registrations as proxy for renewals
       const recentRenewalsQuery = `
-        SELECT 
+        SELECT
           member_id,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
@@ -134,8 +134,8 @@ export class MembershipRenewalModel {
           'completed' as renewal_status,
           'online' as payment_method,
           CAST(700.00 AS DECIMAL(10,2)) as amount_paid
-        FROM vw_member_details 
-        WHERE member_created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        FROM vw_member_details
+        WHERE member_created_at >= (CURRENT_DATE - INTERVAL '30 days')
         ORDER BY member_created_at DESC
         LIMIT 20
       `;
@@ -160,7 +160,7 @@ export class MembershipRenewalModel {
             payment_method as method,
             COUNT(*) as count,
             ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM membership_renewals WHERE payment_status = 'Completed')), 1) as percentage,
-            SUM(final_amount) as total_amount
+            SUM(renewal_amount) as total_amount
           FROM membership_renewals
           WHERE payment_status = 'Completed'
           AND payment_method IS NOT NULL
@@ -184,14 +184,14 @@ export class MembershipRenewalModel {
       try {
         const trendsQuery = `
           SELECT
-            DATE_FORMAT(renewal_requested_date, '%M %Y') as month,
+            TO_CHAR(renewal_requested_date, 'Month YYYY') as month,
             COUNT(*) as renewals,
-            SUM(CASE WHEN payment_status = 'Completed' THEN final_amount ELSE 0 END) as revenue,
-            ROUND((COUNT(CASE WHEN renewal_status = 'Completed' THEN 1 END) / COUNT(*)) * 100, 1) as rate
+            SUM(CASE WHEN payment_status = 'Completed' THEN renewal_amount ELSE 0 END) as revenue,
+            ROUND((COUNT(CASE WHEN renewal_status = 'Completed' THEN 1 END)::NUMERIC / COUNT(*)) * 100, 1) as rate
           FROM membership_renewals
-          WHERE renewal_requested_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-          GROUP BY DATE_FORMAT(renewal_requested_date, '%Y-%m'), DATE_FORMAT(renewal_requested_date, '%M %Y')
-          ORDER BY renewal_requested_date ASC
+          WHERE renewal_requested_date >= (CURRENT_DATE - INTERVAL '6 months')
+          GROUP BY TO_CHAR(renewal_requested_date, 'YYYY-MM'), TO_CHAR(renewal_requested_date, 'Month YYYY')
+          ORDER BY MIN(renewal_requested_date) ASC
         `;
         renewalTrends = await executeQuery(trendsQuery);
       } catch (error) {
@@ -215,18 +215,18 @@ export class MembershipRenewalModel {
 
       return {
         renewal_statistics: {
-          total_renewals_this_month: renewalStats.total_renewals,
-          pending_renewals: renewalStats.pending_renewals,
-          completed_renewals: renewalStats.completed_renewals,
-          failed_renewals: renewalStats.failed_renewals,
-          total_revenue: renewalStats.total_revenue,
-          average_renewal_amount: renewalStats.avg_amount,
+          total_renewals_this_month: renewalStats.total_renewals || 0,
+          pending_renewals: renewalStats.pending_renewals || 0,
+          completed_renewals: renewalStats.completed_renewals || 0,
+          failed_renewals: renewalStats.failed_renewals || 0,
+          total_revenue: renewalStats.total_revenue || 0,
+          average_renewal_amount: renewalStats.avg_amount || 0,
           renewal_rate: parseFloat(renewalRate.toFixed(1))
         },
-        upcoming_expirations: upcomingExpirations,
-        recent_renewals: recentRenewals,
-        payment_method_breakdown: paymentMethodBreakdown,
-        renewal_trends: renewalTrends
+        upcoming_expirations: upcomingExpirations || [],
+        recent_renewals: recentRenewals || [],
+        payment_method_breakdown: paymentMethodBreakdown || [],
+        renewal_trends: renewalTrends || []
       };
     } catch (error) {
       throw new DatabaseError('Failed to fetch renewal dashboard data', error);
@@ -275,10 +275,10 @@ export class MembershipRenewalModel {
               COALESCE(surname, '') as surname,
               email,
               COALESCE(cell_number, '') as phone_number,
-              DATE_ADD(member_created_at, INTERVAL 365 DAY) as current_expiry_date,
+              (member_created_at + INTERVAL '365 days') as current_expiry_date,
               province_name
             FROM vw_member_details
-            WHERE member_id = ?
+            WHERE member_id = $1
           `;
 
           const memberData = await executeQuerySingle<{
@@ -410,18 +410,18 @@ export class MembershipRenewalModel {
     try {
       // Get member information
       const memberQuery = `
-        SELECT 
+        SELECT
           member_id,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           email,
           COALESCE(cell_number, '') as phone_number,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as current_expiry_date,
-          DATEDIFF(DATE_ADD(member_created_at, INTERVAL 365 DAY), CURDATE()) as days_until_expiry,
+          (member_created_at + INTERVAL '365 days') as current_expiry_date,
+          EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE)::INTEGER as days_until_expiry,
           province_name,
           member_created_at as join_date
-        FROM vw_member_details 
-        WHERE member_id = ?
+        FROM vw_member_details
+        WHERE member_id = $1
       `;
       
       const memberInfo = await executeQuerySingle<{
@@ -449,12 +449,12 @@ export class MembershipRenewalModel {
             renewal_id,
             renewal_status,
             payment_status,
-            final_amount as amount_due,
+            renewal_amount as amount_due,
             renewal_period_months,
             grace_period_end_date
           FROM membership_renewals
-          WHERE member_id = ?
-          AND renewal_year = YEAR(CURDATE())
+          WHERE member_id = $1
+          AND renewal_year = EXTRACT(YEAR FROM CURRENT_DATE)
           ORDER BY renewal_requested_date DESC
           LIMIT 1
         `;
@@ -503,30 +503,30 @@ export class MembershipRenewalModel {
       // Get real workflow steps from database
       const workflowQuery = `
         SELECT
-          CONCAT('step_', ROW_NUMBER() OVER (ORDER BY created_at)) as step_id,
-          renewal_id,
+          CONCAT('step_', ROW_NUMBER() OVER (ORDER BY member_created_at)) as step_id,
+          member_id::TEXT as renewal_id,
           'reminder' as step_type,
           CASE
-            WHEN DATEDIFF(expiry_date, CURDATE()) <= 60 THEN 'completed'
+            WHEN EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE) <= 60 THEN 'completed'
             ELSE 'pending'
           END as step_status,
-          DATE_SUB(CURDATE(), INTERVAL 30 DAY) as scheduled_date,
+          (CURRENT_DATE - INTERVAL '30 days') as scheduled_date,
           CASE
-            WHEN DATEDIFF(expiry_date, CURDATE()) <= 60 THEN DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            WHEN EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE) <= 60 THEN (CURRENT_DATE - INTERVAL '30 days')
             ELSE NULL
           END as completed_date,
           CASE
-            WHEN DATEDIFF(expiry_date, CURDATE()) <= 60 THEN '60-day renewal reminder sent'
-            WHEN DATEDIFF(expiry_date, CURDATE()) <= 30 THEN '30-day renewal reminder sent'
+            WHEN EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE) <= 60 THEN '60-day renewal reminder sent'
+            WHEN EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE) <= 30 THEN '30-day renewal reminder sent'
             ELSE 'Awaiting payment'
           END as action_taken,
           CASE
-            WHEN DATEDIFF(expiry_date, CURDATE()) <= 60 THEN 'Email and SMS reminder sent successfully'
-            WHEN DATEDIFF(expiry_date, CURDATE()) <= 30 THEN 'Follow-up reminder with payment options'
+            WHEN EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE) <= 60 THEN 'Email and SMS reminder sent successfully'
+            WHEN EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE) <= 30 THEN 'Follow-up reminder with payment options'
             ELSE 'Multiple payment options provided'
           END as notes
         FROM vw_member_details
-        WHERE member_id = ?
+        WHERE member_id = $1
         LIMIT 3
       `;
 
@@ -535,12 +535,12 @@ export class MembershipRenewalModel {
       // Get real payment history from database
       const paymentQuery = `
         SELECT
-          CONCAT('PAY_', member_id, '_', YEAR(renewal_completed_date)) as payment_id,
-          CAST(final_amount AS DECIMAL(10,2)) as amount,
+          CONCAT('PAY_', member_id, '_', EXTRACT(YEAR FROM renewal_completed_date)) as payment_id,
+          CAST(renewal_amount AS DECIMAL(10,2)) as amount,
           payment_method,
           renewal_status as payment_status,
           DATE(renewal_completed_date) as payment_date,
-          CONCAT('TXN_', YEAR(renewal_completed_date), '_', SUBSTRING(MD5(CONCAT(member_id, renewal_completed_date)), 1, 9)) as transaction_id
+          CONCAT('TXN_', EXTRACT(YEAR FROM renewal_completed_date), '_', SUBSTRING(MD5(CONCAT(member_id::TEXT, renewal_completed_date::TEXT)), 1, 9)) as transaction_id
         FROM membership_renewals
         WHERE member_id = ? AND renewal_status = 'Completed'
         ORDER BY renewal_completed_date DESC
@@ -593,18 +593,18 @@ export class MembershipRenewalModel {
       // Get real renewal trends from database
       const trendsQuery = `
         SELECT
-          DATE_FORMAT(renewal_completed_date, '%M %Y') as month,
+          TO_CHAR(renewal_completed_date, 'Month YYYY') as month,
           COUNT(*) as total_renewals,
           SUM(CASE WHEN renewal_status = 'Completed' THEN 1 ELSE 0 END) as successful_renewals,
           SUM(CASE WHEN renewal_status = 'Failed' THEN 1 ELSE 0 END) as failed_renewals,
-          SUM(CASE WHEN renewal_status = 'Completed' THEN CAST(final_amount AS DECIMAL(10,2)) ELSE 0 END) as revenue,
+          SUM(CASE WHEN renewal_status = 'Completed' THEN CAST(renewal_amount AS DECIMAL(10,2)) ELSE 0 END) as revenue,
           ROUND(
             (SUM(CASE WHEN renewal_status = 'Completed' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 1
           ) as renewal_rate
         FROM membership_renewals
-        WHERE renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-        GROUP BY YEAR(renewal_completed_date), MONTH(renewal_completed_date)
-        ORDER BY renewal_completed_date DESC
+        WHERE renewal_completed_date >= (CURRENT_DATE - INTERVAL '12 months')
+        GROUP BY EXTRACT(YEAR FROM renewal_completed_date), EXTRACT(MONTH FROM renewal_completed_date), TO_CHAR(renewal_completed_date, 'Month YYYY')
+        ORDER BY MAX(renewal_completed_date) DESC
         LIMIT 12
       `;
 
@@ -620,23 +620,23 @@ export class MembershipRenewalModel {
       // Get real revenue analysis from database
       const revenueQuery = `
         SELECT
-          SUM(CASE WHEN YEAR(renewal_completed_date) = YEAR(CURDATE()) THEN CAST(final_amount AS DECIMAL(10,2)) ELSE 0 END) as total_revenue_ytd,
-          AVG(CASE WHEN renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) THEN CAST(final_amount AS DECIMAL(10,2)) END) as average_monthly_revenue,
-          AVG(CAST(final_amount AS DECIMAL(10,2))) as average_renewal_amount,
+          SUM(CASE WHEN EXTRACT(YEAR FROM renewal_completed_date) = EXTRACT(YEAR FROM CURRENT_DATE) THEN CAST(renewal_amount AS DECIMAL(10,2)) ELSE 0 END) as total_revenue_ytd,
+          AVG(CASE WHEN renewal_completed_date >= (CURRENT_DATE - INTERVAL '12 months') THEN CAST(renewal_amount AS DECIMAL(10,2)) END) as average_monthly_revenue,
+          AVG(CAST(renewal_amount AS DECIMAL(10,2))) as average_renewal_amount,
           (
-            SELECT DATE_FORMAT(renewal_completed_date, '%M %Y')
+            SELECT TO_CHAR(renewal_completed_date, 'Month YYYY')
             FROM membership_renewals
-            WHERE renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND renewal_status = 'Completed'
-            GROUP BY YEAR(renewal_completed_date), MONTH(renewal_completed_date)
-            ORDER BY SUM(CAST(final_amount AS DECIMAL(10,2))) DESC
+            WHERE renewal_completed_date >= (CURRENT_DATE - INTERVAL '12 months') AND renewal_status = 'Completed'
+            GROUP BY EXTRACT(YEAR FROM renewal_completed_date), EXTRACT(MONTH FROM renewal_completed_date), TO_CHAR(renewal_completed_date, 'Month YYYY')
+            ORDER BY SUM(CAST(renewal_amount AS DECIMAL(10,2))) DESC
             LIMIT 1
           ) as highest_revenue_month,
           (
-            SELECT DATE_FORMAT(renewal_completed_date, '%M %Y')
+            SELECT TO_CHAR(renewal_completed_date, 'Month YYYY')
             FROM membership_renewals
-            WHERE renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND renewal_status = 'Completed'
-            GROUP BY YEAR(renewal_completed_date), MONTH(renewal_completed_date)
-            ORDER BY SUM(CAST(final_amount AS DECIMAL(10,2))) ASC
+            WHERE renewal_completed_date >= (CURRENT_DATE - INTERVAL '12 months') AND renewal_status = 'Completed'
+            GROUP BY EXTRACT(YEAR FROM renewal_completed_date), EXTRACT(MONTH FROM renewal_completed_date), TO_CHAR(renewal_completed_date, 'Month YYYY')
+            ORDER BY SUM(CAST(renewal_amount AS DECIMAL(10,2))) ASC
             LIMIT 1
           ) as lowest_revenue_month
         FROM membership_renewals
@@ -663,12 +663,12 @@ export class MembershipRenewalModel {
       // Get real retention metrics from database
       const retentionQuery = `
         SELECT
-          COUNT(DISTINCT member_id) as total_members,
-          AVG(DATEDIFF(CURDATE(), join_date) / 365.25) as average_membership_duration,
+          COUNT(DISTINCT v.member_id) as total_members,
+          AVG(EXTRACT(DAY FROM CURRENT_DATE - v.member_created_at) / 365.25) as average_membership_duration,
           SUM(CASE WHEN renewal_status = 'completed' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as overall_retention_rate
         FROM vw_member_details v
         LEFT JOIN membership_renewals mr ON v.member_id = mr.member_id
-        WHERE v.join_date >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+        WHERE v.member_created_at >= (CURRENT_DATE - INTERVAL '3 years')
       `;
 
       const retentionResult = await executeQuery<{
@@ -691,9 +691,9 @@ export class MembershipRenewalModel {
         SELECT
           payment_method,
           COUNT(*) as count,
-          COUNT(*) * 100.0 / (SELECT COUNT(*) FROM membership_renewals WHERE renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND renewal_status = 'Completed') as percentage
+          COUNT(*) * 100.0 / (SELECT COUNT(*) FROM membership_renewals WHERE renewal_completed_date >= (CURRENT_DATE - INTERVAL '12 months') AND renewal_status = 'Completed') as percentage
         FROM membership_renewals
-        WHERE renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND renewal_status = 'Completed'
+        WHERE renewal_completed_date >= (CURRENT_DATE - INTERVAL '12 months') AND renewal_status = 'Completed'
         GROUP BY payment_method
       `;
 
@@ -747,11 +747,11 @@ export class MembershipRenewalModel {
             v.province_name,
             COUNT(mr.renewal_id) as renewals_this_month,
             ROUND(COUNT(mr.renewal_id) * 100.0 / COUNT(DISTINCT v.member_id), 1) as renewal_rate,
-            SUM(CAST(mr.final_amount AS DECIMAL(10,2))) as revenue,
-            ROUND(RAND() * 20 - 5, 1) as growth_rate
+            SUM(CAST(mr.renewal_amount AS DECIMAL(10,2))) as revenue,
+            ROUND((RANDOM() * 20 - 5)::NUMERIC, 1) as growth_rate
           FROM vw_member_details v
           LEFT JOIN membership_renewals mr ON v.member_id = mr.member_id
-            AND mr.renewal_completed_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+            AND mr.renewal_completed_date >= (CURRENT_DATE - INTERVAL '1 month')
             AND mr.renewal_status = 'Completed'
           GROUP BY v.province_name
         ) r ON p.province_name = r.province_name

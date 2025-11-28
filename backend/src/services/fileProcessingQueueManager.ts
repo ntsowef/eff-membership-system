@@ -194,8 +194,8 @@ export class FileProcessingQueueManager {
     // Update in database
     await executeQuery(`
       UPDATE file_processing_jobs
-      SET status = ?, progress = ?, started_at = ?, completed_at = ?, error = ?, result = ?
-      WHERE job_id = ?
+      SET status = $1, progress = $2, started_at = $3, completed_at = $4, error = $5, result = $6
+      WHERE job_id = $7
     `, [
       job.status,
       job.progress,
@@ -247,7 +247,7 @@ export class FileProcessingQueueManager {
       FROM file_processing_jobs fpj
       LEFT JOIN users u ON fpj.user_id = u.id
       ORDER BY fpj.created_at DESC
-      LIMIT ?
+      LIMIT $1
     `;
 
     const jobs = await executeQuery(query, [limit]);
@@ -284,8 +284,8 @@ export class FileProcessingQueueManager {
         // Update database
         await executeQuery(`
           UPDATE file_processing_jobs
-          SET status = 'cancelled', updated_at = NOW()
-          WHERE job_id = ?
+          SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+          WHERE job_id = $1
         `, [jobId]);
 
         // If it's the currently processing job, clear the timeout
@@ -302,7 +302,7 @@ export class FileProcessingQueueManager {
       }
       return false;
     } catch (error) {
-      console.error('Error cancelling job:', error);
+      console.error('Error cancelling job : ', error);
       return false;
     }
   }
@@ -326,7 +326,7 @@ export class FileProcessingQueueManager {
       // Update database to mark all queued jobs as cancelled
       await executeQuery(`
         UPDATE file_processing_jobs
-        SET status = 'cancelled', updated_at = NOW()
+        SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
         WHERE status = 'queued'
       `);
 

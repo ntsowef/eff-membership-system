@@ -1,0 +1,342 @@
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { logger } from '../utils/logger';
+
+export interface DeliveryStatus {
+  message_id: string;
+  provider_message_id: string;
+  status: 'pending' | 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'expired';
+  delivery_timestamp?: Date;
+  error_code?: string;
+  error_message?: string;
+  retry_count: number;
+  cost?: number;
+}
+
+export interface RetryConfig {
+  maxRetries: number;
+  retryDelayMs: number;
+  backoffMultiplier: number;
+  retryableErrors: string[];
+}
+
+export class SMSDeliveryTrackingService {
+  private static readonly DEFAULT_RETRY_CONFIG: RetryConfig = {
+    maxRetries: 3,
+    retryDelayMs: 5000, // 5 seconds
+    backoffMultiplier: 2,
+    retryableErrors: [
+      'ETIMEDOUT',
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'ECONNRESET',
+      'Rate limit exceeded',
+      'Service temporarily unavailable'
+    ]
+  };
+
+  // Track SMS delivery status
+  static async trackDeliveryStatus(deliveryStatus: DeliveryStatus): Promise<void> {
+    try {
+      const query = `
+        INSERT INTO sms_delivery_tracking (
+          message_id, provider_message_id, status, delivery_timestamp,
+          error_code, error_message, retry_count, cost, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT (message_id) DO UPDATE SET
+          status = EXCLUDED.status,
+          delivery_timestamp = EXCLUDED.delivery_timestamp,
+          error_code = EXCLUDED.error_code,
+          error_message = EXCLUDED.error_message,
+          retry_count = EXCLUDED.retry_count,
+          cost = EXCLUDED.cost,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+
+      await executeQuery(query, [
+        deliveryStatus.message_id,
+        deliveryStatus.provider_message_id,
+        deliveryStatus.status,
+        deliveryStatus.delivery_timestamp || null,
+        deliveryStatus.error_code || null,
+        deliveryStatus.error_message || null,
+        deliveryStatus.retry_count,
+        deliveryStatus.cost || null
+      ]);
+
+      logger.info('SMS delivery status tracked', {
+        messageId: deliveryStatus.message_id,
+        providerMessageId: deliveryStatus.provider_message_id,
+        status: deliveryStatus.status,
+        retryCount: deliveryStatus.retry_count
+      });
+
+    } catch (error: any) {
+      logger.error('Failed to track SMS delivery status', {
+        error: error.message,
+        deliveryStatus
+      });
+      throw error;
+    }
+  }
+
+  // Get delivery status for a message
+  static async getDeliveryStatus(messageId: string): Promise<DeliveryStatus | null> {
+    try {
+      const query = `
+        SELECT message_id, provider_message_id, status, delivery_timestamp,
+               error_code, error_message, retry_count, cost
+        FROM sms_delivery_tracking
+        WHERE message_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+
+      const result = await executeQuerySingle(query, [messageId]);
+      return result || null;
+
+    } catch (error: any) {
+      logger.error('Failed to get SMS delivery status', {
+        error: error.message,
+        messageId
+      });
+      return null;
+    }
+  }
+
+  // Get failed messages that can be retried
+  static async getRetryableMessages(retryConfig: RetryConfig = this.DEFAULT_RETRY_CONFIG): Promise<DeliveryStatus[]> {
+    try {
+      const query = `
+        SELECT message_id, provider_message_id, status, delivery_timestamp,
+               error_code, error_message, retry_count, cost
+        FROM sms_delivery_tracking
+        WHERE status = 'failed'
+          AND retry_count < ?
+          AND (error_message IS NULL OR error_message IN (${retryConfig.retryableErrors.map(() => '?').join(', ')}))
+          AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        ORDER BY created_at ASC
+        LIMIT 100
+      `;
+
+      const params = [retryConfig.maxRetries, ...retryConfig.retryableErrors];
+      const results = await executeQuery(query, params);
+      
+      return results || [];
+
+    } catch (error: any) {
+      logger.error('Failed to get retryable SMS messages', {
+        error: error.message
+      });
+      return [];
+    }
+  }
+
+  // Mark message for retry
+  static async markForRetry(messageId: string, errorMessage?: string): Promise<void> {
+    try {
+      const query = `
+        UPDATE sms_delivery_tracking
+        SET status = 'pending',
+            retry_count = retry_count + 1,
+            error_message = COALESCE(?, error_message),
+            updated_at = NOW()
+        WHERE message_id = ?
+      `;
+
+      await executeQuery(query, [errorMessage || null, messageId]);
+
+      logger.info('SMS message marked for retry', {
+        messageId,
+        errorMessage
+      });
+
+    } catch (error: any) {
+      logger.error('Failed to mark SMS message for retry', {
+        error: error.message,
+        messageId
+      });
+      throw error;
+    }
+  }
+
+  // Get delivery statistics
+  static async getDeliveryStatistics(timeframe: 'hour' | 'day' | 'week' | 'month' = 'day'): Promise<{
+    total_messages: number;
+    delivered: number;
+    failed: number;
+    pending: number;
+    delivery_rate: number;
+    average_cost: number;
+  }> {
+    try {
+      let timeCondition = '';
+      switch (timeframe) {
+        case 'hour':
+          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)';
+          break;
+        case 'day':
+          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)';
+          break;
+        case 'week':
+          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 WEEK)';
+          break;
+        case 'month':
+          timeCondition = 'created_at > DATE_SUB(NOW(), INTERVAL 1 MONTH)';
+          break;
+      }
+
+      const query = `
+        SELECT 
+          COUNT(*) as total_messages,
+          SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN status IN ('pending', 'queued', 'sending', 'sent') THEN 1 ELSE 0 END) as pending,
+          ROUND(
+            (SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) / COUNT(*)) * 100, 2
+          ) as delivery_rate,
+          ROUND(AVG(COALESCE(cost, 0)), 4) as average_cost
+        FROM sms_delivery_tracking
+        WHERE ${timeCondition}
+      `;
+
+      const result = await executeQuerySingle(query);
+      
+      return {
+        total_messages: result?.total_messages || 0,
+        delivered: result?.delivered || 0,
+        failed: result?.failed || 0,
+        pending: result?.pending || 0,
+        delivery_rate: result?.delivery_rate || 0,
+        average_cost: result?.average_cost || 0
+      };
+
+    } catch (error: any) {
+      logger.error('Failed to get SMS delivery statistics', {
+        error: error.message,
+        timeframe
+      });
+      
+      return {
+        total_messages: 0,
+        delivered: 0,
+        failed: 0,
+        pending: 0,
+        delivery_rate: 0,
+        average_cost: 0
+      };
+    }
+  }
+
+  // Process delivery status webhook
+  static async processDeliveryWebhook(webhookData: any): Promise<void> {
+    try {
+      // Extract delivery status from webhook data (flexible parsing)
+      const messageId = this.extractField(webhookData, [
+        'message_id', 'messageId', 'id', 'reference', 'ref'
+      ]);
+
+      const providerMessageId = this.extractField(webhookData, [
+        'provider_message_id', 'providerMessageId', 'external_id', 'tracking_id'
+      ]);
+
+      const status = this.mapDeliveryStatus(this.extractField(webhookData, [
+        'status', 'delivery_status', 'state', 'message_status'
+      ]));
+
+      const errorCode = this.extractField(webhookData, [
+        'error_code', 'errorCode', 'failure_code', 'error_type'
+      ]);
+
+      const errorMessage = this.extractField(webhookData, [
+        'error_message', 'errorMessage', 'failure_reason', 'error_description'
+      ]);
+
+      if (!messageId || !status) {
+        logger.warn('Invalid webhook data received', { webhookData });
+        return;
+      }
+
+      // Update delivery status
+      await this.trackDeliveryStatus({
+        message_id: messageId,
+        provider_message_id: providerMessageId || messageId,
+        status,
+        delivery_timestamp: new Date(),
+        error_code: errorCode || undefined,
+        error_message: errorMessage || undefined,
+        retry_count: 0
+      });
+
+      logger.info('Delivery webhook processed successfully', {
+        messageId,
+        status,
+        errorCode,
+        errorMessage
+      });
+
+    } catch (error: any) {
+      logger.error('Failed to process delivery webhook', {
+        error: error.message,
+        webhookData
+      });
+      throw error;
+    }
+  }
+
+  // Helper method to extract fields from webhook data
+  private static extractField(data: any, fieldNames: string[]): string | null {
+    for (const fieldName of fieldNames) {
+      if (data && data[fieldName]) {
+        return String(data[fieldName]);
+      }
+    }
+
+    // Try nested objects
+    if (data && data.data) {
+      for (const fieldName of fieldNames) {
+        if (data.data[fieldName]) {
+          return String(data.data[fieldName]);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // Map various status values to our standard status
+  private static mapDeliveryStatus(status: string | null): 'pending' | 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'expired' {
+    if (!status) return 'pending';
+
+    const statusLower = status.toLowerCase();
+
+    // Delivered statuses
+    if (['delivered', 'dlvrd', 'success', 'completed'].includes(statusLower)) {
+      return 'delivered';
+    }
+
+    // Failed statuses
+    if (['failed', 'fail', 'error', 'rejected', 'undelivered', 'expired'].includes(statusLower)) {
+      return 'failed';
+    }
+
+    // Sent statuses
+    if (['sent', 'accepted', 'submitted'].includes(statusLower)) {
+      return 'sent';
+    }
+
+    // Sending statuses
+    if (['sending', 'processing', 'in_progress'].includes(statusLower)) {
+      return 'sending';
+    }
+
+    // Queued statuses
+    if (['queued', 'buffered', 'scheduled'].includes(statusLower)) {
+      return 'queued';
+    }
+
+    // Default to pending
+    return 'pending';
+  }
+}
+
+export default SMSDeliveryTrackingService;

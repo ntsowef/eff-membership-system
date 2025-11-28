@@ -70,7 +70,7 @@ export class SMSManagementService {
     try {
       const result = await executeQuery(`
         INSERT INTO sms_templates (name, description, content, variables, category, is_active, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        EXCLUDED.?, ?, ?, ?, ?, ?, ?
       `, [
         template.name,
         template.description,
@@ -82,7 +82,7 @@ export class SMSManagementService {
       ]);
 
       const insertResult = Array.isArray(result) ? result[0] : result;
-      logger.info(`SMS template created: ${template.name}`, { templateId: insertResult.insertId });
+      logger.info('SMS template created: ' + template.name + '', { templateId: insertResult.insertId });
       return insertResult.insertId;
     } catch (error: any) {
       logger.error('Failed to create SMS template', { error: error.message, template });
@@ -96,29 +96,29 @@ export class SMSManagementService {
     search?: string;
   } = {}): Promise<SMSTemplate[]> {
     try {
-      let query = 'SELECT * FROM sms_templates WHERE 1=1';
+      let query = 'SELECT * FROM sms_templates WHERE 1= TRUE';
       const params: any[] = [];
 
       if (filters.category) {
-        query += ' AND category = ?';
+        query += ' AND category = ? ';
         params.push(filters.category);
       }
 
       if (filters.is_active !== undefined) {
-        query += ' AND is_active = ?';
+        query += ' AND is_active = $1';
         params.push(filters.is_active);
       }
 
       if (filters.search) {
-        query += ' AND (name LIKE ? OR description LIKE ? OR content LIKE ?)';
-        const searchTerm = `%${filters.search}%`;
+        query += ' AND (name LIKE ? OR description LIKE  OR content LIKE $3)';
+        const searchTerm = '%' + filters.search + '%';
         params.push(searchTerm, searchTerm, searchTerm);
       }
 
       query += ' ORDER BY created_at DESC';
 
       const result = await executeQuery(query, params);
-      const templates = Array.isArray(result) ? result : result[0] || [];
+      const templates = Array.isArray(result) ? result   : result[0] || [];
 
       return templates.map((template: any) => ({
         ...template,
@@ -133,11 +133,11 @@ export class SMSManagementService {
   static async getTemplateById(id: number): Promise<SMSTemplate | null> {
     try {
       const result = await executeQuery(
-        'SELECT * FROM sms_templates WHERE id = ?',
+        'SELECT * FROM sms_templates WHERE id = ? ',
         [id]
       );
 
-      const templates = Array.isArray(result) ? result : result[0] || [];
+      const templates = Array.isArray(result) ? result  : result[0] || [];
       if (templates.length === 0) return null;
 
       const template = templates[0];
@@ -157,27 +157,27 @@ export class SMSManagementService {
       const params: any[] = [];
 
       if (updates.name !== undefined) {
-        setClause.push('name = ?');
+        setClause.push('name = ? ');
         params.push(updates.name);
       }
       if (updates.description !== undefined) {
-        setClause.push('description = ?');
+        setClause.push('description = $1');
         params.push(updates.description);
       }
       if (updates.content !== undefined) {
-        setClause.push('content = ?');
+        setClause.push('content = $1');
         params.push(updates.content);
       }
       if (updates.variables !== undefined) {
-        setClause.push('variables = ?');
+        setClause.push('variables = $1');
         params.push(JSON.stringify(updates.variables));
       }
       if (updates.category !== undefined) {
-        setClause.push('category = ?');
+        setClause.push('category = $1');
         params.push(updates.category);
       }
       if (updates.is_active !== undefined) {
-        setClause.push('is_active = ?');
+        setClause.push('is_active = $1');
         params.push(updates.is_active);
       }
 
@@ -188,7 +188,7 @@ export class SMSManagementService {
       const updateResult = await executeQuery(`
         UPDATE sms_templates
         SET ${setClause.join(', ')}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = $${params.length}
       `, params);
 
       const result = Array.isArray(updateResult) ? updateResult[0] : updateResult;
@@ -203,12 +203,12 @@ export class SMSManagementService {
   static async deleteTemplate(id: number): Promise<boolean> {
     try {
       const deleteResult = await executeQuery(
-        'DELETE FROM sms_templates WHERE id = ?',
+        'DELETE FROM sms_templates WHERE id = ? ',
         [id]
       );
 
-      const result = Array.isArray(deleteResult) ? deleteResult[0] : deleteResult;
-      logger.info(`SMS template deleted: ${id}`, { affectedRows: result.affectedRows });
+      const result = Array.isArray(deleteResult) ? deleteResult[0]  : deleteResult;
+      logger.info('SMS template deleted: ' + id + '', { affectedRows: result.affectedRows });
       return result.affectedRows > 0;
     } catch (error: any) {
       logger.error('Failed to delete SMS template', { error: error.message, id });
@@ -223,7 +223,7 @@ export class SMSManagementService {
         INSERT INTO sms_campaigns (
           name, description, template_id, message_content, target_type, target_criteria,
           status, scheduled_at, priority, send_rate_limit, retry_failed, max_retries, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       `, [
         campaign.name,
         campaign.description || null,
@@ -241,7 +241,7 @@ export class SMSManagementService {
       ]);
 
       const result = Array.isArray(createResult) ? createResult[0] : createResult;
-      logger.info(`SMS campaign created: ${campaign.name}`, { campaignId: result.insertId });
+      logger.info('SMS campaign created: ' + campaign.name + '', { campaignId: result.insertId });
       return result.insertId;
     } catch (error: any) {
       logger.error('Failed to create SMS campaign', { error: error.message, campaign });
@@ -262,27 +262,27 @@ export class SMSManagementService {
       const limit = filters.limit || 20;
       const offset = (page - 1) * limit;
 
-      let whereClause = 'WHERE 1=1';
+      let whereClause = 'WHERE 1= TRUE';
       const params: any[] = [];
 
       if (filters.status) {
-        whereClause += ' AND status = ?';
+        whereClause += ' AND status = ? ';
         params.push(filters.status);
       }
 
       if (filters.target_type) {
-        whereClause += ' AND target_type = ?';
+        whereClause += ' AND target_type = $1';
         params.push(filters.target_type);
       }
 
       if (filters.created_by) {
-        whereClause += ' AND created_by = ?';
+        whereClause += ' AND created_by = $1';
         params.push(filters.created_by);
       }
 
       if (filters.search) {
-        whereClause += ' AND (name LIKE ? OR description LIKE ?)';
-        const searchTerm = `%${filters.search}%`;
+        whereClause += ' AND (name LIKE ? OR description LIKE )';
+        const searchTerm = '%' + filters.search + '%';
         params.push(searchTerm, searchTerm);
       }
 
@@ -295,13 +295,14 @@ export class SMSManagementService {
       const total = countResult[0]?.total || 0;
 
       // Get campaigns
+      const limitOffset = params.length + 1;
       const campaignsResultData = await executeQuery(`
         SELECT c.*, t.name as template_name
         FROM sms_campaigns c
         LEFT JOIN sms_templates t ON c.template_id = t.id
         ${whereClause}
         ORDER BY c.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT $${limitOffset} OFFSET $${limitOffset + 1}
       `, [...params, limit, offset]);
 
       const campaigns = Array.isArray(campaignsResultData) ? campaignsResultData : campaignsResultData[0] || [];
@@ -332,10 +333,9 @@ export class SMSManagementService {
         SELECT c.*, t.name as template_name
         FROM sms_campaigns c
         LEFT JOIN sms_templates t ON c.template_id = t.id
-        WHERE c.id = ?
-      `, [id]);
+        WHERE c.id = ? `, [id]);
 
-      const campaigns = Array.isArray(campaignsResultData) ? campaignsResultData : campaignsResultData[0] || [];
+      const campaigns = Array.isArray(campaignsResultData) ? campaignsResultData  : campaignsResultData[0] || [];
       if (campaigns.length === 0) return null;
 
       const campaign = campaigns[0];
@@ -354,7 +354,7 @@ export class SMSManagementService {
     let processedContent = content;
     
     Object.keys(variables).forEach(key => {
-      const placeholder = `{${key}}`;
+      const placeholder = '{' + key + '}';
       processedContent = processedContent.replace(new RegExp(placeholder, 'g'), variables[key] || '');
     });
 
@@ -380,10 +380,9 @@ export class SMSManagementService {
           SUM(total_cost) as total_cost,
           AVG(sms_parts) as avg_sms_parts
         FROM sms_messages
-        WHERE campaign_id = ?
-      `, [campaignId]);
+        WHERE campaign_id = ? `, [campaignId]);
 
-      const stats = Array.isArray(statsResultData) ? statsResultData : statsResultData[0] || [];
+      const stats = Array.isArray(statsResultData) ? statsResultData  : statsResultData[0] || [];
       return stats[0] || {
         total_messages: 0,
         sent_count: 0,
@@ -403,7 +402,7 @@ export class SMSManagementService {
   static async sendSMSMessage(message: SMSMessage): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       // Mock SMS sending - in production, integrate with real SMS provider
-      const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const messageId = 'mock_${Date.now()}_' + Math.random().toString(36).substr(2, 9) + '';
       
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 100));

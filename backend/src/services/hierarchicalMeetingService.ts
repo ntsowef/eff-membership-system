@@ -22,17 +22,40 @@ export class HierarchicalMeetingService {
   static async getMeetingTypes(hierarchyLevel?: string): Promise<MeetingType[]> {
     try {
       let query = `
-        SELECT * FROM meeting_types
+        SELECT
+          type_id,
+          type_name,
+          type_code,
+          description,
+          hierarchy_level,
+          meeting_category,
+          frequency_type,
+          default_duration_minutes,
+          requires_quorum,
+          min_notice_days,
+          max_notice_days,
+          auto_invite_rules,
+          is_active
+        FROM meeting_types
         WHERE is_active = TRUE
       `;
+
       const params: any[] = [];
 
       if (hierarchyLevel) {
-        query += ` AND hierarchy_level = ?`;
+        query += ` AND hierarchy_level = $${params.length + 1}`;
         params.push(hierarchyLevel);
       }
 
-      query += ` ORDER BY hierarchy_level, meeting_category, type_name`;
+      query += ` ORDER BY
+        CASE hierarchy_level
+          WHEN 'National' THEN 1
+          WHEN 'Provincial' THEN 2
+          WHEN 'Municipal' THEN 3
+          WHEN 'Branch' THEN 4
+        END,
+        type_name
+      `;
 
       return await executeQuery(query, params);
     } catch (error) {
@@ -41,9 +64,267 @@ export class HierarchicalMeetingService {
   }
 
   /**
+   * Generate automatic invitations based on meeting type and hierarchy
+   */
+  static async generateAutomaticInvitations(meetingTypeId: number, entityId?: number, entityType?: string): Promise<any[]> {
+    try {
+      // Get meeting type with invitation rules
+      const meetingType = await executeQuery(`
+        SELECT type_id, type_name, hierarchy_level, auto_invite_rules
+        FROM meeting_types
+        WHERE type_id = $1 AND is_active = TRUE
+      `, [meetingTypeId]);
+
+      if (!meetingType || meetingType.length === 0) {
+        throw new Error('Meeting type not found');
+      }
+
+      const type = meetingType[0];
+      const inviteRules = type.auto_invite_rules;
+
+      if (!inviteRules || !inviteRules.invitation_rules) {
+        return [];
+      }
+
+      const invitations: any[] = [];
+
+      // Process each invitation rule
+      for (const rule of inviteRules.invitation_rules) {
+        const ruleInvitations = await this.processInvitationRule(rule, type.hierarchy_level, entityId, entityType);
+        invitations.push(...ruleInvitations);
+      }
+
+      // Remove duplicates based on member_id
+      const uniqueInvitations = invitations.filter((invitation, index, self) =>
+        index === self.findIndex(inv => inv.member_id === invitation.member_id)
+      );
+
+      return uniqueInvitations;
+    } catch (error) {
+      throw createDatabaseError('Failed to generate automatic invitations', error);
+    }
+  }
+
+  /**
+   * Process a single invitation rule
+   */
+  private static async processInvitationRule(rule: any, meetingHierarchyLevel: string, entityId?: number, entityType?: string): Promise<any[]> {
+    try {
+      const invitations: any[] = [];
+
+      switch (rule.type) {
+        case 'position_based':
+          return await this.getPositionBasedInvitations(rule, meetingHierarchyLevel, entityId, entityType);
+
+        case 'all_members':
+          return await this.getAllMembersInvitations(rule, meetingHierarchyLevel, entityId, entityType);
+
+        case 'war_council_members':
+          return await this.getWarCouncilInvitations();
+
+        default:
+          console.warn(`Unknown invitation rule type: ${rule.type}`);
+          return [];
+      }
+    } catch (error) {
+      console.error('Error processing invitation rule:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get invitations based on leadership positions
+   */
+  private static async getPositionBasedInvitations(rule: any, meetingHierarchyLevel: string, entityId?: number, entityType?: string): Promise<any[]> {
+    try {
+      let query = `
+        SELECT DISTINCT
+          la.member_id,
+          m.firstname,
+          m.surname,
+          m.email,
+          lp.position_name,
+          la.hierarchy_level,
+          la.entity_id
+        FROM leadership_appointments la
+        JOIN leadership_positions lp ON la.position_id = lp.id
+        JOIN members m ON la.member_id = m.member_id
+        WHERE la.appointment_status = 'Active'
+        AND lp.is_active = TRUE
+      `;
+
+      const params: any[] = [];
+
+      // Filter by hierarchy level
+      if (rule.hierarchy_level) {
+        query += ` AND la.hierarchy_level = $${params.length + 1}`;
+        params.push(rule.hierarchy_level);
+      }
+
+      // Filter by specific positions
+      if (rule.positions && rule.positions.length > 0) {
+        const positionPlaceholders = rule.positions.map((_: any, index: number) => `$${params.length + index + 1}`).join(',');
+        query += ` AND lp.position_name IN (${positionPlaceholders})`;
+        params.push(...rule.positions);
+      }
+
+      // Handle entity-specific filtering
+      if (rule.entity_specific && entityId) {
+        query += ` AND la.entity_id = $${params.length + 1}`;
+        params.push(entityId);
+      } else if (rule.all_entities) {
+        // Include all entities for this hierarchy level (e.g., all provinces for CCT meetings)
+        // No additional filtering needed
+      }
+
+      const results = await executeQuery(query, params);
+
+      return results.map((row: any) => ({
+        member_id: row.member_id,
+        member_name: `${row.firstname} ${row.surname || ''}`.trim(),
+        member_email: row.email,
+        position_name: row.position_name,
+        hierarchy_level: row.hierarchy_level,
+        entity_id: row.entity_id,
+        invitation_priority: this.getInvitationPriority(row.position_name),
+        attendance_type: 'Required',
+        voting_rights: true
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get position-based invitations', error);
+    }
+  }
+
+  /**
+   * Get invitations for all members in a geographic area
+   */
+  private static async getAllMembersInvitations(rule: any, meetingHierarchyLevel: string, entityId?: number, entityType?: string): Promise<any[]> {
+    try {
+      let query = `
+        SELECT DISTINCT
+          m.member_id,
+          m.firstname,
+          m.surname,
+          m.email
+        FROM members m
+        WHERE m.membership_status = 'Active'
+      `;
+
+      const params: any[] = [];
+
+      // Filter by geographic entity
+      if (rule.entity_specific && entityId && entityType) {
+        switch (entityType.toLowerCase()) {
+          case 'province':
+            query += ` AND m.province_id = $${params.length + 1}`;
+            params.push(entityId);
+            break;
+          case 'municipality':
+            query += ` AND m.municipality_id = $${params.length + 1}`;
+            params.push(entityId);
+            break;
+          case 'ward':
+            query += ` AND m.ward_code = $${params.length + 1}`;
+            params.push(entityId.toString());
+            break;
+        }
+      }
+
+      query += ` ORDER BY m.surname, m.firstname LIMIT 1000`; // Limit for performance
+
+      const results = await executeQuery(query, params);
+
+      return results.map((row: any) => ({
+        member_id: row.member_id,
+        member_name: `${row.firstname} ${row.surname || ''}`.trim(),
+        member_email: row.email,
+        position_name: 'Member',
+        hierarchy_level: meetingHierarchyLevel,
+        entity_id: entityId,
+        invitation_priority: 1,
+        attendance_type: 'Optional',
+        voting_rights: true
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get all members invitations', error);
+    }
+  }
+
+  /**
+   * Get War Council member invitations
+   */
+  private static async getWarCouncilInvitations(): Promise<any[]> {
+    try {
+      // War Council positions are specific national leadership positions
+      const warCouncilPositions = [
+        'President', 'Deputy President', 'Secretary General', 'Deputy Secretary General',
+        'National Chairperson', 'Treasurer General'
+      ];
+
+      const query = `
+        SELECT DISTINCT
+          la.member_id,
+          m.firstname,
+          m.surname,
+          m.email,
+          lp.position_name,
+          la.hierarchy_level,
+          la.entity_id
+        FROM leadership_appointments la
+        JOIN leadership_positions lp ON la.position_id = lp.id
+        JOIN members m ON la.member_id = m.member_id
+        WHERE la.appointment_status = 'Active'
+        AND lp.is_active = TRUE
+        AND la.hierarchy_level = 'National'
+        AND lp.position_name IN (${warCouncilPositions.map((_, index) => `$${index + 1}`).join(',')})
+      `;
+
+      const results = await executeQuery(query, warCouncilPositions);
+
+      return results.map((row: any) => ({
+        member_id: row.member_id,
+        member_name: `${row.firstname} ${row.surname || ''}`.trim(),
+        member_email: row.email,
+        position_name: row.position_name,
+        hierarchy_level: row.hierarchy_level,
+        entity_id: row.entity_id,
+        invitation_priority: this.getInvitationPriority(row.position_name),
+        attendance_type: 'Required',
+        voting_rights: true
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get War Council invitations', error);
+    }
+  }
+
+  /**
+   * Get invitation priority based on position
+   */
+  private static getInvitationPriority(positionName: string): number {
+    const priorityMap: { [key: string]: number } = {
+      'President': 10,
+      'Deputy President': 9,
+      'Secretary General': 9,
+      'Deputy Secretary General': 8,
+      'National Chairperson': 8,
+      'Treasurer General': 7,
+      'Provincial Chairperson': 6,
+      'Provincial Secretary': 5,
+      'Municipal Chairperson': 4,
+      'Branch Chairperson': 3,
+      'Youth President': 6,
+      'Youth Secretary General': 5,
+      'Women President': 6,
+      'Women Secretary General': 5
+    };
+
+    return priorityMap[positionName] || 1;
+  }
+
+  /**
    * Get organizational roles for a specific hierarchy level
    */
-  static async getOrganizationalRoles(hierarchyLevel?: string): Promise<OrganizationalRole[]> {
+  static async getOrganizationalRoles(hierarchyLevel? : string): Promise<OrganizationalRole[]> {
     try {
       let query = `
         SELECT * FROM organizational_roles
@@ -52,7 +333,7 @@ export class HierarchicalMeetingService {
       const params: any[] = [];
 
       if (hierarchyLevel) {
-        query += ` AND hierarchy_level = ?`;
+        query += ` AND hierarchy_level = $${params.length + 1} `;
         params.push(hierarchyLevel);
       }
 
@@ -68,7 +349,7 @@ export class HierarchicalMeetingService {
    * Get members with their roles for invitation targeting
    */
   static async getMembersWithRoles(
-    hierarchyLevel: string,
+    hierarchyLevel : string,
     entityId?: number,
     entityType?: string
   ): Promise<any[]> {
@@ -121,13 +402,15 @@ export class HierarchicalMeetingService {
       if (hierarchyLevel === 'National') {
         query += ` AND lp.hierarchy_level = 'National'`;
       } else {
-        query += ` AND (lp.hierarchy_level = ? OR lp.hierarchy_level = 'National')`;
+        query += ` AND (lp.hierarchy_level = $${params.length + 1} OR lp.hierarchy_level = 'National')`;
         params.push(hierarchyLevel);
       }
 
       // Add entity-specific filters
       if (entityId && entityType) {
-        query += ` AND (la.entity_id = ? AND la.hierarchy_level = ?)`;
+        const entityIdParam = params.length + 1;
+        const entityTypeParam = params.length + 2;
+        query += ` AND (la.entity_id = $${entityIdParam} AND la.hierarchy_level = $${entityTypeParam})`;
         params.push(entityId, entityType);
       }
 
@@ -142,11 +425,11 @@ export class HierarchicalMeetingService {
   /**
    * Generate automatic invitations based on meeting type and hierarchy
    */
-  static async generateAutoInvitations(request: AutoInvitationRequest): Promise<InvitationTarget[]> {
+  static async generateAutoInvitations(request : AutoInvitationRequest): Promise<InvitationTarget[]> {
     try {
       // Get meeting type details
       const meetingType = await executeQuerySingle(
-        'SELECT * FROM meeting_types WHERE type_id = ?',
+        'SELECT * FROM meeting_types WHERE type_id = $1',
         [request.meeting_type_id]
       );
 
@@ -154,7 +437,7 @@ export class HierarchicalMeetingService {
         throw new Error('Meeting type not found');
       }
 
-      const invitationTargets: InvitationTarget[] = [];
+      const invitationTargets : InvitationTarget[] = [];
 
       // Apply invitation logic based on meeting type code
       switch (meetingType.type_code) {
@@ -282,7 +565,8 @@ export class HierarchicalMeetingService {
           ELSE 3
         END as meeting_invitation_priority,
         la.entity_id,
-        la.hierarchy_level as entity_type
+        la.hierarchy_level as entity_type,
+        lp.position_order
       FROM members m
       INNER JOIN leadership_appointments la ON m.member_id = la.member_id
       INNER JOIN leadership_positions lp ON la.position_id = lp.id
@@ -291,9 +575,9 @@ export class HierarchicalMeetingService {
       WHERE la.appointment_status = 'Active'
         AND lp.is_active = TRUE
         AND mst.is_active = TRUE
-        AND (ms.expiry_date IS NULL OR ms.expiry_date >= CURDATE())
+        AND (ms.expiry_date IS NULL OR ms.expiry_date >= CURRENT_DATE)
         AND lp.position_code IN ('WCHAIR', 'WSEC', 'WTREAS', 'WORG', 'WYOUTH', 'WWOMEN')
-      ORDER BY la.hierarchy_level, la.entity_id, lp.order_index
+      ORDER BY la.hierarchy_level, la.entity_id, lp.position_order
     `;
 
     const branchRepresentatives = await executeQuery(query);
@@ -302,7 +586,7 @@ export class HierarchicalMeetingService {
       targets.push({
         member_id: member.member_id,
         attendance_type: 'Required',
-        role_in_meeting: `${member.role_name} - ${member.entity_type} ${member.entity_id}`,
+        role_in_meeting: '${member.role_name} - ${member.entity_type} ' + member.entity_id + '',
         voting_rights: member.has_voting_rights,
         invitation_priority: member.meeting_invitation_priority
       });
@@ -363,7 +647,8 @@ export class HierarchicalMeetingService {
           WHEN lp.position_code = 'PSEC' THEN 2
           ELSE 3
         END as meeting_invitation_priority,
-        la.entity_id as province_id
+        la.entity_id as province_id,
+        lp.position_order
       FROM members m
       INNER JOIN leadership_appointments la ON m.member_id = la.member_id
       INNER JOIN leadership_positions lp ON la.position_id = lp.id
@@ -372,17 +657,17 @@ export class HierarchicalMeetingService {
       WHERE la.appointment_status = 'Active'
         AND lp.is_active = TRUE
         AND mst.is_active = TRUE
-        AND (ms.expiry_date IS NULL OR ms.expiry_date >= CURDATE())
+        AND (ms.expiry_date IS NULL OR ms.expiry_date >= CURRENT_DATE)
         AND lp.position_code IN ('PCHAIR', 'PSEC')
         AND la.hierarchy_level = 'Province'
-      ORDER BY la.entity_id, lp.order_index
+        ORDER BY la.entity_id, lp.position_order
     `);
 
     for (const member of provincialLeaders) {
       targets.push({
         member_id: member.member_id,
         attendance_type: 'Required',
-        role_in_meeting: `${member.role_name} - Province ${member.province_id}`,
+        role_in_meeting: '${member.role_name} - Province ' + member.province_id + '',
         voting_rights: member.has_voting_rights,
         invitation_priority: member.meeting_invitation_priority
       });
@@ -442,8 +727,8 @@ export class HierarchicalMeetingService {
       INNER JOIN leadership_positions lp ON la.position_id = lp.id
       WHERE la.appointment_status = 'Active'
         AND lp.is_active = TRUE
-        AND la.hierarchy_level = ?
-        AND la.entity_id = ?
+        AND la.hierarchy_level = $1
+        AND la.entity_id = $2
       ORDER BY meeting_invitation_priority DESC, m.surname, m.firstname
     `;
 
@@ -514,7 +799,7 @@ export class HierarchicalMeetingService {
     if (!wardCode && request.entity_type === 'Ward' && request.entity_id) {
       // Try resolve ward_code from numeric id (supports ward_id or id)
       const row = await executeQuerySingle<any>(
-        "SELECT ward_code FROM wards WHERE ward_id = ? OR id = ? LIMIT 1",
+        "SELECT ward_code FROM wards WHERE ward_id = $1 OR id = $2 LIMIT 1",
         [request.entity_id, request.entity_id]
       );
       wardCode = row?.ward_code;
@@ -527,7 +812,7 @@ export class HierarchicalMeetingService {
     const members = await MemberModel.getMembersByWard(wardCode);
     for (const m of members) {
       targets.push({
-        member_id: m.member_id,
+        member_id : m.member_id,
         attendance_type: 'Required',
         role_in_meeting: 'Ward Member',
         voting_rights: true,
@@ -668,37 +953,86 @@ export class HierarchicalMeetingService {
     limit?: number;
     offset?: number;
     sort?: string;
-    order?: 'asc' | 'desc';
+    order$1: 'asc' | 'desc';
   }): Promise<{ meetings: any[]; total: number }> {
     try {
       let whereConditions: string[] = [];
       let params: any[] = [];
+      let paramIndex = 1;
 
       // Build WHERE conditions
       if (filters.hierarchy_level && filters.hierarchy_level !== 'all') {
-        whereConditions.push('m.hierarchy_level = ?');
+        whereConditions.push(`m.hierarchy_level = $${paramIndex++}`);
         params.push(filters.hierarchy_level);
       }
 
       if (filters.meeting_status && filters.meeting_status !== 'all') {
-        whereConditions.push('m.meeting_status = ?');
+        whereConditions.push(`m.meeting_status = $${paramIndex++}`);
         params.push(filters.meeting_status);
       }
 
       if (filters.meeting_category && filters.meeting_category !== 'all') {
-        whereConditions.push('mt.meeting_category = ?');
+        whereConditions.push(`mt.meeting_category = $${paramIndex++}`);
         params.push(filters.meeting_category);
       }
 
       const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
-      // TODO: Create proper hierarchical_meetings table
-      // For now, return empty results since the meetings table doesn't have the right schema
-      const total = 0;
-      const meetings: any[] = [];
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM meetings m
+        LEFT JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
+        ${whereClause}
+      `;
 
-      // Placeholder implementation - hierarchical meetings need their own table
-      // with proper schema including meeting_type_id, hierarchy_level, entity_type, etc.
+      const countResult = await executeQuerySingle<{ total: number }>(countQuery, params);
+      const total = parseInt(countResult?.total?.toString() || '0');
+
+      // Get meetings with details
+      const sortColumn = filters.sort || 'meeting_date';
+      const sortOrder = filters.order$1 || 'desc';
+      const limit = filters.limit || 50;
+      const offset = filters.offset || 0;
+
+      const meetingsQuery = `
+        SELECT
+          m.meeting_id,
+          m.meeting_title,
+          m.meeting_title as title,
+          m.meeting_type_id,
+          mt.type_name as meeting_type_name,
+          mt.type_name,
+          mt.type_code,
+          mt.meeting_category,
+          m.hierarchy_level,
+          m.entity_id,
+          m.meeting_date,
+          m.meeting_time,
+          m.end_time,
+          m.duration_minutes,
+          m.location,
+          m.virtual_meeting_link,
+          m.meeting_platform,
+          m.meeting_status,
+          m.description,
+          m.objectives,
+          m.quorum_required,
+          m.created_at,
+          m.updated_at,
+          (SELECT COUNT(*) FROM meeting_invitations mi WHERE mi.meeting_id = m.meeting_id) as total_invitations,
+          (SELECT COUNT(*) FROM meeting_invitations mi WHERE mi.meeting_id = m.meeting_id) as total_invited,
+          (SELECT COUNT(*) FROM meeting_invitations mi WHERE mi.meeting_id = m.meeting_id AND mi.invitation_status = 'Accepted') as accepted_count,
+          (SELECT COUNT(*) FROM meeting_invitations mi WHERE mi.meeting_id = m.meeting_id AND mi.invitation_status = 'Declined') as declined_count
+        FROM meetings m
+        LEFT JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
+        ${whereClause}
+        ORDER BY m.${sortColumn} ${sortOrder}
+        LIMIT $${paramIndex++} OFFSET $${paramIndex}
+      `;
+
+      params.push(limit, offset);
+      const meetings = await executeQuery(meetingsQuery, params);
 
       return { meetings, total };
     } catch (error) {

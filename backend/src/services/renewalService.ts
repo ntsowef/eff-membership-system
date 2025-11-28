@@ -93,7 +93,7 @@ export class RenewalService {
         SELECT r.*, m.firstname, m.surname, m.email_address, m.cell_number
         FROM membership_renewals r
         LEFT JOIN members m ON r.member_id = m.member_id
-        WHERE r.renewal_due_date <= CURDATE()
+        WHERE r.renewal_due_date <= CURRENT_DATE
         AND r.auto_renewal = TRUE
         AND r.renewal_status = 'Pending'
         AND r.payment_status = 'Pending'
@@ -123,7 +123,7 @@ export class RenewalService {
               member_id: renewal.member_id,
               payment_amount: renewal.final_amount,
               payment_method: 'Auto Debit',
-              payment_reference: `AUTO_${renewal.renewal_id}_${Date.now()}`,
+              payment_reference: 'AUTO_${renewal.renewal_id}_' + Date.now() + '',
               payment_date: new Date().toISOString()
             });
 
@@ -142,9 +142,9 @@ export class RenewalService {
               notification_type: 'Renewal',
               delivery_channel: 'Email',
               title: 'Auto Renewal Successful',
-              message: `Your membership has been automatically renewed for ${renewal.renewal_year}. Payment of R${renewal.final_amount} has been processed.`,
+              message: 'Your membership has been automatically renewed for ${renewal.renewal_year}. Payment of R' + renewal.final_amount + ' has been processed.',
               template_data: {
-                member_name: `${renewal.firstname} ${renewal.surname || ''}`.trim(),
+                member_name: '${renewal.firstname} ' + renewal.surname || '' + ''.trim(),
                 renewal_year: renewal.renewal_year,
                 amount: renewal.final_amount,
                 payment_method: 'Auto Debit'
@@ -158,7 +158,7 @@ export class RenewalService {
             });
 
             failed++;
-            errors.push(`Auto renewal failed for member ${renewal.member_id}: Payment processing failed`);
+            errors.push('Auto renewal failed for member ' + renewal.member_id + ': Payment processing failed');
 
             // Send failure notification
             await NotificationModel.createNotification({
@@ -167,9 +167,9 @@ export class RenewalService {
               notification_type: 'Renewal',
               delivery_channel: 'Email',
               title: 'Auto Renewal Failed',
-              message: `Your automatic membership renewal for ${renewal.renewal_year} could not be processed. Please update your payment method or pay manually.`,
+              message: 'Your automatic membership renewal for ' + renewal.renewal_year + ' could not be processed. Please update your payment method or pay manually.',
               template_data: {
-                member_name: `${renewal.firstname} ${renewal.surname || ''}`.trim(),
+                member_name: '${renewal.firstname} ' + renewal.surname || '' + ''.trim(),
                 renewal_year: renewal.renewal_year,
                 amount: renewal.final_amount
               }
@@ -266,7 +266,7 @@ export class RenewalService {
         m.cell_number
       FROM membership_renewals r
       LEFT JOIN members m ON r.member_id = m.member_id
-      WHERE r.renewal_due_date = DATE_ADD(CURDATE(), INTERVAL ? DAY)
+      WHERE r.renewal_due_date = DATE_ADD(CURRENT_DATE, INTERVAL ? DAY)
       AND r.renewal_status IN ('Pending', 'Processing')
       AND NOT EXISTS (
         SELECT 1 FROM renewal_reminders rr 
@@ -281,8 +281,8 @@ export class RenewalService {
   }
 
   // Send reminder notification
-  private static async sendReminderNotification(renewal: any, stage: string, settings: RenewalSettings): Promise<void> {
-    const memberName = `${renewal.firstname} ${renewal.surname || ''}`.trim();
+  private static async sendReminderNotification(renewal : any, stage: string, settings: RenewalSettings): Promise<void> {
+    const memberName = '${renewal.firstname} ' + renewal.surname || '' + ''.trim();
     
     let title = '';
     let message = '';
@@ -290,19 +290,19 @@ export class RenewalService {
     switch (stage) {
       case 'Early':
         title = 'Membership Renewal Reminder';
-        message = `Hi ${memberName}, your membership renewal for ${renewal.renewal_year} is due on ${renewal.renewal_due_date}. Please renew early to avoid any interruption.`;
+        message = 'Hi ${memberName}, your membership renewal for ${renewal.renewal_year} is due on ' + renewal.renewal_due_date + '. Please renew early to avoid any interruption.';
         break;
       case 'Due':
         title = 'Membership Renewal Due Soon';
-        message = `Hi ${memberName}, your membership renewal for ${renewal.renewal_year} is due on ${renewal.renewal_due_date}. Please renew to maintain your membership.`;
+        message = 'Hi ${memberName}, your membership renewal for ${renewal.renewal_year} is due on ' + renewal.renewal_due_date + '. Please renew to maintain your membership.';
         break;
       case 'Overdue':
         title = 'Membership Renewal Overdue';
-        message = `Hi ${memberName}, your membership renewal for ${renewal.renewal_year} was due on ${renewal.renewal_due_date} and is now overdue. Please renew immediately to avoid suspension.`;
+        message = 'Hi ${memberName}, your membership renewal for ${renewal.renewal_year} was due on ' + renewal.renewal_due_date + ' and is now overdue. Please renew immediately to avoid suspension.';
         break;
       case 'Final':
         title = 'Final Notice - Membership Renewal';
-        message = `Hi ${memberName}, this is your final notice for membership renewal ${renewal.renewal_year}. Your membership will be suspended if not renewed soon. Late fees may apply.`;
+        message = 'Hi ${memberName}, this is your final notice for membership renewal ' + renewal.renewal_year + '. Your membership will be suspended if not renewed soon. Late fees may apply.';
         break;
     }
 
@@ -334,18 +334,18 @@ export class RenewalService {
       reminder_type: 'Email',
       reminder_stage: stage as any,
       scheduled_date: new Date().toISOString().split('T')[0],
-      template_used: `renewal_${stage.toLowerCase()}_reminder`
+      template_used: 'renewal_' + stage.toLowerCase() + '_reminder'
     });
 
     // Update renewal reminder count
     await executeQuery(
-      'UPDATE membership_renewals SET reminder_sent_count = reminder_sent_count + 1, last_reminder_sent = CURRENT_TIMESTAMP WHERE renewal_id = ?',
+      'UPDATE membership_renewals SET reminder_sent_count = reminder_sent_count + 1, last_reminder_sent = CURRENT_TIMESTAMP WHERE renewal_id = ? ',
       [renewalId]
     );
   }
 
   // Apply late fees to overdue renewals
-  static async applyLateFees(): Promise<{ applied: number; errors: string[] }> {
+  static async applyLateFees() : Promise<{ applied: number; errors: string[] }> {
     try {
       const settings = await this.getRenewalSettings();
       let applied = 0;
@@ -355,7 +355,7 @@ export class RenewalService {
       const query = `
         SELECT renewal_id, member_id, renewal_due_date, late_fee
         FROM membership_renewals
-        WHERE renewal_due_date < DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        WHERE renewal_due_date < DATE_SUB(CURRENT_DATE, INTERVAL ? DAY)
         AND renewal_status IN ('Pending', 'Processing')
         AND (late_fee = 0 OR late_fee IS NULL)
         LIMIT 100
@@ -366,15 +366,15 @@ export class RenewalService {
       for (const renewal of overdueRenewals) {
         try {
           await MembershipRenewalModel.updateRenewal(renewal.renewal_id, {
-            late_fee: settings.late_fee_amount,
-            renewal_notes: `Late fee of R${settings.late_fee_amount} applied on ${new Date().toISOString().split('T')[0]}`
+            late_fee : settings.late_fee_amount,
+            renewal_notes: 'Late fee of R${settings.late_fee_amount} applied on ' + new Date().toISOString().split('T')[0] + ''
           });
 
           await MembershipRenewalModel.logRenewalActivity(
             renewal.renewal_id,
             renewal.member_id,
             'Updated',
-            `Late fee of R${settings.late_fee_amount} applied`,
+            'Late fee of R' + settings.late_fee_amount + ' applied',
             undefined,
             undefined,
             undefined,
@@ -407,23 +407,22 @@ export class RenewalService {
           COUNT(CASE WHEN renewal_status = 'Processing' THEN 1 END) as processing,
           COUNT(CASE WHEN renewal_status = 'Failed' THEN 1 END) as failed,
           COUNT(CASE WHEN renewal_status = 'Expired' THEN 1 END) as expired,
-          COUNT(CASE WHEN renewal_due_date < CURDATE() AND renewal_status != 'Completed' THEN 1 END) as overdue,
-          SUM(final_amount) as total_revenue,
-          SUM(CASE WHEN payment_status = 'Completed' THEN final_amount ELSE 0 END) as collected_revenue,
-          AVG(final_amount) as average_amount,
+          COUNT(CASE WHEN renewal_due_date < CURRENT_DATE AND renewal_status != 'Completed' THEN 1 END) as overdue,
+          SUM(renewal_amount) as total_revenue,
+          SUM(CASE WHEN payment_status = 'Completed' THEN renewal_amount ELSE 0 END) as collected_revenue,
+          AVG(renewal_amount) as average_amount,
           SUM(late_fee) as total_late_fees,
           COUNT(CASE WHEN auto_renewal = TRUE THEN 1 END) as auto_renewals
         FROM membership_renewals
-        WHERE renewal_year = ?
-      `;
+        WHERE renewal_year = ? `;
 
       const stats = await executeQuerySingle(query, [currentYear]);
 
       return {
-        year: currentYear,
+        year : currentYear,
         statistics: stats,
-        completion_rate: stats.total_renewals > 0 ? ((stats.completed / stats.total_renewals) * 100).toFixed(2) + '%' : '0%',
-        collection_rate: stats.total_revenue > 0 ? ((stats.collected_revenue / stats.total_revenue) * 100).toFixed(2) + '%' : '0%',
+        completion_rate: stats.total_renewals > 0 ? ((stats.completed / stats.total_renewals) * 100).toFixed(2) + '%'  : '0%',
+        collection_rate: stats.total_revenue > 0 ? ((stats.collected_revenue / stats.total_revenue) * 100).toFixed(2) + '%'  : '0%',
         generated_at: new Date().toISOString()
       };
     } catch (error) {

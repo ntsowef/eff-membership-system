@@ -41,8 +41,8 @@ import {
   LocationOn as LocationOnIcon,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiPost, apiGet } from '../../lib/api';
-import { useNavigate } from 'react-router-dom';
+import { apiPost, apiGet, apiPut } from '../../lib/api';
+import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../../components/ui/PageHeader';
 import ActionButton from '../../components/ui/ActionButton';
 import HierarchicalGeographicSelector from '../../components/users/HierarchicalGeographicSelector';
@@ -107,7 +107,9 @@ interface GeographicSelection {
 const HierarchicalMeetingCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id && id !== 'new';
+
   const [formData, setFormData] = useState<CreateMeetingData>({
     meeting_title: '',
     meeting_type_id: '',
@@ -151,19 +153,107 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
   // So meetingTypesData is already { meeting_types: [...] }
   const meetingTypes: MeetingType[] = (meetingTypesData as any)?.meeting_types || [];
 
+  // Fetch existing meeting data when in edit mode
+  const { data: existingMeetingData, isLoading: meetingLoading } = useQuery({
+    queryKey: ['hierarchical-meeting', id],
+    queryFn: async () => {
+      const result = await apiGet(`/hierarchical-meetings/${id}`);
+      return result;
+    },
+    enabled: isEditMode && !!id,
+  });
+
+  // Populate form when existing meeting data is loaded
+  React.useEffect(() => {
+    if (existingMeetingData && isEditMode) {
+      const meeting = (existingMeetingData as any)?.meeting;
+      if (meeting) {
+        // Convert date and time from ISO format
+        const meetingDateTime = new Date(meeting.meeting_date);
+        const dateStr = meetingDateTime.toISOString().split('T')[0];
+        const timeStr = meetingDateTime.toTimeString().slice(0, 5);
+
+        setFormData({
+          meeting_title: meeting.meeting_title || '',
+          meeting_type_id: meeting.meeting_type_id || '',
+          hierarchy_level: meeting.hierarchy_level || 'National',
+          entity_id: meeting.entity_id,
+          entity_type: meeting.entity_type,
+          meeting_date: dateStr,
+          meeting_time: timeStr,
+          end_time: meeting.end_time || '',
+          duration_minutes: meeting.duration_minutes || 120,
+          location: meeting.location || '',
+          virtual_meeting_link: meeting.virtual_meeting_link || '',
+          meeting_platform: meeting.meeting_platform || 'In-Person',
+          description: meeting.description || '',
+          objectives: meeting.objectives || '',
+          agenda_summary: meeting.agenda_summary || '',
+          quorum_required: meeting.quorum_required || 0,
+          meeting_chair_id: meeting.meeting_chair_id,
+          meeting_secretary_id: meeting.meeting_secretary_id,
+          auto_send_invitations: false, // Don't auto-send when editing
+          province_code: meeting.province_code,
+          municipality_code: meeting.municipality_code,
+          ward_code: meeting.ward_code,
+        });
+      }
+    }
+  }, [existingMeetingData, isEditMode]);
 
 
+  // Update meeting mutation
+  const updateMeetingMutation = useMutation({
+    mutationFn: (data: CreateMeetingData) => apiPut(`/hierarchical-meetings/${id}`, data),
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['hierarchical-meeting', id] });
 
+      console.log('✅ Meeting updated successfully!');
+      alert('✅ Meeting updated successfully!');
+
+      if (id) {
+        navigate(`/admin/meetings/hierarchical/${id}`);
+      } else {
+        navigate('/admin/meetings/hierarchical');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Failed to update meeting:', error);
+      let errorMessage = 'Failed to update meeting. Please check your input and try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      alert(`❌ ${errorMessage}`);
+    },
+  });
 
   // Create meeting mutation
   const createMeetingMutation = useMutation({
     mutationFn: (data: CreateMeetingData) => apiPost('/hierarchical-meetings', data),
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
-      // The apiPost function unwraps the response, so we access response.meeting.id directly
-      const meetingId = response.meeting?.id;
+      queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
+
+      // The apiPost function unwraps the response, so we access response.meeting.meeting_id directly
+      const meetingId = response.meeting?.meeting_id;
+      const invitationResults = response.invitation_results;
+
       console.log('✅ Meeting created successfully! ID:', meetingId);
-      console.log('📧 Invitations sent:', response.invitation_results?.total_invitations_sent);
+      console.log('📧 Invitations sent:', invitationResults?.total_invitations_sent);
+
+      // Show detailed success notification
+      const totalInvitations = invitationResults?.total_invitations_sent || 0;
+      const invitationBreakdown = invitationResults?.invitation_breakdown || {};
+
+      const successMessage = `Meeting created successfully! ${totalInvitations} invitation${totalInvitations !== 1 ? 's' : ''} sent.`;
+      const detailsMessage = totalInvitations > 0
+        ? `Required: ${invitationBreakdown.required || 0}, Optional: ${invitationBreakdown.optional || 0}, Observer: ${invitationBreakdown.observer || 0}`
+        : 'No invitations were sent.';
+
+      // You can use a toast notification library here
+      alert(`✅ ${successMessage}\n\n${detailsMessage}`);
 
       if (meetingId) {
         navigate(`/admin/meetings/${meetingId}`);
@@ -361,7 +451,13 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
       delete (submitData as any).meeting_title;
 
       console.log('🚀 Submitting meeting data:', submitData);
-      createMeetingMutation.mutate(submitData);
+
+      // Use update mutation if in edit mode, otherwise create
+      if (isEditMode) {
+        updateMeetingMutation.mutate(submitData);
+      } else {
+        createMeetingMutation.mutate(submitData);
+      }
     }
   };
 
@@ -370,13 +466,15 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
       <PageHeader
-        title="Create Hierarchical Meeting"
-        subtitle="Schedule meetings with automatic invitation management based on organizational hierarchy"
+        title={isEditMode ? "Edit Hierarchical Meeting" : "Create Hierarchical Meeting"}
+        subtitle={isEditMode
+          ? "Update meeting details and invitation settings"
+          : "Schedule meetings with automatic invitation management based on organizational hierarchy"}
         gradient={true}
         breadcrumbs={[
           { label: 'Dashboard', href: '/admin/dashboard' },
           { label: 'Meetings', href: '/admin/meetings' },
-          { label: 'Create Meeting' },
+          { label: isEditMode ? 'Edit Meeting' : 'Create Meeting' },
         ]}
       />
 
@@ -732,9 +830,12 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
                       type="submit"
                       gradient={true}
                       vibrant={true}
-                      disabled={createMeetingMutation.isPending}
+                      disabled={createMeetingMutation.isPending || updateMeetingMutation.isPending}
                     >
-                      {createMeetingMutation.isPending ? 'Creating...' : 'Create Meeting'}
+                      {isEditMode
+                        ? (updateMeetingMutation.isPending ? 'Updating...' : 'Update Meeting')
+                        : (createMeetingMutation.isPending ? 'Creating...' : 'Create Meeting')
+                      }
                     </ActionButton>
                   </Box>
                 </Box>

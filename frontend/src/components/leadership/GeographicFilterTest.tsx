@@ -199,8 +199,8 @@ const GeographicFilterTest: React.FC = () => {
                 label="Filter Level"
               >
                 <MenuItem value="Province">Province</MenuItem>
-                <MenuItem value="District">District</MenuItem>
-                <MenuItem value="Municipality">Municipality</MenuItem>
+                <MenuItem value="District">Region</MenuItem>
+                <MenuItem value="Municipality">Sub-Region</MenuItem>
                 <MenuItem value="Ward">Ward</MenuItem>
               </Select>
             </FormControl>

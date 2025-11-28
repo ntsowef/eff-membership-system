@@ -54,8 +54,8 @@ interface DashboardMetrics {
   };
   geographicDistribution: {
     provinces: number;
-    districts: number;
-    municipalities: number;
+    regions: number;
+    subRegions: number;
     wards: number;
     votingDistricts: number;
   };
@@ -356,20 +356,20 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={6}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" color="primary">
-                      {dashboardData.geographicDistribution.districts}
+                      {dashboardData.geographicDistribution.regions}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Districts
+                      Regions
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" color="primary">
-                      {dashboardData.geographicDistribution.municipalities}
+                      {dashboardData.geographicDistribution.subRegions}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Municipalities
+                      Sub-Regions
                     </Typography>
                   </Box>
                 </Grid>

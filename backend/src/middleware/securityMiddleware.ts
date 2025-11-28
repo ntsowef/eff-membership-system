@@ -66,10 +66,11 @@ export const createSlowDown = (windowMs: number, delayAfter: number, delayMs: nu
   return slowDown({
     windowMs,
     delayAfter,
-    delayMs,
+    delayMs: () => delayMs, // Fixed: Use function format for new express-slow-down v2
     maxDelayMs: 20000, // Maximum delay of 20 seconds
     skipFailedRequests: false,
-    skipSuccessfulRequests: false
+    skipSuccessfulRequests: false,
+    validate: { delayMs: false } // Disable the warning
   });
 };
 

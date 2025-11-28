@@ -96,7 +96,7 @@ export class RedisService {
   // Session management methods
   public async setSession(sessionId: string, sessionData: any, ttlSeconds: number = 86400): Promise<void> {
     try {
-      const key = `session:${sessionId}`;
+      const key = 'session:' + sessionId + '';
       await this.client.setex(key, ttlSeconds, JSON.stringify(sessionData));
     } catch (error) {
       console.error('❌ Failed to set session in Redis:', error);
@@ -106,7 +106,7 @@ export class RedisService {
 
   public async getSession(sessionId: string): Promise<any | null> {
     try {
-      const key = `session:${sessionId}`;
+      const key = 'session:' + sessionId + '';
       const sessionData = await this.client.get(key);
       return sessionData ? JSON.parse(sessionData) : null;
     } catch (error) {
@@ -117,7 +117,7 @@ export class RedisService {
 
   public async deleteSession(sessionId: string): Promise<void> {
     try {
-      const key = `session:${sessionId}`;
+      const key = 'session:' + sessionId + '';
       await this.client.del(key);
     } catch (error) {
       console.error('❌ Failed to delete session from Redis:', error);
@@ -126,7 +126,7 @@ export class RedisService {
 
   public async refreshSession(sessionId: string, ttlSeconds: number = 86400): Promise<boolean> {
     try {
-      const key = `session:${sessionId}`;
+      const key = 'session:' + sessionId + '';
       const result = await this.client.expire(key, ttlSeconds);
       return result === 1;
     } catch (error) {
@@ -165,7 +165,7 @@ export class RedisService {
         return 0;
       }
 
-      const keys = userSessions.map(sessionId => `session:${sessionId}`);
+      const keys = userSessions.map(sessionId => 'session:' + sessionId + '');
       return await this.client.del(...keys);
     } catch (error) {
       console.error('❌ Failed to delete user sessions from Redis:', error);
@@ -174,7 +174,7 @@ export class RedisService {
   }
 
   // Cache management methods
-  public async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
+  public async set(key: string, value: any, ttlSeconds: number): Promise<void> {
     try {
       const serializedValue = JSON.stringify(value);
       if (ttlSeconds) {

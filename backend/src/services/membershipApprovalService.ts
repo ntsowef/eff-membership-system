@@ -108,7 +108,7 @@ export class MembershipApprovalService {
    * Check if a member already exists with the given ID number
    */
   private static async checkExistingMember(idNumber: string): Promise<boolean> {
-    const query = 'SELECT member_id FROM members WHERE id_number = ?';
+    const query = 'SELECT member_id FROM members WHERE id_number = $1';
     const result = await executeQuerySingle(query, [idNumber]);
     return !!result;
   }
@@ -116,7 +116,7 @@ export class MembershipApprovalService {
   /**
    * Create a member record from approved application
    */
-  private static async createMemberFromApplication(application: any): Promise<number> {
+  private static async createMemberFromApplication(application : any): Promise<number> {
     // Map gender to gender_id (assuming: 1=Male, 2=Female, 3=Other)
     const genderMap: { [key: string]: number } = {
       'Male': 1,
@@ -145,7 +145,7 @@ export class MembershipApprovalService {
         id_number, firstname, surname, date_of_birth, gender_id,
         ward_code, cell_number, email, residential_address, postal_address,
         membership_type, application_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     `;
 
     const params = [
@@ -190,7 +190,7 @@ export class MembershipApprovalService {
       INSERT INTO memberships (
         member_id, date_joined, last_payment_date, subscription_type_id,
         membership_amount, status_id, payment_method, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     `;
 
     const params = [
@@ -236,9 +236,9 @@ export class MembershipApprovalService {
     adminNotes?: string
   ): Promise<void> {
     const query = `
-      UPDATE membership_applications 
-      SET status = ?, reviewed_by = ?, reviewed_at = NOW(), admin_notes = ?
-      WHERE id = ?
+      UPDATE membership_applications
+      SET status = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP, admin_notes = $3
+      WHERE id = $4
     `;
 
     await executeQuery(query, [status, reviewedBy, adminNotes, applicationId]);
@@ -248,7 +248,7 @@ export class MembershipApprovalService {
    * Create approval history record
    */
   private static async createApprovalHistory(
-    applicationId: number,
+    applicationId : number,
     memberId: number | null,
     approvedBy: number,
     action: string,
@@ -276,7 +276,7 @@ export class MembershipApprovalService {
     const insertQuery = `
       INSERT INTO application_approval_history (
         application_id, member_id, action, performed_by, notes
-      ) VALUES (?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5)
     `;
 
     await executeQuery(insertQuery, [applicationId, memberId, action, approvedBy, notes]);
@@ -304,10 +304,10 @@ export class MembershipApprovalService {
 
       // Update application status
       const query = `
-        UPDATE membership_applications 
-        SET status = 'Rejected', reviewed_by = ?, reviewed_at = NOW(), 
-            rejection_reason = ?, admin_notes = ?
-        WHERE id = ?
+        UPDATE membership_applications
+        SET status = 'Rejected', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP,
+            rejection_reason = $2, admin_notes = $3
+        WHERE id = $4
       `;
 
       await executeQuery(query, [rejectedBy, rejectionReason, adminNotes, applicationId]);
@@ -316,7 +316,7 @@ export class MembershipApprovalService {
       await this.createApprovalHistory(applicationId, null, rejectedBy, 'rejected', `${rejectionReason}. ${adminNotes || ''}`);
 
       return {
-        success: true,
+        success : true,
         message: 'Application rejected successfully'
       };
 

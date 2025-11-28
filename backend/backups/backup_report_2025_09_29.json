@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-09-29T01:21:01.035Z",
+  "backupDate": "2025_09_29",
+  "database": "eff_membership_db",
+  "tables": [
+    {
+      "originalTable": "provinces",
+      "backupTable": "provinces_backup_2025_09_29",
+      "rowCount": 9,
+      "timestamp": "2025-09-29T01:21:00.080Z"
+    },
+    {
+      "originalTable": "districts",
+      "backupTable": "districts_backup_2025_09_29",
+      "rowCount": 52,
+      "timestamp": "2025-09-29T01:21:00.119Z"
+    },
+    {
+      "originalTable": "municipalities",
+      "backupTable": "municipalities_backup_2025_09_29",
+      "rowCount": 213,
+      "timestamp": "2025-09-29T01:21:00.162Z"
+    },
+    {
+      "originalTable": "wards",
+      "backupTable": "wards_backup_2025_09_29",
+      "rowCount": 4478,
+      "timestamp": "2025-09-29T01:21:00.264Z"
+    },
+    {
+      "originalTable": "voting_districts",
+      "backupTable": "voting_districts_backup_2025_09_29",
+      "rowCount": 23121,
+      "timestamp": "2025-09-29T01:21:00.503Z"
+    }
+  ],
+  "sqlExports": [
+    {
+      "fileName": "provinces_backup_2025_09_29.sql",
+      "filePath": "C:\\Development\\NewProj\\Membership-new\\backend\\backups\\provinces_backup_2025_09_29.sql",
+      "fileSize": 1619
+    },
+    {
+      "fileName": "districts_backup_2025_09_29.sql",
+      "filePath": "C:\\Development\\NewProj\\Membership-new\\backend\\backups\\districts_backup_2025_09_29.sql",
+      "fileSize": 8269
+    },
+    {
+      "fileName": "municipalities_backup_2025_09_29.sql",
+      "filePath": "C:\\Development\\NewProj\\Membership-new\\backend\\backups\\municipalities_backup_2025_09_29.sql",
+      "fileSize": 35763
+    },
+    {
+      "fileName": "wards_backup_2025_09_29.sql",
+      "filePath": "C:\\Development\\NewProj\\Membership-new\\backend\\backups\\wards_backup_2025_09_29.sql",
+      "fileSize": 570005
+    },
+    {
+      "fileName": "voting_districts_backup_2025_09_29.sql",
+      "filePath": "C:\\Development\\NewProj\\Membership-new\\backend\\backups\\voting_districts_backup_2025_09_29.sql",
+      "fileSize": 3127812
+    }
+  ],
+  "restoreScript": "C:\\Development\\NewProj\\Membership-new\\backend\\backups\\restore_geographic_data_2025_09_29.sql",
+  "totalTables": 5,
+  "totalRows": 27873,
+  "instructions": {
+    "restore": "To restore data, run: psql -h localhost -U eff_admin -d eff_membership_db -f restore_geographic_data_2025_09_29.sql",
+    "cleanup": "To remove backup tables, drop each backup table manually: DROP TABLE table_name_backup_2025_09_29;"
+  }
+}

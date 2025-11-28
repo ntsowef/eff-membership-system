@@ -74,7 +74,7 @@ export class MemberAuditService {
           w.ward_name,
           m.voting_district_code,
           vd.vd_name as voting_district_name,
-          CONCAT(m.street_address, ', ', m.suburb, ', ', m.city) as residential_address,
+          m.street_address || ' || ' || m.suburb || ' || ' || m.city as residential_address,
           CASE 
             WHEN ms.is_active = FALSE THEN 'inactive_membership'
             WHEN m.voting_district_code IS NULL THEN 'no_voting_registration'
@@ -97,28 +97,28 @@ export class MemberAuditService {
         JOIN membership_statuses ms ON m.status_id = ms.status_id
         JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (filters.province_code) {
-        query += ' AND w.province_code = ?';
+        query += ' AND w.province_code = ? ';
         params.push(filters.province_code);
       }
 
       if (filters.municipality_code) {
-        query += ' AND w.municipal_code = ?';
+        query += ' AND w.municipal_code = $1';
         params.push(filters.municipality_code);
       }
 
       if (filters.ward_code) {
-        query += ' AND m.ward_code = ?';
+        query += ' AND m.ward_code = $1';
         params.push(filters.ward_code);
       }
 
       if (filters.membership_status) {
-        query += ' AND ms.status_name = ?';
+        query += ' AND ms.status_name = $1';
         params.push(filters.membership_status);
       }
 
@@ -132,7 +132,7 @@ export class MemberAuditService {
   }
 
   // Ward-Level Analysis
-  static async generateWardAuditSummary(filters: {
+  static async generateWardAuditSummary(filters : {
     province_code?: string;
     municipality_code?: string;
     ward_code?: string;
@@ -160,23 +160,23 @@ export class MemberAuditService {
         LEFT JOIN membership_statuses ms ON m.status_id = ms.status_id
         LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
         LEFT JOIN municipalities mu ON w.municipal_code = mu.municipal_code
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (filters.province_code) {
-        query += ' AND w.province_code = ?';
+        query += ' AND w.province_code = ? ';
         params.push(filters.province_code);
       }
 
       if (filters.municipality_code) {
-        query += ' AND w.municipal_code = ?';
+        query += ' AND w.municipal_code = $1';
         params.push(filters.municipality_code);
       }
 
       if (filters.ward_code) {
-        query += ' AND w.ward_code = ?';
+        query += ' AND w.ward_code = $1';
         params.push(filters.ward_code);
       }
 
@@ -193,7 +193,7 @@ export class MemberAuditService {
   }
 
   // Municipality Threshold Monitoring
-  static async generateMunicipalityAuditSummary(filters: {
+  static async generateMunicipalityAuditSummary(filters : {
     province_code?: string;
   } = {}): Promise<MunicipalityAuditSummary[]> {
     try {
@@ -213,7 +213,7 @@ export class MemberAuditService {
           COALESCE(SUM(ward_stats.registered_voters), 0) as total_registered_voters,
           COUNT(DISTINCT CASE WHEN ward_stats.total_members > 101 THEN w.ward_code END) as wards_over_101_members,
           COALESCE(SUM(ward_stats.issues_count), 0) as high_priority_issues,
-          NOW() as last_audit_date
+          CURRENT_TIMESTAMP as last_audit_date
         FROM municipalities mu
         JOIN provinces p ON mu.province_code = p.province_code
         LEFT JOIN wards w ON mu.municipal_code = w.municipal_code
@@ -232,13 +232,13 @@ export class MemberAuditService {
           LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
           GROUP BY w2.ward_code
         ) ward_stats ON w.ward_code = ward_stats.ward_code
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (filters.province_code) {
-        query += ' AND mu.province_code = ?';
+        query += ' AND mu.province_code = ? ';
         params.push(filters.province_code);
       }
 
@@ -255,7 +255,7 @@ export class MemberAuditService {
   }
 
   // Get Audit Statistics Overview
-  static async getAuditOverview(filters: {
+  static async getAuditOverview(filters : {
     province_code?: string;
     municipality_code?: string;
   } = {}): Promise<{
@@ -313,24 +313,24 @@ export class MemberAuditService {
           ) ward_stats
           GROUP BY municipal_code
         ) muni_compliance ON mu.municipal_code = muni_compliance.municipal_code
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (filters.province_code) {
-        query += ' AND mu.province_code = ?';
+        query += ' AND mu.province_code = ? ';
         params.push(filters.province_code);
       }
 
       if (filters.municipality_code) {
-        query += ' AND mu.municipal_code = ?';
+        query += ' AND mu.municipal_code = $1';
         params.push(filters.municipality_code);
       }
 
       const result = await executeQuerySingle(query, params);
       return result || {
-        total_members: 0,
+        total_members : 0,
         active_members: 0,
         inactive_members: 0,
         registered_voters: 0,

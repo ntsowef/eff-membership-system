@@ -29,23 +29,23 @@ interface CacheMetrics {
 
 // Cache key patterns
 export const CacheKeys = {
-  MEMBER: (id: number) => `member:${id}`,
-  MEMBER_LIST: (filters: string) => `members:list:${filters}`,
-  MEMBER_COUNT: (filters: string) => `members:count:${filters}`,
-  MEETING: (id: number) => `meeting:${id}`,
-  MEETING_LIST: (filters: string) => `meetings:list:${filters}`,
-  LEADERSHIP: (id: number) => `leadership:${id}`,
-  LEADERSHIP_STRUCTURE: (level: string, entityId: number) => `leadership:structure:${level}:${entityId}`,
-  ANALYTICS_DASHBOARD: (filters: string) => `analytics:dashboard:${filters}`,
-  ANALYTICS_MEMBERSHIP: (filters: string) => `analytics:membership:${filters}`,
-  ANALYTICS_MEETINGS: (filters: string) => `analytics:meetings:${filters}`,
-  ANALYTICS_LEADERSHIP: (filters: string) => `analytics:leadership:${filters}`,
-  USER_PERMISSIONS: (userId: number) => `user:permissions:${userId}`,
-  USER_SESSION: (sessionId: string) => `session:${sessionId}`,
-  BULK_OPERATION: (id: number) => `bulk_operation:${id}`,
+  MEMBER: (id: number) => 'member:' + id + '',
+  MEMBER_LIST: (filters: string) => 'members:list:' + filters + '',
+  MEMBER_COUNT: (filters: string) => 'members:count:' + filters + '',
+  MEETING: (id: number) => 'meeting:' + id + '',
+  MEETING_LIST: (filters: string) => 'meetings:list:' + filters + '',
+  LEADERSHIP: (id: number) => 'leadership:' + id + '',
+  LEADERSHIP_STRUCTURE: (level: string, entityId: number) => 'leadership:structure:${level}:' + entityId + '',
+  ANALYTICS_DASHBOARD: (filters: string) => 'analytics:dashboard:' + filters + '',
+  ANALYTICS_MEMBERSHIP: (filters: string) => 'analytics:membership:' + filters + '',
+  ANALYTICS_MEETINGS: (filters: string) => 'analytics:meetings:' + filters + '',
+  ANALYTICS_LEADERSHIP: (filters: string) => 'analytics:leadership:' + filters + '',
+  USER_PERMISSIONS: (userId: number) => 'user:permissions:' + userId + '',
+  USER_SESSION: (sessionId: string) => 'session:' + sessionId + '',
+  BULK_OPERATION: (id: number) => 'bulk_operation:' + id + '',
   NOTIFICATION_QUEUE: () => 'notifications:queue',
-  RATE_LIMIT: (key: string) => `rate_limit:${key}`,
-  SEARCH_RESULTS: (query: string, filters: string) => `search:${query}:${filters}`
+  RATE_LIMIT: (key: string) => 'rate_limit:' + key + '',
+  SEARCH_RESULTS: (query: string, filters: string) => 'search:${query}:' + filters + ''
 };
 
 // Cache TTL constants (in seconds)
@@ -172,7 +172,7 @@ class CacheService {
   }
 
   // Get value from cache
-  async get<T>(key: string): Promise<T | null> {
+  async get<T>(key : string): Promise<T | null> {
     if (!this.isAvailable() || !this.redis) {
       this.metrics.misses++;
       this.updateMetrics();
@@ -190,7 +190,7 @@ class CacheService {
       this.updateMetrics();
       return JSON.parse(value) as T;
     } catch (error) {
-      console.error(`Cache get error for key ${key}:`, error);
+      console.error('Cache get error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return null;
@@ -214,7 +214,7 @@ class CacheService {
       this.updateMetrics();
       return true;
     } catch (error) {
-      console.error(`Cache set error for key ${key}:`, error);
+      console.error('Cache set error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return false;
@@ -233,7 +233,7 @@ class CacheService {
       this.updateMetrics();
       return result > 0;
     } catch (error) {
-      console.error(`Cache delete error for key ${key}:`, error);
+      console.error('Cache delete error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return false;
@@ -275,7 +275,7 @@ class CacheService {
       this.updateMetrics();
       return result;
     } catch (error) {
-      console.error(`Cache delete by pattern error for pattern ${pattern}:`, error);
+      console.error('Cache delete by pattern error for pattern ' + pattern + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return 0;
@@ -292,7 +292,7 @@ class CacheService {
       const result = await this.redis.exists(key);
       return result === 1;
     } catch (error) {
-      console.error(`Cache exists error for key ${key}:`, error);
+      console.error('Cache exists error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return false;
@@ -309,7 +309,7 @@ class CacheService {
       const result = await this.redis.expire(key, ttl);
       return result === 1;
     } catch (error) {
-      console.error(`Cache expire error for key ${key}:`, error);
+      console.error('Cache expire error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return false;
@@ -325,7 +325,7 @@ class CacheService {
     try {
       return await this.redis.ttl(key);
     } catch (error) {
-      console.error(`Cache TTL error for key ${key}:`, error);
+      console.error('Cache TTL error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return -1;
@@ -345,7 +345,7 @@ class CacheService {
       }
       return result;
     } catch (error) {
-      console.error(`Cache increment error for key ${key}:`, error);
+      console.error('Cache increment error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return 0;
@@ -361,7 +361,7 @@ class CacheService {
     try {
       return await this.redis.sadd(key, ...members);
     } catch (error) {
-      console.error(`Cache sadd error for key ${key}:`, error);
+      console.error('Cache sadd error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return 0;
@@ -378,7 +378,7 @@ class CacheService {
       const result = await this.redis.sismember(key, member);
       return result === 1;
     } catch (error) {
-      console.error(`Cache sismember error for key ${key}:`, error);
+      console.error('Cache sismember error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return false;
@@ -394,7 +394,7 @@ class CacheService {
     try {
       return await this.redis.smembers(key);
     } catch (error) {
-      console.error(`Cache smembers error for key ${key}:`, error);
+      console.error('Cache smembers error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return [];
@@ -410,7 +410,7 @@ class CacheService {
     try {
       return await this.redis.lpush(key, ...values);
     } catch (error) {
-      console.error(`Cache lpush error for key ${key}:`, error);
+      console.error('Cache lpush error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return 0;
@@ -426,7 +426,7 @@ class CacheService {
     try {
       return await this.redis.lpop(key);
     } catch (error) {
-      console.error(`Cache lpop error for key ${key}:`, error);
+      console.error('Cache lpop error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return null;
@@ -442,7 +442,7 @@ class CacheService {
     try {
       return await this.redis.llen(key);
     } catch (error) {
-      console.error(`Cache llen error for key ${key}:`, error);
+      console.error('Cache llen error for key ' + key + ':', error);
       this.metrics.errors++;
       this.updateMetrics();
       return 0;

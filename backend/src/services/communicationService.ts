@@ -41,7 +41,7 @@ export class TemplateService {
       // Check for undefined variables in content
       const undefinedVars = contentVariables.filter(v => !definedVariables.includes(v));
       if (undefinedVars.length > 0) {
-        throw new Error(`Undefined variables in template: ${undefinedVars.join(', ')}`);
+        throw new Error('Undefined variables in template: ' + undefinedVars.join(', ') + '');
       }
     }
 
@@ -78,7 +78,7 @@ export class TemplateService {
     if (!member) return {};
 
     return {
-      member_name: `${member.firstname} ${member.surname || ''}`.trim(),
+      member_name: '${member.firstname} ' + member.surname || '' + ''.trim(),
       first_name: member.firstname,
       last_name: member.surname || '',
       member_id: member.member_id,
@@ -233,7 +233,7 @@ export class CampaignService {
     try {
       // Get recipients with communication preferences
       const recipients = await this.getCampaignRecipientsWithPreferences(campaignId);
-      console.log(`🚀 Launching campaign ${campaignId} for ${recipients.length} recipients`);
+      console.log('🚀 Launching campaign ${campaignId} for ' + recipients.length + ' recipients');
 
       // Create messages and add to queue in batches
       let successCount = 0;
@@ -247,7 +247,7 @@ export class CampaignService {
           try {
             // Check communication preferences
             if (!this.shouldSendToRecipient(recipient, campaign.delivery_channels)) {
-              console.log(`Skipping recipient ${recipient.member_id} due to preferences`);
+              console.log('Skipping recipient ' + recipient.member_id + ' due to preferences');
               continue;
             }
 
@@ -260,7 +260,7 @@ export class CampaignService {
 
             successCount++;
           } catch (error) {
-            console.error(`Failed to create message for recipient ${recipient.member_id}:`, error);
+            console.error('Failed to create message for recipient ' + recipient.member_id + ':', error);
             failureCount++;
           }
         }
@@ -278,9 +278,9 @@ export class CampaignService {
       });
 
       // Real-time updates removed (WebSocket service removed)
-      console.log(`Campaign ${campaignId} progress: ${successCount}/${recipients.length} sent, ${failureCount} failed`);
+      console.log('Campaign ${campaignId} progress: ${successCount}/${recipients.length} sent, ' + failureCount + ' failed');
 
-      console.log(`✅ Campaign ${campaignId} queued: ${successCount} messages created, ${failureCount} failed`);
+      console.log('✅ Campaign ${campaignId} queued: ${successCount} messages created, ' + failureCount + ' failed');
       return successCount > 0;
 
     } catch (error) {
@@ -365,27 +365,27 @@ export class CampaignService {
     if (campaign.template?.category === 'System') return 10;
 
     // Reminders get high priority
-    if (campaign.template?.category === 'Reminder') return 8;
+    if (campaign.template.category === 'Reminder') return 8;
 
     // Announcements get medium-high priority
-    if (campaign.template?.category === 'Announcement') return 6;
+    if (campaign.template.category === 'Announcement') return 6;
 
     // Marketing gets normal priority
-    if (campaign.template?.category === 'Marketing') return 4;
+    if (campaign.template.category === 'Marketing') return 4;
 
     // Default priority
     return 5;
   }
 
   // Create individual campaign message
-  private static async createCampaignMessage(campaign: CommunicationCampaign, recipient: any): Promise<number> {
+  private static async createCampaignMessage(campaign : CommunicationCampaign, recipient: any): Promise<number> {
     const messageData: CreateMessageData = {
       campaign_id: campaign.id,
       sender_type: 'System',
       recipient_type: 'Member',
       recipient_id: recipient.member_id,
       content: campaign.template?.content || 'Default message content',
-      delivery_channels: campaign.delivery_channels,
+      delivery_channels : campaign.delivery_channels,
       template_id: campaign.template_id,
       template_data: TemplateService.getCommonTemplateVariables(recipient),
       send_immediately: true
@@ -434,7 +434,7 @@ export class MessageService {
         const channelSuccess = await this.sendViaChannel(message, channel);
         if (channelSuccess) success = true;
       } catch (error) {
-        console.error(`Failed to send message ${messageId} via ${channel}:`, error);
+        console.error('Failed to send message ${messageId} via ' + channel + ':', error);
       }
     }
 
@@ -460,7 +460,7 @@ export class MessageService {
       if (member) {
         recipientEmail = member.email;
         recipientPhone = member.cell_number;
-        recipientName = `${member.firstname} ${member.surname || ''}`.trim();
+        recipientName = '${member.firstname} ' + member.surname || '' + ''.trim();
       }
     }
 
@@ -506,7 +506,7 @@ export class MessageService {
         return true;
 
       default:
-        throw new Error(`Unsupported delivery channel: ${channel}`);
+        throw new Error('Unsupported delivery channel: ' + channel + '');
     }
   }
 }

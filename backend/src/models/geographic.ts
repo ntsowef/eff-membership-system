@@ -19,7 +19,21 @@ export interface Municipality {
   municipality_name: string;
   district_code: string | null;
   province_code: string;
-  municipality_type: 'Local' | 'Metropolitan' | 'District';
+  municipality_type: 'Local' | 'Metropolitan' | 'District' | 'Metro Sub-Region';
+  parent_municipality_id?: number | null;
+  parent_municipality_code?: string | null;
+  parent_municipality_name?: string | null;
+  district_name?: string;
+  province_name?: string;
+}
+
+export interface Subregion {
+  municipality_code: string;
+  municipality_name: string;
+  parent_municipality_code: string;
+  parent_municipality_name: string;
+  district_code: string | null;
+  province_code: string;
   district_name?: string;
   province_name?: string;
 }
@@ -32,6 +46,9 @@ export interface Ward {
   district_code: string | null;
   province_code: string;
   municipality_name?: string;
+  municipality_type?: string;
+  parent_municipality_code?: string | null;
+  parent_municipality_name?: string | null;
   district_name?: string;
   province_name?: string;
 }
@@ -173,14 +190,17 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
-          municipality_code,
-          municipality_name,
-          district_code,
-          province_code,
-          municipality_type
-        FROM municipalities
-        WHERE district_code = ?
-        ORDER BY municipality_name
+          m.municipality_code,
+          m.municipality_name,
+          m.district_code,
+          m.municipality_type,
+          m.parent_municipality_id,
+          pm.municipality_code as parent_municipality_code,
+          pm.municipality_name as parent_municipality_name
+        FROM municipalities m
+        LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
+        WHERE m.district_code = ?
+        ORDER BY m.municipality_name
       `;
 
       return await executeQuery<Municipality>(query, [districtCode]);
@@ -193,14 +213,20 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
-          municipality_code,
-          municipality_name,
-          district_code,
-          province_code,
-          municipality_type
-        FROM municipalities
-        WHERE province_code = ?
-        ORDER BY municipality_name
+          m.municipality_code,
+          m.municipality_name,
+          m.district_code,
+          COALESCE(d.province_code, pd.province_code) as province_code,
+          m.municipality_type,
+          m.parent_municipality_id,
+          pm.municipality_code as parent_municipality_code,
+          pm.municipality_name as parent_municipality_name
+        FROM municipalities m
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
+        LEFT JOIN districts pd ON pm.district_code = pd.district_code
+        WHERE COALESCE(d.province_code, pd.province_code) = ?
+        ORDER BY m.municipality_name
       `;
 
       return await executeQuery<Municipality>(query, [provinceCode]);
@@ -218,15 +244,15 @@ export class GeographicModel {
           w.ward_number,
           w.ward_name,
           w.municipality_code,
-          w.district_code,
-          w.province_code,
+          m.district_code,
+          d.province_code,
           m.municipality_name,
           d.district_name,
           p.province_name
         FROM wards w
         LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
-        LEFT JOIN districts d ON w.district_code = d.district_code
-        LEFT JOIN provinces p ON w.province_code = p.province_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
         ORDER BY p.province_name, d.district_name, m.municipality_name, w.ward_number
         LIMIT ? OFFSET ?
       `;
@@ -240,14 +266,14 @@ export class GeographicModel {
   static async getWardByCode(code: string): Promise<Ward | null> {
     try {
       const query = `
-        SELECT 
+        SELECT
           w.ward_id,
           w.ward_code,
           w.ward_number,
           w.ward_name,
           w.municipality_code,
-          w.district_code,
-          w.province_code,
+          m.district_code,
+          d.province_code,
           m.municipality_name,
           d.district_name,
           p.province_name,
@@ -255,11 +281,11 @@ export class GeographicModel {
           w.updated_at
         FROM wards w
         LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
-        LEFT JOIN districts d ON w.district_code = d.district_code
-        LEFT JOIN provinces p ON w.province_code = p.province_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
         WHERE w.ward_code = ?
       `;
-      
+
       return await executeQuerySingle<Ward>(query, [code]);
     } catch (error) {
       throw createDatabaseError('Failed to fetch ward', error);
@@ -270,13 +296,13 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
-          w.id,
+          w.ward_id as id,
           w.ward_code,
           w.ward_number,
           w.ward_name,
           w.municipality_code,
-          w.district_code,
-          w.province_code,
+          m.district_code,
+          d.province_code,
           m.municipality_name,
           d.district_name,
           p.province_name,
@@ -284,12 +310,12 @@ export class GeographicModel {
           w.updated_at
         FROM wards w
         LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
-        LEFT JOIN districts d ON w.district_code = d.district_code
-        LEFT JOIN provinces p ON w.province_code = p.province_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
         WHERE w.municipality_code = ?
         ORDER BY w.ward_number
       `;
-      
+
       return await executeQuery<Ward>(query, [municipalityCode]);
     } catch (error) {
       throw createDatabaseError('Failed to fetch wards by municipality', error);
@@ -303,6 +329,77 @@ export class GeographicModel {
       return result?.count || 0;
     } catch (error) {
       throw createDatabaseError('Failed to get wards count', error);
+    }
+  }
+
+  // Subregion methods
+  static async getSubregionsByMunicipality(municipalityCode: string): Promise<Subregion[]> {
+    try {
+      const query = `
+        SELECT
+          sr.municipality_code,
+          sr.municipality_name,
+          sr.parent_municipality_id,
+          pm.municipality_code as parent_municipality_code,
+          pm.municipality_name as parent_municipality_name,
+          pm.district_code,
+          d.province_code,
+          d.district_name,
+          p.province_name
+        FROM municipalities sr
+        JOIN municipalities pm ON sr.parent_municipality_id = pm.municipality_id
+        LEFT JOIN districts d ON pm.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        WHERE pm.municipality_code = ?
+          AND sr.municipality_type = 'Metro Sub-Region'
+        ORDER BY sr.municipality_name
+      `;
+
+      return await executeQuery<Subregion>(query, [municipalityCode]);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch subregions by municipality', error);
+    }
+  }
+
+  static async getSubregionByCode(subregionCode: string): Promise<Subregion | null> {
+    try {
+      const query = `
+        SELECT
+          sr.municipality_code,
+          sr.municipality_name,
+          sr.parent_municipality_id,
+          pm.municipality_code as parent_municipality_code,
+          pm.municipality_name as parent_municipality_name,
+          pm.district_code,
+          d.province_code,
+          d.district_name,
+          p.province_name
+        FROM municipalities sr
+        JOIN municipalities pm ON sr.parent_municipality_id = pm.municipality_id
+        LEFT JOIN districts d ON pm.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        WHERE sr.municipality_code = ?
+          AND sr.municipality_type = 'Metro Sub-Region'
+      `;
+
+      return await executeQuerySingle<Subregion>(query, [subregionCode]);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch subregion', error);
+    }
+  }
+
+  static async isMetropolitanMunicipality(municipalityCode: string): Promise<boolean> {
+    try {
+      const query = `
+        SELECT municipality_type
+        FROM municipalities
+        WHERE municipality_code = ?
+      `;
+
+      const result = await executeQuerySingle<{ municipality_type: string }>(query, [municipalityCode]);
+      return result?.municipality_type === 'Metropolitan';
+    } catch (error) {
+      throw createDatabaseError('Failed to check if municipality is metropolitan', error);
     }
   }
 }

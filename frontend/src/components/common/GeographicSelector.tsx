@@ -255,7 +255,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {provinceContext.assignedProvince?.name || municipalityContext.assignedProvince?.name}
                 </Typography>
-                <Tooltip title={`Province selection is restricted for ${municipalityContext.shouldRestrictToMunicipality ? 'Municipality' : 'Provincial'} Admins`}>
+                <Tooltip title={`Province selection is restricted for ${municipalityContext.shouldRestrictToMunicipality ? 'Sub-Region' : 'Provincial'} Admins`}>
                   <Lock color="action" fontSize="small" />
                 </Tooltip>
               </Box>
@@ -297,13 +297,13 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
           )}
         </Grid>
 
-        {/* District Selection */}
+        {/* Region Selection */}
         <Grid item xs={12} md={6}>
           {municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedDistrict ? (
-            // Municipality Admin - Show locked district
+            // Sub-Region Admin - Show locked region
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                District (Restricted)
+                Region (Restricted)
               </Typography>
               <Box
                 sx={{
@@ -321,38 +321,38 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {municipalityContext.assignedDistrict.name}
                 </Typography>
-                <Tooltip title="District selection is restricted for Municipality Admins">
+                <Tooltip title="Region selection is restricted for Sub-Region Admins">
                   <Lock color="action" fontSize="small" />
                 </Tooltip>
               </Box>
             </Box>
           ) : (
             <FormControl fullWidth variant={variant} size={size} required={required}>
-              <InputLabel>District *</InputLabel>
+              <InputLabel>Region *</InputLabel>
               <Select
                 value={selectedDistrict || ''}
                 onChange={(e) => onDistrictChange?.(e.target.value)}
                 disabled={disabled || !selectedProvince || districtsLoading}
-                label="District *"
+                label="Region *"
                 displayEmpty
               >
                 <MenuItem value="">
-                  <em>{!selectedProvince ? 'Select a province first...' : 'Select a district...'}</em>
+                  <em>{!selectedProvince ? 'Select a province first...' : 'Select a region...'}</em>
                 </MenuItem>
                 {districtsLoading ? (
                   <MenuItem disabled>
                     <Box display="flex" alignItems="center" gap={1}>
                       <CircularProgress size={16} />
-                      <span>Loading districts...</span>
+                      <span>Loading regions...</span>
                     </Box>
                   </MenuItem>
                 ) : districtsError ? (
                   <MenuItem disabled>
-                    <em>Error loading districts</em>
+                    <em>Error loading regions</em>
                   </MenuItem>
                 ) : districts?.data?.length === 0 ? (
                   <MenuItem disabled>
-                    <em>No districts available for this province</em>
+                    <em>No regions available for this province</em>
                   </MenuItem>
                 ) : (
                   districts?.data?.map((district: District) => (
@@ -366,13 +366,13 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
           )}
         </Grid>
 
-        {/* Municipality Selection */}
+        {/* Sub-Region Selection */}
         <Grid item xs={12} md={6}>
           {municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedMunicipality ? (
-            // Municipality Admin - Show locked municipality
+            // Sub-Region Admin - Show locked sub-region
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Municipality (Restricted)
+                Sub-Region (Restricted)
               </Typography>
               <Box
                 sx={{
@@ -390,38 +390,38 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {municipalityContext.assignedMunicipality.name}
                 </Typography>
-                <Tooltip title="Municipality selection is restricted for Municipality Admins">
+                <Tooltip title="Sub-Region selection is restricted for Sub-Region Admins">
                   <Lock color="action" fontSize="small" />
                 </Tooltip>
               </Box>
             </Box>
           ) : (
             <FormControl fullWidth variant={variant} size={size} required={required}>
-              <InputLabel>Municipality *</InputLabel>
+              <InputLabel>Sub-Region *</InputLabel>
               <Select
                 value={selectedMunicipality || ''}
                 onChange={(e) => onMunicipalityChange?.(e.target.value)}
                 disabled={disabled || !selectedDistrict || municipalitiesLoading}
-                label="Municipality *"
+                label="Sub-Region *"
                 displayEmpty
               >
                 <MenuItem value="">
-                  <em>{!selectedDistrict ? 'Select a district first...' : 'Select a municipality...'}</em>
+                  <em>{!selectedDistrict ? 'Select a region first...' : 'Select a sub-region...'}</em>
                 </MenuItem>
                 {municipalitiesLoading ? (
                   <MenuItem disabled>
                     <Box display="flex" alignItems="center" gap={1}>
                       <CircularProgress size={16} />
-                      <span>Loading municipalities...</span>
+                      <span>Loading sub-regions...</span>
                     </Box>
                   </MenuItem>
                 ) : municipalitiesError ? (
                   <MenuItem disabled>
-                    <em>Error loading municipalities</em>
+                    <em>Error loading sub-regions</em>
                   </MenuItem>
                 ) : municipalities?.data?.length === 0 ? (
                   <MenuItem disabled>
-                    <em>No municipalities available for this district</em>
+                    <em>No sub-regions available for this region</em>
                   </MenuItem>
                 ) : (
                   municipalities?.data?.map((municipality: Municipality) => (
@@ -447,7 +447,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               displayEmpty
             >
               <MenuItem value="">
-                <em>{!selectedMunicipality ? 'Select a municipality first...' : 'Select a ward...'}</em>
+                <em>{!selectedMunicipality ? 'Select a sub-region first...' : 'Select a ward...'}</em>
               </MenuItem>
               {wardsLoading ? (
                 <MenuItem disabled>
@@ -462,7 +462,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 </MenuItem>
               ) : wards?.data?.length === 0 ? (
                 <MenuItem disabled>
-                  <em>No wards available for this municipality</em>
+                  <em>No wards available for this sub-region</em>
                 </MenuItem>
               ) : (
                 wards?.data?.map((ward: Ward) => (

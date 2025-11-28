@@ -12,12 +12,30 @@ export const api = axios.create({
 // Request interceptor to add auth token, session ID, and CSRF protection
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Read token from Zustand persisted storage
+    const authStorage = localStorage.getItem('auth-storage');
+    let token = null;
+    let sessionId = null;
+
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        token = parsed.state?.token;
+        sessionId = parsed.state?.sessionId;
+      } catch (error) {
+        console.error('❌ Failed to parse auth-storage:', error);
+      }
     }
 
-    const sessionId = localStorage.getItem('sessionId');
+    console.log('🔑 Axios Interceptor - Token from auth-storage:', token ? `${token.substring(0, 20)}...` : 'NULL');
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('✅ Axios Interceptor - Authorization header added');
+    } else {
+      console.log('❌ Axios Interceptor - NO TOKEN FOUND in auth-storage!');
+    }
+
     if (sessionId) {
       config.headers['X-Session-ID'] = sessionId;
     }
@@ -34,6 +52,12 @@ api.interceptors.request.use(
       config.headers['X-Requested-With'] = 'XMLHttpRequest';
     }
 
+    console.log('📤 Axios Interceptor - Request config:', {
+      url: config.url,
+      method: config.method,
+      hasAuthHeader: !!config.headers.Authorization
+    });
+
     return config;
   },
   (error: any) => {
@@ -48,9 +72,9 @@ api.interceptors.response.use(
   },
   (error: any) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access - clear all auth data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('sessionId');
+      // Handle unauthorized access - clear auth data
+      // Clear Zustand persisted storage
+      localStorage.removeItem('auth-storage');
       localStorage.removeItem('tokenExpiration');
       localStorage.removeItem('sessionExpiration');
       // Only redirect if not already on login page

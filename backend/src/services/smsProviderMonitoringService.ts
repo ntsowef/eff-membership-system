@@ -120,7 +120,7 @@ export class SMSProviderMonitoringService {
           }
         } catch (error: any) {
           isHealthy = false;
-          healthMessage = `Health check failed: ${error.message}`;
+          healthMessage = 'Health check failed: ' + error.message + '';
           responseTime = Date.now() - startTime;
           consecutiveFailures++;
           lastErrorMessage = error.message;
@@ -167,7 +167,7 @@ export class SMSProviderMonitoringService {
       healthStatus = {
         provider_name: 'Unknown',
         is_healthy: false,
-        health_message: `Health check error: ${error.message}`,
+        health_message: 'Health check error: ' + error.message + '',
         response_time_ms: Date.now() - startTime,
         consecutive_failures: 999,
         last_error_message: error.message,
@@ -191,13 +191,12 @@ export class SMSProviderMonitoringService {
                success_rate_24h, average_response_time_24h, total_messages_24h,
                last_check_timestamp
         FROM sms_provider_health
-        WHERE provider_name = ?
-      `;
+        WHERE provider_name = ? `;
 
       const result = await executeQuerySingle(query, [providerName]);
       return result || null;
 
-    } catch (error: any) {
+    } catch (error : any) {
       logger.error('Failed to get provider health status', {
         error: error.message,
         providerName
@@ -215,19 +214,19 @@ export class SMSProviderMonitoringService {
           consecutive_failures, last_error_message, last_error_timestamp,
           success_rate_24h, average_response_time_24h, total_messages_24h,
           last_check_timestamp, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE
-          is_healthy = VALUES(is_healthy),
-          health_message = VALUES(health_message),
-          response_time_ms = VALUES(response_time_ms),
-          consecutive_failures = VALUES(consecutive_failures),
-          last_error_message = VALUES(last_error_message),
-          last_error_timestamp = VALUES(last_error_timestamp),
-          success_rate_24h = VALUES(success_rate_24h),
-          average_response_time_24h = VALUES(average_response_time_24h),
-          total_messages_24h = VALUES(total_messages_24h),
-          last_check_timestamp = VALUES(last_check_timestamp),
-          updated_at = NOW()
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
+        ON CONFLICT (provider_name) DO UPDATE SET
+          is_healthy = EXCLUDED.is_healthy,
+          health_message = EXCLUDED.health_message,
+          response_time_ms = EXCLUDED.response_time_ms,
+          consecutive_failures = EXCLUDED.consecutive_failures,
+          last_error_message = EXCLUDED.last_error_message,
+          last_error_timestamp = EXCLUDED.last_error_timestamp,
+          success_rate_24h = EXCLUDED.success_rate_24h,
+          average_response_time_24h = EXCLUDED.average_response_time_24h,
+          total_messages_24h = EXCLUDED.total_messages_24h,
+          last_check_timestamp = EXCLUDED.last_check_timestamp,
+          updated_at = CURRENT_TIMESTAMP
       `;
 
       await executeQuery(query, [
@@ -257,22 +256,21 @@ export class SMSProviderMonitoringService {
   static async calculatePerformanceMetrics(providerName: string): Promise<ProviderPerformanceMetrics> {
     try {
       const query = `
-        SELECT 
+        SELECT
           COUNT(*) as total_messages,
           SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_messages,
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_messages,
           SUM(CASE WHEN status IN ('pending', 'queued', 'sending', 'sent') THEN 1 ELSE 0 END) as pending_messages,
           ROUND(AVG(COALESCE(cost, 0)), 4) as average_cost
         FROM sms_delivery_tracking
-        WHERE provider_name = ?
-          AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        WHERE provider_name = ? AND created_at >= CURRENT_TIMESTAMP - INTERVAL \'24 hours\'
       `;
 
       const result = await executeQuerySingle(query, [providerName]);
 
       const totalMessages = result?.total_messages || 0;
       const deliveredMessages = result?.delivered_messages || 0;
-      const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100 : 0;
+      const deliveryRate = totalMessages > 0 ? (deliveredMessages / totalMessages) * 100  : 0;
 
       return {
         provider_name: providerName,
@@ -321,7 +319,7 @@ export class SMSProviderMonitoringService {
           UPDATE sms_provider_health
           SET success_rate_24h = ?,
               total_messages_24h = ?,
-              updated_at = NOW()
+              updated_at = CURRENT_TIMESTAMP
           WHERE provider_name = ?
         `, [
           metrics.delivery_rate,
@@ -332,7 +330,7 @@ export class SMSProviderMonitoringService {
 
       logger.info('Performance metrics updated successfully');
 
-    } catch (error: any) {
+    } catch (error : any) {
       logger.error('Failed to update performance metrics', {
         error: error.message
       });

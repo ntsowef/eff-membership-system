@@ -1,4 +1,11 @@
 {
+  "name": "eff-membership-system",
+  "version": "1.0.0",
+  "description": "EFF Membership Management System",
+  "scripts": {
+    "test:sms": "node test/sms/test-json-applink-sms.js",
+    "test:sms:ts": "ts-node test/sms/test-json-applink-sms.ts"
+  },
   "dependencies": {
     "@types/pg": "^8.15.5",
     "axios": "^1.12.2",

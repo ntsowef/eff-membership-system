@@ -8,7 +8,7 @@ import { config } from '../config/config';
 export interface LegacySMSMessage {
   to: string;
   message: string;
-  from?: string;
+  from: string;
 }
 
 export interface SMSResponse {
@@ -28,9 +28,8 @@ export interface SMSProvider {
 class JSONApplinkProvider implements SMSProvider {
   name = 'JSON Applink';
   private apiUrl: string;
-  private apiKey: string;
-  private username?: string;
-  private password?: string;
+  private authenticationCode: string;
+  private affiliateCode: string;
   private fromNumber?: string;
   private rateLimitPerMinute: number;
   private lastRequestTime: number = 0;
@@ -38,16 +37,14 @@ class JSONApplinkProvider implements SMSProvider {
 
   constructor(config: {
     apiUrl: string;
-    apiKey: string;
-    username?: string;
-    password?: string;
+    authenticationCode: string;
+    affiliateCode: string;
     fromNumber?: string;
     rateLimitPerMinute?: number;
   }) {
     this.apiUrl = config.apiUrl;
-    this.apiKey = config.apiKey;
-    this.username = config.username;
-    this.password = config.password;
+    this.authenticationCode = config.authenticationCode;
+    this.affiliateCode = config.affiliateCode;
     this.fromNumber = config.fromNumber;
     this.rateLimitPerMinute = config.rateLimitPerMinute || 100;
   }
@@ -83,46 +80,21 @@ class JSONApplinkProvider implements SMSProvider {
         'User-Agent': 'EFF-Membership-System/1.0'
       };
 
-      // Add authentication (flexible approach)
-      if (this.username && this.password) {
-        headers['Authorization'] = `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`;
-      } else if (this.apiKey) {
-        headers['X-API-Key'] = this.apiKey;
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
-      }
-
-      // Prepare request payload (flexible format to accommodate different API structures)
+      // Prepare request payload in JSON Applink's required format
+      // This is the CORRECT format that works with JSON Applink API
       const payload = {
-        // Primary SMS fields
-        to: message.to,
-        from: message.from || this.fromNumber,
-        message: message.message,
-        text: message.message, // Alternative field name
-        body: message.message, // Alternative field name
-
-        // Authentication fields (some APIs require these in payload)
-        api_key: this.apiKey,
-        username: this.username,
-        password: this.password,
-
-        // Message options
-        message_type: 'text',
-        encoding: 'UTF-8',
-        priority: 'normal',
-
-        // Delivery options
-        delivery_report: true,
-        callback_url: process.env.SMS_CALLBACK_URL || '',
-
-        // Metadata
-        reference: `eff_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString(),
-
-        // Additional fields that might be required by specific providers
-        sender_id: this.fromNumber,
-        recipient: message.to,
-        content: message.message,
-        type: 'sms'
+        affiliateCode: this.affiliateCode,
+        authenticationCode: this.authenticationCode,
+        submitDateTime: new Date().toISOString(),
+        messageType: 'text',
+        recipientList: {
+          recipient: [
+            {
+              msisdn: message.to,
+              message: message.message
+            }
+          ]
+        }
       };
 
       logger.info('Sending SMS via JSON Applink', {
@@ -139,34 +111,59 @@ class JSONApplinkProvider implements SMSProvider {
         validateStatus: (status) => status < 500 // Don't throw on 4xx errors
       });
 
-      // Handle successful response
+      // Handle response based on JSON Applink's format
+      // Success: { "resultCode": 0, "resultText": "Process Successful" }
+      // Failure: { "resultCode": 1, "resultText": "Invalid Authentication: Failed Authentication" }
+
       if (response.status >= 200 && response.status < 300) {
-        const messageId = this.extractMessageId(response.data);
+        const data = response.data;
 
-        logger.info('SMS sent successfully via JSON Applink', {
-          provider: this.name,
-          to: message.to,
-          messageId,
-          status: response.status,
-          responseData: response.data
-        });
+        // Check resultCode (0 = success, non-zero = error)
+        if (data.resultCode === 0 || data.resultCode === '0') {
+          const messageId = data.messageId || data.id || `eff_${Date.now()}`;
 
-        return {
-          success: true,
-          messageId,
-          provider: this.name
-        };
+          logger.info('SMS sent successfully via JSON Applink', {
+            provider: this.name,
+            to: message.to,
+            messageId,
+            status: response.status,
+            resultCode: data.resultCode,
+            resultText: data.resultText
+          });
+
+          return {
+            success: true,
+            messageId,
+            provider: this.name
+          };
+        } else {
+          // API returned error in response body
+          const errorMessage = data.resultText || data.error || 'Unknown error';
+
+          logger.error('SMS failed via JSON Applink', {
+            provider: this.name,
+            to: message.to,
+            status: response.status,
+            resultCode: data.resultCode,
+            error: errorMessage
+          });
+
+          return {
+            success: false,
+            error: `JSON Applink error (code ${data.resultCode}): ${errorMessage}`,
+            provider: this.name
+          };
+        }
       }
 
-      // Handle error response
-      const errorMessage = this.extractErrorMessage(response.data) || `HTTP ${response.status}: ${response.statusText}`;
+      // Handle HTTP error response
+      const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
-      logger.error('SMS failed via JSON Applink', {
+      logger.error('SMS failed via JSON Applink - HTTP error', {
         provider: this.name,
         to: message.to,
         status: response.status,
-        error: errorMessage,
-        responseData: response.data
+        error: errorMessage
       });
 
       return {
@@ -306,8 +303,8 @@ class JSONApplinkProvider implements SMSProvider {
 
       const response = await axios.get(healthUrl, {
         headers: {
-          'X-API-Key': this.apiKey,
-          'Authorization': `Bearer ${this.apiKey}`
+          'Accept': 'application/json',
+          'User-Agent': 'EFF-Membership-System/1.0'
         },
         timeout: 10000,
         validateStatus: () => true // Don't throw on any status
@@ -389,15 +386,14 @@ export class SMSService {
     switch (smsConfig.provider?.toLowerCase()) {
       case 'json-applink':
       case 'jsonapplink':
-        if (!smsConfig.jsonApplink?.apiUrl || !smsConfig.jsonApplink?.apiKey) {
+        if (!smsConfig.jsonApplink?.apiUrl || !smsConfig.jsonApplink?.authenticationCode || !smsConfig.jsonApplink?.affiliateCode) {
           logger.warn('JSON Applink SMS configuration incomplete, falling back to mock provider');
           return new MockSMSProvider();
         }
         return new JSONApplinkProvider({
           apiUrl: smsConfig.jsonApplink.apiUrl,
-          apiKey: smsConfig.jsonApplink.apiKey,
-          username: smsConfig.jsonApplink.username,
-          password: smsConfig.jsonApplink.password,
+          authenticationCode: smsConfig.jsonApplink.authenticationCode,
+          affiliateCode: smsConfig.jsonApplink.affiliateCode,
           fromNumber: smsConfig.jsonApplink.fromNumber,
           rateLimitPerMinute: smsConfig.jsonApplink.rateLimitPerMinute
         });
@@ -417,7 +413,22 @@ export class SMSService {
   }
 
   // Send SMS using current provider
-  static async sendSMS(to: string, message: string, from?: string): Promise<SMSResponse> {
+  static async sendSMS(to: string, message: string, from: string): Promise<SMSResponse> {
+    // Check if SMS is enabled
+    if (config.sms?.enabled === false) {
+      logger.info('SMS sending is disabled via configuration', {
+        to,
+        messageLength: message.length,
+        from
+      });
+
+      return {
+        success: false,
+        error: 'SMS sending is disabled. Set SMS_ENABLED=true in .env to enable.',
+        provider: 'disabled'
+      };
+    }
+
     const provider = this.getProvider();
     return provider.sendSMS({ to, message, from });
   }
@@ -566,16 +577,16 @@ export class SMSService {
     // Build WHERE clause based on notification type
     switch (notification_type) {
       case '30_day_reminder':
-        whereClause = 'WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
+        whereClause = 'WHERE membership_expiry_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL \'30 DAY\')';
         break;
       case '7_day_urgent':
-        whereClause = 'WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)';
+        whereClause = 'WHERE membership_expiry_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL \'7 DAY\')';
         break;
       case 'expired_today':
-        whereClause = 'WHERE DATE(membership_expiry_date) = CURDATE()';
+        whereClause = 'WHERE membership_expiry_date::DATE = CURRENT_DATE';
         break;
       case '7_day_grace':
-        whereClause = 'WHERE membership_expiry_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND CURDATE()';
+        whereClause = 'WHERE membership_expiry_date BETWEEN (CURRENT_DATE - INTERVAL \'7 DAY\') AND CURRENT_DATE';
         break;
       default:
         throw new Error(`Invalid notification type: ${notification_type}`);
@@ -583,28 +594,28 @@ export class SMSService {
 
     // Add member_ids filter if provided
     if (member_ids && member_ids.length > 0) {
-      const placeholders = member_ids.map(() => '?').join(',');
+      const placeholders = member_ids.map(() => '? ').join(',');
       whereClause += ` AND member_id IN (${placeholders})`;
       params = member_ids;
     }
 
     const query = `
-      SELECT 
+        SELECT
         member_id,
         first_name,
         last_name,
         email,
         phone_number,
         membership_expiry_date,
-        CASE 
-          WHEN membership_expiry_date < CURDATE() THEN ABS(DATEDIFF(CURDATE(), membership_expiry_date))
-          ELSE DATEDIFF(membership_expiry_date, CURDATE())
+        CASE
+          WHEN membership_expiry_date < CURRENT_DATE THEN ABS((CURRENT_DATE::DATE - membership_expiry_date::DATE))
+          ELSE (membership_expiry_date::DATE - CURRENT_DATE::DATE)
         END as days_until_expiration
-      FROM vw_member_details 
+      FROM vw_member_details
       ${whereClause}
-      AND phone_number IS NOT NULL 
+      AND phone_number IS NOT NULL
       AND phone_number != ''
-      ORDER BY membership_expiry_date ASC
+        ORDER BY membership_expiry_date ASC
       LIMIT 1000
     `;
 
@@ -619,13 +630,13 @@ export class SMSService {
     personalizedMessage = personalizedMessage.replace(/{firstName}/g, member.first_name || 'Member');
     personalizedMessage = personalizedMessage.replace(/{lastName}/g, member.last_name || '');
     personalizedMessage = personalizedMessage.replace(/{daysUntilExpiration}/g, member.days_until_expiration?.toString() || '0');
-    personalizedMessage = personalizedMessage.replace(/{daysSinceExpiration}/g, member.days_until_expiration?.toString() || '0');
+    personalizedMessage = personalizedMessage.replace(/{daysSinceExpiration}/g, member.days_until_expiration.toString() || '0');
     
     // Format expiry date
     if (member.membership_expiry_date) {
       const expiryDate = new Date(member.membership_expiry_date);
       const formattedDate = expiryDate.toLocaleDateString('en-US', { 
-        year: 'numeric', 
+        year : 'numeric', 
         month: 'short', 
         day: 'numeric' 
       });
@@ -644,7 +655,7 @@ export class SMSService {
   }> {
     try {
       // Use the SMS provider to send the message
-      const result = await SMSService.sendSMS(phoneNumber, message);
+      const result = await SMSService.sendSMS(phoneNumber, message, 'EFF');
 
       if (result.success) {
         return {

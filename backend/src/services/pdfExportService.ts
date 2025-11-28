@@ -22,7 +22,7 @@ export interface TableColumn {
   key: string;
   title: string;
   width: number;
-  align?: 'left' | 'center' | 'right';
+  align: 'left' | 'center' | 'right';
 }
 
 export class PDFExportService {
@@ -63,27 +63,27 @@ export class PDFExportService {
       // Add simple content
       doc.fontSize(20).text('Members Export Report', { align: 'center' });
       doc.moveDown();
-      doc.fontSize(12).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'center' });
+      doc.fontSize(12).text('Generated on: ' + new Date().toLocaleString(), { align: 'center' });
       doc.moveDown(2);
 
       // Try to fetch members data
       try {
         console.log('🔍 Fetching members data...');
         const members = await this.fetchMembersData(filters);
-        console.log(`📊 Found ${members.length} members`);
+        console.log('📊 Found ' + members.length + ' members');
 
-        doc.fontSize(14).text(`Total Members: ${members.length}`);
+        doc.fontSize(14).text('Total Members: ' + members.length);
         doc.moveDown();
 
         // Add first few members as simple text (not table)
         const displayMembers = members.slice(0, 10);
         displayMembers.forEach((member, index) => {
-          const name = member.full_name || `${member.firstname || ''} ${member.surname || ''}`.trim();
-          doc.fontSize(10).text(`${index + 1}. ${name} - ${member.cell_number || 'No phone'}`);
+          const name = member.full_name || ((member.firstname || '') + ' ' + (member.surname || '')).trim();
+          doc.fontSize(10).text((index + 1) + '. ' + name + ' - ' + (member.cell_number || 'No phone'));
         });
 
         if (members.length > 10) {
-          doc.moveDown().text(`... and ${members.length - 10} more members`);
+          doc.moveDown().text('... and ' + (members.length - 10) + ' more members');
         }
 
       } catch (dbError) {
@@ -171,18 +171,18 @@ export class PDFExportService {
         m.member_id,
         m.firstname,
         m.surname,
-        CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
+        m.firstname || ' ' || COALESCE(m.surname || '') as full_name,
         m.cell_number,
         m.email,
         m.age,
         g.gender_name,
         w.ward_name,
-        CONCAT('Ward ', w.ward_number) as ward_display,
+        'Ward ' || w.ward_number as ward_display,
         mu.municipality_name,
         d.district_name,
         p.province_name,
         vd.voting_district_name,
-        CONCAT('VD ', vd.voting_district_number) as voting_district_display,
+        'VD ' || vd.voting_district_number as voting_district_display,
         m.created_at
       FROM members m
       LEFT JOIN genders g ON m.gender_id = g.id
@@ -191,26 +191,26 @@ export class PDFExportService {
       LEFT JOIN districts d ON mu.district_code = d.district_code
       LEFT JOIN provinces p ON d.province_code = p.province_code
       LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
-      WHERE 1=1
+      WHERE 1= TRUE
     `;
 
     const queryParams: any[] = [];
 
     // Apply filters
     if (filters.province_code) {
-      query += ' AND p.province_code = ?';
+      query += ' AND p.province_code = ? ';
       queryParams.push(filters.province_code);
     }
     if (filters.municipality_code) {
-      query += ' AND mu.municipality_code = ?';
+      query += ' AND mu.municipality_code = $1';
       queryParams.push(filters.municipality_code);
     }
     if (filters.ward_code) {
-      query += ' AND w.ward_code = ?';
+      query += ' AND w.ward_code = $1';
       queryParams.push(filters.ward_code);
     }
     if (filters.voting_district_code) {
-      query += ' AND vd.voting_district_code = ?';
+      query += ' AND vd.voting_district_code = $1';
       queryParams.push(filters.voting_district_code);
     }
 
@@ -220,14 +220,14 @@ export class PDFExportService {
     return await executeQuery(query, queryParams);
   }
 
-  private static async fetchVotingDistrictsData(filters: any = {}): Promise<any[]> {
+  private static async fetchVotingDistrictsData(filters : any = {}): Promise<any[]> {
     let query = `
       SELECT 
         vd.voting_district_code,
         vd.voting_district_name,
         vd.voting_district_number,
         w.ward_name,
-        CONCAT('Ward ', w.ward_number) as ward_display,
+        'Ward ' || w.ward_number as ward_display,
         mu.municipality_name,
         d.district_name,
         p.province_name,
@@ -240,17 +240,17 @@ export class PDFExportService {
       LEFT JOIN districts d ON mu.district_code = d.district_code
       LEFT JOIN provinces p ON d.province_code = p.province_code
       LEFT JOIN members m ON vd.voting_district_code = m.voting_district_code
-      WHERE 1=1
+      WHERE 1= TRUE
     `;
 
     const queryParams: any[] = [];
 
     if (filters.province_code) {
-      query += ' AND p.province_code = ?';
+      query += ' AND p.province_code = ? ';
       queryParams.push(filters.province_code);
     }
     if (filters.ward_code) {
-      query += ' AND w.ward_code = ?';
+      query += ' AND w.ward_code = $1';
       queryParams.push(filters.ward_code);
     }
 
@@ -264,14 +264,14 @@ export class PDFExportService {
     return await executeQuery(query, queryParams);
   }
 
-  private static addHeader(doc: PDFKit.PDFDocument, title: string, subtitle?: string): void {
+  private static addHeader(doc : PDFKit.PDFDocument, title: string, subtitle?: string): void {
     doc.fontSize(20).font('Helvetica-Bold').text(title, { align: 'center' });
     
     if (subtitle) {
       doc.fontSize(14).font('Helvetica').text(subtitle, { align: 'center' });
     }
     
-    doc.fontSize(10).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'center' });
+    doc.fontSize(10).text('Generated on: ' + new Date().toLocaleString(), { align: 'center' });
     doc.moveDown(2);
   }
 
@@ -280,17 +280,17 @@ export class PDFExportService {
     doc.moveDown(0.5);
     
     doc.fontSize(10).font('Helvetica');
-    doc.text(`Total Records: ${data.length}`);
+    doc.text('Total Records: ' + data.length);
     
     // Calculate some basic stats
     const maleCount = data.filter(m => m.gender_name === 'Male').length;
     const femaleCount = data.filter(m => m.gender_name === 'Female').length;
     const avgAge = data.filter(m => m.age).reduce((sum, m) => sum + m.age, 0) / data.filter(m => m.age).length;
     
-    doc.text(`Male Members: ${maleCount}`);
-    doc.text(`Female Members: ${femaleCount}`);
+    doc.text('Male Members: ' + maleCount);
+    doc.text('Female Members: ' + femaleCount);
     if (!isNaN(avgAge)) {
-      doc.text(`Average Age: ${avgAge.toFixed(1)} years`);
+      doc.text('Average Age: ' + avgAge.toFixed(1) + ' years');
     }
     
     doc.moveDown(1);
@@ -455,20 +455,20 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Total Members: ${totalMembers.toLocaleString()}`, { continued: false });
+       .text('Total Members: ' + totalMembers.toLocaleString(), { continued: false });
 
-    doc.text(`Gender Distribution: ${demographics.gender.male.toLocaleString()} Male (${((demographics.gender.male / totalMembers) * 100).toFixed(1)}%), ${demographics.gender.female.toLocaleString()} Female (${((demographics.gender.female / totalMembers) * 100).toFixed(1)}%)`);
+    doc.text('Gender Distribution: ' + (demographics.gender.male.toLocaleString()) + ' Male (' + (((demographics.gender.male / totalMembers) * 100).toFixed(1)) + '%), ' + (demographics.gender.female.toLocaleString()) + ' Female (' + ((demographics.gender.female / totalMembers) * 100).toFixed(1) + '%)');
 
-    doc.text(`Age Distribution: Largest group is ${demographics.age_groups.age_36_60 > demographics.age_groups.age_18_35 ? '36-60 years' : '18-35 years'} with ${Math.max(demographics.age_groups.age_36_60, demographics.age_groups.age_18_35).toLocaleString()} members`);
+    doc.text('Age Distribution: Largest group is ' + (demographics.age_groups.age_36_60 > demographics.age_groups.age_18_35 ? '36-60 years' : '18-35 years') + ' with ' + Math.max(demographics.age_groups.age_36_60, demographics.age_groups.age_18_35).toLocaleString() + ' members');
 
     if (demographics.race && demographics.race.length > 0) {
       const topRace = demographics.race[0];
-      doc.text(`Primary Race: ${topRace.race_name} (${topRace.percentage}%)`);
+      doc.text('Primary Race: ' + (topRace.race_name) + ' (' + topRace.percentage + '%)');
     }
 
     if (demographics.language && demographics.language.length > 0) {
       const topLanguage = demographics.language[0];
-      doc.text(`Primary Language: ${topLanguage.language_name} (${topLanguage.percentage}%)`);
+      doc.text('Primary Language: ' + (topLanguage.language_name) + ' (' + topLanguage.percentage + '%)');
     }
 
     doc.moveDown(1.5);
@@ -486,12 +486,12 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text(`Male: ${gender.male.toLocaleString()} (${((gender.male / total) * 100).toFixed(1)}%)`);
-    doc.text(`Female: ${gender.female.toLocaleString()} (${((gender.female / total) * 100).toFixed(1)}%)`);
+    doc.text('Male: ' + (gender.male.toLocaleString()) + ' (' + ((gender.male / total) * 100).toFixed(1) + '%)');
+    doc.text('Female: ' + (gender.female.toLocaleString()) + ' (' + ((gender.female / total) * 100).toFixed(1) + '%)');
     if (gender.other > 0) {
-      doc.text(`Other: ${gender.other.toLocaleString()} (${((gender.other / total) * 100).toFixed(1)}%)`);
+      doc.text('Other: ' + (gender.other.toLocaleString()) + ' (' + ((gender.other / total) * 100).toFixed(1) + '%)');
     }
-    doc.text(`Total: ${total.toLocaleString()}`);
+    doc.text('Total: ' + total.toLocaleString());
 
     doc.moveDown(1);
   }
@@ -508,11 +508,11 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text(`Under 18: ${ageGroups.under_18.toLocaleString()} (${((ageGroups.under_18 / total) * 100).toFixed(1)}%)`);
-    doc.text(`18-35 years: ${ageGroups.age_18_35.toLocaleString()} (${((ageGroups.age_18_35 / total) * 100).toFixed(1)}%)`);
-    doc.text(`36-60 years: ${ageGroups.age_36_60.toLocaleString()} (${((ageGroups.age_36_60 / total) * 100).toFixed(1)}%)`);
-    doc.text(`Over 60: ${ageGroups.over_60.toLocaleString()} (${((ageGroups.over_60 / total) * 100).toFixed(1)}%)`);
-    doc.text(`Total: ${total.toLocaleString()}`);
+    doc.text('Under 18: ' + (ageGroups.under_18.toLocaleString()) + ' (' + ((ageGroups.under_18 / total) * 100).toFixed(1) + '%)');
+    doc.text('18-35 years: ' + (ageGroups.age_18_35.toLocaleString()) + ' (' + ((ageGroups.age_18_35 / total) * 100).toFixed(1) + '%)');
+    doc.text('36-60 years: ' + (ageGroups.age_36_60.toLocaleString()) + ' (' + ((ageGroups.age_36_60 / total) * 100).toFixed(1) + '%)');
+    doc.text('Over 60: ' + (ageGroups.over_60.toLocaleString()) + ' (' + ((ageGroups.over_60 / total) * 100).toFixed(1) + '%)');
+    doc.text('Total: ' + total.toLocaleString());
 
     doc.moveDown(1);
   }
@@ -530,7 +530,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     race.forEach(item => {
-      doc.text(`${item.race_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.race_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -551,11 +551,11 @@ export class PDFExportService {
     // Show top 10 languages
     const topLanguages = language.slice(0, 10);
     topLanguages.forEach(item => {
-      doc.text(`${item.language_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.language_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     if (language.length > 10) {
-      doc.text(`... and ${language.length - 10} other languages`);
+      doc.text('... and ' + (language.length - 10) + ' other languages');
     }
 
     doc.moveDown(1);
@@ -574,7 +574,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     occupation.forEach(item => {
-      doc.text(`${item.category_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.category_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -593,7 +593,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     qualification.forEach(item => {
-      doc.text(`${item.qualification_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.qualification_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -625,12 +625,12 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text(`Male: ${gender.male.toLocaleString()} (${((gender.male / total) * 100).toFixed(1)}%)`);
-    doc.text(`Female: ${gender.female.toLocaleString()} (${((gender.female / total) * 100).toFixed(1)}%)`);
+    doc.text('Male: ' + (gender.male.toLocaleString()) + ' (' + ((gender.male / total) * 100).toFixed(1) + '%)');
+    doc.text('Female: ' + (gender.female.toLocaleString()) + ' (' + ((gender.female / total) * 100).toFixed(1) + '%)');
     if (gender.other > 0) {
-      doc.text(`Other: ${gender.other.toLocaleString()} (${((gender.other / total) * 100).toFixed(1)}%)`);
+      doc.text('Other: ' + (gender.other.toLocaleString()) + ' (' + ((gender.other / total) * 100).toFixed(1) + '%)');
     }
-    doc.text(`Total: ${total.toLocaleString()}`);
+    doc.text('Total: ' + total.toLocaleString());
 
     doc.moveDown(1);
   }
@@ -660,11 +660,11 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text(`Under 18: ${ageGroups.under_18.toLocaleString()} (${((ageGroups.under_18 / total) * 100).toFixed(1)}%)`);
-    doc.text(`18-35 years: ${ageGroups.age_18_35.toLocaleString()} (${((ageGroups.age_18_35 / total) * 100).toFixed(1)}%)`);
-    doc.text(`36-60 years: ${ageGroups.age_36_60.toLocaleString()} (${((ageGroups.age_36_60 / total) * 100).toFixed(1)}%)`);
-    doc.text(`Over 60: ${ageGroups.over_60.toLocaleString()} (${((ageGroups.over_60 / total) * 100).toFixed(1)}%)`);
-    doc.text(`Total: ${total.toLocaleString()}`);
+    doc.text('Under 18: ' + (ageGroups.under_18.toLocaleString()) + ' (' + ((ageGroups.under_18 / total) * 100).toFixed(1) + '%)');
+    doc.text('18-35 years: ' + (ageGroups.age_18_35.toLocaleString()) + ' (' + ((ageGroups.age_18_35 / total) * 100).toFixed(1) + '%)');
+    doc.text('36-60 years: ' + (ageGroups.age_36_60.toLocaleString()) + ' (' + ((ageGroups.age_36_60 / total) * 100).toFixed(1) + '%)');
+    doc.text('Over 60: ' + (ageGroups.over_60.toLocaleString()) + ' (' + ((ageGroups.over_60 / total) * 100).toFixed(1) + '%)');
+    doc.text('Total: ' + total.toLocaleString());
 
     doc.moveDown(1);
   }
@@ -695,7 +695,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     race.forEach(item => {
-      doc.text(`${item.race_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.race_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -729,11 +729,11 @@ export class PDFExportService {
     // Show top 10 languages
     const topLanguages = language.slice(0, 10);
     topLanguages.forEach(item => {
-      doc.text(`${item.language_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.language_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     if (language.length > 10) {
-      doc.text(`... and ${language.length - 10} other languages`);
+      doc.text('... and ' + (language.length - 10) + ' other languages');
     }
 
     doc.moveDown(1);
@@ -765,7 +765,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     occupation.forEach(item => {
-      doc.text(`${item.category_name}: ${item.count.toLocaleString()} (${item.percentage}%)`);
+      doc.text((item.category_name) + ': ' + (item.count.toLocaleString()) + ' (' + item.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -868,16 +868,16 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Total Members: ${summary.total_members.toLocaleString()}`, { continued: false });
+       .text('Total Members: ' + summary.total_members.toLocaleString(), { continued: false });
 
-    doc.text(`Total Provinces: ${summary.total_provinces}`);
-    doc.text(`Average Members per Province: ${summary.average_members_per_province.toLocaleString()}`);
-    doc.text(`Largest Province: ${summary.largest_province.name} (${summary.largest_province.count.toLocaleString()} members, ${summary.largest_province.percentage}%)`);
-    doc.text(`Smallest Province: ${summary.smallest_province.name} (${summary.smallest_province.count.toLocaleString()} members, ${summary.smallest_province.percentage}%)`);
+    doc.text('Total Provinces: ' + summary.total_provinces);
+    doc.text('Average Members per Province: ' + summary.average_members_per_province.toLocaleString());
+    doc.text('Largest Province: ' + summary.largest_province.name + ' (' + summary.largest_province.count.toLocaleString() + ' members, ' + summary.largest_province.percentage + '%)');
+    doc.text('Smallest Province: ' + summary.smallest_province.name + ' (' + summary.smallest_province.count.toLocaleString() + ' members, ' + summary.smallest_province.percentage + '%)');
 
     // Top 3 provinces
     const top3 = provinces.slice(0, 3);
-    doc.text(`Top 3 Provinces: ${top3.map((p: any) => `${p.province_name} (${p.percentage}%)`).join(', ')}`);
+    doc.text('Top 3 Provinces: ' + top3.map((p: any) => p.province_name + ' (' + p.percentage + '%)').join(', '));
 
     doc.moveDown(1.5);
   }
@@ -929,9 +929,9 @@ export class PDFExportService {
        .font('Helvetica');
 
     provinces.forEach((province: any, index: number) => {
-      doc.text(`${index + 1}. ${province.province_name}:`);
-      doc.text(`   Members: ${province.member_count.toLocaleString()} (${province.percentage}%)`);
-      doc.text(`   Districts: ${province.districts_count}, Municipalities: ${province.municipalities_count}, Wards: ${province.wards_count}`);
+      doc.text((index + 1) + '. ' + province.province_name + ':');
+      doc.text('   Members: ' + (province.member_count.toLocaleString()) + ' (' + province.percentage + '%)');
+      doc.text('   Districts: ' + (province.districts_count) + ', Municipalities: ' + (province.municipalities_count) + ', Wards: ' + province.wards_count);
       doc.moveDown(0.3);
     });
 
@@ -952,15 +952,15 @@ export class PDFExportService {
 
     // Above average provinces
     const aboveAverage = provinces.filter((p: any) => p.member_count > summary.average_members_per_province);
-    doc.text(`Provinces Above Average (${aboveAverage.length}): ${aboveAverage.map((p: any) => p.province_name).join(', ')}`);
+    doc.text('Provinces Above Average (' + (aboveAverage.length) + '): ' + aboveAverage.map((p: any) => p.province_name).join(', '));
 
     // Below average provinces
     const belowAverage = provinces.filter((p: any) => p.member_count < summary.average_members_per_province);
-    doc.text(`Provinces Below Average (${belowAverage.length}): ${belowAverage.map((p: any) => p.province_name).join(', ')}`);
+    doc.text('Provinces Below Average (' + belowAverage.length + '): ' + belowAverage.map((p: any) => p.province_name).join(', '));
 
     // Concentration analysis
     const top3Total = provinces.slice(0, 3).reduce((sum: number, p: any) => sum + p.percentage, 0);
-    doc.text(`Top 3 Provinces Concentration: ${top3Total.toFixed(1)}% of total membership`);
+    doc.text('Top 3 Provinces Concentration: ' + top3Total.toFixed(1) + '% of total membership');
 
     doc.moveDown(1);
   }
@@ -1041,7 +1041,7 @@ export class PDFExportService {
     // Title
     doc.fontSize(18)
        .font('Helvetica-Bold')
-       .text(title || `Regional Comparison Report`, 50, 50, { align: 'center' });
+       .text(title || 'Regional Comparison Report', 50, 50, { align: 'center' });
 
     // Subtitle with region names
     doc.fontSize(14)
@@ -1069,14 +1069,14 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Comparison Type: ${summary.region_type.charAt(0).toUpperCase() + summary.region_type.slice(1)} Level Analysis`)
-       .text(`Total Regions Compared: ${summary.total_regions}`)
-       .text(`Combined Membership: ${summary.total_members.toLocaleString()}`)
-       .text(`Average per Region: ${summary.average_members_per_region.toLocaleString()}`)
-       .text(`Highest Performer: ${summary.largest_region.name} (${summary.largest_region.count.toLocaleString()} members, ${summary.largest_region.percentage}%)`)
-       .text(`Lowest Performer: ${summary.smallest_region.name} (${summary.smallest_region.count.toLocaleString()} members, ${summary.smallest_region.percentage}%)`)
-       .text(`Performance Gap: ${summary.performance_analysis.performance_gap.toLocaleString()} members`)
-       .text(`Top Region Concentration: ${summary.performance_analysis.concentration_ratio}% of total membership`);
+       .text('Comparison Type: ' + summary.region_type.charAt(0).toUpperCase() + summary.region_type.slice(1) + ' Level Analysis')
+       .text('Total Regions Compared: ' + summary.total_regions)
+       .text('Combined Membership: ' + summary.total_members.toLocaleString())
+       .text('Average per Region: ' + summary.average_members_per_region.toLocaleString())
+       .text('Highest Performer: ' + (summary.largest_region.name) + ' (' + (summary.largest_region.count.toLocaleString()) + ' members, ' + summary.largest_region.percentage + '%)')
+       .text('Lowest Performer: ' + (summary.smallest_region.name) + ' (' + (summary.smallest_region.count.toLocaleString()) + ' members, ' + summary.smallest_region.percentage + '%)')
+       .text('Performance Gap: ' + summary.performance_analysis.performance_gap.toLocaleString() + ' members')
+       .text('Top Region Concentration: ' + summary.performance_analysis.concentration_ratio + '% of total membership');
 
     doc.moveDown(1.5);
   }
@@ -1120,14 +1120,14 @@ export class PDFExportService {
         doc.font('Helvetica');
       }
 
-      doc.text(`${region.ranking}. ${region.region_name} (${region.region_code})`);
-      doc.text(`   Members: ${region.member_count.toLocaleString()} (${region.percentage}%)`);
-      doc.text(`   Performance: ${region.above_average ? 'Above Average' : 'Below Average'}`);
+      doc.text((region.ranking) + '. ' + (region.region_name) + ' (' + region.region_code + ')');
+      doc.text('   Members: ' + (region.member_count.toLocaleString()) + ' (' + region.percentage + '%)');
+      doc.text('   Performance: ' + region.above_average ? 'Above Average' : 'Below Average');
 
       if (region.geographic_stats) {
         const stats = region.geographic_stats;
         if (stats.districts_count) {
-          doc.text(`   Geographic Coverage: ${stats.districts_count} districts, ${stats.municipalities_count} municipalities, ${stats.wards_count} wards`);
+          doc.text('   Geographic Coverage: ' + (stats.districts_count) + ' districts, ' + (stats.municipalities_count) + ' municipalities, ' + stats.wards_count + ' wards');
         }
       }
 
@@ -1162,10 +1162,10 @@ export class PDFExportService {
        .font('Helvetica');
 
     const metrics = comparative_analysis.performance_metrics;
-    doc.text(`• Highest Performer: ${metrics.highest_performer}`)
-       .text(`• Lowest Performer: ${metrics.lowest_performer}`)
-       .text(`• Performance Spread: ${metrics.performance_spread}`)
-       .text(`• Average Performance: ${metrics.average_performance.toLocaleString()} members`);
+    doc.text('• Highest Performer: ' + metrics.highest_performer)
+       .text('• Lowest Performer: ' + metrics.lowest_performer)
+       .text('• Performance Spread: ' + metrics.performance_spread)
+       .text('• Average Performance: ' + metrics.average_performance.toLocaleString() + ' members');
 
     doc.moveDown(0.5);
 
@@ -1179,10 +1179,10 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text(`• ${summary.performance_analysis.above_average_count} regions performing above average`)
-       .text(`• ${summary.performance_analysis.below_average_count} regions performing below average`)
-       .text(`• Top region holds ${summary.performance_analysis.concentration_ratio}% of combined membership`)
-       .text(`• Performance gap of ${summary.performance_analysis.performance_gap.toLocaleString()} members between highest and lowest`);
+    doc.text('• ' + summary.performance_analysis.above_average_count + ' regions performing above average')
+       .text('• ' + summary.performance_analysis.below_average_count + ' regions performing below average')
+       .text('• Top region holds ' + summary.performance_analysis.concentration_ratio + '% of combined membership')
+       .text('• Performance gap of ' + summary.performance_analysis.performance_gap.toLocaleString() + ' members between highest and lowest');
 
     doc.moveDown(0.5);
 
@@ -1303,12 +1303,12 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Report Period: ${monthly_metrics.report_period}`)
-       .text(`Total Members: ${monthly_metrics.total_members.toLocaleString()}`)
-       .text(`New Registrations: ${monthly_metrics.new_registrations.toLocaleString()}`)
-       .text(`Month-over-Month Growth: ${trend_analysis.month_over_month_growth}%`)
-       .text(`Growth Trajectory: ${trend_analysis.growth_trajectory}`)
-       .text(`Performance Status: ${executive_summary.performance_indicators.performance_status}`);
+       .text('Report Period: ' + monthly_metrics.report_period)
+       .text('Total Members: ' + monthly_metrics.total_members.toLocaleString())
+       .text('New Registrations: ' + monthly_metrics.new_registrations.toLocaleString())
+       .text('Month-over-Month Growth: ' + trend_analysis.month_over_month_growth + '%')
+       .text('Growth Trajectory: ' + trend_analysis.growth_trajectory)
+       .text('Performance Status: ' + executive_summary.performance_indicators.performance_status);
 
     doc.moveDown(0.5);
 
@@ -1323,7 +1323,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     executive_summary.key_achievements.forEach((achievement: string) => {
-      doc.text(`• ${achievement}`);
+      doc.text('• ' + achievement);
     });
 
     doc.moveDown(1.5);
@@ -1342,7 +1342,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     geographic_breakdown.top_performing_regions.slice(0, 3).forEach((region: any, index: number) => {
-      doc.text(`${index + 1}. ${region.province_name}: ${region.member_count.toLocaleString()} members (${region.percentage}%)`);
+      doc.text((index + 1) + '. ' + (region.province_name) + ': ' + (region.member_count.toLocaleString()) + ' members (' + region.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -1360,7 +1360,7 @@ export class PDFExportService {
       const total = demographic_insights.gender_breakdown.reduce((sum: number, g: any) => sum + g.count, 0);
       demographic_insights.gender_breakdown.forEach((gender: any) => {
         const percentage = ((gender.count / total) * 100).toFixed(1);
-        doc.text(`${gender.gender}: ${gender.count.toLocaleString()} (${percentage}%)`);
+        doc.text((gender.gender) + ': ' + (gender.count.toLocaleString()) + ' (' + percentage + '%)');
       });
     }
 
@@ -1408,16 +1408,16 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Total Members: ${monthly_metrics.total_members.toLocaleString()}`)
-       .text(`New Registrations: ${monthly_metrics.new_registrations.toLocaleString()}`)
-       .text(`Active Members: ${monthly_metrics.active_members.toLocaleString()}`)
-       .text(`Membership Changes: ${monthly_metrics.membership_changes.toLocaleString()}`);
+       .text('Total Members: ' + monthly_metrics.total_members.toLocaleString())
+       .text('New Registrations: ' + monthly_metrics.new_registrations.toLocaleString())
+       .text('Active Members: ' + monthly_metrics.active_members.toLocaleString())
+       .text('Membership Changes: ' + monthly_metrics.membership_changes.toLocaleString());
 
     if (trend_analysis.previous_month_comparison) {
       const prev = trend_analysis.previous_month_comparison;
-      doc.text(`Previous Month Total: ${prev.total_members.toLocaleString()}`)
-         .text(`Previous Month New: ${prev.new_registrations.toLocaleString()}`)
-         .text(`Growth Rate: ${trend_analysis.month_over_month_growth}%`);
+      doc.text('Previous Month Total: ' + prev.total_members.toLocaleString())
+         .text('Previous Month New: ' + prev.new_registrations.toLocaleString())
+         .text('Growth Rate: ' + trend_analysis.month_over_month_growth + '%');
     }
 
     doc.moveDown(1);
@@ -1434,9 +1434,9 @@ export class PDFExportService {
 
     doc.fontSize(11)
        .font('Helvetica')
-       .text(`Month-over-Month Growth: ${trend_analysis.month_over_month_growth}%`)
-       .text(`Growth Trajectory: ${trend_analysis.growth_trajectory}`)
-       .text(`Performance Trend: ${trend_analysis.month_over_month_growth > 0 ? 'Positive' : trend_analysis.month_over_month_growth < 0 ? 'Negative' : 'Stable'}`);
+       .text('Month-over-Month Growth: ' + trend_analysis.month_over_month_growth + '%')
+       .text('Growth Trajectory: ' + trend_analysis.growth_trajectory)
+       .text('Performance Trend: ' + (trend_analysis.month_over_month_growth > 0 ? 'Positive' : trend_analysis.month_over_month_growth < 0 ? 'Negative' : 'Stable'));
 
     doc.moveDown(1);
   }
@@ -1454,7 +1454,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     geographic_breakdown.provincial_distribution.slice(0, 5).forEach((province: any, index: number) => {
-      doc.text(`${index + 1}. ${province.province_name}: ${province.member_count.toLocaleString()} (${province.percentage}%)`);
+      doc.text((index + 1) + '. ' + (province.province_name) + ': ' + (province.member_count.toLocaleString()) + ' (' + province.percentage + '%)');
     });
 
     doc.moveDown(1);
@@ -1480,7 +1480,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     demographic_insights.age_distribution.forEach((age: any) => {
-      doc.text(`${age.age_group}: ${age.count.toLocaleString()}`);
+      doc.text((age.age_group) + ': ' + age.count.toLocaleString());
     });
 
     doc.moveDown(0.5);
@@ -1496,7 +1496,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     demographic_insights.gender_breakdown.forEach((gender: any) => {
-      doc.text(`${gender.gender}: ${gender.count.toLocaleString()}`);
+      doc.text((gender.gender) + ': ' + gender.count.toLocaleString());
     });
 
     doc.moveDown(1);
@@ -1525,7 +1525,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     activity_summary.monthly_highlights.forEach((highlight: string) => {
-      doc.text(`• ${highlight}`);
+      doc.text('• ' + highlight);
     });
 
     doc.moveDown(0.5);
@@ -1542,7 +1542,7 @@ export class PDFExportService {
          .font('Helvetica');
 
       activity_summary.peak_registration_days.forEach((day: any, index: number) => {
-        doc.text(`${index + 1}. Day ${day.day_of_month}: ${day.registrations} registrations`);
+        doc.text((index + 1) + '. Day ' + (day.day_of_month) + ': ' + day.registrations + ' registrations');
       });
     }
 
@@ -1562,7 +1562,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     executive_summary.strategic_recommendations.forEach((recommendation: string, index: number) => {
-      doc.text(`${index + 1}. ${recommendation}`);
+      doc.text(index + 1 + '. ' + recommendation);
     });
 
     if (executive_summary.challenges.length > 0) {
@@ -1578,7 +1578,7 @@ export class PDFExportService {
          .font('Helvetica');
 
       executive_summary.challenges.forEach((challenge: string) => {
-        doc.text(`• ${challenge}`);
+        doc.text('• ' + challenge);
       });
     }
 
@@ -1684,15 +1684,15 @@ export class PDFExportService {
 
     doc.fontSize(11)
        .font('Helvetica')
-       .text(`Status Filter: ${status_summary.status_description}`)
-       .text(`Total Records: ${status_summary.total_records.toLocaleString()}`)
-       .text(`Report Generated: ${new Date().toLocaleDateString('en-US', {
+       .text('Status Filter: ' + status_summary.status_description)
+       .text('Total Records: ' + status_summary.total_records.toLocaleString())
+       .text('Report Generated: ' + new Date().toLocaleDateString('en-US', {
          year: 'numeric',
          month: 'long',
          day: 'numeric',
          hour: '2-digit',
          minute: '2-digit'
-       })}`);
+       }));
 
     doc.moveDown(1.5);
   }
@@ -1722,9 +1722,8 @@ export class PDFExportService {
     doc.fontSize(10)
        .font('Helvetica-Bold');
 
-    const headers = includeContactDetails
-      ? ['Member Name', 'Email', 'Phone', 'Status', 'Days Until/Since', 'Expiry Date']
-      : ['Member Name', 'Status', 'Days Until/Since', 'Province', 'Expiry Date'];
+    const headers = includeContactDetails ? ['Member Name', 'Email', 'Phone', 'Status', 'Days Until/Since', 'Expiry Date']
+       : ['Member Name', 'Status', 'Days Until/Since', 'Province', 'Expiry Date'];
 
     headers.forEach((header, index) => {
       doc.text(header, colPositions[index], startY, { width: colWidths[index], align: 'left' });
@@ -1747,11 +1746,11 @@ export class PDFExportService {
         currentY = 50;
       }
 
-      const memberName = `${member.first_name} ${member.last_name}`;
+      const memberName = (member.first_name) + ' ' + (member.last_name);
       const expiryDate = new Date(member.membership_expiry_date).toLocaleDateString();
       const daysText = member.status === 'Expired'
-        ? `${member.days_until_expiration} days ago`
-        : `${member.days_until_expiration} days`;
+        ?member.days_until_expiration + ' days ago'
+         :member.days_until_expiration + ' days';
 
       if (includeContactDetails) {
         const rowData = [
@@ -1804,7 +1803,7 @@ export class PDFExportService {
       doc.moveDown(1)
          .fontSize(10)
          .font('Helvetica-Oblique')
-         .text(`Note: Showing first 50 of ${members.length} total records. Use filters to view specific segments.`,
+         .text('Note: Showing first 50 of ' + members.length + ' total records. Use filters to view specific segments.',
                { align: 'center' });
     }
   }
@@ -1943,8 +1942,8 @@ export class PDFExportService {
           try {
             const pdfBuffer = Buffer.concat(buffers);
             console.log('✅ Ward Audit PDF generated successfully!');
-            console.log(`📊 Report contains ${wardData.length} wards`);
-            console.log(`📄 PDF size: ${pdfBuffer.length} bytes`);
+            console.log('📊 Report contains ' + wardData.length + ' wards');
+            console.log('📄 PDF size: ' + pdfBuffer.length + ' bytes');
             resolve(pdfBuffer);
           } catch (error) {
             console.error('❌ Error creating PDF buffer:', error);
@@ -1962,7 +1961,7 @@ export class PDFExportService {
 
     } catch (error: any) {
       console.error('❌ Ward Audit PDF generation failed:', error);
-      throw new Error(`Failed to generate Ward Audit PDF: ${error.message}`);
+      throw new Error('Failed to generate Ward Audit PDF: ' + error.message);
     }
   }
 
@@ -2016,8 +2015,8 @@ export class PDFExportService {
           try {
             const pdfBuffer = Buffer.concat(buffers);
             console.log('✅ Municipality Performance PDF generated successfully!');
-            console.log(`📊 Report contains ${municipalityData.length} municipalities`);
-            console.log(`📄 PDF size: ${pdfBuffer.length} bytes`);
+            console.log('📊 Report contains ' + municipalityData.length + ' municipalities');
+            console.log('📄 PDF size: ' + pdfBuffer.length + ' bytes');
             resolve(pdfBuffer);
           } catch (error) {
             console.error('❌ Error creating PDF buffer:', error);
@@ -2035,7 +2034,7 @@ export class PDFExportService {
 
     } catch (error: any) {
       console.error('❌ Municipality Performance PDF generation failed:', error);
-      throw new Error(`Failed to generate Municipality Performance PDF: ${error.message}`);
+      throw new Error('Failed to generate Municipality Performance PDF: ' + error.message);
     }
   }
 
@@ -2113,24 +2112,24 @@ export class PDFExportService {
     // Date and filters
     doc.fontSize(10)
        .font('Helvetica')
-       .text(`Generated on: ${currentDate}`, 40, 70);
+       .text('Generated on: ' + currentDate, 40, 70);
 
     let yPos = 85;
     if (filters) {
       if (filters.province_code) {
-        doc.text(`Province: ${filters.province_code}`, 40, yPos);
+        doc.text('Province: ' + filters.province_code, 40, yPos);
         yPos += 15;
       }
       if (filters.municipality_code) {
-        doc.text(`Municipality: ${filters.municipality_code}`, 40, yPos);
+        doc.text('Municipality: ' + filters.municipality_code, 40, yPos);
         yPos += 15;
       }
       if (filters.standing) {
-        doc.text(`Standing Filter: ${filters.standing}`, 40, yPos);
+        doc.text('Standing Filter: ' + filters.standing, 40, yPos);
         yPos += 15;
       }
       if (filters.search) {
-        doc.text(`Search Term: ${filters.search}`, 40, yPos);
+        doc.text('Search Term: ' + filters.search, 40, yPos);
         yPos += 15;
       }
     }
@@ -2165,17 +2164,17 @@ export class PDFExportService {
 
     doc.fontSize(10)
        .font('Helvetica')
-       .text(`Total Wards: ${totalWards}`, 40, yStart + 25)
-       .text(`Total Active Members: ${totalActiveMembers.toLocaleString()}`, 40, yStart + 40)
-       .text(`Total Members: ${totalMembers.toLocaleString()}`, 40, yStart + 55)
-       .text(`Average Active Percentage: ${avgActivePercentage.toFixed(1)}%`, 40, yStart + 70);
+       .text('Total Wards: ' + totalWards, 40, yStart + 25)
+       .text('Total Active Members: ' + totalActiveMembers.toLocaleString(), 40, yStart + 40)
+       .text('Total Members: ' + totalMembers.toLocaleString(), 40, yStart + 55)
+       .text('Average Active Percentage: ' + avgActivePercentage.toFixed(1) + '%', 40, yStart + 70);
 
     // Standing breakdown
     let xPos = 300;
     doc.text('Ward Standing Breakdown:', xPos, yStart + 25);
     let yPos = yStart + 40;
     Object.entries(standingCounts).forEach(([standing, count]) => {
-      doc.text(`${standing}: ${count}`, xPos, yPos);
+      doc.text((standing) + ': ' + count, xPos, yPos);
       yPos += 15;
     });
 
@@ -2248,7 +2247,7 @@ export class PDFExportService {
          .text(this.truncateText(ward.province_name || '', 8), 355, currentY)
          .text((ward.active_members || 0).toString(), 440, currentY)
          .text((ward.total_members || 0).toString(), 505, currentY)
-         .text(`${activePercentage}%`, 570, currentY)
+         .text(activePercentage + '%', 570, currentY)
          .text(this.truncateText(ward.ward_standing || '', 12), 635, currentY);
 
       currentY += itemHeight;
@@ -2282,20 +2281,20 @@ export class PDFExportService {
     // Date and filters
     doc.fontSize(10)
        .font('Helvetica')
-       .text(`Generated on: ${currentDate}`, 40, 70);
+       .text('Generated on: ' + currentDate, 40, 70);
 
     let yPos = 85;
     if (filters) {
       if (filters.province_code) {
-        doc.text(`Province: ${filters.province_code}`, 40, yPos);
+        doc.text('Province: ' + filters.province_code, 40, yPos);
         yPos += 15;
       }
       if (filters.performance) {
-        doc.text(`Performance Filter: ${filters.performance}`, 40, yPos);
+        doc.text('Performance Filter: ' + filters.performance, 40, yPos);
         yPos += 15;
       }
       if (filters.search) {
-        doc.text(`Search Term: ${filters.search}`, 40, yPos);
+        doc.text('Search Term: ' + filters.search, 40, yPos);
         yPos += 15;
       }
     }
@@ -2331,17 +2330,17 @@ export class PDFExportService {
 
     doc.fontSize(10)
        .font('Helvetica')
-       .text(`Total Municipalities: ${totalMunicipalities}`, 40, yStart + 25)
-       .text(`Total Active Members: ${totalActiveMembers.toLocaleString()}`, 40, yStart + 40)
-       .text(`Total Wards: ${totalWards.toLocaleString()}`, 40, yStart + 55)
-       .text(`Average Compliance: ${avgCompliance.toFixed(1)}%`, 40, yStart + 70);
+       .text('Total Municipalities: ' + totalMunicipalities, 40, yStart + 25)
+       .text('Total Active Members: ' + totalActiveMembers.toLocaleString(), 40, yStart + 40)
+       .text('Total Wards: ' + totalWards.toLocaleString(), 40, yStart + 55)
+       .text('Average Compliance: ' + avgCompliance.toFixed(1) + '%', 40, yStart + 70);
 
     // Performance breakdown
     let xPos = 300;
     doc.text('Performance Breakdown:', xPos, yStart + 25);
     let yPos = yStart + 40;
     Object.entries(performanceCounts).forEach(([performance, count]) => {
-      doc.text(`${performance}: ${count}`, xPos, yPos);
+      doc.text((performance) + ': ' + count, xPos, yPos);
       yPos += 15;
     });
 
@@ -2409,7 +2408,7 @@ export class PDFExportService {
          .text(this.truncateText(municipality.province_name || '', 8), 270, currentY)
          .text((municipality.total_wards || 0).toString(), 355, currentY)
          .text((municipality.compliant_wards || 0).toString(), 430, currentY)
-         .text(`${(municipality.compliance_percentage || 0).toFixed(1)}%`, 505, currentY)
+         .text((municipality.compliance_percentage || 0).toFixed(1) + '%', 505, currentY)
          .text((municipality.total_active_members || 0).toLocaleString(), 590, currentY)
          .text(this.truncateText(municipality.municipality_performance || '', 12), 675, currentY);
 
@@ -2430,7 +2429,7 @@ export class PDFExportService {
   // Helper method to truncate text
   private static truncateText(text: string, maxLength: number): string {
     if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength - 3) + '...' : text;
+    return text.length > maxLength ? text.substring(0, maxLength - 3) + '...'  : text;
   }
 
   private static addRenewalReportHeader(doc: PDFKit.PDFDocument, options: any, renewalData: any): void {
@@ -2476,13 +2475,13 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Total Renewals This Month: ${renewal_statistics.total_renewals_this_month.toLocaleString()}`)
-       .text(`Completed Renewals: ${renewal_statistics.completed_renewals.toLocaleString()}`)
-       .text(`Pending Renewals: ${renewal_statistics.pending_renewals.toLocaleString()}`)
-       .text(`Failed Renewals: ${renewal_statistics.failed_renewals.toLocaleString()}`)
-       .text(`Total Revenue: R${renewal_statistics.total_revenue.toLocaleString()}`)
-       .text(`Average Renewal Amount: R${renewal_statistics.average_renewal_amount.toFixed(2)}`)
-       .text(`Renewal Rate: ${renewal_statistics.renewal_rate}%`);
+       .text('Total Renewals This Month: ' + renewal_statistics.total_renewals_this_month.toLocaleString())
+       .text('Completed Renewals: ' + renewal_statistics.completed_renewals.toLocaleString())
+       .text('Pending Renewals: ' + renewal_statistics.pending_renewals.toLocaleString())
+       .text('Failed Renewals: ' + renewal_statistics.failed_renewals.toLocaleString())
+       .text('Total Revenue: R' + renewal_statistics.total_revenue.toLocaleString())
+       .text('Average Renewal Amount: R' + renewal_statistics.average_renewal_amount.toFixed(2))
+       .text('Renewal Rate: ' + renewal_statistics.renewal_rate + '%');
 
     doc.moveDown(1.5);
 
@@ -2496,7 +2495,7 @@ export class PDFExportService {
     payment_method_breakdown.forEach((method: any) => {
       doc.fontSize(11)
          .font('Helvetica')
-         .text(`${method.method.charAt(0).toUpperCase() + method.method.slice(1).replace('_', ' ')}: ${method.count} (${method.percentage}%) - R${method.total_amount.toLocaleString()}`);
+         .text((method.method.charAt(0).toUpperCase() + method.method.slice(1).replace('_', ' ')) + ': ' + (method.count) + ' (' + (method.percentage) + '%) - R' + method.total_amount.toLocaleString());
     });
 
     doc.moveDown(1.5);
@@ -2513,11 +2512,11 @@ export class PDFExportService {
          .font('Helvetica');
 
       upcoming_expirations.slice(0, 10).forEach((member: any) => {
-        doc.text(`${member.first_name} ${member.last_name} - ${member.province_name} - Expires in ${member.days_until_expiry} days`);
+        doc.text((member.first_name) + ' ' + (member.last_name) + ' - ' + (member.province_name) + ' - Expires in ' + member.days_until_expiry + ' days');
       });
 
       if (upcoming_expirations.length > 10) {
-        doc.text(`... and ${upcoming_expirations.length - 10} more members`);
+        doc.text('... and ' + (upcoming_expirations.length - 10) + ' more members');
       }
     }
 
@@ -2536,12 +2535,12 @@ export class PDFExportService {
 
     doc.fontSize(12)
        .font('Helvetica')
-       .text(`Total Revenue YTD: R${revenue_analysis.total_revenue_ytd.toLocaleString()}`)
-       .text(`Average Monthly Revenue: R${revenue_analysis.average_monthly_revenue.toLocaleString()}`)
-       .text(`Revenue Growth Rate: ${revenue_analysis.revenue_growth_rate}%`)
-       .text(`Average Renewal Amount: R${revenue_analysis.average_renewal_amount}`)
-       .text(`Highest Revenue Month: ${revenue_analysis.highest_revenue_month}`)
-       .text(`Lowest Revenue Month: ${revenue_analysis.lowest_revenue_month}`);
+       .text('Total Revenue YTD: R' + revenue_analysis.total_revenue_ytd.toLocaleString())
+       .text('Average Monthly Revenue: R' + revenue_analysis.average_monthly_revenue.toLocaleString())
+       .text('Revenue Growth Rate: ' + revenue_analysis.revenue_growth_rate + '%')
+       .text('Average Renewal Amount: R' + revenue_analysis.average_renewal_amount)
+       .text('Highest Revenue Month: ' + revenue_analysis.highest_revenue_month)
+       .text('Lowest Revenue Month: ' + revenue_analysis.lowest_revenue_month);
 
     doc.moveDown(1.5);
 
@@ -2554,12 +2553,12 @@ export class PDFExportService {
 
     doc.fontSize(11)
        .font('Helvetica')
-       .text(`Overall Retention Rate: ${retention_metrics.overall_retention_rate}%`)
-       .text(`First Year Retention: ${retention_metrics.first_year_retention}%`)
-       .text(`Long-term Retention: ${retention_metrics.long_term_retention}%`)
-       .text(`Churn Rate: ${retention_metrics.churn_rate}%`)
-       .text(`Average Membership Duration: ${retention_metrics.average_membership_duration} years`)
-       .text(`Customer Lifetime Value: R${retention_metrics.lifetime_value}`);
+       .text('Overall Retention Rate: ' + retention_metrics.overall_retention_rate + '%')
+       .text('First Year Retention: ' + retention_metrics.first_year_retention + '%')
+       .text('Long-term Retention: ' + retention_metrics.long_term_retention + '%')
+       .text('Churn Rate: ' + retention_metrics.churn_rate + '%')
+       .text('Average Membership Duration: ' + retention_metrics.average_membership_duration + ' years')
+       .text('Customer Lifetime Value: R' + retention_metrics.lifetime_value);
 
     doc.moveDown(1.5);
 
@@ -2574,7 +2573,7 @@ export class PDFExportService {
        .font('Helvetica');
 
     geographic_performance.slice(0, 5).forEach((province: any) => {
-      doc.text(`${province.province}: ${province.renewals_this_month} renewals (${province.renewal_rate}%) - R${province.revenue.toLocaleString()}`);
+      doc.text((province.province) + ': ' + (province.renewals_this_month) + ' renewals (' + (province.renewal_rate) + '%) - R' + province.revenue.toLocaleString());
     });
 
     doc.moveDown(1);
@@ -2591,7 +2590,7 @@ export class PDFExportService {
          .font('Helvetica');
 
       renewal_trends.slice(-6).forEach((trend: any) => {
-        doc.text(`${trend.month}: ${trend.total_renewals} renewals, R${trend.revenue.toLocaleString()}, ${trend.renewal_rate}% rate`);
+        doc.text((trend.month) + ': ' + (trend.total_renewals) + ' renewals, R' + (trend.revenue.toLocaleString()) + ', ' + trend.renewal_rate + '% rate');
       });
     }
   }
@@ -2604,11 +2603,11 @@ export class PDFExportService {
        .text('📊 COMPREHENSIVE ANALYTICS REPORT', 50, 50, { align: 'center' });
 
     // Add subtitle with date range
-    const subtitle = options.subtitle || `Generated on ${new Date().toLocaleDateString('en-US', {
+    const subtitle = options.subtitle || 'Generated on ' + new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    })}`;
+    });
 
     doc.fontSize(12)
        .fillColor('#666666')
@@ -2618,7 +2617,7 @@ export class PDFExportService {
     if (options.reportScope) {
       doc.fontSize(10)
          .fillColor('#888888')
-         .text(`Report Scope: ${options.reportScope}`, 50, 100, { align: 'center' });
+         .text('Report Scope: ' + options.reportScope, 50, 100, { align: 'center' });
     }
 
     doc.moveDown(2);
@@ -2646,26 +2645,26 @@ export class PDFExportService {
     const summaryCards = [
       {
         title: 'Total Members',
-        value: analyticsData.membership?.total_members?.toLocaleString() || '0',
-        color: '#4caf50',
+        value: analyticsData.membership?.total_members.toLocaleString() || '0',
+        color : '#4caf50',
         icon: '👥'
       },
       {
         title: 'Active Members',
-        value: analyticsData.membership?.active_members?.toLocaleString() || '0',
-        color: '#2196f3',
+        value: analyticsData.membership?.active_members.toLocaleString() || '0',
+        color : '#2196f3',
         icon: '✅'
       },
       {
         title: 'Total Meetings',
-        value: analyticsData.meetings?.total_meetings?.toLocaleString() || '0',
-        color: '#ff9800',
+        value: analyticsData.meetings?.total_meetings.toLocaleString() || '0',
+        color : '#ff9800',
         icon: '📅'
       },
       {
         title: 'Leadership Positions',
-        value: analyticsData.leadership?.total_positions?.toLocaleString() || '0',
-        color: '#9c27b0',
+        value: analyticsData.leadership?.total_positions.toLocaleString() || '0',
+        color : '#9c27b0',
         icon: '👑'
       }
     ];
@@ -2715,16 +2714,13 @@ export class PDFExportService {
     const tableData = [
       ['Metric', 'Count', 'Percentage'],
       ['Total Members', membershipData.total_members?.toLocaleString() || '0', '100%'],
-      ['Active Members', membershipData.active_members?.toLocaleString() || '0',
-       `${((membershipData.active_members / membershipData.total_members) * 100).toFixed(1)}%`],
-      ['Inactive Members', membershipData.inactive_members?.toLocaleString() || '0',
-       `${((membershipData.inactive_members / membershipData.total_members) * 100).toFixed(1)}%`],
-      ['Pending Members', membershipData.pending_members?.toLocaleString() || '0',
-       `${((membershipData.pending_members / membershipData.total_members) * 100).toFixed(1)}%`]
+      ['Active Members', membershipData.active_members.toLocaleString() || '0',((membershipData.active_members / membershipData.total_members) * 100).toFixed(1) + '%'],
+      ['Inactive Members', membershipData.inactive_members.toLocaleString() || '0',((membershipData.inactive_members / membershipData.total_members) * 100).toFixed(1) + '%'],
+      ['Pending Members', membershipData.pending_members.toLocaleString() || '0',((membershipData.pending_members / membershipData.total_members) * 100).toFixed(1) + '%']
     ];
 
     const membershipColumns = [
-      { key: 'metric', title: 'Metric', width: 200, align: 'left' as const },
+      { key : 'metric', title: 'Metric', width: 200, align: 'left' as const },
       { key: 'count', title: 'Count', width: 100, align: 'center' as const },
       { key: 'percentage', title: 'Percentage', width: 100, align: 'center' as const }
     ];
@@ -2745,13 +2741,12 @@ export class PDFExportService {
         ['Gender', 'Count', 'Percentage'],
         ...membershipData.gender_distribution.map((item: any) => [
           item.gender,
-          item.member_count?.toLocaleString() || '0',
-          `${item.percentage?.toFixed(1) || '0'}%`
+          item.member_count?.toLocaleString() || '0',item.percentage.toFixed(1) || '0%'
         ])
       ];
 
       const genderColumns = [
-        { key: 'gender', title: 'Gender', width: 150, align: 'left' as const },
+        { key : 'gender', title: 'Gender', width: 150, align: 'left' as const },
         { key: 'count', title: 'Count', width: 100, align: 'center' as const },
         { key: 'percentage', title: 'Percentage', width: 100, align: 'center' as const }
       ];
@@ -2788,17 +2783,16 @@ export class PDFExportService {
       const districtTableData = [
         ['Rank', 'District', 'Province', 'Members', 'Performance', 'Growth'],
         ...geographicData.top_performing_districts.slice(0, 5).map((district: any, index: number) => [
-          `#${index + 1}`,
+          '#' + index + 1,
           district.district_name || 'N/A',
           district.province_name || 'N/A',
-          district.member_count?.toLocaleString() || '0',
-          `${district.performance_score?.toFixed(1) || '0'}%`,
-          `+${district.growth_rate || '0'}%`
+          district.member_count?.toLocaleString() || '0',district.performance_score.toFixed(1) || '0%',
+           + district.growth_rate || '0%'
         ])
       ];
 
       const districtColumns = [
-        { key: 'rank', title: 'Rank', width: 50, align: 'center' as const },
+        { key : 'rank', title: 'Rank', width: 50, align: 'center' as const },
         { key: 'district', title: 'District', width: 150, align: 'left' as const },
         { key: 'province', title: 'Province', width: 120, align: 'left' as const },
         { key: 'members', title: 'Members', width: 80, align: 'center' as const },
@@ -2825,14 +2819,13 @@ export class PDFExportService {
           municipality.municipality_name || 'N/A',
           municipality.district_name || 'N/A',
           municipality.member_count?.toLocaleString() || '0',
-          municipality.target_count?.toLocaleString() || '1000',
-          municipality.performance_gap?.toLocaleString() || '0',
-          `${municipality.compliance_rate || '0'}%`
+          municipality.target_count.toLocaleString() || '1000',
+          municipality.performance_gap.toLocaleString() || '0',municipality.compliance_rate || '0%'
         ])
       ];
 
       const municipalityColumns = [
-        { key: 'municipality', title: 'Municipality', width: 140, align: 'left' as const },
+        { key : 'municipality', title: 'Municipality', width: 140, align: 'left' as const },
         { key: 'district', title: 'District', width: 120, align: 'left' as const },
         { key: 'members', title: 'Members', width: 70, align: 'center' as const },
         { key: 'target', title: 'Target', width: 70, align: 'center' as const },
@@ -2865,14 +2858,14 @@ export class PDFExportService {
     const meetingStats = [
       ['Metric', 'Count'],
       ['Total Meetings', meetingData.total_meetings?.toLocaleString() || '0'],
-      ['Completed Meetings', meetingData.completed_meetings?.toLocaleString() || '0'],
-      ['Cancelled Meetings', meetingData.cancelled_meetings?.toLocaleString() || '0'],
-      ['Upcoming Meetings', meetingData.upcoming_meetings?.toLocaleString() || '0'],
-      ['Average Attendance', `${meetingData.average_attendance?.toFixed(1) || '0'}%`]
+      ['Completed Meetings', meetingData.completed_meetings.toLocaleString() || '0'],
+      ['Cancelled Meetings', meetingData.cancelled_meetings.toLocaleString() || '0'],
+      ['Upcoming Meetings', meetingData.upcoming_meetings.toLocaleString() || '0'],
+      ['Average Attendance',meetingData.average_attendance.toFixed(1) || '0%']
     ];
 
     const meetingColumns = [
-      { key: 'metric', title: 'Metric', width: 200, align: 'left' as const },
+      { key : 'metric', title: 'Metric', width: 200, align: 'left' as const },
       { key: 'count', title: 'Count', width: 150, align: 'center' as const }
     ];
 
@@ -2900,13 +2893,13 @@ export class PDFExportService {
     const leadershipStats = [
       ['Metric', 'Count'],
       ['Total Positions', leadershipData.total_positions?.toLocaleString() || '0'],
-      ['Filled Positions', leadershipData.filled_positions?.toLocaleString() || '0'],
-      ['Vacant Positions', leadershipData.vacant_positions?.toLocaleString() || '0'],
-      ['Average Tenure', `${leadershipData.average_tenure?.toFixed(1) || '0'} months`]
+      ['Filled Positions', leadershipData.filled_positions.toLocaleString() || '0'],
+      ['Vacant Positions', leadershipData.vacant_positions.toLocaleString() || '0'],
+      ['Average Tenure',leadershipData.average_tenure.toFixed(1) || '0 months']
     ];
 
     const leadershipColumns = [
-      { key: 'metric', title: 'Metric', width: 200, align: 'left' as const },
+      { key : 'metric', title: 'Metric', width: 200, align: 'left' as const },
       { key: 'count', title: 'Count', width: 150, align: 'center' as const }
     ];
 
@@ -2934,13 +2927,13 @@ export class PDFExportService {
     const dashboardStats = [
       ['Metric', 'Value'],
       ['Total Members', dashboardData.total_members?.toLocaleString() || '0'],
-      ['New Members (This Month)', dashboardData.new_members_this_month?.toLocaleString() || '0'],
-      ['Active Wards', dashboardData.active_wards?.toLocaleString() || '0'],
-      ['Upcoming Meetings', dashboardData.upcoming_meetings?.toLocaleString() || '0']
+      ['New Members (This Month)', dashboardData.new_members_this_month.toLocaleString() || '0'],
+      ['Active Wards', dashboardData.active_wards.toLocaleString() || '0'],
+      ['Upcoming Meetings', dashboardData.upcoming_meetings.toLocaleString() || '0']
     ];
 
     const dashboardColumns = [
-      { key: 'metric', title: 'Metric', width: 250, align: 'left' as const },
+      { key : 'metric', title: 'Metric', width: 250, align: 'left' as const },
       { key: 'value', title: 'Value', width: 150, align: 'center' as const }
     ];
 
@@ -2952,7 +2945,7 @@ export class PDFExportService {
   private static addFooter(doc: PDFKit.PDFDocument): void {
     // Add footer to current page only
     doc.fontSize(8)
-       .text(`Generated on ${new Date().toLocaleDateString()}`,
+       .text('Generated on ' + new Date().toLocaleDateString(),
              doc.page.margins.left,
              doc.page.height - doc.page.margins.bottom + 10,
              { align: 'center' });

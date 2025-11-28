@@ -61,14 +61,14 @@ export class RenewalAnalyticsService {
     try {
       // Get renewal performance metrics
       const performanceQuery = `
-        SELECT 
+        SELECT
           COUNT(*) as total_renewals_ytd,
           AVG(500.00) as average_renewal_amount,
           SUM(500.00) as revenue_ytd
-        FROM vw_member_details 
-        WHERE YEAR(member_created_at) = YEAR(CURDATE())
+        FROM vw_member_details
+        WHERE EXTRACT(YEAR FROM member_created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
       `;
-      
+
       const performance = await executeQuerySingle<{
         total_renewals_ytd: number;
         average_renewal_amount: number;
@@ -83,7 +83,7 @@ export class RenewalAnalyticsService {
           AVG(500.00) as average_amount,
           SUM(500.00) as revenue
         FROM vw_member_details 
-        WHERE YEAR(member_created_at) = YEAR(CURDATE())
+        WHERE EXTRACT(YEAR FROM member_created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
         GROUP BY province_name
         ORDER BY total_renewals DESC
       `;
@@ -122,11 +122,11 @@ export class RenewalAnalyticsService {
         SELECT
           payment_method as method,
           COUNT(*) as count,
-          ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM membership_renewals WHERE YEAR(renewal_completed_date) = YEAR(CURDATE())), 1) as percentage,
-          SUM(CAST(final_amount AS DECIMAL(10,2))) as total_amount,
-          AVG(CAST(final_amount AS DECIMAL(10,2))) as average_amount
+          ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM membership_renewals WHERE EXTRACT(YEAR FROM renewal_completed_date) = EXTRACT(YEAR FROM CURRENT_DATE)), 1) as percentage,
+          SUM(CAST(renewal_amount AS DECIMAL(10,2))) as total_amount,
+          AVG(CAST(renewal_amount AS DECIMAL(10,2))) as average_amount
         FROM membership_renewals
-        WHERE YEAR(renewal_completed_date) = YEAR(CURDATE()) AND renewal_status = 'Completed'
+        WHERE EXTRACT(YEAR FROM renewal_completed_date) = EXTRACT(YEAR FROM CURRENT_DATE) AND renewal_status = 'Completed'
         GROUP BY payment_method
         ORDER BY count DESC
       `;
@@ -142,12 +142,12 @@ export class RenewalAnalyticsService {
       // Get real timing analysis from database
       const timingQuery = `
         SELECT
-          SUM(CASE WHEN DATEDIFF(renewal_completed_date, renewal_due_date) > 30 THEN 1 ELSE 0 END) as early_renewals,
-          SUM(CASE WHEN DATEDIFF(renewal_completed_date, renewal_due_date) BETWEEN -7 AND 30 THEN 1 ELSE 0 END) as on_time_renewals,
-          SUM(CASE WHEN DATEDIFF(renewal_completed_date, renewal_due_date) BETWEEN -30 AND -8 THEN 1 ELSE 0 END) as late_renewals,
-          SUM(CASE WHEN DATEDIFF(renewal_completed_date, renewal_due_date) < -30 THEN 1 ELSE 0 END) as expired_members
+          SUM(CASE WHEN (renewal_completed_date::DATE - renewal_due_date::DATE) > 30 THEN 1 ELSE 0 END) as early_renewals,
+          SUM(CASE WHEN (renewal_completed_date::DATE - renewal_due_date::DATE) BETWEEN -7 AND 30 THEN 1 ELSE 0 END) as on_time_renewals,
+          SUM(CASE WHEN (renewal_completed_date::DATE - renewal_due_date::DATE) BETWEEN -30 AND -8 THEN 1 ELSE 0 END) as late_renewals,
+          SUM(CASE WHEN (renewal_completed_date::DATE - renewal_due_date::DATE) < -30 THEN 1 ELSE 0 END) as expired_members
         FROM membership_renewals mr
-        WHERE YEAR(mr.renewal_completed_date) = YEAR(CURDATE()) AND mr.renewal_status = 'Completed'
+        WHERE EXTRACT(YEAR FROM mr.renewal_completed_date) = EXTRACT(YEAR FROM CURRENT_DATE) AND mr.renewal_status = 'Completed'
       `;
 
       const timingResult = await executeQuerySingle<{
@@ -196,19 +196,19 @@ export class RenewalAnalyticsService {
       // Get members expiring in next 30 days
       const next30DaysQuery = `
         SELECT COUNT(*) as expiring_members
-        FROM vw_member_details 
-        WHERE DATE_ADD(member_created_at, INTERVAL 365 DAY) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+        FROM vw_member_details
+        WHERE (member_created_at + INTERVAL '365 DAY') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 DAY')
       `;
-      
+
       const next30Days = await executeQuerySingle<{ expiring_members: number }>(next30DaysQuery);
 
       // Get members expiring in next 90 days
       const next90DaysQuery = `
         SELECT COUNT(*) as expiring_members
-        FROM vw_member_details 
-        WHERE DATE_ADD(member_created_at, INTERVAL 365 DAY) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY)
+        FROM vw_member_details
+        WHERE (member_created_at + INTERVAL '365 DAY') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '90 DAY')
       `;
-      
+
       const next90Days = await executeQuerySingle<{ expiring_members: number }>(next90DaysQuery);
 
       // Calculate forecasts based on historical renewal rates
@@ -261,36 +261,36 @@ export class RenewalAnalyticsService {
       
       switch (period) {
         case 'daily':
-          dateFormat = '%Y-%m-%d';
+          dateFormat = 'YYYY-MM-DD';
           dateInterval = '30 DAY';
           break;
         case 'weekly':
-          dateFormat = '%Y-%u';
+          dateFormat = 'YYYY-IW';
           dateInterval = '12 WEEK';
           break;
         case 'monthly':
-          dateFormat = '%Y-%m';
+          dateFormat = 'YYYY-MM';
           dateInterval = '12 MONTH';
           break;
         case 'yearly':
-          dateFormat = '%Y';
+          dateFormat = 'YYYY';
           dateInterval = '5 YEAR';
           break;
         default:
-          dateFormat = '%Y-%m';
+          dateFormat = 'YYYY-MM';
           dateInterval = '12 MONTH';
       }
 
       const performanceQuery = `
-        SELECT 
-          DATE_FORMAT(member_created_at, '${dateFormat}') as period,
+        SELECT
+          TO_CHAR(member_created_at, '${dateFormat}') as period,
           COUNT(*) as renewals,
           SUM(500.00) as revenue,
           94.2 as renewal_rate,
-          DATE_FORMAT(member_created_at, '${dateFormat}') as date
-        FROM vw_member_details 
-        WHERE member_created_at >= DATE_SUB(CURDATE(), INTERVAL ${dateInterval})
-        GROUP BY DATE_FORMAT(member_created_at, '${dateFormat}')
+          TO_CHAR(member_created_at, '${dateFormat}') as date
+        FROM vw_member_details
+        WHERE member_created_at >= (CURRENT_DATE - INTERVAL '${dateInterval}')
+        GROUP BY TO_CHAR(member_created_at, '${dateFormat}')
         ORDER BY member_created_at DESC
         LIMIT 50
       `;
@@ -319,16 +319,16 @@ export class RenewalAnalyticsService {
   }[]> {
     try {
       const regionsQuery = `
-        SELECT 
+        SELECT
           province_name as region,
           COUNT(*) as total_renewals,
           SUM(500.00) as revenue,
           (COUNT(*) / (SELECT COUNT(*) FROM vw_member_details WHERE province_name = m.province_name)) * 100 as renewal_rate
         FROM vw_member_details m
-        WHERE YEAR(member_created_at) = YEAR(CURDATE())
+        WHERE EXTRACT(YEAR FROM member_created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
         GROUP BY province_name
         ORDER BY total_renewals DESC
-        LIMIT ?
+        LIMIT $1
       `;
       
       const regions = await executeQuery<{
@@ -375,16 +375,16 @@ export class RenewalAnalyticsService {
       };
 
       const highlights = [
-        `${keyMetrics.renewal_rate}% renewal rate exceeds industry average`,
-        `R${keyMetrics.revenue_ytd.toLocaleString()} revenue generated year-to-date`,
-        `${keyMetrics.total_active_members.toLocaleString()} active members across 9 provinces`,
-        `${analytics.timing_analysis.early_renewals} members renewed early, showing strong engagement`
+        '' + keyMetrics.renewal_rate + '% renewal rate exceeds industry average',
+        'R' + keyMetrics.revenue_ytd.toLocaleString() + ' revenue generated year-to-date',
+        '' + keyMetrics.total_active_members.toLocaleString() + ' active members across 9 provinces',
+        '' + analytics.timing_analysis.early_renewals + ' members renewed early, showing strong engagement'
       ];
 
       const concerns = [
-        `${analytics.timing_analysis.expired_members} members have expired memberships`,
-        `${forecast.next_30_days.at_risk_members} members at risk of not renewing in next 30 days`,
-        `Late renewals account for ${((analytics.timing_analysis.late_renewals / analytics.renewal_performance.total_renewals_ytd) * 100).toFixed(1)}% of total renewals`
+        '' + analytics.timing_analysis.expired_members + ' members have expired memberships',
+        '' + forecast.next_30_days.at_risk_members + ' members at risk of not renewing in next 30 days',
+        'Late renewals account for ' + ((analytics.timing_analysis.late_renewals / analytics.renewal_performance.total_renewals_ytd) * 100).toFixed(1) + '% of total renewals'
       ];
 
       const recommendations = [

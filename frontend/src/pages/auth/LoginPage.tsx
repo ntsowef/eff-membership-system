@@ -102,7 +102,7 @@ const LoginPage: React.FC = () => {
 
         // Login user with session ID
         login(response.data.user, response.data.token, response.data.session_id);
-        
+
         addNotification({
           type: 'success',
           message: `Welcome back, ${response.data.user.name}!`
@@ -110,6 +110,10 @@ const LoginPage: React.FC = () => {
 
         // Navigate to intended destination or dashboard
         const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
+
+        // Use React Router navigation (client-side, no page reload)
+        // This preserves the Zustand store state and axios interceptors
+        console.log('✅ Login successful, redirecting to:', from);
         navigate(from, { replace: true });
       }
     } catch (error: any) {
@@ -328,20 +332,6 @@ const LoginPage: React.FC = () => {
               </Typography>
             </Divider>
 
-            {/* Demo Account Information */}
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="textSecondary" gutterBottom>
-                For testing purposes:
-              </Typography>
-              <Stack spacing={1}>
-                <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                  <strong>Super Admin:</strong> admin@membership.org / Admin123!
-                </Typography>
-                <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                  <strong>Province Admin:</strong> gauteng.admin@membership.org / ProvAdmin123!
-                </Typography>
-              </Stack>
-            </Box>
           </CardContent>
         </Paper>
 

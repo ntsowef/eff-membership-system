@@ -269,19 +269,19 @@ export class StatisticsModel {
       `;
       const occupationData = await executeQuery<{ category_name: string; count: number; percentage: number }>(occupationQuery, [...params, ...params]);
 
-      // Qualification breakdown
+      // Qualification breakdown - Fixed: use qualifications table with level_order column
       const qualificationQuery = `
-        SELECT 
-          ql.qualification_name,
+        SELECT
+          q.qualification_name,
           COUNT(*) as count,
           ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
         FROM members m
-        LEFT JOIN qualification_levels ql ON m.qualification_id = ql.qualification_id
+        LEFT JOIN qualifications q ON m.qualification_id = q.qualification_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
-        AND ql.qualification_name IS NOT NULL
-        GROUP BY ql.qualification_id, ql.qualification_name
-        ORDER BY ql.qualification_level
+        AND q.qualification_name IS NOT NULL
+        GROUP BY q.qualification_id, q.qualification_name
+        ORDER BY q.level_order
       `;
       const qualificationData = await executeQuery<{ qualification_name: string; count: number; percentage: number }>(qualificationQuery, [...params, ...params]);
 
@@ -319,17 +319,17 @@ export class StatisticsModel {
     try {
       // Monthly registrations
       const monthlyQuery = `
-        SELECT 
-          DATE_FORMAT(ms.date_joined, '%Y-%m') as month_year,
-          YEAR(ms.date_joined) as year,
-          MONTHNAME(ms.date_joined) as month,
+        SELECT
+          TO_CHAR(ms.date_joined, 'YYYY-MM') as month_year,
+          EXTRACT(YEAR FROM ms.date_joined)::INTEGER as year,
+          TO_CHAR(ms.date_joined, 'Month') as month,
           COUNT(CASE WHEN st.subscription_type_id = 1 THEN 1 END) as new_members,
           COUNT(CASE WHEN st.subscription_type_id = 2 THEN 1 END) as renewals,
           COUNT(*) as total
         FROM memberships ms
         LEFT JOIN subscription_types st ON ms.subscription_type_id = st.subscription_type_id
-        WHERE ms.date_joined >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
-        GROUP BY DATE_FORMAT(ms.date_joined, '%Y-%m'), YEAR(ms.date_joined), MONTHNAME(ms.date_joined)
+        WHERE ms.date_joined >= CURRENT_DATE - INTERVAL '1 month' * $1
+        GROUP BY TO_CHAR(ms.date_joined, 'YYYY-MM'), EXTRACT(YEAR FROM ms.date_joined), TO_CHAR(ms.date_joined, 'Month')
         ORDER BY ms.date_joined DESC
       `;
       const monthlyData = await executeQuery<{
@@ -356,11 +356,11 @@ export class StatisticsModel {
 
       // Expiry analysis
       const expiryQuery = `
-        SELECT 
-          COUNT(CASE WHEN expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as expiring_30_days,
-          COUNT(CASE WHEN expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY) THEN 1 END) as expiring_60_days,
-          COUNT(CASE WHEN expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY) THEN 1 END) as expiring_90_days,
-          COUNT(CASE WHEN expiry_date < CURDATE() THEN 1 END) as expired
+        SELECT
+          COUNT(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_30_days,
+          COUNT(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days' THEN 1 END) as expiring_60_days,
+          COUNT(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days' THEN 1 END) as expiring_90_days,
+          COUNT(CASE WHEN expiry_date < CURRENT_DATE THEN 1 END) as expired
         FROM memberships
         WHERE expiry_date IS NOT NULL
       `;
@@ -440,11 +440,11 @@ export class StatisticsModel {
         voting_stations: number;
       }>(totalsQuery);
 
-      // Get growth statistics
+      // Get growth statistics (PostgreSQL compatible)
       const growthQuery = `
-        SELECT 
-          COUNT(CASE WHEN MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()) THEN 1 END) as members_this_month,
-          COUNT(CASE WHEN MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) THEN 1 END) as members_last_month
+        SELECT
+          COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) THEN 1 END) as members_this_month,
+          COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month') AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE - INTERVAL '1 month') THEN 1 END) as members_last_month
         FROM members
       `;
       const growth = await executeQuerySingle<{
@@ -509,9 +509,9 @@ export class StatisticsModel {
       const memberStatsQuery = `
         SELECT
           COUNT(*) as total_members,
-          COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as new_members_30d,
-          COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
-                     AND DATE(created_at) < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as new_members_prev_30d
+          COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_members_30d,
+          COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '60 days'
+                     AND DATE(created_at) < CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_members_prev_30d
         FROM members
       `;
       const memberStats = await executeQuerySingle(memberStatsQuery);
@@ -540,11 +540,11 @@ export class StatisticsModel {
       // Get membership trends (last 12 months)
       const trendsQuery = `
         SELECT
-          DATE_FORMAT(created_at, '%Y-%m') as month,
+          TO_CHAR(created_at, 'YYYY-MM') as month,
           COUNT(*) as new_members
         FROM members
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month
       `;
       const trends = await executeQuery(trendsQuery);

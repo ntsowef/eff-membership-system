@@ -49,7 +49,7 @@ export class LeadershipService {
       // Validate member exists - ALL MEMBERS ARE NOW ELIGIBLE
       // Skip member validation for now since everyone is eligible
       // const member = await executeQuerySingle(
-      //   'SELECT id FROM members WHERE id = ?',
+      //   'SELECT id FROM members WHERE id = ? ',
       //   [appointmentData.member_id]
       // );
       //
@@ -70,7 +70,7 @@ export class LeadershipService {
 
   // Terminate leadership appointment
   static async terminateAppointment(
-    appointmentId: number,
+    appointmentId : number,
     terminatedBy: number,
     terminationReason: string,
     endDate?: string
@@ -82,7 +82,12 @@ export class LeadershipService {
       }
 
       if (appointment.appointment_status !== 'Active') {
-        throw new ValidationError('Only active appointments can be terminated');
+        throw new ValidationError(
+          `Cannot terminate appointment: This appointment is already ${appointment.appointment_status.toLowerCase()}. ` +
+          `Only active appointments can be terminated. ` +
+          `${appointment.appointment_status === 'Terminated' ? 'This appointment has already been terminated.' : ''}` +
+          `${appointment.appointment_status === 'Completed' ? 'This appointment has already been completed/removed.' : ''}`
+        );
       }
 
       const updateData: UpdateAppointmentData = {
@@ -111,7 +116,11 @@ export class LeadershipService {
       }
 
       if (appointment.appointment_status !== 'Active') {
-        throw new ValidationError('Only active appointments can be removed');
+        throw new ValidationError(
+          `Cannot remove appointment: This appointment is already ${appointment.appointment_status.toLowerCase()}. ` +
+          `Only active appointments can be removed. ` +
+          `${appointment.appointment_status === 'Completed' ? 'This appointment has already been removed.' : ''}`
+        );
       }
 
       const updateData: UpdateAppointmentData = {
@@ -191,7 +200,7 @@ export class LeadershipService {
 
       // Validate member exists and is eligible
       const member = await executeQuerySingle(
-        'SELECT member_id, membership_status FROM members WHERE member_id = ?',
+        'SELECT member_id, membership_status FROM members WHERE member_id = ? ',
         [candidateData.member_id]
       );
 
@@ -205,7 +214,7 @@ export class LeadershipService {
 
       // Check if member is already a candidate in this election
       const existingCandidate = await executeQuerySingle(
-        'SELECT id FROM election_candidates WHERE election_id = ? AND member_id = ?',
+        'SELECT id FROM election_candidates WHERE election_id = $1 AND member_id = ',
         [candidateData.election_id, candidateData.member_id]
       );
 
@@ -220,7 +229,7 @@ export class LeadershipService {
   }
 
   // Cast vote in election
-  static async castVote(electionId: number, candidateId: number, voterMemberId: number): Promise<boolean> {
+  static async castVote(electionId : number, candidateId: number, voterMemberId: number): Promise<boolean> {
     try {
       // Validate election is in voting phase
       const election = await ElectionModel.getElectionById(electionId);
@@ -240,7 +249,7 @@ export class LeadershipService {
 
       // Validate candidate exists and is approved
       const candidate = await executeQuerySingle(
-        'SELECT id, candidate_status FROM election_candidates WHERE id = ? AND election_id = ?',
+        'SELECT id, candidate_status FROM election_candidates WHERE id = ? AND election_id = ',
         [candidateId, electionId]
       );
 
@@ -261,7 +270,7 @@ export class LeadershipService {
 
   // Finalize election and create appointment for winner
   static async finalizeElectionAndCreateAppointment(
-    electionId: number,
+    electionId : number,
     appointmentData: AppointmentFromElectionData
   ): Promise<{ appointmentId: number; electionFinalized: boolean }> {
     try {
@@ -295,7 +304,7 @@ export class LeadershipService {
       }
 
       // Create appointment for the winner
-      const appointmentCreateData: CreateAppointmentData = {
+      const appointmentCreateData : CreateAppointmentData = {
         position_id: winner.position_id,
         member_id: winner.member_id,
         hierarchy_level: winner.hierarchy_level,
@@ -304,7 +313,7 @@ export class LeadershipService {
         start_date: appointmentData.start_date,
         end_date: appointmentData.end_date,
         appointed_by: appointmentData.appointed_by,
-        appointment_notes: appointmentData.appointment_notes || `Elected through election: ${election.election_name}`
+        appointment_notes: appointmentData.appointment_notes || 'Elected through election: ' + election.election_name + ''
       };
 
       const appointmentId = await this.createAppointment(appointmentCreateData);
@@ -377,19 +386,17 @@ export class LeadershipService {
           query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active"';
           break;
         case 'Province':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND province_id = ?';
+          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND province_id = ? ';
           params = [entityId];
           break;
-        case 'Region':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND region_id = ?';
+        case 'Region' : query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND region_id = $1';
           params = [entityId];
           break;
         case 'Municipality':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND municipality_id = ?';
+          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND municipality_id = ? ';
           params = [entityId];
           break;
-        case 'Ward':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND ward_id = ?';
+        case 'Ward' : query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND ward_id = $1';
           params = [entityId];
           break;
         default:
@@ -413,40 +420,40 @@ export class LeadershipService {
       // Update elections to "Nominations Open"
       await executeQuery(
         `UPDATE leadership_elections 
-         SET election_status = 'Nominations Open' 
-         WHERE election_status = 'Planned' 
-         AND nomination_start_date <= ?`,
+         SET election_status = 'Nominations Open'
+        WHERE election_status = 'Planned' 
+         AND nomination_start_date <= ? `,
         [currentDate]
       );
 
       // Update elections to "Nominations Closed"
       await executeQuery(
         `UPDATE leadership_elections 
-         SET election_status = 'Nominations Closed' 
-         WHERE election_status = 'Nominations Open' 
-         AND nomination_end_date < ?`,
+         SET election_status = 'Nominations Closed'
+        WHERE election_status = 'Nominations Open' 
+         AND nomination_end_date < $1`,
         [currentDate]
       );
 
       // Update elections to "Voting Open"
       await executeQuery(
         `UPDATE leadership_elections 
-         SET election_status = 'Voting Open' 
-         WHERE election_status = 'Nominations Closed' 
-         AND voting_start_datetime <= ?`,
+         SET election_status = 'Voting Open'
+        WHERE election_status = 'Nominations Closed' 
+         AND voting_start_datetime <= $1`,
         [currentDateTime]
       );
 
       // Update elections to "Voting Closed"
       await executeQuery(
         `UPDATE leadership_elections 
-         SET election_status = 'Voting Closed' 
-         WHERE election_status = 'Voting Open' 
-         AND voting_end_datetime <= ?`,
+         SET election_status = 'Voting Closed'
+        WHERE election_status = 'Voting Open' 
+         AND voting_end_datetime <= $1`,
         [currentDateTime]
       );
     } catch (error) {
-      console.error('Failed to update election statuses:', error);
+      console.error('Failed to update election statuses : ', error);
     }
   }
 
@@ -499,25 +506,32 @@ export class LeadershipService {
       const offset = (page - 1) * limit;
 
       // Base query for eligible members (ALL MEMBERS ARE NOW ELIGIBLE)
-      // Use the existing vw_member_details view to avoid schema issues
+      // Use the existing vw_member_details view (already fixed for metro members)
       let query = `
         SELECT
           m.member_id,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           m.firstname as first_name,
           COALESCE(m.surname, '') as last_name,
-          CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
+          m.firstname || ' ' || COALESCE(m.surname, '') as full_name,
           m.id_number,
           COALESCE(m.email, '') as email,
           COALESCE(m.cell_number, '') as phone,
           COALESCE(m.cell_number, '') as cell_number,
           'Active' as membership_status,
+          COALESCE(m.province_code, '') as province_code,
           COALESCE(m.province_name, 'Unknown') as province_name,
+          COALESCE(m.district_code, '') as district_code,
+          COALESCE(m.district_name, 'Unknown') as district_name,
+          COALESCE(m.municipality_code, '') as municipality_code,
           COALESCE(m.municipality_name, 'Unknown') as municipality_name,
+          COALESCE(m.municipality_type, '') as municipality_type,
+          COALESCE(m.ward_code, '') as ward_code,
           COALESCE(m.ward_name, 'Unknown') as ward_name,
           COALESCE(m.ward_number, 'Unknown') as ward_number,
-          COALESCE(m.member_created_at, NOW()) as membership_date,
-          COALESCE(TIMESTAMPDIFF(MONTH, m.member_created_at, NOW()), 0) as membership_duration_months,
+          COALESCE(m.member_created_at, CURRENT_TIMESTAMP) as membership_date,
+          COALESCE(EXTRACT(YEAR FROM AGE(CURRENT_TIMESTAMP, m.member_created_at)) * 12 +
+                   EXTRACT(MONTH FROM AGE(CURRENT_TIMESTAMP, m.member_created_at)), 0)::INTEGER as membership_duration_months,
           'Eligible' as eligibility_status,
           'All members are eligible for leadership positions' as eligibility_notes
         FROM vw_member_details m
@@ -530,19 +544,27 @@ export class LeadershipService {
       if (filters.hierarchy_level && filters.entity_id) {
         switch (filters.hierarchy_level) {
           case 'Province':
-            query += ' AND m.province_code = (SELECT province_code FROM provinces WHERE id = ?)';
+            query += ' AND m.province_code = (SELECT province_code FROM provinces WHERE province_id = ? )';
             params.push(filters.entity_id);
             break;
           case 'District':
-            query += ' AND m.district_code = (SELECT district_code FROM districts WHERE id = ?)';
+            query += ' AND m.district_code = (SELECT district_code FROM districts WHERE district_id = ? )';
             params.push(filters.entity_id);
             break;
           case 'Municipality':
-            query += ' AND m.municipality_code = (SELECT municipality_code FROM municipalities WHERE id = ?)';
-            params.push(filters.entity_id);
+            // FIXED: Include both the selected municipality AND all its sub-regions (for metros)
+            // This handles parent-child municipality relationships via parent_municipality_id
+            query += ` AND m.municipality_code IN (
+              -- Include the selected municipality itself
+              SELECT municipality_code FROM municipalities WHERE municipality_id = ?
+              UNION
+              -- Include all sub-regions if this is a parent municipality
+              SELECT municipality_code FROM municipalities WHERE parent_municipality_id = ?
+            )`;
+            params.push(filters.entity_id, filters.entity_id);
             break;
           case 'Ward':
-            query += ' AND m.ward_code = (SELECT ward_code FROM wards WHERE id = ?)';
+            query += ' AND m.ward_code = (SELECT ward_code FROM wards WHERE ward_id = ? )';
             params.push(filters.entity_id);
             break;
           // National level has no geographic restrictions
@@ -572,19 +594,26 @@ export class LeadershipService {
       if (filters.hierarchy_level && filters.entity_id) {
         switch (filters.hierarchy_level) {
           case 'Province':
-            countQuery += ' AND m.province_code = (SELECT province_code FROM provinces WHERE id = ?)';
+            countQuery += ' AND m.province_code = (SELECT province_code FROM provinces WHERE province_id = ? )';
             countParams.push(filters.entity_id);
             break;
           case 'District':
-            countQuery += ' AND m.district_code = (SELECT district_code FROM districts WHERE id = ?)';
+            countQuery += ' AND m.district_code = (SELECT district_code FROM districts WHERE district_id = ? )';
             countParams.push(filters.entity_id);
             break;
           case 'Municipality':
-            countQuery += ' AND m.municipality_code = (SELECT municipality_code FROM municipalities WHERE id = ?)';
-            countParams.push(filters.entity_id);
+            // FIXED: Use same logic as main query - include sub-regions
+            countQuery += ` AND m.municipality_code IN (
+              -- Include the selected municipality itself
+              SELECT municipality_code FROM municipalities WHERE municipality_id = ?
+              UNION
+              -- Include all sub-regions if this is a parent municipality
+              SELECT municipality_code FROM municipalities WHERE parent_municipality_id = ?
+            )`;
+            countParams.push(filters.entity_id, filters.entity_id);
             break;
           case 'Ward':
-            countQuery += ' AND m.ward_code = (SELECT ward_code FROM wards WHERE id = ?)';
+            countQuery += ' AND m.ward_code = (SELECT ward_code FROM wards WHERE ward_id = ? )';
             countParams.push(filters.entity_id);
             break;
         }
@@ -613,7 +642,7 @@ export class LeadershipService {
     try {
       const query = `
         SELECT DISTINCT
-          p.id,
+          p.province_id as id,
           p.province_code,
           p.province_name,
           COUNT(DISTINCT m.member_id) as member_count,
@@ -621,10 +650,10 @@ export class LeadershipService {
         FROM provinces p
         LEFT JOIN vw_member_details m ON p.province_code = m.province_code
         LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Province'
-          AND la.entity_id = p.id
+          AND la.entity_id = p.province_id
           AND la.appointment_status = 'Active'
         WHERE p.province_name IS NOT NULL
-        GROUP BY p.id, p.province_code, p.province_name
+        GROUP BY p.province_id, p.province_code, p.province_name
         ORDER BY p.province_name
       `;
 
@@ -639,22 +668,22 @@ export class LeadershipService {
     try {
       const query = `
         SELECT DISTINCT
-          mu.id,
+          mu.municipality_id as id,
           mu.municipality_code,
           mu.municipality_name,
-          mu.province_code,
+          mu.district_code,
           p.province_name,
           COUNT(DISTINCT m.member_id) as member_count,
           COUNT(DISTINCT la.id) as leadership_appointments
         FROM municipalities mu
-        JOIN provinces p ON mu.province_code = p.province_code
+        JOIN districts d ON mu.district_code = d.district_code
+        JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN vw_member_details m ON mu.municipality_code = m.municipality_code
         LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Municipality'
-          AND la.entity_id = mu.id
+          AND la.entity_id = mu.municipality_id
           AND la.appointment_status = 'Active'
-        WHERE p.id = ?
-          AND mu.municipality_name IS NOT NULL
-        GROUP BY mu.id, mu.municipality_code, mu.municipality_name, mu.province_code, p.province_name
+        WHERE p.province_id = ? AND mu.municipality_name IS NOT NULL
+        GROUP BY mu.municipality_id, mu.municipality_code, mu.municipality_name, mu.district_code, p.province_name
         ORDER BY mu.municipality_name
       `;
 
@@ -665,7 +694,7 @@ export class LeadershipService {
   }
 
   // Get municipalities by province CODE
-  static async getMunicipalitiesByProvinceCode(provinceCode: string): Promise<any[]> {
+  static async getMunicipalitiesByProvinceCode(provinceCode : string): Promise<any[]> {
     try {
       const query = `
         SELECT DISTINCT
@@ -682,8 +711,7 @@ export class LeadershipService {
         LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Municipality'
           AND la.entity_id = mu.id
           AND la.appointment_status = 'Active'
-        WHERE p.province_code = ?
-          AND mu.municipality_name IS NOT NULL
+        WHERE p.province_code = ? AND mu.municipality_name IS NOT NULL
         GROUP BY mu.id, mu.municipality_code, mu.municipality_name, mu.province_code, p.province_name
         ORDER BY mu.municipality_name
       `;
@@ -695,31 +723,31 @@ export class LeadershipService {
   }
 
   // Get wards by municipality
-  static async getWardsByMunicipality(municipalityId: number): Promise<any[]> {
+  static async getWardsByMunicipality(municipalityId : number): Promise<any[]> {
     try {
       const query = `
         SELECT DISTINCT
-          w.id,
+          w.ward_id,
           w.ward_code,
           w.ward_name,
           w.ward_number,
           w.municipality_code,
           mu.municipality_name,
-          w.province_code,
+          d.province_code,
           p.province_name,
           COUNT(DISTINCT m.member_id) as member_count,
           COUNT(DISTINCT la.id) as leadership_appointments
         FROM wards w
         JOIN municipalities mu ON w.municipality_code = mu.municipality_code
-        JOIN provinces p ON w.province_code = p.province_code
+        JOIN districts d ON mu.district_code = d.district_code
+        JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN vw_member_details m ON w.ward_code = m.ward_code
         LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Ward'
-          AND la.entity_id = w.id
+          AND la.entity_id = w.ward_id
           AND la.appointment_status = 'Active'
-        WHERE mu.id = ?
-          AND w.ward_name IS NOT NULL
-        GROUP BY w.id, w.ward_code, w.ward_name, w.ward_number, w.municipality_code,
-                 mu.municipality_name, w.province_code, p.province_name
+        WHERE mu.municipality_id = ? AND w.ward_name IS NOT NULL
+        GROUP BY w.ward_id, w.ward_code, w.ward_name, w.ward_number, w.municipality_code,
+                 mu.municipality_name, d.province_code, p.province_name
         ORDER BY w.ward_number, w.ward_name
       `;
 
@@ -732,7 +760,7 @@ export class LeadershipService {
   // ==================== WAR COUNCIL STRUCTURE METHODS ====================
 
   // Get War Council Structure with all positions and appointments
-  static async getWarCouncilStructure(): Promise<any> {
+  static async getWarCouncilStructure() : Promise<any> {
     try {
       const structure = await LeadershipModel.getWarCouncilStructure();
 
@@ -778,7 +806,7 @@ export class LeadershipService {
       );
 
       if (!validation.isValid) {
-        throw new ValidationError(`War Council appointment validation failed: ${validation.errors.join(', ')}`);
+        throw new ValidationError('War Council appointment validation failed: ' + validation.errors.join(', ') + '');
       }
 
       // Create the appointment
@@ -823,19 +851,38 @@ export class LeadershipService {
         throw new NotFoundError('War Council position not found');
       }
 
-      // Get all eligible members
-      const allMembers = await this.getEligibleLeadershipMembers({
-        page: 1,
-        limit: 1000 // Get all members for filtering
-      });
+      // For province-specific positions, use province filtering in the query
+      // This is much more efficient than fetching all members and filtering in memory
+      let eligibleMembers: any[] = [];
 
-      let eligibleMembers = allMembers.members;
-
-      // Filter by province if position is province-specific
       if (position.province_specific && position.province_code) {
-        eligibleMembers = eligibleMembers.filter(member =>
-          member.province_code === position.province_code
+        // Get province ID from province code
+        const provinceResult = await executeQuery(
+          'SELECT province_id FROM provinces WHERE province_code = ?',
+          [position.province_code]
         );
+
+        if (provinceResult.length > 0) {
+          const provinceId = provinceResult[0].province_id;
+
+          // Get members from specific province (no limit)
+          const provinceMembers = await this.getEligibleLeadershipMembers({
+            page: 1,
+            limit: 100000, // High limit to get all members
+            hierarchy_level: 'Province',
+            entity_id: provinceId
+          });
+
+          eligibleMembers = provinceMembers.members;
+        }
+      } else {
+        // For core positions, get all members (no province filter)
+        const allMembers = await this.getEligibleLeadershipMembers({
+          page: 1,
+          limit: 100000 // High limit to get all members
+        });
+
+        eligibleMembers = allMembers.members;
       }
 
       // Filter out members already in War Council
@@ -879,7 +926,7 @@ export class LeadershipService {
       );
 
       return {
-        structure: structure.structure,
+        structure : structure.structure,
         statistics: structure.statistics,
         recent_appointments: warCouncilAppointments.slice(0, 5),
         vacant_positions: structure.structure.all_positions.filter(pos => pos.position_status === 'Vacant')

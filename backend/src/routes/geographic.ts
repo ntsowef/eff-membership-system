@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Joi from 'joi';
 import { GeographicModel } from '../models/geographic';
-import { asyncHandler, sendSuccess, sendPaginatedSuccess, NotFoundError } from '../middleware/errorHandler';
+import { asyncHandler, sendSuccess, sendPaginatedSuccess, NotFoundError, ValidationError } from '../middleware/errorHandler';
 import { validate, commonSchemas } from '../middleware/validation';
 import votingDistrictsRouter from './votingDistricts';
 
@@ -13,12 +13,14 @@ router.get('/', asyncHandler(async (_req, res) => {
     provinces: '/api/v1/geographic/provinces',
     districts: '/api/v1/geographic/districts',
     municipalities: '/api/v1/geographic/municipalities',
+    subregions: '/api/v1/geographic/subregions',
     wards: '/api/v1/geographic/wards',
     voting_districts: '/api/v1/geographic/voting-districts',
     hierarchy: {
       province: '/api/v1/geographic/hierarchy/province/:provinceCode',
       district: '/api/v1/geographic/hierarchy/district/:districtCode',
       municipality: '/api/v1/geographic/hierarchy/municipality/:municipalityCode',
+      subregion: '/api/v1/geographic/hierarchy/subregion/:subregionCode',
       complete: '/api/v1/geographic/voting-districts/hierarchy'
     },
     summary: '/api/v1/geographic/summary'
@@ -159,6 +161,32 @@ router.get('/municipalities/:code',
   })
 );
 
+// Subregion routes
+router.get('/subregions', asyncHandler(async (req, res) => {
+  const { municipality } = req.query;
+
+  if (!municipality || typeof municipality !== 'string') {
+    throw new ValidationError('Municipality parameter is required');
+  }
+
+  const subregions = await GeographicModel.getSubregionsByMunicipality(municipality);
+  sendSuccess(res, subregions, 'Subregions retrieved successfully');
+}));
+
+router.get('/subregions/:code',
+  validate({ params: commonSchemas.code }),
+  asyncHandler(async (req, res) => {
+    const { code } = req.params;
+    const subregion = await GeographicModel.getSubregionByCode(code);
+
+    if (!subregion) {
+      throw new NotFoundError(`Subregion with code '${code}' not found`);
+    }
+
+    sendSuccess(res, subregion, 'Subregion retrieved successfully');
+  })
+);
+
 // Ward routes
 router.get('/wards',
   validate({
@@ -296,6 +324,30 @@ router.get('/hierarchy/municipality/:municipalityCode',
     };
     
     sendSuccess(res, hierarchyData, 'Municipality hierarchy retrieved successfully');
+  })
+);
+
+router.get('/hierarchy/subregion/:subregionCode',
+  validate({ params: commonSchemas.code }),
+  asyncHandler(async (req, res) => {
+    const { subregionCode } = req.params;
+
+    const subregion = await GeographicModel.getSubregionByCode(subregionCode);
+    if (!subregion) {
+      throw new NotFoundError(`Subregion with code '${subregionCode}' not found`);
+    }
+
+    const wards = await GeographicModel.getWardsByMunicipality(subregionCode);
+
+    const hierarchyData = {
+      subregion,
+      wards,
+      summary: {
+        totalWards: wards.length
+      }
+    };
+
+    sendSuccess(res, hierarchyData, 'Subregion hierarchy retrieved successfully');
   })
 );
 

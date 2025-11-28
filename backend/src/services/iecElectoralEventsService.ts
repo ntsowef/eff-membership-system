@@ -73,7 +73,7 @@ class IECElectoralEventsService {
     }
 
     try {
-      const response = await axios.post(`${config.iec.apiUrl}/token`, new URLSearchParams({
+      const response = await axios.post('' + config.iec.apiUrl + '/token', new URLSearchParams({
         grant_type: 'password',
         username: config.iec.username,
         password: config.iec.password
@@ -106,14 +106,14 @@ class IECElectoralEventsService {
       
       const response = await this.client.get<T>(endpoint, {
         headers: {
-          'Authorization': `bearer ${accessToken}`
+          'Authorization': 'bearer ' + accessToken + ''
         }
       });
 
       return response.data;
     } catch (error) {
-      console.error(`IEC API call failed for ${endpoint}:`, error);
-      throw createDatabaseError(`Failed to fetch data from IEC API: ${endpoint}`, error);
+      console.error('IEC API call failed for ' + endpoint + ':', error);
+      throw createDatabaseError('Failed to fetch data from IEC API: ' + endpoint + '', error);
     }
   }
 
@@ -128,13 +128,13 @@ class IECElectoralEventsService {
    * Fetch electoral events for a specific type from IEC API
    */
   async fetchElectoralEvents(eventTypeId: number): Promise<IECElectoralEvent[]> {
-    return this.makeApiCall<IECElectoralEvent[]>(`api/v1/ElectoralEvent?ElectoralEventTypeID=${eventTypeId}`);
+    return this.makeApiCall<IECElectoralEvent[]>('api/v1/ElectoralEvent? ElectoralEventTypeID=' + eventTypeId + '');
   }
 
   /**
    * Sync electoral event types from IEC API to database
    */
-  async syncElectoralEventTypes(): Promise<SyncResult> {
+  async syncElectoralEventTypes() : Promise<SyncResult> {
     const startTime = Date.now();
     let recordsProcessed = 0;
     let recordsCreated = 0;
@@ -154,10 +154,10 @@ class IECElectoralEventsService {
           
           const [result] = await executeQuery(`
             INSERT INTO iec_electoral_event_types (iec_event_type_id, description, is_municipal_election)
-            VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
-              description = VALUES(description),
-              is_municipal_election = VALUES(is_municipal_election),
+            EXCLUDED.?, ?, ?
+            ON CONFLICT DO UPDATE SET 
+              description = EXCLUDED.description,
+              is_municipal_election = EXCLUDED.is_municipal_election,
               updated_at = CURRENT_TIMESTAMP
           `, [iecEventType.ID, iecEventType.Description, isMunicipalElection]);
 
@@ -167,13 +167,13 @@ class IECElectoralEventsService {
             recordsUpdated++;
           }
         } catch (error) {
-          console.error(`Failed to sync event type ${iecEventType.ID}:`, error);
+          console.error('Failed to sync event type ' + iecEventType.ID + ':', error);
           recordsFailed++;
         }
       }
 
       const duration = Date.now() - startTime;
-      console.log(`✅ Synced ${recordsProcessed} electoral event types in ${duration}ms`);
+      console.log('✅ Synced ${recordsProcessed} electoral event types in ' + duration + 'ms');
 
       return {
         success: true,
@@ -212,7 +212,7 @@ class IECElectoralEventsService {
     let errorMessage: string | undefined;
 
     try {
-      console.log(`🔄 Syncing electoral events from IEC API${eventTypeId ? ` for type ${eventTypeId}` : ''}...`);
+      console.log('🔄 Syncing electoral events from IEC API' + eventTypeId ? ' for type ' + eventTypeId + '' : '' + '...');
       
       // Get event types to sync
       const eventTypesToSync = eventTypeId ? [eventTypeId] : [1, 2, 3, 4]; // All known types
@@ -233,12 +233,12 @@ class IECElectoralEventsService {
                   iec_event_id, iec_event_type_id, description, is_active, 
                   election_year, last_synced_at, sync_status
                 )
-                VALUES (?, ?, ?, ?, ?, NOW(), 'completed')
-                ON DUPLICATE KEY UPDATE 
-                  description = VALUES(description),
-                  is_active = VALUES(is_active),
-                  election_year = VALUES(election_year),
-                  last_synced_at = NOW(),
+                EXCLUDED.? , , $3, $4, $5, CURRENT_TIMESTAMP, 'completed'
+                ON CONFLICT DO UPDATE SET 
+                  description = EXCLUDED.description,
+                  is_active = EXCLUDED.is_active,
+                  election_year = EXCLUDED.election_year,
+                  last_synced_at = CURRENT_TIMESTAMP,
                   sync_status = 'completed',
                   updated_at = CURRENT_TIMESTAMP
               `, [iecEvent.ID, typeId, iecEvent.Description, iecEvent.IsActive, electionYear]);
@@ -249,18 +249,18 @@ class IECElectoralEventsService {
                 recordsUpdated++;
               }
             } catch (error) {
-              console.error(`Failed to sync event ${iecEvent.ID}:`, error);
+              console.error('Failed to sync event ' + iecEvent.ID + ' : ', error);
               recordsFailed++;
             }
           }
         } catch (error) {
-          console.error(`Failed to fetch events for type ${typeId}:`, error);
+          console.error('Failed to fetch events for type ' + typeId + ':', error);
           recordsFailed++;
         }
       }
 
       const duration = Date.now() - startTime;
-      console.log(`✅ Synced ${recordsProcessed} electoral events in ${duration}ms`);
+      console.log('✅ Synced ${recordsProcessed} electoral events in ' + duration + 'ms');
 
       return {
         success: true,
@@ -300,7 +300,7 @@ class IECElectoralEventsService {
       await executeQuery(`
         INSERT INTO iec_electoral_event_sync_logs (
           sync_type, sync_status, started_at, triggered_by
-        ) VALUES ('full_sync', 'started', NOW(), 'manual')
+        ) EXCLUDED.'full_sync', 'started', CURRENT_TIMESTAMP, 'manual'
       `);
 
       // Sync event types first
@@ -321,14 +321,14 @@ class IECElectoralEventsService {
       // Log sync completion
       await executeQuery(`
         UPDATE iec_electoral_event_sync_logs 
-        SET sync_status = ?, completed_at = NOW(), 
+        SET sync_status = ? , completed_at = CURRENT_TIMESTAMP, 
             records_processed = ?, records_created = ?, 
             records_updated = ?, records_failed = ?,
             sync_duration_ms = ?
         WHERE sync_type = 'full_sync' AND sync_status = 'started'
         ORDER BY started_at DESC LIMIT 1
       `, [
-        totalResult.success ? 'completed' : 'failed',
+        totalResult.success ? 'completed'  : 'failed',
         totalResult.records_processed,
         totalResult.records_created,
         totalResult.records_updated,
@@ -336,7 +336,7 @@ class IECElectoralEventsService {
         totalResult.duration_ms
       ]);
 
-      console.log(`🎉 Full sync completed in ${totalResult.duration_ms}ms`);
+      console.log('🎉 Full sync completed in ' + totalResult.duration_ms + 'ms');
       return totalResult;
 
     } catch (error) {
@@ -346,7 +346,7 @@ class IECElectoralEventsService {
       // Log sync failure
       await executeQuery(`
         UPDATE iec_electoral_event_sync_logs 
-        SET sync_status = 'failed', completed_at = NOW(), 
+        SET sync_status = 'failed', completed_at = CURRENT_TIMESTAMP, 
             error_message = ?, sync_duration_ms = ?
         WHERE sync_type = 'full_sync' AND sync_status = 'started'
         ORDER BY started_at DESC LIMIT 1
@@ -402,8 +402,7 @@ class IECElectoralEventsService {
     try {
       const results = await executeQuery(`
         SELECT * FROM iec_electoral_events 
-        WHERE iec_event_type_id = ?
-        ORDER BY election_year DESC, iec_event_id DESC
+        WHERE iec_event_type_id = ? ORDER BY election_year DESC, iec_event_id DESC
       `, [eventTypeId]);
       return results as ElectoralEvent[];
     } catch (error) {
@@ -414,7 +413,7 @@ class IECElectoralEventsService {
   /**
    * Get active municipal elections
    */
-  async getActiveMunicipalElections(): Promise<ElectoralEvent[]> {
+  async getActiveMunicipalElections() : Promise<ElectoralEvent[]> {
     try {
       const results = await executeQuery(`
         SELECT iee.* FROM iec_electoral_events iee

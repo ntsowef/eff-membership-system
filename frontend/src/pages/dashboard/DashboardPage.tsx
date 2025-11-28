@@ -221,7 +221,7 @@ const DashboardPage: React.FC = () => {
       color: 'success',
     },
     {
-      title: 'Districts',
+      title: 'Regions',
       value: totals.districts?.toLocaleString() || '0',
       change: 'administrative regions',
       icon: AccountBalance,
@@ -236,7 +236,7 @@ const DashboardPage: React.FC = () => {
       color: 'secondary',
     }] : []),
     {
-      title: 'Municipalities',
+      title: 'Sub-Regions',
       value: totals.municipalities?.toLocaleString() || '0',
       change: 'local governments',
       icon: HowToVote,
@@ -286,7 +286,7 @@ const DashboardPage: React.FC = () => {
         title={pageTitle}
         subtitle={
           municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedMunicipality
-            ? `Welcome to the ${municipalityContext.assignedMunicipality.name} Municipality Management System - Monitor your municipality's growth and activities`
+            ? `Welcome to the ${municipalityContext.assignedMunicipality.name} Sub-Region Management System - Monitor your sub-region's growth and activities`
             : provinceContext.isProvincialAdmin && provinceContext.assignedProvince
             ? `Welcome to the ${provinceContext.assignedProvince.name} Province Management System - Monitor your province's growth and activities`
             : "Welcome to the EFF Membership Management System - Monitor your organization's growth and activities"
@@ -342,7 +342,7 @@ const DashboardPage: React.FC = () => {
           <Typography variant="body2">
             <strong>System Overview:</strong> {totals.members?.toLocaleString()} total members{' '}
             {municipalityContext.shouldRestrictToMunicipality
-              ? `in ${municipalityContext.assignedMunicipality?.name || 'your municipality'}`
+              ? `in ${municipalityContext.assignedMunicipality?.name || 'your sub-region'}`
               : provinceContext.isNationalAdmin
               ? 'nationwide'
               : `in ${provinceContext.assignedProvince?.name || 'your province'}`}.{' '}
@@ -580,7 +580,7 @@ const DashboardPage: React.FC = () => {
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               {municipalityContext.shouldRestrictToMunicipality
-                ? `Top 5 Performing Wards in ${municipalityContext.assignedMunicipality?.name || 'Municipality'}`
+                ? `Top 5 Performing Wards in ${municipalityContext.assignedMunicipality?.name || 'Sub-Region'}`
                 : provinceContext.isProvincialAdmin && provinceContext.assignedProvince
                 ? `Top Performing Wards in ${provinceContext.assignedProvince.name}`
                 : 'Top Performing Wards'}

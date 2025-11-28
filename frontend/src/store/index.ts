@@ -177,18 +177,13 @@ export const useAuthStore = create<AuthState>()(
       (set, get) => ({
         // Initialize with no user (proper authentication required)
         user: null,
-        token: localStorage.getItem('authToken'),
-        sessionId: localStorage.getItem('sessionId'),
+        token: null,
+        sessionId: null,
         isAuthenticated: false, // Require proper authentication
         provinceContext: null,
         login: (user, token, sessionId) => {
-          localStorage.setItem('authToken', token);
-          if (sessionId) {
-            localStorage.setItem('sessionId', sessionId);
-          }
-          // Set token expiration (24 hours from now)
-          const expirationTime = Date.now() + (24 * 60 * 60 * 1000);
-          localStorage.setItem('tokenExpiration', expirationTime.toString());
+          // Let Zustand persist middleware handle localStorage
+          // No manual localStorage calls needed
 
           // Create province context for provincial admin users
           const provinceContext: ProvinceContext = {
@@ -202,8 +197,8 @@ export const useAuthStore = create<AuthState>()(
           set({ user, token, sessionId, isAuthenticated: true, provinceContext });
         },
         logout: () => {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('sessionId');
+          // Let Zustand persist middleware handle localStorage
+          // Only remove non-Zustand managed items
           localStorage.removeItem('tokenExpiration');
           localStorage.removeItem('sessionExpiration');
           localStorage.removeItem('rememberMe');

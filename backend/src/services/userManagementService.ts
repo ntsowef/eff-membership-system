@@ -60,7 +60,7 @@ export class UserManagementService {
       // Validate admin level
       const validAdminLevels = ['national', 'province', 'district', 'municipality', 'ward'];
       if (!validAdminLevels.includes(requestData.admin_level)) {
-        throw new ValidationError(`Invalid admin level: ${requestData.admin_level}`);
+        throw new ValidationError('Invalid admin level: ' + requestData.admin_level + '');
       }
 
       // Check if approval is required
@@ -117,14 +117,13 @@ export class UserManagementService {
         SELECT admin_level, r.name as role_name
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
-        WHERE u.id = ?
-      `, [createdBy]);
+        WHERE u.id = ? `, [createdBy]);
 
-      if (creator?.role_name === 'super_admin') {
+      if (creator.role_name === 'super_admin') {
         return false; // Super admin doesn't need approval
       }
 
-      if (creator?.admin_level === 'national' && 
+      if (creator.admin_level === 'national' && 
           ['district', 'municipality', 'ward'].includes(adminLevel)) {
         return false; // National admin can create lower levels without approval
       }
@@ -137,17 +136,17 @@ export class UserManagementService {
 
   // Create user creation workflow
   static async createUserCreationWorkflow(
-    requestData: UserCreationRequest,
+    requestData : UserCreationRequest,
     requestedBy: number
   ): Promise<number> {
     try {
-      const requestId = `UCW-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = 'UCW-${Date.now()}-' + Math.random().toString(36).substr(2, 9) + '';
       
       const query = `
         INSERT INTO user_creation_workflow (
           request_id, requested_by, user_data, admin_level,
           justification, status
-        ) VALUES (?, ?, ?, ?, ?, 'pending')
+        ) EXCLUDED.? , , $3, $4, $5, 'pending'
       `;
 
       const result = await executeQuery(query, [
@@ -166,17 +165,16 @@ export class UserManagementService {
 
   // Create user directly
   static async createUserDirectly(
-    requestData: UserCreationRequest,
+    requestData : UserCreationRequest,
     createdBy: number
   ): Promise<number> {
     try {
       // Get role ID
       const role = await executeQuerySingle(`
-        SELECT id FROM roles WHERE name = ?
-      `, [requestData.role_name]);
+        SELECT id FROM roles WHERE name = ? `, [requestData.role_name]);
 
       if (!role) {
-        throw new ValidationError(`Role ${requestData.role_name} not found`);
+        throw new ValidationError('Role ' + requestData.role_name + ' not found');
       }
 
       // Hash password
@@ -188,7 +186,7 @@ export class UserManagementService {
           name, email, password, role_id, admin_level,
           province_code, district_code, municipal_code, ward_code, member_id,
           is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, NOW())
+        ) EXCLUDED.$1, , $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP
       `;
 
       const userResult = await executeQuery(userQuery, [
@@ -197,7 +195,7 @@ export class UserManagementService {
         hashedPassword,
         role.id,
         requestData.admin_level,
-        requestData.province_code && requestData.province_code.trim() !== '' ? requestData.province_code : null,
+        requestData.province_code && requestData.province_code.trim() !== '' ? requestData.province_code  : null,
         requestData.district_code && requestData.district_code.trim() !== '' ? requestData.district_code : null,
         requestData.municipal_code && requestData.municipal_code.trim() !== '' ? requestData.municipal_code : null,
         requestData.ward_code && requestData.ward_code.trim() !== '' ? requestData.ward_code : null,
@@ -211,7 +209,7 @@ export class UserManagementService {
         INSERT INTO admin_user_creation_log (
           created_user_id, created_by_user_id, admin_level,
           creation_reason, approval_status
-        ) VALUES (?, ?, ?, ?, 'approved')
+        ) EXCLUDED.? , , $3, $4, 'approved'
       `, [
         userId,
         createdBy,
@@ -230,7 +228,7 @@ export class UserManagementService {
 
 
   // Get pending user creation workflows
-  static async getPendingUserCreationWorkflows(reviewerId: number): Promise<UserCreationWorkflow[]> {
+  static async getPendingUserCreationWorkflows(reviewerId : number): Promise<UserCreationWorkflow[]> {
     try {
       // Simplified permission check - only national admin can review workflows
       const reviewer = await executeQuerySingle(`
@@ -262,7 +260,7 @@ export class UserManagementService {
 
   // Approve/reject user creation workflow
   static async reviewUserCreationWorkflow(
-    workflowId: number,
+    workflowId : number,
     reviewerId: number,
     action: 'approve' | 'reject',
     reviewNotes?: string
@@ -280,9 +278,9 @@ export class UserManagementService {
       // Update workflow status
       await executeQuery(`
         UPDATE user_creation_workflow
-        SET status = ?, reviewed_by = ?, reviewed_at = NOW(), review_notes = ?
-        WHERE id = ?
-      `, [action === 'approve' ? 'approved' : 'rejected', reviewerId, reviewNotes, workflowId]);
+        SET status = $1, reviewed_by = , reviewed_at = CURRENT_TIMESTAMP, review_notes = $3
+        WHERE id = $4
+      `, [action === 'approve' ? 'approved'  : 'rejected', reviewerId, reviewNotes, workflowId]);
 
       if (action === 'approve') {
         // Create the user
@@ -292,12 +290,12 @@ export class UserManagementService {
         // Update workflow with created user ID
         await executeQuery(`
           UPDATE user_creation_workflow
-          SET created_user_id = ?, status = 'completed'
-          WHERE id = ?
+          SET created_user_id = ? , status = 'completed'
+        WHERE id = 
         `, [userId, workflowId]);
 
         return {
-          success: true,
+          success : true,
           user_id: userId,
           message: 'User creation approved and completed'
         };
@@ -335,7 +333,7 @@ export class UserManagementService {
           COUNT(CASE WHEN admin_level = 'municipality' THEN 1 END) as municipal_admins,
           COUNT(CASE WHEN admin_level = 'ward' THEN 1 END) as ward_admins,
           COUNT(CASE WHEN mfa_enabled = TRUE THEN 1 END) as mfa_enabled_users,
-          COUNT(CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as active_last_30_days
+          COUNT(CASE WHEN last_login >= CURRENT_TIMESTAMP - INTERVAL \'30 days\' THEN 1 END) as active_last_30_days
         FROM users
       `);
 
@@ -349,7 +347,7 @@ export class UserManagementService {
       `);
 
       return {
-        user_statistics: stats[0],
+        user_statistics : stats[0],
         workflow_statistics: workflowStats[0]
       };
     } catch (error) {
@@ -379,11 +377,11 @@ export class UserManagementService {
       }
 
       const isActive = status === 'activate';
-      const placeholders = userIds.map(() => '?').join(',');
+      const placeholders = userIds.map((_, i) => `$${i + 2}`).join(',');
 
       const result = await executeQuery(`
         UPDATE users
-        SET is_active = ?, updated_at = NOW()
+        SET is_active = $1, updated_at = CURRENT_TIMESTAMP
         WHERE id IN (${placeholders})
       `, [isActive, ...userIds]);
 
@@ -394,15 +392,15 @@ export class UserManagementService {
             user_id, old_admin_level, new_admin_level,
             changed_by, change_reason, effective_date
           ) SELECT
-            id, admin_level, admin_level, ?, ?, NOW()
-          FROM users WHERE id = ?
-        `, [updatedBy, `Bulk ${status}: ${reason || 'No reason provided'}`, userId]);
+            id, admin_level, admin_level, $1, , CURRENT_TIMESTAMP
+          FROM users WHERE id = $3
+        `, [updatedBy, 'Bulk ${status} : ' + reason || 'No reason provided' + '', userId]);
       }
 
       return {
         success: true,
         updated_count: result.affectedRows,
-        message: `Successfully ${status}d ${result.affectedRows} users`
+        message: 'Successfully ${status}d ' + result.affectedRows + ' users'
       };
     } catch (error) {
       throw createDatabaseError('Failed to bulk update user status', error);

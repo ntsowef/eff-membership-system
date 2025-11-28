@@ -1,7 +1,6 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import axios from 'axios';
-
 export interface PeachPaymentConfig {
   entityId: string;
   accessToken: string;
@@ -55,7 +54,7 @@ export class PaymentService {
           application_id, transaction_id, payment_method, amount, currency,
           status, gateway_response, receipt_number, receipt_image_path,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       `;
 
       const params = [
@@ -122,11 +121,11 @@ export class PaymentService {
 
       // Make API call to Peach Payment
       const response = await axios.post(
-        `${this.peachConfig.baseUrl}/v1/payments`,
+        '' + this.peachConfig.baseUrl + '/v1/payments',
         new URLSearchParams(paymentData).toString(),
         {
           headers: {
-            'Authorization': `Bearer ${this.peachConfig.accessToken}`,
+            'Authorization': 'Bearer ' + this.peachConfig.accessToken + '',
             'Content-Type': 'application/x-www-form-urlencoded'
           }
         }
@@ -145,7 +144,7 @@ export class PaymentService {
       return {
         success: !!isSuccess,
         transactionId: result.id,
-        message: isSuccess ? 'Payment processed successfully' : result.result?.description || 'Payment failed',
+        message: isSuccess ? 'Payment processed successfully'  : result.result.description || 'Payment failed',
         paymentTransactionId
       };
 
@@ -205,7 +204,6 @@ export class PaymentService {
 
       // Update payment transaction
       const newStatus = verificationData.verification_status === 'approved' ? 'completed' : 'failed';
-      
       await this.updatePaymentTransaction(transactionId, {
         status: newStatus,
         verified_by: verifiedBy,
@@ -218,7 +216,7 @@ export class PaymentService {
         INSERT INTO cash_payment_verifications (
           transaction_id, amount_verified, verified_by, verification_status,
           verification_notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, NOW())
+        ) EXCLUDED.?, ?, ?, ?, ?, CURRENT_TIMESTAMP
       `;
 
       await executeQuery(verificationQuery, [
@@ -233,7 +231,7 @@ export class PaymentService {
 
       return {
         success: true,
-        message: `Cash payment ${verificationData.verification_status} successfully`
+        message: 'Cash payment ' + verificationData.verification_status + ' successfully'
       };
 
     } catch (error) {
@@ -255,17 +253,17 @@ export class PaymentService {
 
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined && key !== 'id') {
-          fields.push(`${key} = ?`);
+          fields.push('' + key + ' = ? ');
           values.push(value);
         }
       });
 
       if (fields.length === 0) return;
 
-      fields.push('updated_at = NOW()');
+      fields.push('updated_at = CURRENT_TIMESTAMP');
       values.push(id);
 
-      const query = `UPDATE payment_transactions SET ${fields.join(', ')} WHERE id = ?`;
+      const query = `UPDATE payment_transactions SET ' + fields.join(', ') + ' WHERE id = $1`;
       await executeQuery(query, values);
 
     } catch (error) {
@@ -276,9 +274,9 @@ export class PaymentService {
   /**
    * Get payment transaction by ID
    */
-  static async getPaymentTransaction(id: number): Promise<PaymentTransaction | null> {
+  static async getPaymentTransaction(id : number): Promise<PaymentTransaction | null> {
     try {
-      const query = 'SELECT * FROM payment_transactions WHERE id = ?';
+      const query = `SELECT * FROM payment_transactions WHERE id = $1`;
       const result = await executeQuerySingle(query, [id]);
       return result as PaymentTransaction | null;
     } catch (error) {
@@ -293,8 +291,7 @@ export class PaymentService {
     try {
       const query = `
         SELECT * FROM payment_transactions 
-        WHERE application_id = ? 
-        ORDER BY created_at DESC
+        WHERE application_id = ? ORDER BY created_at DESC
       `;
       const results = await executeQuery(query, [applicationId]);
       return results as PaymentTransaction[];
@@ -306,7 +303,7 @@ export class PaymentService {
   /**
    * Get pending cash payments for verification
    */
-  static async getPendingCashPayments(): Promise<any[]> {
+  static async getPendingCashPayments() : Promise<any[]> {
     try {
       const query = `
         SELECT 
@@ -337,7 +334,7 @@ export class PaymentService {
       const params: any[] = [];
 
       if (dateFrom && dateTo) {
-        whereClause = 'WHERE DATE(created_at) BETWEEN ? AND ?';
+        whereClause = 'WHERE created_at::date BETWEEN $1 AND $2';
         params.push(dateFrom, dateTo);
       }
 
@@ -351,8 +348,7 @@ export class PaymentService {
           COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_transactions,
           AVG(CASE WHEN status = 'completed' THEN amount END) as average_transaction
         FROM payment_transactions
-        ${whereClause}
-      `;
+        ` + whereClause;
 
       const stats = await executeQuerySingle(query, params);
       return stats;

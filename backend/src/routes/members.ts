@@ -332,6 +332,7 @@ router.get('/directory',
       sort_by: Joi.string().valid('first_name', 'last_name', 'created_at', 'membership_number').default('last_name'),
       sort_order: Joi.string().valid('asc', 'desc').default('asc'),
       page: Joi.number().integer().min(0).default(0),
+      offset: Joi.number().integer().min(0).optional(), // Add offset parameter for pagination
       limit: Joi.number().integer().min(1).max(100).default(25),
       // Add province filtering parameters that can be injected by middleware
       province_code: Joi.string().min(2).max(3).optional(),
@@ -359,6 +360,7 @@ router.get('/directory',
       sort_by,
       sort_order,
       page,
+      offset,
       limit
     } = req.query;
 
@@ -366,7 +368,7 @@ router.get('/directory',
     let query = `
       SELECT
         m.member_id,
-        CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+        'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
         m.firstname as first_name,
         COALESCE(m.surname, '') as last_name,
         m.email,
@@ -479,6 +481,7 @@ router.get('/directory',
 
     // Add sorting and pagination
     const pageNum = Number(page) || 0;
+    const offsetNum = Number(offset) || (pageNum * Number(limit || 25)); // Use offset if provided, otherwise calculate from page
     const limitNum = Number(limit) || 25;
     const sortOrder = (sort_order as string) || 'asc';
 
@@ -493,16 +496,21 @@ router.get('/directory',
 
     query += ` ORDER BY m.${actualSortColumn} ${sortOrder}`;
     query += ` LIMIT ? OFFSET ?`;
-    params.push(limitNum, pageNum * limitNum);
+    params.push(limitNum, offsetNum);
 
     const members = await executeQuery(query, params);
 
     sendSuccess(res, {
       members,
-      total,
-      page: pageNum,
-      limit: limitNum,
-      totalPages: Math.ceil(total / limitNum)
+      pagination: {
+        total,
+        page: pageNum,
+        offset: offsetNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+        hasNext: offsetNum + limitNum < total,
+        hasPrev: offsetNum > 0
+      }
     }, 'Member directory retrieved successfully');
   })
 );
@@ -541,7 +549,7 @@ router.get('/directory/export',
     let query = `
       SELECT
         m.member_id,
-        CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+        'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
         m.firstname as first_name,
         COALESCE(m.surname, '') as last_name,
         m.email,
@@ -631,8 +639,9 @@ router.get('/directory/export',
 router.get('/directory/filters',
   asyncHandler(async (_req, res) => {
     const provinces = await executeQuery(`
-      SELECT DISTINCT p.id as province_code, p.province_name
+      SELECT DISTINCT p.province_code, p.province_name
       FROM provinces p
+      WHERE p.is_active = true
       ORDER BY p.province_name
     `);
 
@@ -983,7 +992,7 @@ router.get('/stats/provinces',
   })
 );
 
-// Get member statistics by districts for a province
+// Get member statistics by districts for a province (including metro subregion aggregation)
 router.get('/stats/districts',
   validate({
     query: Joi.object({
@@ -997,9 +1006,23 @@ router.get('/stats/districts',
       SELECT
         d.district_code,
         d.district_name,
-        COALESCE(COUNT(DISTINCT m.member_id), 0) as member_count
+        COALESCE(
+          -- Direct members assigned to municipalities in this district
+          (SELECT COUNT(DISTINCT m1.member_id)
+           FROM municipalities mu1
+           JOIN vw_member_details m1 ON mu1.municipality_code = m1.municipality_code
+           WHERE mu1.district_code = d.district_code
+             AND mu1.municipality_type != 'Metro Sub-Region')
+          +
+          -- Members assigned to metro subregions in this district
+          (SELECT COUNT(DISTINCT m2.member_id)
+           FROM municipalities mu2
+           JOIN municipalities sub ON sub.parent_municipality_id = mu2.municipality_id
+           JOIN vw_member_details m2 ON sub.municipality_code = m2.municipality_code
+           WHERE mu2.district_code = d.district_code
+             AND mu2.municipality_type = 'Metropolitan')
+        , 0) as member_count
       FROM districts d
-      LEFT JOIN vw_member_details m ON d.district_code = m.district_code
       WHERE d.province_code = ?
       GROUP BY d.district_code, d.district_name
       ORDER BY member_count DESC
@@ -1010,7 +1033,7 @@ router.get('/stats/districts',
   })
 );
 
-// Get member statistics by municipalities for a district
+// Get member statistics by municipalities for a district (including subregion aggregation)
 router.get('/stats/municipalities',
   validate({
     query: Joi.object({
@@ -1024,11 +1047,23 @@ router.get('/stats/municipalities',
       SELECT
         mu.municipality_code,
         mu.municipality_name,
-        COALESCE(COUNT(DISTINCT m.member_id), 0) as member_count
+        mu.municipality_type,
+        COALESCE(
+          -- Direct members assigned to this municipality
+          (SELECT COUNT(DISTINCT m1.member_id)
+           FROM vw_member_details m1
+           WHERE m1.municipality_code = mu.municipality_code)
+          +
+          -- Members assigned to subregions of this municipality (for metros)
+          (SELECT COUNT(DISTINCT m2.member_id)
+           FROM municipalities sub
+           JOIN vw_member_details m2 ON sub.municipality_code = m2.municipality_code
+           WHERE sub.parent_municipality_id = mu.municipality_id)
+        , 0) as member_count
       FROM municipalities mu
-      LEFT JOIN vw_member_details m ON mu.municipality_code = m.municipality_code
       WHERE mu.district_code = ?
-      GROUP BY mu.municipality_code, mu.municipality_name
+        AND mu.municipality_type != 'Metro Sub-Region'  -- Exclude subregions from top-level results
+      GROUP BY mu.municipality_code, mu.municipality_name, mu.municipality_type, mu.municipality_id
       ORDER BY member_count DESC
     `;
 
@@ -1055,6 +1090,7 @@ router.get('/stats/wards',
       FROM wards w
       LEFT JOIN vw_member_details m ON w.ward_code = m.ward_code
       WHERE w.municipality_code = ?
+        AND w.ward_code NOT IN ('99999999', '33333333', '22222222', '11111111')  -- Exclude special voting district codes
       GROUP BY w.ward_code, w.ward_name
       ORDER BY member_count DESC
     `;
@@ -1064,7 +1100,44 @@ router.get('/stats/wards',
   })
 );
 
-// Get member statistics by voting districts for a ward
+// Get member statistics by subregions for a municipality
+router.get('/stats/subregions',
+  validate({
+    query: Joi.object({
+      municipality: Joi.string().required()
+    })
+  }),
+  asyncHandler(async (req, res) => {
+    const { municipality } = req.query;
+
+    const query = `
+      SELECT
+        sr.municipality_code as subregion_code,
+        sr.municipality_name as subregion_name,
+        sr.municipality_type,
+        pm.municipality_code as parent_municipality_code,
+        pm.municipality_name as parent_municipality_name,
+        COUNT(DISTINCT m.member_id) as member_count
+      FROM municipalities sr
+      JOIN municipalities pm ON sr.parent_municipality_id = pm.municipality_id
+      LEFT JOIN wards w ON sr.municipality_code = w.municipality_code
+      LEFT JOIN members m ON w.ward_code = m.ward_code
+      LEFT JOIN memberships ms ON m.member_id = ms.member_id
+      LEFT JOIN membership_statuses mst ON ms.status_id = mst.status_id
+      WHERE pm.municipality_code = $1
+        AND sr.municipality_type = 'Metro Sub-Region'
+        AND (mst.is_active = TRUE OR mst.is_active IS NULL)
+      GROUP BY sr.municipality_code, sr.municipality_name, sr.municipality_type,
+               pm.municipality_code, pm.municipality_name
+      ORDER BY sr.municipality_name
+    `;
+
+    const data = await executeQuery(query, [municipality]);
+    sendSuccess(res, { data }, 'Subregion member statistics retrieved successfully');
+  })
+);
+
+// Get member statistics by voting districts for a ward (including special voting districts)
 router.get('/stats/voting-districts',
   validate({
     query: Joi.object({
@@ -1074,19 +1147,60 @@ router.get('/stats/voting-districts',
   asyncHandler(async (req, res) => {
     const { ward } = req.query;
 
-    const query = `
+    // Query for regular voting districts from the view
+    const regularVotingDistrictsQuery = `
       SELECT
         vd.voting_district_code,
         vd.voting_district_name,
         vd.voting_district_number,
-        vd.member_count
+        vd.member_count,
+        'regular' as district_type
       FROM voting_districts_with_members vd
       WHERE vd.ward_code = ?
-      ORDER BY vd.member_count DESC, vd.voting_district_number
     `;
 
-    const data = await executeQuery(query, [ward]);
-    sendSuccess(res, { data }, 'Voting district member statistics retrieved successfully');
+    // Query for special voting districts that exist in members table for this ward
+    const specialVotingDistrictsQuery = `
+      SELECT
+        m.voting_district_code,
+        CASE
+          WHEN m.voting_district_code = '33333333' THEN 'International Voter'
+          WHEN m.voting_district_code = '99999999' THEN 'Not Registered Voter'
+          WHEN m.voting_district_code = '22222222' THEN 'Registered in Different Ward'
+          WHEN m.voting_district_code = '11111111' THEN 'Deceased'
+          ELSE 'Unknown Special District'
+        END as voting_district_name,
+        NULL as voting_district_number,
+        COUNT(*) as member_count,
+        'special' as district_type
+      FROM members m
+      WHERE m.ward_code = ?
+        AND m.voting_district_code IN ('33333333', '99999999', '22222222', '11111111')
+      GROUP BY m.voting_district_code
+      HAVING COUNT(*) > 0
+    `;
+
+    // Execute both queries
+    const [regularDistricts, specialDistricts] = await Promise.all([
+      executeQuery(regularVotingDistrictsQuery, [ward]),
+      executeQuery(specialVotingDistrictsQuery, [ward])
+    ]);
+
+    // Combine results
+    const allDistricts = [...regularDistricts, ...specialDistricts];
+
+    // Sort by member count descending, then by district type (regular first, then special)
+    allDistricts.sort((a, b) => {
+      if (b.member_count !== a.member_count) {
+        return b.member_count - a.member_count;
+      }
+      // If member counts are equal, prioritize regular districts
+      if (a.district_type === 'regular' && b.district_type === 'special') return -1;
+      if (a.district_type === 'special' && b.district_type === 'regular') return 1;
+      return 0;
+    });
+
+    sendSuccess(res, { data: allDistricts }, 'Voting district member statistics retrieved successfully');
   })
 );
 
@@ -1552,7 +1666,7 @@ router.get('/:id',
     const memberQuery = `
       SELECT
         member_id,
-        CONCAT('MEM', LPAD(member_id, 6, '0')) as membership_number,
+        'MEM' || LPAD(member_id::TEXT, 6, '0') as membership_number,
         firstname as first_name,
         COALESCE(surname, '') as last_name,
         COALESCE(email, '') as email,
@@ -1623,11 +1737,11 @@ router.get('/ward/:wardCode/audit-export',
       const membersQuery = `
         SELECT
           m.member_id,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           m.id_number,
           m.firstname,
           COALESCE(m.surname, '') as surname,
-          CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
+          m.firstname || ' ' || COALESCE(m.surname, '') as full_name,
           m.date_of_birth,
           m.age,
           'Unknown' as gender_name,
@@ -1649,7 +1763,7 @@ router.get('/ward/:wardCode/audit-export',
           COALESCE(vs.station_name, '') as voting_station_name,
           m.ward_code,
           COALESCE(w.ward_name, '') as ward_name,
-          COALESCE(w.ward_number, '') as ward_number,
+          COALESCE(w.ward_number::TEXT, '') as ward_number,
           COALESCE(mu.municipality_code, '') as municipality_code,
           COALESCE(mu.municipality_name, '') as municipality_name,
           COALESCE(d.district_code, '') as district_code,
@@ -1666,7 +1780,7 @@ router.get('/ward/:wardCode/audit-export',
           COALESCE(md.subscription_name, 'N/A') as subscription_name,
           COALESCE(md.membership_amount, 0) as membership_amount,
           COALESCE(md.status_name, 'Unknown') as membership_status,
-          COALESCE(md.is_active, 0) as membership_is_active,
+          COALESCE(md.is_active::INTEGER, 0) as membership_is_active,
           COALESCE(md.days_until_expiry, 0) as days_until_expiry,
           COALESCE(md.payment_method, 'N/A') as payment_method,
           COALESCE(md.payment_reference, 'N/A') as payment_reference

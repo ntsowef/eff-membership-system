@@ -24,8 +24,7 @@ export class MeetingNotificationService {
           mt.type_code
         FROM meetings m
         JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
-        WHERE m.meeting_id = ?
-      `, [meetingId]);
+        WHERE m.meeting_id = ? `, [meetingId]);
 
       if (!meeting) {
         throw new Error('Meeting not found');
@@ -42,13 +41,13 @@ export class MeetingNotificationService {
           mem.membership_number
         FROM meeting_attendance ma
         JOIN members mem ON ma.member_id = mem.member_id
-        WHERE ma.meeting_id = ? 
+        WHERE ma.meeting_id = $1 
           AND ma.invitation_status = 'Not Sent'
           AND mem.membership_status = 'Active'
       `, [meetingId]);
 
       const results = {
-        sent: 0,
+        sent : 0,
         failed: 0,
         details: [] as any[]
       };
@@ -62,17 +61,16 @@ export class MeetingNotificationService {
             // Update invitation status
             await executeQuery(`
               UPDATE meeting_attendance 
-              SET invitation_status = 'Sent', invitation_sent_at = NOW()
-              WHERE attendance_id = ?
-            `, [attendee.attendance_id]);
+              SET invitation_status = 'Sent', invitation_sent_at = CURRENT_TIMESTAMP
+              WHERE attendance_id = ? `, [attendee.attendance_id]);
 
             // Log the invitation
             await this.logInvitation(meetingId, attendee.member_id, 'Initial', 'System', 'Sent');
 
             results.sent++;
             results.details.push({
-              member_id: attendee.member_id,
-              member_name: `${attendee.first_name} ${attendee.last_name}`,
+              member_id : attendee.member_id,
+              member_name: '${attendee.first_name} ' + attendee.last_name + '',
               status: 'sent',
               method: invitationResult.method
             });
@@ -81,26 +79,25 @@ export class MeetingNotificationService {
             await executeQuery(`
               UPDATE meeting_attendance 
               SET invitation_status = 'Failed'
-              WHERE attendance_id = ?
-            `, [attendee.attendance_id]);
+        WHERE attendance_id = ? `, [attendee.attendance_id]);
 
             // Log the failed invitation
             await this.logInvitation(meetingId, attendee.member_id, 'Initial', 'System', 'Failed', invitationResult.error);
 
             results.failed++;
             results.details.push({
-              member_id: attendee.member_id,
-              member_name: `${attendee.first_name} ${attendee.last_name}`,
+              member_id : attendee.member_id,
+              member_name: '${attendee.first_name} ' + attendee.last_name + '',
               status: 'failed',
               error: invitationResult.error
             });
           }
         } catch (error) {
-          console.error(`Failed to send invitation to member ${attendee.member_id}:`, error);
+          console.error('Failed to send invitation to member ' + attendee.member_id + ':', error);
           results.failed++;
           results.details.push({
             member_id: attendee.member_id,
-            member_name: `${attendee.first_name} ${attendee.last_name}`,
+            member_name: '${attendee.first_name} ' + attendee.last_name + '',
             status: 'failed',
             error: error instanceof Error ? error.message : 'Unknown error'
           });
@@ -164,7 +161,7 @@ export class MeetingNotificationService {
     const meetingDate = new Date(meeting.meeting_date).toLocaleDateString();
     const meetingTime = meeting.meeting_time;
     
-    const subject = `Meeting Invitation: ${meeting.meeting_title}`;
+    const subject = 'Meeting Invitation: ' + meeting.meeting_title + '';
     
     const body = `
 Dear ${attendee.first_name} ${attendee.last_name},
@@ -209,9 +206,9 @@ Meeting Management System
   }> {
     try {
       // TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
-      console.log(`Sending email invitation to: ${email}`);
-      console.log(`Subject: ${content.subject}`);
-      console.log(`Body: ${content.body}`);
+      console.log('Sending email invitation to: ' + email + '');
+      console.log('Subject: ' + content.subject + '');
+      console.log('Body: ' + content.body + '');
       
       // Simulate email sending
       return { success: true };
@@ -232,8 +229,8 @@ Meeting Management System
   }> {
     try {
       // TODO: Integrate with actual SMS service (Twilio, AWS SNS, etc.)
-      console.log(`Sending SMS invitation to: ${phoneNumber}`);
-      console.log(`Message: ${content.smsText}`);
+      console.log('Sending SMS invitation to: ' + phoneNumber + '');
+      console.log('Message: ' + content.smsText + '');
       
       // Simulate SMS sending
       return { success: true };
@@ -261,7 +258,7 @@ Meeting Management System
         INSERT INTO meeting_invitation_log (
           meeting_id, member_id, invitation_type, invitation_method, 
           invitation_status, sent_at, error_message
-        ) VALUES (?, ?, ?, ?, ?, NOW(), ?)
+        ) EXCLUDED.?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?
       `, [meetingId, memberId, invitationType, invitationMethod, status, errorMessage || null]);
     } catch (error) {
       console.error('Failed to log invitation:', error);
@@ -300,7 +297,7 @@ Meeting Management System
           mem.phone_number
         FROM meeting_attendance ma
         JOIN members mem ON ma.member_id = mem.member_id
-        WHERE ma.meeting_id = ? 
+        WHERE ma.meeting_id = $1 
           AND ma.invitation_status = 'Sent'
           AND ma.attendance_status IN ('Invited', 'Confirmed')
           AND mem.membership_status = 'Active'
@@ -314,7 +311,7 @@ Meeting Management System
           const reminderContent = this.generateReminderContent(meeting, attendee);
           const result = await this.sendIndividualInvitation(meeting, {
             ...attendee,
-            email: attendee.email,
+            email : attendee.email,
             phone_number: attendee.phone_number
           });
 
@@ -326,7 +323,7 @@ Meeting Management System
             failed++;
           }
         } catch (error) {
-          console.error(`Failed to send reminder to member ${attendee.member_id}:`, error);
+          console.error('Failed to send reminder to member ' + attendee.member_id + ':', error);
           failed++;
         }
       }
@@ -334,9 +331,8 @@ Meeting Management System
       // Update meeting reminder sent timestamp
       await executeQuery(`
         UPDATE meetings 
-        SET reminder_sent_at = NOW() 
-        WHERE meeting_id = ?
-      `, [meetingId]);
+        SET reminder_sent_at = CURRENT_TIMESTAMP 
+        WHERE meeting_id = ? `, [meetingId]);
 
       return { sent, failed };
     } catch (error) {
@@ -347,7 +343,7 @@ Meeting Management System
   /**
    * Generate reminder content
    */
-  private static generateReminderContent(meeting: any, attendee: any): {
+  private static generateReminderContent(meeting : any, attendee: any): {
     subject: string;
     body: string;
     smsText: string;
@@ -355,7 +351,7 @@ Meeting Management System
     const meetingDate = new Date(meeting.meeting_date).toLocaleDateString();
     const meetingTime = meeting.meeting_time;
     
-    const subject = `Meeting Reminder: ${meeting.meeting_title}`;
+    const subject = 'Meeting Reminder: ' + meeting.meeting_title + '';
     
     const body = `
 Dear ${attendee.first_name} ${attendee.last_name},
@@ -393,7 +389,7 @@ Meeting Management System
           COUNT(CASE WHEN attendance_status = 'Confirmed' THEN 1 END) as confirmed,
           COUNT(CASE WHEN attendance_status = 'Declined' THEN 1 END) as declined
         FROM meeting_attendance
-        WHERE meeting_id = ?
+        WHERE meeting_id = $1
       `, [meetingId]);
 
       return stats;

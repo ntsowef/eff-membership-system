@@ -200,7 +200,7 @@ router.post('/password/change', authenticate, authRateLimit, async (req: Request
     const { current_password, new_password } = value;
 
     // Get current user
-    const user = await executeQuerySingle('SELECT password FROM users WHERE id = ?', [userId]);
+    const user = await executeQuerySingle('SELECT password FROM users WHERE id = $1', [userId]);
     if (!user) {
       throw new NotFoundError('User not found');
     }

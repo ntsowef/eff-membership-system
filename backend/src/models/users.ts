@@ -18,7 +18,7 @@ export interface User {
   mfa_enabled: boolean;
   mfa_secret?: string;
   role?: string;
-  admin_level?: 'national';
+  admin_level?: 'national' | 'province' | 'municipality' | 'district' | 'ward' | 'none';
   member_id?: number;
   is_active: boolean;
   last_login?: string;
@@ -136,8 +136,8 @@ export class UserModel {
           r.name as role_name,
           r.description as role_description
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
-        WHERE u.id = ?
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        WHERE u.user_id = ?
       `;
 
       return await executeQuerySingle<UserDetails>(query, [id]);

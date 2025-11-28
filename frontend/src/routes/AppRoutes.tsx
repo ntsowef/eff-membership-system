@@ -16,6 +16,18 @@ import ApplicationStatusPage from '../pages/public/ApplicationStatusPage';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 
+// Error Pages
+import {
+  AccessDenied,
+  NotFound,
+  ServerError,
+  BadRequest,
+  ServiceUnavailable,
+  GenericError,
+  ErrorBoundary,
+  ErrorPageDemo,
+} from '../pages/errors';
+
 // Dashboard Pages
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import HierarchicalDashboard from '../pages/dashboard/HierarchicalDashboard';
@@ -24,11 +36,15 @@ import HierarchicalDashboard from '../pages/dashboard/HierarchicalDashboard';
 import MembersListPage from '../pages/members/MembersListPage';
 import MemberDetailPage from '../pages/members/MemberDetailPage';
 import MemberCreatePage from '../pages/members/MemberCreatePage';
+import MemberBulkUploadPage from '../pages/members/MemberBulkUploadPage';
 import ExpirationManagementPage from '../pages/membership/ExpirationManagementPage';
 import RenewalManagementPage from '../pages/admin/RenewalManagement';
 import MyMembershipCardPage from '../pages/public/MyMembershipCard';
 import WardMembershipAuditPage from '../pages/audit/WardMembershipAuditPage';
 import MemberRenewalPortal from '../pages/public/MemberRenewalPortal';
+
+// Profile & Settings Pages
+import ProfileSettingsPage from '../pages/profile/ProfileSettingsPage';
 
 // Application Management Pages
 import ApplicationsListPage from '../pages/applications/ApplicationsListPage';
@@ -44,6 +60,7 @@ import MeetingsPage from '../pages/meetings/MeetingsPage';
 import MeetingDetailPage from '../pages/meetings/MeetingDetailPage';
 import MeetingCreatePage from '../pages/meetings/MeetingCreatePage';
 import MeetingEditPage from '../pages/meetings/MeetingEditPage';
+import MeetingAttendancePage from '../pages/meetings/MeetingAttendancePage';
 import HierarchicalMeetingCreatePage from '../pages/meetings/HierarchicalMeetingCreatePage';
 import HierarchicalMeetingsDashboard from '../pages/meetings/HierarchicalMeetingsDashboard';
 import MeetingDocumentsPage from '../pages/meetings/MeetingDocumentsPage';
@@ -81,13 +98,18 @@ import WardAuditReport from '../pages/audit/WardAuditReport';
 import MunicipalityAuditReport from '../pages/audit/MunicipalityAuditReport';
 import WardDetailAudit from '../pages/audit/WardDetailAudit';
 
+// Ward Audit System Pages
+import WardComplianceDashboard from '../pages/wardAudit/WardAuditDashboard';
+import WardComplianceDetail from '../pages/wardAudit/WardComplianceDetail';
+import MunicipalityDelegateReport from '../pages/wardAudit/MunicipalityDelegateReport';
+
 // Search Pages
 import MemberSearchPage from '../pages/search/MemberSearchPage';
 import GeographicSearchPage from '../pages/search/GeographicSearchPage';
 import VotingDistrictsSearchPage from '../pages/search/VotingDistrictsSearchPage';
 import VotingStationsSearchPage from '../pages/search/VotingStationsSearchPage';
 
-// Error Pages
+// Legacy Error Pages (keeping for backward compatibility)
 import NotFoundPage from '../pages/error/NotFoundPage';
 
 // Maintenance Pages
@@ -131,12 +153,14 @@ const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<DashboardPage />} />
 
         {/* Hierarchical Dashboard Routes */}
+        <Route path="dashboard/hierarchical" element={<HierarchicalDashboard />} />
         <Route path="dashboard/hierarchical/:level/:code?" element={<HierarchicalDashboard />} />
         
         {/* Member Management */}
         <Route path="members">
           <Route index element={<MembersListPage />} />
           <Route path="new" element={<MemberCreatePage />} />
+          <Route path="bulk-upload" element={<MemberBulkUploadPage />} />
           <Route path=":id" element={<MemberDetailPage />} />
         </Route>
 
@@ -192,12 +216,16 @@ const AppRoutes: React.FC = () => {
           <Route path="new" element={<MeetingCreatePage />} />
           <Route path=":id" element={<MeetingDetailPage />} />
           <Route path=":id/edit" element={<MeetingEditPage />} />
+          <Route path=":id/attendance" element={<MeetingAttendancePage />} />
           <Route path=":meetingId/documents" element={<MeetingDocumentsPage />} />
           <Route path=":meetingId/documents/new" element={<DocumentEditorPage />} />
           <Route path=":meetingId/documents/:documentId" element={<DocumentViewerPage />} />
           <Route path=":meetingId/documents/:documentId/edit" element={<DocumentEditorPage />} />
           <Route path="hierarchical" element={<HierarchicalMeetingsDashboard />} />
           <Route path="hierarchical/new" element={<HierarchicalMeetingCreatePage />} />
+          <Route path="hierarchical/:id" element={<MeetingDetailPage />} />
+          <Route path="hierarchical/:id/edit" element={<HierarchicalMeetingCreatePage />} />
+          <Route path="hierarchical/:id/attendance" element={<MeetingAttendancePage />} />
         </Route>
 
         {/* SMS - National Admin only */}
@@ -228,12 +256,22 @@ const AppRoutes: React.FC = () => {
           <Route path="ward-membership" element={<WardMembershipAuditPage />} />
         </Route>
 
+        {/* Ward Audit System */}
+        <Route path="ward-audit">
+          <Route index element={<WardComplianceDashboard />} />
+          <Route path="ward/:wardCode" element={<WardComplianceDetail />} />
+          <Route path="municipality/:municipalityCode" element={<MunicipalityDelegateReport />} />
+        </Route>
+
         {/* User Management - National and Provincial Admin only */}
         <Route path="users" element={
           <ProtectedRoute requireUserManagement={true}>
             <UserManagementPage />
           </ProtectedRoute>
         } />
+
+        {/* Profile & Settings - All authenticated users */}
+        <Route path="profile" element={<ProfileSettingsPage />} />
 
         {/* Communication Management - Removed */}
         {/* <Route path="communication" element={<CommunicationDashboard />} /> */}
@@ -254,6 +292,7 @@ const AppRoutes: React.FC = () => {
 
         {/* Demo Routes */}
         <Route path="demo/permissions" element={<PermissionDemo />} />
+        <Route path="demo/error-pages" element={<ErrorPageDemo />} />
 
         {/* Test Routes */}
         <Route path="test/voting-districts" element={<VotingDistrictsTest />} />
@@ -263,8 +302,16 @@ const AppRoutes: React.FC = () => {
         <Route path="test/pdf-export" element={<PDFExportTest />} />
       </Route>
 
-      {/* Catch all route */}
-      <Route path="*" element={<NotFoundPage />} />
+      {/* Error Pages Routes */}
+      <Route path="/error/access-denied" element={<AccessDenied />} />
+      <Route path="/error/not-found" element={<NotFound />} />
+      <Route path="/error/server-error" element={<ServerError />} />
+      <Route path="/error/bad-request" element={<BadRequest />} />
+      <Route path="/error/service-unavailable" element={<ServiceUnavailable />} />
+      <Route path="/error/generic" element={<GenericError />} />
+
+      {/* Catch all route - Use new NotFound component */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

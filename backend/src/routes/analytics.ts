@@ -56,6 +56,7 @@ const reportFiltersSchema = Joi.object({
   province_code: Joi.string().min(2).max(3).optional(),
   district_code: Joi.string().min(2).max(10).optional(),
   municipal_code: Joi.string().min(2).max(10).optional(),
+  municipality_code: Joi.string().min(2).max(10).optional(), // Accept both naming conventions
   ward_code: Joi.string().min(2).max(20).optional()
 });
 
@@ -73,6 +74,12 @@ router.get('/dashboard',
     }
 
     const filters: ReportFilters = value || {};
+
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
 
     // Apply geographic filtering for provincial and municipality admins
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
@@ -127,6 +134,12 @@ router.get('/membership',
 
     const filters: ReportFilters = value || {};
 
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
+
     // Apply geographic filtering for provincial and municipality admins
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
     if (geographicContext?.province_code) {
@@ -176,6 +189,12 @@ router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), asyn
     }
 
     const filters: ReportFilters = value || {};
+
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
 
     // Get all analytics data
     const [membershipAnalytics, dashboardStats] = await Promise.all([
@@ -464,6 +483,12 @@ router.get('/meetings',
 
     const filters: ReportFilters = value || {};
 
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
+
     // Apply geographic filtering for provincial and municipality admins
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
     if (geographicContext?.province_code) {
@@ -517,6 +542,12 @@ router.get('/leadership',
 
     const filters: ReportFilters = value || {};
 
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
+
     // Apply geographic filtering for provincial and municipality admins
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
     if (geographicContext?.province_code) {
@@ -564,6 +595,13 @@ router.get('/export/membership/excel', authenticate, requirePermission('reports.
     }
 
     const filters: ReportFilters = value || {};
+
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
+
     const membershipAnalytics = await AnalyticsModel.getMembershipAnalytics(filters);
 
     // Create workbook
@@ -653,6 +691,13 @@ router.get('/export/membership/pdf', authenticate, requirePermission('reports.ex
     }
 
     const filters: ReportFilters = value || {};
+
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
+
     const membershipAnalytics = await AnalyticsModel.getMembershipAnalytics(filters);
 
     // Create PDF document
@@ -736,6 +781,12 @@ router.get('/comprehensive', cacheMiddleware({
 
     const filters: ReportFilters = value || {};
 
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
+
     // Get all analytics data
     const [dashboardStats, membershipAnalytics, meetingAnalytics, leadershipAnalytics] = await Promise.all([
       AnalyticsModel.getDashboardStats(filters),
@@ -785,6 +836,12 @@ router.get('/export/comprehensive/pdf', authenticate, requirePermission('reports
     }
 
     const filters: ReportFilters = value || {};
+
+    // Normalize municipality_code to municipal_code for consistency
+    if ((filters as any).municipality_code && !filters.municipal_code) {
+      filters.municipal_code = (filters as any).municipality_code;
+      delete (filters as any).municipality_code;
+    }
 
     // Get comprehensive analytics data
     const [dashboardStats, membershipAnalytics, meetingAnalytics, leadershipAnalytics] = await Promise.all([

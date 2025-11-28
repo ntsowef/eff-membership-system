@@ -54,6 +54,7 @@ interface Config {
     file: string;
   };
   sms?: {
+    enabled?: boolean;
     provider?: string;
     twilio?: {
       accountSid: string;
@@ -71,9 +72,8 @@ interface Config {
     };
     jsonApplink?: {
       apiUrl: string;
-      apiKey: string;
-      username?: string;
-      password?: string;
+      authenticationCode: string;
+      affiliateCode: string;
       fromNumber?: string;
       rateLimitPerMinute?: number;
     };
@@ -139,6 +139,7 @@ export const config: Config = {
     file: process.env.LOG_FILE || 'logs/app.log'
   },
   sms: {
+    enabled: process.env.SMS_ENABLED === 'true',
     provider: process.env.SMS_PROVIDER || 'mock',
     twilio: {
       accountSid: process.env.TWILIO_ACCOUNT_SID || '',
@@ -156,9 +157,8 @@ export const config: Config = {
     },
     jsonApplink: {
       apiUrl: process.env.JSON_APPLINK_API_URL || '',
-      apiKey: process.env.JSON_APPLINK_API_KEY || '',
-      username: process.env.JSON_APPLINK_USERNAME,
-      password: process.env.JSON_APPLINK_PASSWORD,
+      authenticationCode: process.env.JSON_APPLINK_AUTH_CODE || process.env.JSON_APPLINK_API_KEY || '',
+      affiliateCode: process.env.JSON_APPLINK_AFFILIATE_CODE || '',
       fromNumber: process.env.JSON_APPLINK_FROM_NUMBER || '',
       rateLimitPerMinute: parseInt(process.env.JSON_APPLINK_RATE_LIMIT || '100', 10)
     },

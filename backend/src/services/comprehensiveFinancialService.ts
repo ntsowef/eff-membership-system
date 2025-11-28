@@ -79,8 +79,8 @@ export class ComprehensiveFinancialService {
         SELECT 
           uft.*,
           CASE 
-            WHEN uft.transaction_type = 'Application' THEN CONCAT(uft.first_name, ' ', uft.last_name)
-            WHEN uft.transaction_type = 'Renewal' THEN CONCAT(uft.firstname, ' ', uft.surname)
+            WHEN uft.transaction_type = 'Application' THEN uft.first_name || ' ' || uft.last_name
+            WHEN uft.transaction_type = 'Renewal' THEN uft.firstname || ' ' || uft.surname
             ELSE 'Unknown'
           END as member_name,
           CASE 
@@ -89,43 +89,43 @@ export class ComprehensiveFinancialService {
             ELSE NULL
           END as member_email
         FROM unified_financial_transactions uft
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       // Apply filters
       if (filters.entity_type) {
-        query += ' AND uft.entity_type = ?';
+        query += ` AND uft.entity_type = $${params.length + 1} `;
         params.push(filters.entity_type);
       }
 
       if (filters.payment_status) {
-        query += ' AND uft.payment_status = ?';
+        query += ` AND uft.payment_status = $${params.length + 1}`;
         params.push(filters.payment_status);
       }
 
       if (filters.financial_status) {
-        query += ' AND uft.financial_status = ?';
+        query += ` AND uft.financial_status = $${params.length + 1}`;
         params.push(filters.financial_status);
       }
 
       if (filters.date_from) {
-        query += ' AND DATE(uft.created_at) >= ?';
+        query += ` AND uft.created_at::DATE >= $${params.length + 1}`;
         params.push(filters.date_from);
       }
 
       if (filters.date_to) {
-        query += ' AND DATE(uft.created_at) <= ?';
+        query += ` AND uft.created_at::DATE <= $${params.length + 1} `;
         params.push(filters.date_to);
       }
 
       if (filters.member_search) {
         query += ` AND (
-          CONCAT(uft.first_name, ' ', uft.last_name) LIKE ? OR
-          CONCAT(uft.firstname, ' ', uft.surname) LIKE ? OR
-          uft.email LIKE ? OR
-          uft.payment_reference LIKE ?
+          uft.first_name || ' ' || uft.last_name LIKE $${params.length + 1} OR
+          uft.firstname || ' ' || uft.surname LIKE $${params.length + 2} OR
+          uft.email LIKE $${params.length + 3} OR
+          uft.payment_reference LIKE $${params.length + 4}
         )`;
         const searchTerm = `%${filters.member_search}%`;
         params.push(searchTerm, searchTerm, searchTerm, searchTerm);
@@ -135,11 +135,11 @@ export class ComprehensiveFinancialService {
 
       // Apply pagination
       if (filters.limit) {
-        query += ' LIMIT ?';
+        query += ` LIMIT $${params.length + 1}`;
         params.push(filters.limit);
-        
+
         if (filters.offset) {
-          query += ' OFFSET ?';
+          query += ` OFFSET $${params.length + 1}`;
           params.push(filters.offset);
         }
       }
@@ -160,7 +160,7 @@ export class ComprehensiveFinancialService {
   ): Promise<FinancialSummary> {
     try {
       let query = `
-        SELECT 
+        SELECT
           COUNT(*) as total_transactions,
           COALESCE(SUM(amount), 0) as total_amount,
           COUNT(CASE WHEN payment_status = 'Completed' THEN 1 END) as completed_transactions,
@@ -170,29 +170,29 @@ export class ComprehensiveFinancialService {
           COUNT(CASE WHEN payment_status = 'Failed' THEN 1 END) as failed_transactions,
           COALESCE(SUM(CASE WHEN payment_status = 'Failed' THEN amount END), 0) as failed_amount
         FROM unified_financial_transactions
-        WHERE 1=1
+        WHERE 1 = 1
       `;
 
       const params: any[] = [];
 
       if (filters.entity_type) {
-        query += ' AND entity_type = ?';
+        query += ` AND entity_type = $${params.length + 1} `;
         params.push(filters.entity_type);
       }
 
       if (filters.date_from) {
-        query += ' AND DATE(created_at) >= ?';
+        query += ` AND created_at::DATE >= $${params.length + 1}`;
         params.push(filters.date_from);
       }
 
       if (filters.date_to) {
-        query += ' AND DATE(created_at) <= ?';
+        query += ` AND created_at::DATE <= $${params.length + 1} `;
         params.push(filters.date_to);
       }
 
       const result = await executeQuerySingle(query, params);
       return result || {
-        total_transactions: 0,
+        total_transactions : 0,
         total_amount: 0,
         completed_transactions: 0,
         completed_amount: 0,
@@ -242,7 +242,7 @@ export class ComprehensiveFinancialService {
           COALESCE(SUM(DISTINCT COALESCE(ap.amount, rp.amount)), 0) as total_amount_reviewed,
           
           -- Reviews today
-          COUNT(DISTINCT CASE WHEN DATE(COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at)) = CURDATE() THEN COALESCE(ma.id, mr.renewal_id) END) as reviews_today
+          COUNT(DISTINCT CASE WHEN COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at::DATE) = CURRENT_DATE THEN COALESCE(ma.id, mr.renewal_id) END) as reviews_today
           
         FROM users u
         LEFT JOIN membership_applications ma ON u.id = ma.financial_reviewed_by
@@ -255,17 +255,17 @@ export class ComprehensiveFinancialService {
       const params: any[] = [];
 
       if (reviewerId) {
-        query += ' AND u.id = ?';
+        query += ` AND u.id = $${params.length + 1} `;
         params.push(reviewerId);
       }
 
       if (dateFrom) {
-        query += ' AND DATE(COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at)) >= ?';
+        query += ` AND COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at)::DATE >= $${params.length + 1}`;
         params.push(dateFrom);
       }
 
       if (dateTo) {
-        query += ' AND DATE(COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at)) <= ?';
+        query += ` AND COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at)::DATE <= $${params.length + 1} `;
         params.push(dateTo);
       }
 
@@ -283,7 +283,7 @@ export class ComprehensiveFinancialService {
 
   // Get current financial KPIs
   static async getFinancialKPIs(
-    category?: 'revenue' | 'efficiency' | 'quality' | 'compliance' | 'performance',
+    category: 'revenue' | 'efficiency' | 'quality' | 'compliance' | 'performance',
     date?: string
   ): Promise<FinancialKPI[]> {
     try {
@@ -299,21 +299,21 @@ export class ComprehensiveFinancialService {
           measurement_unit,
           measurement_date
         FROM financial_kpi_tracking
-        WHERE 1=1
+        WHERE 1= TRUE
       `;
 
       const params: any[] = [];
 
       if (category) {
-        query += ' AND kpi_category = ?';
+        query += ` AND kpi_category = $${params.length + 1} `;
         params.push(category);
       }
 
       if (date) {
-        query += ' AND measurement_date = ?';
+        query += ` AND measurement_date = $${params.length + 1}`;
         params.push(date);
       } else {
-        query += ' AND measurement_date = CURDATE()';
+        query += ' AND measurement_date = CURRENT_DATE';
       }
 
       query += ' ORDER BY kpi_category, kpi_name';
@@ -326,7 +326,7 @@ export class ComprehensiveFinancialService {
 
   // Update financial KPI value
   static async updateFinancialKPI(
-    kpiName: string,
+    kpiName : string,
     newValue: number,
     date?: string
   ): Promise<void> {
@@ -337,11 +337,11 @@ export class ComprehensiveFinancialService {
       const currentKPI = await executeQuerySingle(`
         SELECT current_value, target_value 
         FROM financial_kpi_tracking 
-        WHERE kpi_name = ? AND measurement_date = ?
+        WHERE kpi_name = ? AND measurement_date = 
       `, [kpiName, measurementDate]);
 
       let variancePercentage = 0;
-      let trendDirection: 'up' | 'down' | 'stable' = 'stable';
+      let trendDirection : 'up' | 'down' | 'stable' = 'stable';
       let performanceStatus: 'excellent' | 'good' | 'acceptable' | 'needs_improvement' | 'critical' = 'acceptable';
 
       if (currentKPI) {
@@ -376,13 +376,13 @@ export class ComprehensiveFinancialService {
         INSERT INTO financial_kpi_tracking (
           kpi_name, measurement_date, current_value, previous_value,
           variance_percentage, trend_direction, performance_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
+        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?
+        ON CONFLICT DO UPDATE SET
           previous_value = current_value,
-          current_value = VALUES(current_value),
-          variance_percentage = VALUES(variance_percentage),
-          trend_direction = VALUES(trend_direction),
-          performance_status = VALUES(performance_status)
+          current_value = EXCLUDED.current_value,
+          variance_percentage = EXCLUDED.variance_percentage,
+          trend_direction = EXCLUDED.trend_direction,
+          performance_status = EXCLUDED.performance_status
       `, [
         kpiName,
         measurementDate,
@@ -408,7 +408,7 @@ export class ComprehensiveFinancialService {
       const cached = await executeQuerySingle(`
         SELECT cache_data, expires_at, is_valid
         FROM financial_dashboard_cache
-        WHERE cache_key = ? AND expires_at > NOW() AND is_valid = TRUE
+        WHERE cache_key = ? AND expires_at > CURRENT_TIMESTAMP AND is_valid = TRUE
       `, [cacheKey]);
 
       if (cached) {
@@ -423,7 +423,7 @@ export class ComprehensiveFinancialService {
 
   // Set dashboard cache data
   static async setCachedDashboardData(
-    cacheKey: string,
+    cacheKey : string,
     cacheType: 'daily_stats' | 'monthly_trends' | 'reviewer_performance' | 'transaction_summary' | 'pending_reviews',
     data: any,
     expirationMinutes: number = 30
@@ -438,12 +438,12 @@ export class ComprehensiveFinancialService {
       await executeQuery(`
         INSERT INTO financial_dashboard_cache (
           cache_key, cache_data, cache_type, expires_at, data_size_bytes
-        ) VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          cache_data = VALUES(cache_data),
-          cache_type = VALUES(cache_type),
-          expires_at = VALUES(expires_at),
-          data_size_bytes = VALUES(data_size_bytes),
+        ) EXCLUDED.?, ?, ?, ?, ?
+        ON CONFLICT DO UPDATE SET
+          cache_data = EXCLUDED.cache_data,
+          cache_type = EXCLUDED.cache_type,
+          expires_at = EXCLUDED.expires_at,
+          data_size_bytes = EXCLUDED.data_size_bytes,
           generated_at = CURRENT_TIMESTAMP,
           is_valid = TRUE
       `, [cacheKey, cacheData, cacheType, expiresAt, dataSizeBytes]);
@@ -460,7 +460,7 @@ export class ComprehensiveFinancialService {
       const params: any[] = [];
 
       if (cacheKeyPattern) {
-        query += ' WHERE cache_key LIKE ?';
+        query += ` WHERE cache_key LIKE $${params.length + 1}`;
         params.push(cacheKeyPattern);
       }
 

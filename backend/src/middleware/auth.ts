@@ -447,7 +447,7 @@ export const createAuthRoutes = () => {
         // Query the database for the user
         const userQuery = `
           SELECT
-            u.id,
+            u.user_id as id,
             u.name,
             u.email,
             u.password,
@@ -459,10 +459,10 @@ export const createAuthRoutes = () => {
             u.is_active,
             u.mfa_enabled,
             u.failed_login_attempts,
-            r.name as role_name
+            r.role_name as role_name
           FROM users u
-          LEFT JOIN roles r ON u.role_id = r.id
-          WHERE u.email = ? AND u.is_active = 1
+          LEFT JOIN roles r ON u.role_id = r.role_id
+          WHERE u.email = $1 AND u.is_active = TRUE
         `;
 
         const userResults = await executeQuery(userQuery, [email]);
@@ -517,7 +517,7 @@ export const createAuthRoutes = () => {
 
         // Update last login information
         await executeQuery(
-          'UPDATE users SET last_login_at = NOW(), last_login_ip = ? WHERE id = ?',
+          'UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $1 WHERE user_id = $2',
           [req.ip, user.id]
         );
 
@@ -611,8 +611,8 @@ export const createAuthRoutes = () => {
         // Find and terminate sessions based on user ID and IP/User Agent
         await executeQuery(`
           UPDATE user_sessions
-          SET is_active = FALSE, last_activity = NOW()
-          WHERE user_id = ? AND ip_address = ? AND user_agent = ? AND is_active = TRUE
+          SET is_active = FALSE, last_activity = CURRENT_TIMESTAMP
+          WHERE user_id = $1 AND ip_address = $2 AND user_agent = $3 AND is_active = TRUE
         `, [userId, clientIP, userAgent]);
       }
 
@@ -933,8 +933,18 @@ export const applyGeographicFilter = (req: Request, res: Response, next: NextFun
       throw new AuthenticationError('User not authenticated');
     }
 
+    // Debug logging
+    console.log('🔍 applyGeographicFilter called for user:', {
+      id: req.user.id,
+      email: req.user.email,
+      admin_level: req.user.admin_level,
+      province_code: (req.user as any).province_code,
+      role_name: req.user.role_name
+    });
+
     // Skip filtering for national admin and super admin
     if (req.user.admin_level === 'national' || req.user.role_name === 'super_admin') {
+      console.log('🔍 Skipping filtering for national/super admin');
       return next();
     }
 
@@ -953,15 +963,18 @@ export const applyGeographicFilter = (req: Request, res: Response, next: NextFun
         municipal_code: (req.user as any).municipal_code,
         ward_code: (req.user as any).ward_code
       };
+
+      console.log('🔍 Province context set:', (req as any).provinceContext);
     } else if (req.user.admin_level === 'province') {
       // Provincial admin without province assignment - deny access
+      console.log('❌ Provincial admin without province assignment');
       throw new AuthorizationError('Provincial admin user has no assigned province');
     }
 
     // Apply municipality filtering for municipality admin
     if (req.user.admin_level === 'municipality' && (req.user as any).municipal_code) {
       // Add municipality filter to query parameters
-      req.query.municipal_code = (req.user as any).municipal_code;
+      req.query.municipality_code = (req.user as any).municipal_code;
 
       // Also add province and district filters for complete geographic context
       if ((req.user as any).province_code) {
@@ -984,6 +997,40 @@ export const applyGeographicFilter = (req: Request, res: Response, next: NextFun
     } else if (req.user.admin_level === 'municipality') {
       // Municipality admin without municipality assignment - deny access
       throw new AuthorizationError('Municipality admin user has no assigned municipality');
+    }
+
+    // Apply ward filtering for ward admin
+    if (req.user.admin_level === 'ward' && (req.user as any).ward_code) {
+      // Add ward filter to query parameters
+      req.query.ward_code = (req.user as any).ward_code;
+
+      // Also add province, district, and municipality filters for complete geographic context
+      if ((req.user as any).province_code) {
+        req.query.province_code = (req.user as any).province_code;
+      }
+      if ((req.user as any).district_code) {
+        req.query.district_code = (req.user as any).district_code;
+      }
+      if ((req.user as any).municipal_code) {
+        req.query.municipality_code = (req.user as any).municipal_code;
+      }
+
+      // Log ward-based access for audit
+      console.log(`🔒 Ward filter applied: User ${req.user.email} accessing data for ward ${(req.user as any).ward_code}`);
+
+      // Add ward context to request for use in queries
+      (req as any).wardContext = {
+        province_code: (req.user as any).province_code,
+        district_code: (req.user as any).district_code,
+        municipal_code: (req.user as any).municipal_code,
+        ward_code: (req.user as any).ward_code
+      };
+
+      console.log('🔍 Ward context set:', (req as any).wardContext);
+    } else if (req.user.admin_level === 'ward') {
+      // Ward admin without ward assignment - deny access
+      console.log('❌ Ward admin without ward assignment');
+      throw new AuthorizationError('Ward admin user has no assigned ward');
     }
 
     next();
@@ -1039,7 +1086,28 @@ export const requireSMSPermission = () => {
   };
 };
 
-// Election Management restriction middleware - National and Provincial Admin only
+// National Admin Only restriction middleware - For sensitive features
+export const requireNationalAdminOnly = () => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      if (!req.user) {
+        throw new AuthenticationError('User not authenticated');
+      }
+
+      // Only National Admin and Super Admin can access
+      if (req.user.admin_level !== 'national' && req.user.role_name !== 'super_admin') {
+        throw new AuthorizationError('This feature is restricted to National Admin users only');
+      }
+
+      console.log(`🔒 National Admin Permission granted: User ${req.user.email} (${req.user.admin_level}) accessing national-only features`);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
+// Election Management restriction middleware - National Admin only (updated from National and Provincial)
 export const requireElectionManagementPermission = () => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
@@ -1047,10 +1115,9 @@ export const requireElectionManagementPermission = () => {
         throw new AuthenticationError('User not authenticated');
       }
 
-      // Only National Admin, Provincial Admin, and Super Admin can access election management
-      const allowedLevels = ['national', 'province'];
-      if (!allowedLevels.includes(req.user.admin_level || '') && req.user.role_name !== 'super_admin') {
-        throw new AuthorizationError('Election management is restricted to National and Provincial Admin users only');
+      // Only National Admin and Super Admin can access election management
+      if (req.user.admin_level !== 'national' && req.user.role_name !== 'super_admin') {
+        throw new AuthorizationError('Election management is restricted to National Admin users only');
       }
 
       console.log(`🔒 Election Management Permission granted: User ${req.user.email} (${req.user.admin_level}) accessing election features`);

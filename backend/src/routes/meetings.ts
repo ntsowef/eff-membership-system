@@ -5,6 +5,7 @@ import { ValidationError, NotFoundError } from '../middleware/errorHandler';
 // import { logAudit } from '../middleware/auditLogger';
 // import { AuditAction, EntityType } from '../models/auditLogs';
 import { MeetingInvitationService } from '../services/meetingInvitationService';
+import { MeetingStatusService } from '../services/meetingStatusService';
 import Joi from 'joi';
 
 const router = Router();
@@ -184,10 +185,23 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 // Get meeting by ID
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const meetingId = parseInt(req.params.id);
-    if (isNaN(meetingId)) {
-      throw new ValidationError('Invalid meeting ID');
+    // Enhanced validation with debugging
+    const idParam = req.params.id;
+    console.log(`🔍 Meeting ID request: ${idParam} (type: ${typeof idParam})`);
+
+    if (!idParam || idParam === 'undefined' || idParam === 'null') {
+      console.log(`❌ Invalid meeting ID parameter: ${idParam}`);
+      throw new ValidationError(`Invalid meeting ID parameter: ${idParam}. Please provide a valid numeric meeting ID.`);
     }
+
+    const meetingId = parseInt(idParam);
+    if (isNaN(meetingId) || meetingId <= 0) {
+      console.log(`❌ Invalid meeting ID after parsing: ${meetingId}`);
+      throw new ValidationError(`Invalid meeting ID: ${idParam}. Meeting ID must be a positive integer.`);
+    }
+
+    // Update status before fetching (on-demand check)
+    await MeetingStatusService.updateMeetingStatus(meetingId);
 
     const meeting = await MeetingModel.getMeetingById(meetingId);
     if (!meeting) {
@@ -210,9 +224,19 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 // Update meeting
 router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const meetingId = parseInt(req.params.id);
-    if (isNaN(meetingId)) {
-      throw new ValidationError('Invalid meeting ID');
+    // Enhanced validation with debugging
+    const idParam = req.params.id;
+    console.log(`🔍 Meeting update request for ID: ${idParam} (type: ${typeof idParam})`);
+
+    if (!idParam || idParam === 'undefined' || idParam === 'null') {
+      console.log(`❌ Invalid meeting ID parameter for update: ${idParam}`);
+      throw new ValidationError(`Invalid meeting ID parameter: ${idParam}. Please provide a valid numeric meeting ID.`);
+    }
+
+    const meetingId = parseInt(idParam);
+    if (isNaN(meetingId) || meetingId <= 0) {
+      console.log(`❌ Invalid meeting ID after parsing for update: ${meetingId}`);
+      throw new ValidationError(`Invalid meeting ID: ${idParam}. Meeting ID must be a positive integer.`);
     }
 
     const { error, value } = updateMeetingSchema.validate(req.body);
@@ -357,9 +381,19 @@ router.get('/stats/overview', async (req: Request, res: Response, next: NextFunc
 // Get meeting attendance
 router.get('/:id/attendance', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const meetingId = parseInt(req.params.id);
-    if (isNaN(meetingId)) {
-      throw new ValidationError('Invalid meeting ID');
+    // Enhanced validation with debugging
+    const idParam = req.params.id;
+    console.log(`🔍 Meeting attendance request for ID: ${idParam} (type: ${typeof idParam})`);
+
+    if (!idParam || idParam === 'undefined' || idParam === 'null') {
+      console.log(`❌ Invalid meeting ID parameter for attendance: ${idParam}`);
+      throw new ValidationError(`Invalid meeting ID parameter: ${idParam}. Please provide a valid numeric meeting ID.`);
+    }
+
+    const meetingId = parseInt(idParam);
+    if (isNaN(meetingId) || meetingId <= 0) {
+      console.log(`❌ Invalid meeting ID after parsing for attendance: ${meetingId}`);
+      throw new ValidationError(`Invalid meeting ID: ${idParam}. Meeting ID must be a positive integer.`);
     }
 
     // Check if meeting exists
@@ -578,6 +612,142 @@ router.get('/member/:memberId/attendance-stats', async (req: Request, res: Respo
           to: dateTo || 'Present'
         }
       },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// Meeting Status Management Routes
+// ============================================================================
+
+// Postpone meeting
+router.patch('/:id/postpone', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.id);
+    const { new_date, new_time, reason } = req.body;
+    const userId = 1; // TODO: Get from auth middleware
+
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    if (!new_date || !new_time || !reason) {
+      throw new ValidationError('New date, time, and reason are required');
+    }
+
+    const success = await MeetingStatusService.postponeMeeting(
+      meetingId,
+      new_date,
+      new_time,
+      reason,
+      userId
+    );
+
+    if (!success) {
+      throw new Error('Failed to postpone meeting');
+    }
+
+    res.json({
+      success: true,
+      message: 'Meeting postponed successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Cancel meeting
+router.patch('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.id);
+    const { reason } = req.body;
+    const userId = 1; // TODO: Get from auth middleware
+
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    if (!reason) {
+      throw new ValidationError('Cancellation reason is required');
+    }
+
+    const success = await MeetingStatusService.cancelMeeting(meetingId, reason, userId);
+
+    if (!success) {
+      throw new Error('Failed to cancel meeting');
+    }
+
+    res.json({
+      success: true,
+      message: 'Meeting cancelled successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reschedule postponed meeting
+router.patch('/:id/reschedule', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.id);
+    const userId = 1; // TODO: Get from auth middleware
+
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    const success = await MeetingStatusService.rescheduleMeeting(meetingId, userId);
+
+    if (!success) {
+      throw new Error('Failed to reschedule meeting');
+    }
+
+    res.json({
+      success: true,
+      message: 'Meeting rescheduled successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get status history
+router.get('/:id/status-history', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.id);
+
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    const history = await MeetingStatusService.getStatusHistory(meetingId);
+
+    res.json({
+      success: true,
+      message: 'Status history retrieved successfully',
+      data: { history },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Batch update meeting statuses (admin/system endpoint)
+router.post('/batch-update-statuses', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await MeetingStatusService.batchUpdateMeetingStatuses();
+
+    res.json({
+      success: true,
+      message: 'Batch status update completed',
+      data: result,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

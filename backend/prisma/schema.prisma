@@ -1,0 +1,2796 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id                                                                   Int                              @id @default(autoincrement())
+  name                                                                      String                           @db.VarChar(255)
+  email                                                                     String                           @unique @db.VarChar(255)
+  password                                                                  String                           @db.VarChar(255)
+  password_changed_at                                                       DateTime?                        @db.Timestamp(6)
+  role_id                                                                   Int?
+  admin_level                                                               String?                          @db.VarChar(20)
+  province_code                                                             String?                          @db.VarChar(10)
+  district_code                                                             String?                          @db.VarChar(20)
+  municipal_code                                                            String?                          @db.VarChar(20)
+  ward_code                                                                 String?                          @db.VarChar(20)
+  member_id                                                                 Int?
+  email_verified_at                                                         DateTime?                        @db.Timestamp(6)
+  remember_token                                                            String?                          @db.VarChar(100)
+  password_reset_token                                                      String?                          @db.VarChar(255)
+  password_reset_expires                                                    DateTime?                        @db.Timestamp(6)
+  failed_login_attempts                                                     Int?                             @default(0)
+  locked_until                                                              DateTime?                        @db.Timestamp(6)
+  locked_at                                                                 DateTime?                        @db.Timestamp(6)
+  mfa_enabled                                                               Boolean?                         @default(false)
+  mfa_secret                                                                String?                          @db.VarChar(255)
+  is_active                                                                 Boolean?                         @default(true)
+  account_locked                                                            Boolean?                         @default(false)
+  last_login_at                                                             DateTime?                        @db.Timestamp(6)
+  last_login_ip                                                             String?                          @db.VarChar(45)
+  created_at                                                                DateTime?                        @default(now()) @db.Timestamp(6)
+  updated_at                                                                DateTime?                        @default(now()) @updatedAt @db.Timestamp(6)
+  id                                                                        Int
+  admin_user_creation_log_admin_user_creation_log_approved_byTousers        admin_user_creation_log[]        @relation("admin_user_creation_log_approved_byTousers")
+  admin_user_creation_log_admin_user_creation_log_created_by_user_idTousers admin_user_creation_log[]        @relation("admin_user_creation_log_created_by_user_idTousers")
+  admin_user_creation_log_admin_user_creation_log_created_user_idTousers    admin_user_creation_log[]        @relation("admin_user_creation_log_created_user_idTousers")
+  audit_logs                                                                audit_logs[]
+  bulk_operations                                                           bulk_operations[]
+  file_processing_jobs                                                      file_processing_jobs[]
+  iec_electoral_event_sync_logs                                             iec_electoral_event_sync_logs[]
+  leadership_elections                                                      leadership_elections[]
+  leadership_goals                                                          leadership_goals[]
+  leadership_meetings                                                       leadership_meetings[]
+  leadership_performance_reviews                                            leadership_performance_reviews[]
+  leadership_succession_plans                                               leadership_succession_plans[]
+  login_attempts                                                            login_attempts[]
+  maintenance_mode_logs                                                     maintenance_mode_logs[]
+  maintenance_notifications                                                 maintenance_notifications[]
+  meeting_action_items_meeting_action_items_completed_byTousers             meeting_action_items[]           @relation("meeting_action_items_completed_byTousers")
+  meeting_action_items_meeting_action_items_created_byTousers               meeting_action_items[]           @relation("meeting_action_items_created_byTousers")
+  meeting_agenda_items                                                      meeting_agenda_items[]
+  meeting_attendance                                                        meeting_attendance[]
+  meeting_decisions                                                         meeting_decisions[]
+  meeting_document_templates                                                meeting_document_templates[]
+  meeting_documents_meeting_documents_approved_byTousers                    meeting_documents[]              @relation("meeting_documents_approved_byTousers")
+  meeting_documents_meeting_documents_created_byTousers                     meeting_documents[]              @relation("meeting_documents_created_byTousers")
+  meeting_invitations                                                       meeting_invitations[]
+  meeting_minutes_meeting_minutes_approved_byTousers                        meeting_minutes[]                @relation("meeting_minutes_approved_byTousers")
+  meeting_minutes_meeting_minutes_recorded_byTousers                        meeting_minutes[]                @relation("meeting_minutes_recorded_byTousers")
+  meetings                                                                  meetings[]
+  member_notes                                                              member_notes[]
+  member_transfers_member_transfers_approved_byTousers                      member_transfers[]               @relation("member_transfers_approved_byTousers")
+  member_transfers_member_transfers_transferred_byTousers                   member_transfers[]               @relation("member_transfers_transferred_byTousers")
+  message_templates                                                         message_templates[]
+  notifications                                                             notifications[]
+  operation_templates                                                       operation_templates[]
+  password_history                                                          password_history[]
+  payments                                                                  payments[]
+  renewal_pricing_overrides_renewal_pricing_overrides_approved_byTousers    renewal_pricing_overrides[]      @relation("renewal_pricing_overrides_approved_byTousers")
+  renewal_pricing_overrides_renewal_pricing_overrides_requested_byTousers   renewal_pricing_overrides[]      @relation("renewal_pricing_overrides_requested_byTousers")
+  renewal_pricing_rules                                                     renewal_pricing_rules[]
+  scheduled_operations                                                      scheduled_operations[]
+  security_alerts_security_alerts_resolved_byTousers                        security_alerts[]                @relation("security_alerts_resolved_byTousers")
+  security_alerts_security_alerts_user_idTousers                            security_alerts[]                @relation("security_alerts_user_idTousers")
+  security_events                                                           security_events[]
+  sms_campaigns                                                             sms_campaigns[]
+  sms_contact_lists                                                         sms_contact_lists[]
+  sms_templates                                                             sms_templates[]
+  system_logs                                                               system_logs[]
+  trusted_devices                                                           trusted_devices[]
+  user_activity_logs                                                        user_activity_logs[]
+  user_creation_workflow_user_creation_workflow_created_user_idTousers      user_creation_workflow[]         @relation("user_creation_workflow_created_user_idTousers")
+  user_creation_workflow_user_creation_workflow_requested_byTousers         user_creation_workflow[]         @relation("user_creation_workflow_requested_byTousers")
+  user_creation_workflow_user_creation_workflow_reviewed_byTousers          user_creation_workflow[]         @relation("user_creation_workflow_reviewed_byTousers")
+  user_mfa_settings                                                         user_mfa_settings?
+  user_security_settings                                                    user_security_settings?
+  user_sessions                                                             user_sessions[]
+  district                                                                  District?                        @relation(fields: [district_code], references: [district_code], onDelete: NoAction, onUpdate: NoAction)
+  member                                                                    Member?                          @relation(fields: [member_id], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  municipality                                                              Municipality?                    @relation(fields: [municipal_code], references: [municipality_code], onDelete: NoAction, onUpdate: NoAction)
+  province                                                                  Province?                        @relation(fields: [province_code], references: [province_code], onDelete: NoAction, onUpdate: NoAction)
+  role                                                                      Role?                            @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  ward                                                                      Ward?                            @relation(fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_users_active")
+  @@index([admin_level], map: "idx_users_admin_level")
+  @@index([email], map: "idx_users_email")
+  @@index([member_id], map: "idx_users_member")
+  @@index([province_code], map: "idx_users_province")
+  @@index([role_id], map: "idx_users_role")
+  @@index([ward_code], map: "idx_users_ward")
+  @@map("users")
+}
+
+model Role {
+  role_id     Int              @id @default(autoincrement())
+  role_name   String           @unique @db.VarChar(50)
+  role_code   String           @unique @db.VarChar(20)
+  description String?
+  is_active   Boolean?         @default(true)
+  created_at  DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?        @default(now()) @updatedAt @db.Timestamp(6)
+  id          Int
+  name        String?          @db.VarChar(255)
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  permission_id   Int              @id @default(autoincrement())
+  permission_name String           @unique @db.VarChar(100)
+  permission_code String           @unique @db.VarChar(50)
+  description     String?
+  resource        String           @db.VarChar(50)
+  action          String           @db.VarChar(50)
+  is_active       Boolean?         @default(true)
+  created_at      DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?        @default(now()) @updatedAt @db.Timestamp(6)
+  roles           RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  role_permission_id Int        @id @default(autoincrement())
+  role_id            Int
+  permission_id      Int
+  created_at         DateTime?  @default(now()) @db.Timestamp(6)
+  permission         Permission @relation(fields: [permission_id], references: [permission_id], onDelete: Cascade, onUpdate: NoAction)
+  role               Role       @relation(fields: [role_id], references: [role_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model Province {
+  province_id   Int        @id @default(autoincrement())
+  province_code String     @unique @db.VarChar(10)
+  province_name String     @unique @db.VarChar(100)
+  capital_city  String?    @db.VarChar(100)
+  population    Int?
+  area_km2      Decimal?   @db.Decimal(10, 2)
+  is_active     Boolean?   @default(true)
+  created_at    DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?  @default(now()) @updatedAt @db.Timestamp(6)
+  districts     District[]
+  users         User[]
+
+  @@index([is_active], map: "idx_provinces_active")
+  @@index([province_code], map: "idx_provinces_code")
+  @@map("provinces")
+}
+
+model District {
+  district_id              Int            @id @default(autoincrement())
+  district_code            String         @unique @db.VarChar(20)
+  district_name            String         @db.VarChar(150)
+  province_code            String         @db.VarChar(10)
+  district_type            String?        @default("District") @db.VarChar(20)
+  population               Int?
+  area_km2                 Decimal?       @db.Decimal(10, 2)
+  is_active                Boolean?       @default(true)
+  created_at               DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?      @default(now()) @updatedAt @db.Timestamp(6)
+  population_2022          Int?
+  population_density       Decimal?       @db.Decimal(8, 2)
+  number_of_municipalities Int?           @default(0)
+  established_year         Int?           @default(2000)
+  province                 Province       @relation(fields: [province_code], references: [province_code], onDelete: NoAction, onUpdate: NoAction)
+  municipalities           Municipality[]
+  users                    User[]
+
+  @@index([is_active], map: "idx_districts_active")
+  @@index([district_code], map: "idx_districts_code")
+  @@index([district_name], map: "idx_districts_name")
+  @@index([province_code], map: "idx_districts_province")
+  @@index([district_type], map: "idx_districts_type")
+  @@map("districts")
+}
+
+model Municipality {
+  municipality_id           Int       @id @default(autoincrement())
+  municipality_code         String    @unique @db.VarChar(20)
+  municipality_name         String    @db.VarChar(150)
+  district_code             String    @db.VarChar(20)
+  municipality_type         String?   @default("Local") @db.VarChar(20)
+  population                Int?
+  area_km2                  Decimal?  @db.Decimal(10, 2)
+  total_wards               Int?      @default(0)
+  represented_wards         Int?      @default(0)
+  is_adequately_represented Boolean?  @default(false)
+  is_active                 Boolean?  @default(true)
+  created_at                DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+  population_density        Decimal?  @db.Decimal(8, 2)
+  number_of_wards           Int?      @default(0)
+  district                  District  @relation(fields: [district_code], references: [district_code], onDelete: NoAction, onUpdate: NoAction)
+  users                     User[]
+  wards                     Ward[]
+
+  @@index([is_active], map: "idx_municipalities_active")
+  @@index([municipality_code], map: "idx_municipalities_code")
+  @@index([district_code], map: "idx_municipalities_district")
+  @@index([municipality_type], map: "idx_municipalities_type")
+  @@map("municipalities")
+}
+
+model Ward {
+  ward_id                 Int                       @id @default(autoincrement())
+  ward_code               String                    @unique @db.VarChar(20)
+  ward_name               String                    @db.VarChar(150)
+  ward_number             Int?
+  municipality_code       String                    @db.VarChar(20)
+  population              Int?
+  area_km2                Decimal?                  @db.Decimal(10, 2)
+  member_count            Int?                      @default(0)
+  is_in_good_standing     Boolean?                  @default(false)
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+  users                   User[]
+  voting_districts        voting_districts[]
+  voting_stations         voting_stations[]
+  municipality            Municipality              @relation(fields: [municipality_code], references: [municipality_code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_wards_active")
+  @@index([ward_code], map: "idx_wards_code")
+  @@index([municipality_code], map: "idx_wards_municipality")
+  @@index([ward_number], map: "idx_wards_number")
+  @@map("wards")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Member {
+  member_id                                                                           Int                              @id @default(autoincrement())
+  id_number                                                                           String                           @unique @db.VarChar(13)
+  firstname                                                                           String                           @db.VarChar(100)
+  surname                                                                             String?                          @db.VarChar(100)
+  middle_name                                                                         String?                          @db.VarChar(100)
+  date_of_birth                                                                       DateTime?                        @db.Date
+  age                                                                                 Int?
+  gender_id                                                                           Int?
+  race_id                                                                             Int?
+  citizenship_id                                                                      Int?                             @default(1)
+  language_id                                                                         Int?
+  ward_code                                                                           String                           @db.VarChar(20)
+  voting_district_code                                                                String?                          @db.VarChar(20)
+  voting_station_id                                                                   Int?
+  residential_address                                                                 String?
+  postal_address                                                                      String?
+  cell_number                                                                         String?                          @db.VarChar(20)
+  landline_number                                                                     String?                          @db.VarChar(20)
+  alternative_contact                                                                 String?                          @db.VarChar(20)
+  email                                                                               String?                          @db.VarChar(255)
+  occupation_id                                                                       Int?
+  qualification_id                                                                    Int?
+  voter_status_id                                                                     Int?
+  voter_registration_number                                                           String?                          @db.VarChar(50)
+  voter_registration_date                                                             DateTime?                        @db.Date
+  voter_verified_at                                                                   DateTime?                        @db.Timestamp(6)
+  membership_type                                                                     String?                          @default("Regular") @db.VarChar(20)
+  application_id                                                                      Int?
+  created_at                                                                          DateTime?                        @default(now()) @db.Timestamp(6)
+  updated_at                                                                          DateTime?                        @default(now()) @updatedAt @db.Timestamp(6)
+  voter_district_code                                                                 String?                          @db.VarChar(20)
+  bulk_notification_recipients                                                        bulk_notification_recipients[]
+  documents                                                                           documents[]
+  election_candidates                                                                 election_candidates[]
+  election_votes                                                                      election_votes[]
+  leadership_appointments_leadership_appointments_appointed_byTomembers               leadership_appointments[]        @relation("leadership_appointments_appointed_byTomembers")
+  leadership_appointments_leadership_appointments_member_idTomembers                  leadership_appointments[]        @relation("leadership_appointments_member_idTomembers")
+  leadership_appointments_leadership_appointments_terminated_byTomembers              leadership_appointments[]        @relation("leadership_appointments_terminated_byTomembers")
+  leadership_election_candidates_leadership_election_candidates_member_idTomembers    leadership_election_candidates[] @relation("leadership_election_candidates_member_idTomembers")
+  leadership_election_candidates_leadership_election_candidates_nominated_byTomembers leadership_election_candidates[] @relation("leadership_election_candidates_nominated_byTomembers")
+  leadership_election_candidates_leadership_election_candidates_seconded_byTomembers  leadership_election_candidates[] @relation("leadership_election_candidates_seconded_byTomembers")
+  leadership_election_votes                                                           leadership_election_votes[]
+  leadership_meeting_attendees                                                        leadership_meeting_attendees[]
+  leadership_succession_plans                                                         leadership_succession_plans[]
+  leadership_terms                                                                    leadership_terms[]
+  meeting_action_items                                                                meeting_action_items[]
+  meeting_agenda_items                                                                meeting_agenda_items[]
+  meeting_attendance                                                                  meeting_attendance[]
+  meeting_decisions_meeting_decisions_proposed_byTomembers                            meeting_decisions[]              @relation("meeting_decisions_proposed_byTomembers")
+  meeting_decisions_meeting_decisions_seconded_byTomembers                            meeting_decisions[]              @relation("meeting_decisions_seconded_byTomembers")
+  meetings_meetings_meeting_chair_idTomembers                                         meetings[]                       @relation("meetings_meeting_chair_idTomembers")
+  meetings_meetings_meeting_secretary_idTomembers                                     meetings[]                       @relation("meetings_meeting_secretary_idTomembers")
+  member_cache_summary                                                                member_cache_summary?
+  member_notes                                                                        member_notes[]
+  member_transfers                                                                    member_transfers[]
+  citizenship                                                                         Citizenship?                     @relation(fields: [citizenship_id], references: [citizenship_id], onDelete: NoAction, onUpdate: NoAction)
+  gender                                                                              Gender?                          @relation(fields: [gender_id], references: [gender_id], onDelete: NoAction, onUpdate: NoAction)
+  language                                                                            Language?                        @relation(fields: [language_id], references: [language_id], onDelete: NoAction, onUpdate: NoAction)
+  occupation                                                                          Occupation?                      @relation(fields: [occupation_id], references: [occupation_id], onDelete: NoAction, onUpdate: NoAction)
+  qualification                                                                       Qualification?                   @relation(fields: [qualification_id], references: [qualification_id], onDelete: NoAction, onUpdate: NoAction)
+  race                                                                                Race?                            @relation(fields: [race_id], references: [race_id], onDelete: NoAction, onUpdate: NoAction)
+  voter_statuses                                                                      voter_statuses?                  @relation(fields: [voter_status_id], references: [status_id], onDelete: NoAction, onUpdate: NoAction)
+  voting_districts                                                                    voting_districts?                @relation(fields: [voting_district_code], references: [voting_district_code], onDelete: NoAction, onUpdate: NoAction)
+  voting_stations                                                                     voting_stations?                 @relation(fields: [voting_station_id], references: [voting_station_id], onDelete: NoAction, onUpdate: NoAction)
+  ward                                                                                Ward                             @relation(fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
+  membership_renewals                                                                 membership_renewals[]
+  memberships                                                                         Membership[]
+  notifications                                                                       notifications[]
+  payments                                                                            payments[]
+  renewal_pricing_overrides                                                           renewal_pricing_overrides[]
+  sms_contact_list_members                                                            sms_contact_list_members[]
+  sms_messages                                                                        sms_messages[]
+  users                                                                               User[]
+
+  @@index([cell_number], map: "idx_members_cell")
+  @@index([citizenship_id], map: "idx_members_citizenship")
+  @@index([created_at], map: "idx_members_created")
+  @@index([date_of_birth], map: "idx_members_dob")
+  @@index([email], map: "idx_members_email")
+  @@index([gender_id], map: "idx_members_gender")
+  @@index([id_number], map: "idx_members_id_number")
+  @@index([language_id], map: "idx_members_language")
+  @@index([ward_code, voting_district_code, voting_station_id], map: "idx_members_municipality_voting")
+  @@index([surname, firstname], map: "idx_members_name")
+  @@index([occupation_id], map: "idx_members_occupation")
+  @@index([qualification_id], map: "idx_members_qualification")
+  @@index([race_id], map: "idx_members_race")
+  @@index([voter_district_code], map: "idx_members_voter_district_code")
+  @@index([voter_status_id], map: "idx_members_voter_status")
+  @@index([voting_district_code], map: "idx_members_voting_district")
+  @@index([ward_code], map: "idx_members_ward")
+  @@index([ward_code, firstname, surname, cell_number], map: "idx_members_ward_status")
+  @@map("members")
+}
+
+model Gender {
+  gender_id               Int                       @id @default(autoincrement())
+  gender_name             String                    @unique @db.VarChar(50)
+  gender_code             String?                   @unique @db.VarChar(10)
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+
+  @@index([is_active], map: "idx_genders_active")
+  @@map("genders")
+}
+
+model Race {
+  race_id                 Int                       @id @default(autoincrement())
+  race_name               String                    @unique @db.VarChar(50)
+  race_code               String?                   @unique @db.VarChar(10)
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+
+  @@index([is_active], map: "idx_races_active")
+  @@map("races")
+}
+
+model Citizenship {
+  citizenship_id          Int                       @id @default(autoincrement())
+  citizenship_name        String                    @unique @db.VarChar(100)
+  citizenship_code        String?                   @unique @db.VarChar(10)
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+
+  @@index([is_active], map: "idx_citizenships_active")
+  @@map("citizenships")
+}
+
+model Language {
+  language_id             Int                       @id @default(autoincrement())
+  language_name           String                    @unique @db.VarChar(100)
+  language_code           String?                   @unique @db.VarChar(10)
+  is_official             Boolean?                  @default(false)
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+
+  @@index([is_active], map: "idx_languages_active")
+  @@index([is_official], map: "idx_languages_official")
+  @@map("languages")
+}
+
+model Occupation {
+  occupation_id           Int                       @id @default(autoincrement())
+  occupation_name         String                    @db.VarChar(150)
+  category_id             Int?
+  occupation_code         String?                   @unique @db.VarChar(20)
+  description             String?
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+  occupation_categories   occupation_categories?    @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_occupations_active")
+  @@index([category_id], map: "idx_occupations_category")
+  @@map("occupations")
+}
+
+model Qualification {
+  qualification_id        Int                       @id @default(autoincrement())
+  qualification_name      String                    @unique @db.VarChar(150)
+  qualification_code      String?                   @unique @db.VarChar(20)
+  level_order             Int?                      @default(1)
+  description             String?
+  is_active               Boolean?                  @default(true)
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @updatedAt @db.Timestamp(6)
+  members                 Member[]
+  membership_applications membership_applications[]
+
+  @@index([level_order], map: "idx_qualifications_level")
+  @@map("qualifications")
+}
+
+model Membership {
+  membership_id        Int                   @id @default(autoincrement())
+  member_id            Int
+  membership_number    String?               @unique @default(dbgenerated("generate_membership_number()")) @db.VarChar(20)
+  date_joined          DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
+  last_payment_date    DateTime?             @db.Date
+  expiry_date          DateTime?             @db.Date
+  subscription_type_id Int
+  membership_amount    Decimal               @default(0.00) @db.Decimal(10, 2)
+  status_id            Int
+  payment_method       String?               @db.VarChar(50)
+  payment_reference    String?               @db.VarChar(100)
+  payment_status       String?               @default("Pending") @db.VarChar(20)
+  notes                String?
+  created_at           DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?             @default(now()) @updatedAt @db.Timestamp(6)
+  membership_renewals  membership_renewals[]
+  member               Member                @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  membership_statuses  membership_statuses   @relation(fields: [status_id], references: [status_id], onDelete: NoAction, onUpdate: NoAction)
+  subscription_types   subscription_types    @relation(fields: [subscription_type_id], references: [subscription_type_id], onDelete: NoAction, onUpdate: NoAction)
+  payments             payments[]
+
+  @@index([expiry_date], map: "idx_memberships_expiry")
+  @@index([date_joined], map: "idx_memberships_joined")
+  @@index([member_id], map: "idx_memberships_member")
+  @@index([membership_number], map: "idx_memberships_number")
+  @@index([payment_status], map: "idx_memberships_payment_status")
+  @@index([status_id], map: "idx_memberships_status")
+  @@index([status_id, expiry_date], map: "idx_memberships_status_expiry")
+  @@index([subscription_type_id], map: "idx_memberships_subscription")
+  @@map("memberships")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model admin_user_creation_log {
+  id                                                      Int       @id @default(autoincrement())
+  created_user_id                                         Int
+  created_by_user_id                                      Int
+  admin_level                                             String    @db.VarChar(20)
+  geographic_scope                                        Json?
+  permissions_granted                                     Json?
+  creation_reason                                         String?
+  approved_by                                             Int?
+  approval_status                                         String?   @default("approved") @db.VarChar(20)
+  created_at                                              DateTime? @default(now()) @db.Timestamp(6)
+  approved_at                                             DateTime? @db.Timestamp(6)
+  users_admin_user_creation_log_approved_byTousers        User?     @relation("admin_user_creation_log_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
+  users_admin_user_creation_log_created_by_user_idTousers User      @relation("admin_user_creation_log_created_by_user_idTousers", fields: [created_by_user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+  users_admin_user_creation_log_created_user_idTousers    User      @relation("admin_user_creation_log_created_user_idTousers", fields: [created_user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_admin_creation_log_created_at")
+  @@index([created_by_user_id], map: "idx_admin_creation_log_created_by")
+  @@index([created_user_id], map: "idx_admin_creation_log_created_user")
+  @@index([admin_level], map: "idx_admin_creation_log_level")
+  @@index([approval_status], map: "idx_admin_creation_log_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model api_rate_limits {
+  id              Int       @id @default(autoincrement())
+  identifier      String    @db.VarChar(255)
+  identifier_type String    @db.VarChar(10)
+  endpoint        String    @db.VarChar(255)
+  requests_count  Int?      @default(1)
+  window_start    DateTime? @default(now()) @db.Timestamp(6)
+  window_end      DateTime  @db.Timestamp(6)
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([identifier, identifier_type, endpoint, window_start])
+  @@index([endpoint], map: "idx_api_rate_limits_endpoint")
+  @@index([identifier, identifier_type], map: "idx_api_rate_limits_identifier")
+  @@index([window_start, window_end], map: "idx_api_rate_limits_window")
+}
+
+model audit_logs {
+  audit_id    Int       @id @default(autoincrement())
+  user_id     Int?
+  action      String    @db.VarChar(100)
+  entity_type String    @db.VarChar(50)
+  entity_id   Int?
+  old_values  Json?
+  new_values  Json?
+  ip_address  String?   @db.VarChar(45)
+  user_agent  String?
+  session_id  String?   @db.VarChar(255)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       User?     @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_audit_logs_created")
+  @@index([entity_type, entity_id], map: "idx_audit_logs_entity")
+  @@index([user_id], map: "idx_audit_logs_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model batch_processing_queue {
+  queue_id                Int             @id @default(autoincrement())
+  operation_id            Int
+  batch_number            Int
+  batch_data              Json
+  batch_status            String?         @default("Pending") @db.VarChar(20)
+  processing_started_at   DateTime?       @db.Timestamp(6)
+  processing_completed_at DateTime?       @db.Timestamp(6)
+  retry_count             Int?            @default(0)
+  max_retries             Int?            @default(3)
+  error_message           String?
+  created_at              DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?       @default(now()) @db.Timestamp(6)
+  bulk_operations         bulk_operations @relation(fields: [operation_id], references: [operation_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([batch_number], map: "idx_batch_processing_queue_batch_number")
+  @@index([created_at], map: "idx_batch_processing_queue_created")
+  @@index([operation_id], map: "idx_batch_processing_queue_operation")
+  @@index([retry_count], map: "idx_batch_processing_queue_retry")
+  @@index([batch_status], map: "idx_batch_processing_queue_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model bulk_notification_recipients {
+  recipient_id     Int             @id @default(autoincrement())
+  operation_id     Int
+  member_id        Int
+  notification_id  Int?
+  recipient_status String?         @default("Pending") @db.VarChar(20)
+  delivery_channel String          @db.VarChar(10)
+  delivery_attempt Int?            @default(0)
+  last_attempt_at  DateTime?       @db.Timestamp(6)
+  delivered_at     DateTime?       @db.Timestamp(6)
+  error_message    String?
+  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamp(6)
+  members          Member          @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  notifications    notifications?  @relation(fields: [notification_id], references: [notification_id], onUpdate: NoAction)
+  bulk_operations  bulk_operations @relation(fields: [operation_id], references: [operation_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([last_attempt_at], map: "idx_bulk_notification_recipients_attempt")
+  @@index([delivery_channel], map: "idx_bulk_notification_recipients_channel")
+  @@index([member_id], map: "idx_bulk_notification_recipients_member")
+  @@index([operation_id], map: "idx_bulk_notification_recipients_operation")
+  @@index([recipient_status], map: "idx_bulk_notification_recipients_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model bulk_operations {
+  operation_id                 Int                            @id @default(autoincrement())
+  operation_type               String                         @db.VarChar(20)
+  operation_status             String?                        @default("Pending") @db.VarChar(20)
+  total_records                Int                            @default(0)
+  processed_records            Int                            @default(0)
+  successful_records           Int                            @default(0)
+  failed_records               Int                            @default(0)
+  operation_data               Json?
+  error_log                    Json?
+  created_by                   Int
+  started_at                   DateTime?                      @db.Timestamp(6)
+  completed_at                 DateTime?                      @db.Timestamp(6)
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  batch_processing_queue       batch_processing_queue[]
+  bulk_notification_recipients bulk_notification_recipients[]
+  users                        User                           @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_bulk_operations_created_at")
+  @@index([created_by], map: "idx_bulk_operations_created_by")
+  @@index([operation_status], map: "idx_bulk_operations_status")
+  @@index([operation_status, created_at], map: "idx_bulk_operations_status_created")
+  @@index([operation_type], map: "idx_bulk_operations_type")
+}
+
+model cache_metrics {
+  id                Int       @id @default(autoincrement())
+  endpoint          String    @db.VarChar(255)
+  cache_key         String?   @db.VarChar(500)
+  hit_count         Int?      @default(0)
+  miss_count        Int?      @default(0)
+  avg_response_time Decimal?  @db.Decimal(10, 3)
+  last_hit          DateTime? @db.Timestamp(6)
+  last_miss         DateTime? @db.Timestamp(6)
+  date              DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  updated_at        DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([endpoint, date], map: "idx_cache_metrics_endpoint_date")
+  @@index([date], map: "idx_cache_metrics_date")
+}
+
+model communication_analytics {
+  analytics_id           Int       @id @default(autoincrement())
+  date                   DateTime  @unique @db.Date
+  campaigns_sent         Int?      @default(0)
+  campaigns_completed    Int?      @default(0)
+  campaigns_failed       Int?      @default(0)
+  emails_sent            Int?      @default(0)
+  emails_delivered       Int?      @default(0)
+  emails_opened          Int?      @default(0)
+  emails_clicked         Int?      @default(0)
+  emails_bounced         Int?      @default(0)
+  sms_sent               Int?      @default(0)
+  sms_delivered          Int?      @default(0)
+  sms_failed             Int?      @default(0)
+  in_app_sent            Int?      @default(0)
+  in_app_delivered       Int?      @default(0)
+  in_app_read            Int?      @default(0)
+  province_breakdown     Json?
+  municipality_breakdown Json?
+  created_at             DateTime? @default(now()) @db.Timestamp(6)
+  updated_at             DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([date], map: "idx_communication_analytics_date")
+}
+
+model communication_campaigns {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @db.VarChar(255)
+  campaign_type      String?              @default("general") @db.VarChar(50)
+  status             String?              @default("Draft") @db.VarChar(50)
+  total_sent         Int?                 @default(0)
+  total_delivered    Int?                 @default(0)
+  total_opened       Int?                 @default(0)
+  total_clicked      Int?                 @default(0)
+  total_failed       Int?                 @default(0)
+  recipient_count    Int?                 @default(0)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  completed_at       DateTime?            @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  message_deliveries message_deliveries[]
+
+  @@index([created_at], map: "idx_communication_campaigns_created_at")
+  @@index([status], map: "idx_communication_campaigns_status")
+  @@index([campaign_type], map: "idx_communication_campaigns_type")
+}
+
+model communication_logs {
+  id                  Int       @id @default(autoincrement())
+  type                String    @db.VarChar(50)
+  recipient           String    @db.VarChar(255)
+  sender              String?   @db.VarChar(255)
+  subject             String?   @db.VarChar(500)
+  message             String?
+  status              String    @db.VarChar(50)
+  provider            String?   @db.VarChar(100)
+  provider_message_id String?   @db.VarChar(255)
+  cost                Decimal?  @db.Decimal(10, 4)
+  delivery_time       DateTime? @db.Timestamp(6)
+  error_code          String?   @db.VarChar(100)
+  error_message       String?
+  metadata            Json?
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([created_at], map: "idx_communication_logs_created")
+  @@index([recipient], map: "idx_communication_logs_recipient")
+  @@index([status], map: "idx_communication_logs_status")
+  @@index([type], map: "idx_communication_logs_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model documents {
+  document_id             Int                      @id @default(autoincrement())
+  member_id               Int?
+  application_id          Int?
+  document_type           String                   @db.VarChar(50)
+  original_filename       String                   @db.VarChar(255)
+  stored_filename         String                   @db.VarChar(255)
+  file_path               String                   @db.VarChar(500)
+  file_size               Int
+  mime_type               String                   @db.VarChar(100)
+  status                  String                   @default("Active") @db.VarChar(20)
+  uploaded_by             Int
+  uploaded_at             DateTime?                @default(now()) @db.Timestamp(6)
+  created_at              DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                @default(now()) @db.Timestamp(6)
+  membership_applications membership_applications? @relation(fields: [application_id], references: [application_id], onDelete: Cascade, onUpdate: NoAction)
+  members                 Member?                  @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model election_candidates {
+  id                   Int                  @id @default(autoincrement())
+  election_id          Int
+  member_id            Int
+  nomination_date      DateTime             @db.Date
+  nomination_statement String?
+  candidate_status     String?              @default("Nominated") @db.VarChar(20)
+  votes_received       Int?                 @default(0)
+  is_winner            Boolean?             @default(false)
+  created_at           DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?            @default(now()) @db.Timestamp(6)
+  leadership_elections leadership_elections @relation(fields: [election_id], references: [election_id], onDelete: Cascade, onUpdate: NoAction)
+  members              Member               @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  election_votes       election_votes[]
+
+  @@unique([election_id, member_id])
+  @@index([election_id], map: "idx_election_candidates_election")
+  @@index([member_id], map: "idx_election_candidates_member")
+  @@index([candidate_status], map: "idx_election_candidates_status")
+  @@index([votes_received], map: "idx_election_candidates_votes")
+  @@index([is_winner], map: "idx_election_candidates_winner")
+}
+
+model election_votes {
+  id                   Int                  @id @default(autoincrement())
+  election_id          Int
+  candidate_id         Int
+  voter_member_id      Int
+  vote_datetime        DateTime             @db.Timestamp(6)
+  created_at           DateTime?            @default(now()) @db.Timestamp(6)
+  election_candidates  election_candidates  @relation(fields: [candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leadership_elections leadership_elections @relation(fields: [election_id], references: [election_id], onDelete: Cascade, onUpdate: NoAction)
+  members              Member               @relation(fields: [voter_member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([election_id, voter_member_id])
+  @@index([candidate_id], map: "idx_election_votes_candidate")
+  @@index([vote_datetime], map: "idx_election_votes_datetime")
+  @@index([election_id], map: "idx_election_votes_election")
+  @@index([voter_member_id], map: "idx_election_votes_voter")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model file_processing_jobs {
+  job_id       Int       @id @default(autoincrement())
+  job_uuid     String    @unique @db.VarChar(100)
+  file_name    String    @db.VarChar(255)
+  file_path    String
+  file_size    BigInt
+  ward_number  Int?
+  status       String?   @default("queued") @db.VarChar(20)
+  progress     Int?      @default(0)
+  error        String?
+  result       Json?
+  user_id      Int?
+  priority     Int?      @default(1)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  started_at   DateTime? @db.Timestamp(6)
+  completed_at DateTime? @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  users        User?     @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_file_jobs_created")
+  @@index([priority, created_at], map: "idx_file_jobs_priority")
+  @@index([status], map: "idx_file_jobs_status")
+  @@index([user_id], map: "idx_file_jobs_user")
+  @@index([job_uuid], map: "idx_file_jobs_uuid")
+  @@index([ward_number], map: "idx_file_jobs_ward")
+}
+
+model iec_electoral_event_delimitations {
+  id                     Int                  @id @default(autoincrement())
+  iec_event_id           Int
+  province_id            Int?
+  province_name          String?              @db.VarChar(255)
+  municipality_id        Int?
+  municipality_name      String?              @db.VarChar(255)
+  ward_id                Int?
+  ward_number            String?              @db.VarChar(50)
+  voting_district_number String?              @db.VarChar(50)
+  voting_district_name   String?              @db.VarChar(255)
+  last_synced_at         DateTime?            @db.Timestamp(6)
+  created_at             DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?            @default(now()) @db.Timestamp(6)
+  iec_electoral_events   iec_electoral_events @relation(fields: [iec_event_id], references: [iec_event_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([province_id, municipality_id, ward_id], map: "idx_composite_location")
+  @@index([municipality_id], map: "idx_municipality_id")
+  @@index([province_id], map: "idx_province_id")
+  @@index([voting_district_number], map: "idx_voting_district")
+  @@index([ward_id], map: "idx_ward_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model iec_electoral_event_sync_logs {
+  id                Int       @id @default(autoincrement())
+  sync_type         String    @db.VarChar(20)
+  sync_status       String    @db.VarChar(20)
+  records_processed Int?      @default(0)
+  records_created   Int?      @default(0)
+  records_updated   Int?      @default(0)
+  records_failed    Int?      @default(0)
+  error_message     String?
+  sync_duration_ms  Int?
+  started_at        DateTime  @db.Timestamp(6)
+  completed_at      DateTime? @db.Timestamp(6)
+  triggered_by      String?   @default("manual") @db.VarChar(20)
+  user_id           Int?
+  users             User?     @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([started_at], map: "idx_started_at")
+  @@index([sync_type], map: "idx_sync_type")
+  @@index([triggered_by], map: "idx_triggered_by")
+}
+
+model iec_electoral_event_types {
+  id                    Int                    @id @default(autoincrement())
+  iec_event_type_id     Int                    @unique
+  description           String                 @db.VarChar(255)
+  is_municipal_election Boolean?               @default(false)
+  created_at            DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?              @default(now()) @db.Timestamp(6)
+  iec_electoral_events  iec_electoral_events[]
+
+  @@index([description], map: "idx_description")
+  @@index([iec_event_type_id], map: "idx_iec_event_type_id")
+  @@index([is_municipal_election], map: "idx_municipal_election")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model iec_electoral_events {
+  id                                Int                                 @id @default(autoincrement())
+  iec_event_id                      Int                                 @unique
+  iec_event_type_id                 Int
+  description                       String                              @db.VarChar(255)
+  is_active                         Boolean?                            @default(false)
+  election_year                     Int?
+  election_date                     DateTime?                           @db.Date
+  last_synced_at                    DateTime?                           @db.Timestamp(6)
+  sync_status                       String?                             @default("pending") @db.VarChar(20)
+  sync_error                        String?
+  created_at                        DateTime?                           @default(now()) @db.Timestamp(6)
+  updated_at                        DateTime?                           @default(now()) @db.Timestamp(6)
+  iec_electoral_event_delimitations iec_electoral_event_delimitations[]
+  iec_electoral_event_types         iec_electoral_event_types           @relation(fields: [iec_event_type_id], references: [iec_event_type_id], onUpdate: NoAction)
+
+  @@index([election_year], map: "idx_election_year")
+  @@index([iec_event_id], map: "idx_iec_event_id")
+  @@index([is_active], map: "idx_is_active")
+  @@index([last_synced_at], map: "idx_last_synced")
+  @@index([sync_status], map: "idx_sync_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_appointments {
+  id                                                     Int                              @id @default(autoincrement())
+  position_id                                            Int
+  member_id                                              Int
+  hierarchy_level                                        String?                          @db.VarChar(20)
+  entity_id                                              Int?
+  appointment_type                                       String                           @db.VarChar(20)
+  start_date                                             DateTime                         @db.Date
+  end_date                                               DateTime?                        @db.Date
+  appointment_status                                     String                           @default("Active") @db.VarChar(20)
+  appointed_by                                           Int?
+  appointment_notes                                      String?
+  termination_reason                                     String?
+  terminated_by                                          Int?
+  terminated_at                                          DateTime?                        @db.Timestamp(6)
+  created_at                                             DateTime?                        @default(now()) @db.Timestamp(6)
+  updated_at                                             DateTime?                        @default(now()) @db.Timestamp(6)
+  members_leadership_appointments_appointed_byTomembers  Member?                          @relation("leadership_appointments_appointed_byTomembers", fields: [appointed_by], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  members_leadership_appointments_member_idTomembers     Member                           @relation("leadership_appointments_member_idTomembers", fields: [member_id], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  leadership_positions                                   leadership_positions             @relation(fields: [position_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  members_leadership_appointments_terminated_byTomembers Member?                          @relation("leadership_appointments_terminated_byTomembers", fields: [terminated_by], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  leadership_goals                                       leadership_goals[]
+  leadership_performance_reviews                         leadership_performance_reviews[]
+  leadership_terms                                       leadership_terms[]
+
+  @@unique([position_id, member_id, start_date])
+  @@index([start_date, end_date], map: "idx_leadership_appointments_dates")
+  @@index([entity_id, hierarchy_level], map: "idx_leadership_appointments_entity")
+  @@index([hierarchy_level], map: "idx_leadership_appointments_hierarchy")
+  @@index([member_id], map: "idx_leadership_appointments_member")
+  @@index([position_id], map: "idx_leadership_appointments_position")
+  @@index([appointment_status], map: "idx_leadership_appointments_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_election_candidates {
+  candidate_id                                                 Int                         @id @default(autoincrement())
+  election_id                                                  Int
+  position_id                                                  Int
+  member_id                                                    Int
+  nominated_by                                                 Int?
+  seconded_by                                                  Int?
+  nomination_statement                                         String?
+  candidate_status                                             String                      @default("Nominated") @db.VarChar(20)
+  votes_received                                               Int?                        @default(0)
+  is_winner                                                    Boolean?                    @default(false)
+  nominated_at                                                 DateTime?                   @default(now()) @db.Timestamp(6)
+  accepted_at                                                  DateTime?                   @db.Timestamp(6)
+  created_at                                                   DateTime?                   @default(now()) @db.Timestamp(6)
+  updated_at                                                   DateTime?                   @default(now()) @db.Timestamp(6)
+  leadership_elections                                         leadership_elections        @relation(fields: [election_id], references: [election_id], onDelete: Cascade, onUpdate: NoAction)
+  members_leadership_election_candidates_member_idTomembers    Member                      @relation("leadership_election_candidates_member_idTomembers", fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  members_leadership_election_candidates_nominated_byTomembers Member?                     @relation("leadership_election_candidates_nominated_byTomembers", fields: [nominated_by], references: [member_id], onUpdate: NoAction)
+  leadership_positions                                         leadership_positions        @relation(fields: [position_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members_leadership_election_candidates_seconded_byTomembers  Member?                     @relation("leadership_election_candidates_seconded_byTomembers", fields: [seconded_by], references: [member_id], onUpdate: NoAction)
+  leadership_election_votes                                    leadership_election_votes[]
+
+  @@unique([election_id, position_id, member_id], map: "leadership_election_candidate_election_id_position_id_membe_key")
+  @@index([election_id], map: "idx_candidates_election")
+  @@index([member_id], map: "idx_candidates_member")
+  @@index([position_id], map: "idx_candidates_position")
+  @@index([candidate_status], map: "idx_candidates_status")
+}
+
+model leadership_election_votes {
+  vote_id                        Int                            @id @default(autoincrement())
+  election_id                    Int
+  position_id                    Int
+  voter_id                       Int
+  candidate_id                   Int
+  vote_value                     Int?                           @default(1)
+  vote_rank                      Int?
+  vote_cast_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  ip_address                     String?                        @db.Inet
+  leadership_election_candidates leadership_election_candidates @relation(fields: [candidate_id], references: [candidate_id], onDelete: Cascade, onUpdate: NoAction)
+  leadership_elections           leadership_elections           @relation(fields: [election_id], references: [election_id], onDelete: Cascade, onUpdate: NoAction)
+  leadership_positions           leadership_positions           @relation(fields: [position_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members                        Member                         @relation(fields: [voter_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([election_id, position_id, voter_id, candidate_id])
+  @@index([candidate_id], map: "idx_votes_candidate")
+  @@index([vote_cast_at], map: "idx_votes_cast_time")
+  @@index([election_id], map: "idx_votes_election")
+  @@index([position_id], map: "idx_votes_position")
+  @@index([voter_id], map: "idx_votes_voter")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_elections {
+  election_id                    Int                              @id @default(autoincrement())
+  election_name                  String                           @db.VarChar(255)
+  hierarchy_level                String                           @db.VarChar(20)
+  entity_id                      Int
+  election_type                  String                           @default("Regular") @db.VarChar(20)
+  election_status                String                           @default("Planned") @db.VarChar(20)
+  nomination_start_date          DateTime                         @db.Date
+  nomination_end_date            DateTime                         @db.Date
+  voting_start_date              DateTime                         @db.Date
+  voting_end_date                DateTime                         @db.Date
+  max_nominations_per_position   Int?                             @default(1)
+  requires_seconder              Boolean?                         @default(true)
+  voting_method                  String?                          @default("Secret Ballot") @db.VarChar(20)
+  total_eligible_voters          Int?                             @default(0)
+  total_votes_cast               Int?                             @default(0)
+  results_published_at           DateTime?                        @db.Timestamp(6)
+  created_by                     Int
+  created_at                     DateTime?                        @default(now()) @db.Timestamp(6)
+  updated_at                     DateTime?                        @default(now()) @db.Timestamp(6)
+  election_candidates            election_candidates[]
+  election_votes                 election_votes[]
+  leadership_election_candidates leadership_election_candidates[]
+  leadership_election_votes      leadership_election_votes[]
+  users                          User                             @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([voting_start_date, voting_end_date], map: "idx_elections_dates")
+  @@index([hierarchy_level, entity_id], map: "idx_elections_hierarchy")
+  @@index([election_status], map: "idx_elections_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_goals {
+  id                      Int                     @id @default(autoincrement())
+  appointment_id          Int
+  goal_title              String                  @db.VarChar(255)
+  goal_description        String
+  goal_category           String                  @db.VarChar(20)
+  priority_level          String?                 @default("Medium") @db.VarChar(10)
+  target_date             DateTime                @db.Date
+  completion_date         DateTime?               @db.Date
+  goal_status             String?                 @default("Not Started") @db.VarChar(20)
+  progress_percentage     Int?                    @default(0)
+  success_metrics         String?
+  progress_notes          String?
+  created_by              Int
+  created_at              DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?               @default(now()) @db.Timestamp(6)
+  leadership_appointments leadership_appointments @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                   User                    @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([appointment_id], map: "idx_leadership_goals_appointment")
+  @@index([goal_category], map: "idx_leadership_goals_category")
+  @@index([priority_level], map: "idx_leadership_goals_priority")
+  @@index([progress_percentage], map: "idx_leadership_goals_progress")
+  @@index([goal_status], map: "idx_leadership_goals_status")
+  @@index([target_date], map: "idx_leadership_goals_target_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_meeting_attendees {
+  id                  Int                 @id @default(autoincrement())
+  meeting_id          Int
+  member_id           Int
+  attendance_status   String?             @default("Invited") @db.VarChar(20)
+  role_in_meeting     String?             @default("Member") @db.VarChar(20)
+  attendance_notes    String?
+  created_at          DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?           @default(now()) @db.Timestamp(6)
+  leadership_meetings leadership_meetings @relation(fields: [meeting_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members             Member              @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([meeting_id, member_id])
+  @@index([meeting_id], map: "idx_meeting_attendees_meeting")
+  @@index([member_id], map: "idx_meeting_attendees_member")
+  @@index([role_in_meeting], map: "idx_meeting_attendees_role")
+  @@index([attendance_status], map: "idx_meeting_attendees_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_meetings {
+  id                           Int                            @id @default(autoincrement())
+  meeting_title                String                         @db.VarChar(255)
+  meeting_type                 String                         @db.VarChar(20)
+  hierarchy_level              String                         @db.VarChar(20)
+  entity_id                    Int
+  meeting_date                 DateTime                       @db.Date
+  meeting_time                 DateTime                       @db.Time(6)
+  duration_minutes             Int?                           @default(120)
+  location                     String?                        @db.VarChar(255)
+  virtual_meeting_link         String?                        @db.VarChar(500)
+  agenda                       String?
+  meeting_status               String?                        @default("Scheduled") @db.VarChar(20)
+  minutes                      String?
+  action_items                 String?
+  next_meeting_date            DateTime?                      @db.Date
+  created_by                   Int
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  leadership_meeting_attendees leadership_meeting_attendees[]
+  users                        User                           @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([meeting_date], map: "idx_leadership_meetings_date")
+  @@index([entity_id], map: "idx_leadership_meetings_entity")
+  @@index([hierarchy_level], map: "idx_leadership_meetings_hierarchy")
+  @@index([meeting_status], map: "idx_leadership_meetings_status")
+  @@index([meeting_type], map: "idx_leadership_meetings_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_performance_reviews {
+  id                          Int                     @id @default(autoincrement())
+  appointment_id              Int
+  review_period_start         DateTime                @db.Date
+  review_period_end           DateTime                @db.Date
+  reviewer_id                 Int
+  overall_rating              String                  @db.VarChar(20)
+  leadership_effectiveness    Int?
+  communication_skills        Int?
+  decision_making             Int?
+  team_collaboration          Int?
+  goal_achievement            Int?
+  strengths                   String?
+  areas_for_improvement       String?
+  development_recommendations String?
+  review_comments             String?
+  review_status               String?                 @default("Draft") @db.VarChar(20)
+  reviewed_at                 DateTime?               @db.Timestamp(6)
+  created_at                  DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime?               @default(now()) @db.Timestamp(6)
+  leadership_appointments     leadership_appointments @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                       User                    @relation(fields: [reviewer_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([appointment_id], map: "idx_performance_reviews_appointment")
+  @@index([review_period_start, review_period_end], map: "idx_performance_reviews_period")
+  @@index([overall_rating], map: "idx_performance_reviews_rating")
+  @@index([reviewer_id], map: "idx_performance_reviews_reviewer")
+  @@index([review_status], map: "idx_performance_reviews_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_positions {
+  id                             Int                              @id @default(autoincrement())
+  position_name                  String                           @db.VarChar(255)
+  position_code                  String                           @unique @db.VarChar(50)
+  position_description           String?
+  hierarchy_level                String?                          @db.VarChar(20)
+  position_category              String?                          @default("Executive") @db.VarChar(50)
+  is_core_position               Boolean?                         @default(false)
+  requires_election              Boolean?                         @default(true)
+  term_duration_months           Int?                             @default(60)
+  max_concurrent_appointments    Int?                             @default(1)
+  position_order                 Int?                             @default(0)
+  is_active                      Boolean?                         @default(true)
+  created_at                     DateTime?                        @default(now()) @db.Timestamp(6)
+  updated_at                     DateTime?                        @default(now()) @db.Timestamp(6)
+  leadership_appointments        leadership_appointments[]
+  leadership_election_candidates leadership_election_candidates[]
+  leadership_election_votes      leadership_election_votes[]
+  leadership_succession_plans    leadership_succession_plans[]
+  leadership_terms               leadership_terms[]
+
+  @@index([is_active], map: "idx_leadership_positions_active")
+  @@index([position_category], map: "idx_leadership_positions_category")
+  @@index([hierarchy_level], map: "idx_leadership_positions_hierarchy")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_structures {
+  id              Int       @id @default(autoincrement())
+  structure_name  String    @db.VarChar(100)
+  structure_code  String    @unique @db.VarChar(20)
+  hierarchy_level String    @db.VarChar(20)
+  total_positions Int       @default(0)
+  description     String?
+  is_active       Boolean?  @default(true)
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_active], map: "idx_structure_active")
+  @@index([structure_code], map: "idx_structure_code")
+  @@index([hierarchy_level], map: "idx_structure_hierarchy")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_succession_plans {
+  id                   Int                  @id @default(autoincrement())
+  position_id          Int
+  hierarchy_level      String               @db.VarChar(20)
+  entity_id            Int
+  successor_member_id  Int
+  succession_order     Int
+  succession_type      String?              @default("Designated") @db.VarChar(20)
+  effective_date       DateTime?            @db.Date
+  expiry_date          DateTime?            @db.Date
+  is_active            Boolean?             @default(true)
+  notes                String?
+  created_by           Int
+  created_at           DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?            @default(now()) @db.Timestamp(6)
+  users                User                 @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  leadership_positions leadership_positions @relation(fields: [position_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members              Member               @relation(fields: [successor_member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_succession_plans_active")
+  @@index([entity_id], map: "idx_succession_plans_entity")
+  @@index([hierarchy_level], map: "idx_succession_plans_hierarchy")
+  @@index([succession_order], map: "idx_succession_plans_order")
+  @@index([position_id], map: "idx_succession_plans_position")
+  @@index([successor_member_id], map: "idx_succession_plans_successor")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leadership_terms {
+  id                      Int                      @id @default(autoincrement())
+  member_id               Int
+  position_id             Int
+  hierarchy_level         String                   @db.VarChar(20)
+  entity_id               Int
+  term_number             Int
+  start_date              DateTime                 @db.Date
+  end_date                DateTime?                @db.Date
+  term_status             String?                  @default("Active") @db.VarChar(20)
+  appointment_id          Int?
+  created_at              DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                @default(now()) @db.Timestamp(6)
+  leadership_appointments leadership_appointments? @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
+  members                 Member                   @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  leadership_positions    leadership_positions     @relation(fields: [position_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([start_date, end_date], map: "idx_leadership_terms_dates")
+  @@index([entity_id], map: "idx_leadership_terms_entity")
+  @@index([hierarchy_level], map: "idx_leadership_terms_hierarchy")
+  @@index([member_id], map: "idx_leadership_terms_member")
+  @@index([position_id], map: "idx_leadership_terms_position")
+  @@index([term_status], map: "idx_leadership_terms_status")
+}
+
+model login_attempts {
+  id             Int       @id @default(autoincrement())
+  user_id        Int?
+  email          String?   @db.VarChar(255)
+  ip_address     String    @db.Inet
+  user_agent     String?
+  success        Boolean
+  failure_reason String?   @db.VarChar(100)
+  attempted_at   DateTime? @default(now()) @db.Timestamp(6)
+  users          User?     @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([attempted_at], map: "idx_login_attempts_attempted_at")
+  @@index([ip_address], map: "idx_login_attempts_ip")
+  @@index([success], map: "idx_login_attempts_success")
+  @@index([user_id], map: "idx_login_attempts_user")
+  @@index([user_id, attempted_at], map: "idx_login_attempts_user_time")
+}
+
+model maintenance_mode {
+  id            Int       @id @default(autoincrement())
+  is_enabled    Boolean?  @default(false)
+  message       String?
+  start_time    DateTime? @db.Timestamp(6)
+  end_time      DateTime? @db.Timestamp(6)
+  allowed_ips   String[]
+  allowed_roles String[]
+  bypass_token  String?   @db.VarChar(255)
+  created_by    Int?
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_enabled], map: "idx_maintenance_mode_enabled")
+  @@index([start_time, end_time], map: "idx_maintenance_mode_times")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance_mode_logs {
+  log_id            Int       @id @default(autoincrement())
+  action            String    @db.VarChar(20)
+  maintenance_level String?   @db.VarChar(50)
+  message           String?
+  scheduled_start   DateTime? @db.Timestamp(6)
+  scheduled_end     DateTime? @db.Timestamp(6)
+  bypass_settings   Json?
+  user_id           Int?
+  user_email        String?   @db.VarChar(255)
+  ip_address        String?   @db.Inet
+  user_agent        String?
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  users             User?     @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([action], map: "idx_maintenance_logs_action")
+  @@index([created_at], map: "idx_maintenance_logs_created")
+  @@index([user_id], map: "idx_maintenance_logs_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance_notifications {
+  notification_id             Int       @id @default(autoincrement())
+  notification_type           String    @db.VarChar(20)
+  title                       String    @db.VarChar(255)
+  message                     String
+  scheduled_maintenance_start DateTime? @db.Timestamp(6)
+  target_all_users            Boolean   @default(true)
+  target_roles                Json?
+  target_user_ids             Json?
+  is_sent                     Boolean   @default(false)
+  sent_at                     DateTime? @db.Timestamp(6)
+  created_by                  Int?
+  created_at                  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime? @default(now()) @db.Timestamp(6)
+  users                       User?     @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([scheduled_maintenance_start], map: "idx_maintenance_notifications_schedule")
+  @@index([is_sent], map: "idx_maintenance_notifications_sent")
+  @@index([notification_type], map: "idx_maintenance_notifications_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_action_items {
+  action_item_id                                 Int                @id @default(autoincrement())
+  meeting_id                                     Int
+  document_id                                    Int?
+  action_title                                   String             @db.VarChar(200)
+  action_description                             String?
+  assigned_to                                    Int?
+  assigned_role                                  String?            @db.VarChar(100)
+  due_date                                       DateTime?          @db.Date
+  priority                                       String?            @default("medium") @db.VarChar(10)
+  status                                         String?            @default("pending") @db.VarChar(20)
+  completion_notes                               String?
+  created_by                                     Int
+  completed_by                                   Int?
+  completed_at                                   DateTime?          @db.Timestamp(6)
+  created_at                                     DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at                                     DateTime?          @default(now()) @db.Timestamp(6)
+  members                                        Member?            @relation(fields: [assigned_to], references: [member_id], onUpdate: NoAction)
+  users_meeting_action_items_completed_byTousers User?              @relation("meeting_action_items_completed_byTousers", fields: [completed_by], references: [user_id], onUpdate: NoAction)
+  users_meeting_action_items_created_byTousers   User               @relation("meeting_action_items_created_byTousers", fields: [created_by], references: [user_id], onUpdate: NoAction)
+  meeting_documents                              meeting_documents? @relation(fields: [document_id], references: [document_id], onUpdate: NoAction)
+  meetings                                       meetings           @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([assigned_to], map: "idx_action_items_assigned_to")
+  @@index([due_date], map: "idx_action_items_due_date")
+  @@index([meeting_id], map: "idx_action_items_meeting")
+  @@index([priority], map: "idx_action_items_priority")
+  @@index([status], map: "idx_action_items_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_agenda_items {
+  agenda_item_id     Int       @id @default(autoincrement())
+  meeting_id         Int
+  item_number        Int
+  item_title         String    @db.VarChar(255)
+  item_description   String?
+  item_type          String?   @default("Discussion") @db.VarChar(20)
+  presenter_id       Int?
+  allocated_minutes  Int?      @default(15)
+  actual_minutes     Int?
+  item_status        String?   @default("Pending") @db.VarChar(20)
+  discussion_summary String?
+  decision_made      String?
+  action_required    Boolean?  @default(false)
+  created_by         Int
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+  updated_at         DateTime? @default(now()) @db.Timestamp(6)
+  users              User      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  meetings           meetings  @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+  members            Member?   @relation(fields: [presenter_id], references: [member_id], onUpdate: NoAction)
+
+  @@index([meeting_id], map: "idx_agenda_meeting")
+  @@index([meeting_id, item_number], map: "idx_agenda_order")
+  @@index([presenter_id], map: "idx_agenda_presenter")
+  @@index([item_status], map: "idx_agenda_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_attendance {
+  attendance_id     Int       @id @default(autoincrement())
+  meeting_id        Int
+  member_id         Int
+  attendance_status String    @db.VarChar(20)
+  check_in_time     DateTime? @db.Timestamp(6)
+  check_out_time    DateTime? @db.Timestamp(6)
+  attendance_notes  String?
+  recorded_by       Int?
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  updated_at        DateTime? @default(now()) @db.Timestamp(6)
+  meetings          meetings  @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+  members           Member    @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  users             User?     @relation(fields: [recorded_by], references: [user_id], onUpdate: NoAction)
+
+  @@unique([meeting_id, member_id])
+  @@index([meeting_id], map: "idx_attendance_meeting")
+  @@index([member_id], map: "idx_attendance_member")
+  @@index([attendance_status], map: "idx_attendance_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_decisions {
+  decision_id                                    Int                @id @default(autoincrement())
+  meeting_id                                     Int
+  document_id                                    Int?
+  decision_title                                 String             @db.VarChar(200)
+  decision_description                           String
+  decision_type                                  String             @db.VarChar(20)
+  voting_result                                  Json?
+  decision_status                                String             @db.VarChar(20)
+  proposed_by                                    Int?
+  seconded_by                                    Int?
+  created_by                                     Int
+  created_at                                     DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at                                     DateTime?          @default(now()) @db.Timestamp(6)
+  users                                          User               @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  meeting_documents                              meeting_documents? @relation(fields: [document_id], references: [document_id], onUpdate: NoAction)
+  meetings                                       meetings           @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+  members_meeting_decisions_proposed_byTomembers Member?            @relation("meeting_decisions_proposed_byTomembers", fields: [proposed_by], references: [member_id], onUpdate: NoAction)
+  members_meeting_decisions_seconded_byTomembers Member?            @relation("meeting_decisions_seconded_byTomembers", fields: [seconded_by], references: [member_id], onUpdate: NoAction)
+
+  @@index([meeting_id], map: "idx_decisions_meeting")
+  @@index([decision_status], map: "idx_decisions_status")
+  @@index([decision_type], map: "idx_decisions_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_document_templates {
+  template_id       Int                 @id @default(autoincrement())
+  template_name     String              @db.VarChar(100)
+  template_type     String              @db.VarChar(20)
+  meeting_type_id   Int?
+  hierarchy_level   String?             @db.VarChar(20)
+  template_content  Json
+  is_default        Boolean?            @default(false)
+  is_active         Boolean?            @default(true)
+  created_by        Int
+  created_at        DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?           @default(now()) @db.Timestamp(6)
+  users             User                @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  meeting_types     meeting_types?      @relation(fields: [meeting_type_id], references: [type_id], onUpdate: NoAction)
+  meeting_documents meeting_documents[]
+
+  @@index([hierarchy_level], map: "idx_template_hierarchy_level")
+  @@index([meeting_type_id], map: "idx_template_meeting_type")
+  @@index([template_type], map: "idx_template_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_documents {
+  document_id                                Int                         @id @default(autoincrement())
+  meeting_id                                 Int
+  document_type                              String                      @db.VarChar(20)
+  document_title                             String                      @db.VarChar(200)
+  document_content                           Json
+  template_id                                Int?
+  version_number                             Int?                        @default(1)
+  document_status                            String?                     @default("draft") @db.VarChar(20)
+  created_by                                 Int
+  approved_by                                Int?
+  approved_at                                DateTime?                   @db.Timestamp(6)
+  created_at                                 DateTime?                   @default(now()) @db.Timestamp(6)
+  updated_at                                 DateTime?                   @default(now()) @db.Timestamp(6)
+  meeting_action_items                       meeting_action_items[]
+  meeting_decisions                          meeting_decisions[]
+  users_meeting_documents_approved_byTousers User?                       @relation("meeting_documents_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
+  users_meeting_documents_created_byTousers  User                        @relation("meeting_documents_created_byTousers", fields: [created_by], references: [user_id], onUpdate: NoAction)
+  meetings                                   meetings                    @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+  meeting_document_templates                 meeting_document_templates? @relation(fields: [template_id], references: [template_id], onUpdate: NoAction)
+
+  @@unique([meeting_id, document_type, version_number])
+  @@index([meeting_id], map: "idx_documents_meeting")
+  @@index([document_status], map: "idx_documents_status")
+  @@index([document_type], map: "idx_documents_type")
+  @@index([meeting_id, document_type, version_number], map: "idx_documents_version")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_invitations {
+  invitation_id     Int       @id @default(autoincrement())
+  meeting_id        Int
+  invitee_type      String    @db.VarChar(20)
+  invitee_id        Int?
+  invitee_email     String?   @db.VarChar(255)
+  invitee_name      String?   @db.VarChar(255)
+  invitation_status String?   @default("Sent") @db.VarChar(20)
+  response_message  String?
+  sent_at           DateTime? @default(now()) @db.Timestamp(6)
+  delivered_at      DateTime? @db.Timestamp(6)
+  opened_at         DateTime? @db.Timestamp(6)
+  responded_at      DateTime? @db.Timestamp(6)
+  created_by        Int
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  updated_at        DateTime? @default(now()) @db.Timestamp(6)
+  users             User      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  meetings          meetings  @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([invitee_type, invitee_id], map: "idx_invitations_invitee")
+  @@index([meeting_id], map: "idx_invitations_meeting")
+  @@index([sent_at], map: "idx_invitations_sent")
+  @@index([invitation_status], map: "idx_invitations_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meeting_minutes {
+  minutes_id                               Int       @id @default(autoincrement())
+  meeting_id                               Int
+  content                                  String
+  recorded_by                              Int
+  approval_status                          String    @default("Draft") @db.VarChar(20)
+  approved_by                              Int?
+  approved_at                              DateTime? @db.Timestamp(6)
+  version                                  Int       @default(1)
+  created_at                               DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                               DateTime? @default(now()) @db.Timestamp(6)
+  users_meeting_minutes_approved_byTousers User?     @relation("meeting_minutes_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
+  meetings                                 meetings  @relation(fields: [meeting_id], references: [meeting_id], onDelete: Cascade, onUpdate: NoAction)
+  users_meeting_minutes_recorded_byTousers User      @relation("meeting_minutes_recorded_byTousers", fields: [recorded_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([approved_by], map: "idx_minutes_approved_by")
+  @@index([meeting_id], map: "idx_minutes_meeting")
+  @@index([recorded_by], map: "idx_minutes_recorded_by")
+  @@index([approval_status], map: "idx_minutes_status")
+}
+
+model meeting_types {
+  type_id                    Int                          @id @default(autoincrement())
+  type_name                  String                       @unique @db.VarChar(100)
+  type_code                  String                       @unique @db.VarChar(50)
+  description                String?
+  default_duration_minutes   Int?                         @default(120)
+  requires_quorum            Boolean?                     @default(true)
+  min_notice_days            Int?                         @default(7)
+  is_active                  Boolean?                     @default(true)
+  created_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  meeting_document_templates meeting_document_templates[]
+  meetings                   meetings[]
+
+  @@index([is_active], map: "idx_meeting_types_active")
+  @@index([type_code], map: "idx_meeting_types_code")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meetings {
+  meeting_id                                     Int                    @id @default(autoincrement())
+  meeting_title                                  String                 @db.VarChar(255)
+  meeting_type_id                                Int
+  hierarchy_level                                String                 @db.VarChar(20)
+  entity_id                                      Int
+  meeting_date                                   DateTime               @db.Date
+  meeting_time                                   DateTime               @db.Time(6)
+  end_time                                       DateTime?              @db.Time(6)
+  duration_minutes                               Int?                   @default(120)
+  location                                       String?                @db.VarChar(255)
+  virtual_meeting_link                           String?                @db.VarChar(500)
+  meeting_platform                               String?                @default("In-Person") @db.VarChar(20)
+  meeting_status                                 String?                @default("Scheduled") @db.VarChar(20)
+  description                                    String?
+  objectives                                     String?
+  quorum_required                                Int?                   @default(0)
+  quorum_achieved                                Int?                   @default(0)
+  total_attendees                                Int?                   @default(0)
+  meeting_chair_id                               Int?
+  meeting_secretary_id                           Int?
+  created_by                                     Int
+  created_at                                     DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at                                     DateTime?              @default(now()) @db.Timestamp(6)
+  meeting_action_items                           meeting_action_items[]
+  meeting_agenda_items                           meeting_agenda_items[]
+  meeting_attendance                             meeting_attendance[]
+  meeting_decisions                              meeting_decisions[]
+  meeting_documents                              meeting_documents[]
+  meeting_invitations                            meeting_invitations[]
+  meeting_minutes                                meeting_minutes[]
+  users                                          User                   @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  members_meetings_meeting_chair_idTomembers     Member?                @relation("meetings_meeting_chair_idTomembers", fields: [meeting_chair_id], references: [member_id], onUpdate: NoAction)
+  members_meetings_meeting_secretary_idTomembers Member?                @relation("meetings_meeting_secretary_idTomembers", fields: [meeting_secretary_id], references: [member_id], onUpdate: NoAction)
+  meeting_types                                  meeting_types          @relation(fields: [meeting_type_id], references: [type_id], onUpdate: NoAction)
+
+  @@index([meeting_chair_id], map: "idx_meetings_chair")
+  @@index([created_by], map: "idx_meetings_created_by")
+  @@index([meeting_date], map: "idx_meetings_date")
+  @@index([entity_id], map: "idx_meetings_entity")
+  @@index([hierarchy_level], map: "idx_meetings_hierarchy")
+  @@index([meeting_secretary_id], map: "idx_meetings_secretary")
+  @@index([meeting_status], map: "idx_meetings_status")
+  @@index([meeting_type_id], map: "idx_meetings_type")
+}
+
+model member_cache_summary {
+  member_id           Int       @id
+  id_number           String    @unique @db.VarChar(13)
+  membership_number   String    @db.VarChar(20)
+  full_name           String    @db.VarChar(200)
+  email               String?   @db.VarChar(255)
+  phone               String?   @db.VarChar(20)
+  province_name       String?   @db.VarChar(100)
+  municipality_name   String?   @db.VarChar(100)
+  ward_number         String?   @db.VarChar(10)
+  voting_station_name String?   @db.VarChar(200)
+  membership_status   String?   @db.VarChar(20)
+  join_date           DateTime? @db.Timestamp(6)
+  expiry_date         DateTime? @db.Timestamp(6)
+  last_updated        DateTime? @default(now()) @db.Timestamp(6)
+  members             Member    @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_number], map: "idx_cache_id_number")
+  @@index([member_id], map: "idx_cache_member_id")
+  @@index([membership_number], map: "idx_cache_membership_number")
+  @@index([membership_status], map: "idx_cache_status")
+  @@index([last_updated], map: "idx_cache_updated")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model member_notes {
+  note_id     Int       @id @default(autoincrement())
+  member_id   Int
+  note_text   String
+  note_type   String?   @default("General") @db.VarChar(20)
+  is_internal Boolean?  @default(true)
+  created_by  Int
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       User      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  members     Member    @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_member_notes_created_at")
+  @@index([created_by], map: "idx_member_notes_created_by")
+  @@index([member_id], map: "idx_member_notes_member")
+  @@index([note_type], map: "idx_member_notes_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model member_transfers {
+  transfer_id                                  Int       @id @default(autoincrement())
+  member_id                                    Int
+  from_hierarchy_level                         String    @db.VarChar(20)
+  from_entity_id                               Int
+  to_hierarchy_level                           String    @db.VarChar(20)
+  to_entity_id                                 Int
+  transfer_reason                              String
+  transfer_date                                DateTime  @db.Date
+  transferred_by                               Int
+  transfer_status                              String?   @default("Completed") @db.VarChar(20)
+  approval_notes                               String?
+  approved_by                                  Int?
+  approved_at                                  DateTime? @db.Timestamp(6)
+  created_at                                   DateTime? @default(now()) @db.Timestamp(6)
+  users_member_transfers_approved_byTousers    User?     @relation("member_transfers_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
+  members                                      Member    @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  users_member_transfers_transferred_byTousers User      @relation("member_transfers_transferred_byTousers", fields: [transferred_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([transfer_date], map: "idx_member_transfers_date")
+  @@index([from_hierarchy_level, from_entity_id], map: "idx_member_transfers_from")
+  @@index([member_id], map: "idx_member_transfers_member")
+  @@index([transfer_status], map: "idx_member_transfers_status")
+  @@index([to_hierarchy_level, to_entity_id], map: "idx_member_transfers_to")
+  @@index([transferred_by], map: "idx_member_transfers_transferred_by")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model membership_applications {
+  application_id       Int                 @id @default(autoincrement())
+  application_number   String              @unique @default(dbgenerated("('APP'::text || lpad((nextval('membership_applications_application_id_seq'::regclass))::text, 7, '0'::text))")) @db.VarChar(20)
+  first_name           String              @db.VarChar(100)
+  last_name            String              @db.VarChar(100)
+  middle_name          String?             @db.VarChar(100)
+  id_number            String              @db.VarChar(13)
+  date_of_birth        DateTime            @db.Date
+  gender_id            Int?
+  race_id              Int?
+  citizenship_id       Int?
+  language_id          Int?
+  email                String?             @db.VarChar(255)
+  cell_number          String              @db.VarChar(20)
+  alternative_number   String?             @db.VarChar(20)
+  residential_address  String
+  postal_address       String?
+  ward_code            String              @db.VarChar(20)
+  occupation_id        Int?
+  qualification_id     Int?
+  application_type     String              @default("New") @db.VarChar(20)
+  status               String              @default("Draft") @db.VarChar(20)
+  submitted_at         DateTime?           @db.Timestamp(6)
+  reviewed_at          DateTime?           @db.Timestamp(6)
+  approved_at          DateTime?           @db.Timestamp(6)
+  rejected_at          DateTime?           @db.Timestamp(6)
+  reviewed_by          Int?
+  rejection_reason     String?
+  admin_notes          String?
+  membership_type      String?             @default("Regular") @db.VarChar(20)
+  subscription_type_id Int?
+  payment_amount       Decimal?            @db.Decimal(10, 2)
+  payment_method       String?             @db.VarChar(50)
+  payment_reference    String?             @db.VarChar(100)
+  payment_status       String?             @default("Pending") @db.VarChar(20)
+  created_at           DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?           @default(now()) @db.Timestamp(6)
+  documents            documents[]
+  citizenships         Citizenship?        @relation(fields: [citizenship_id], references: [citizenship_id], onDelete: NoAction, onUpdate: NoAction)
+  genders              Gender?             @relation(fields: [gender_id], references: [gender_id], onDelete: NoAction, onUpdate: NoAction)
+  languages            Language?           @relation(fields: [language_id], references: [language_id], onDelete: NoAction, onUpdate: NoAction)
+  occupations          Occupation?         @relation(fields: [occupation_id], references: [occupation_id], onDelete: NoAction, onUpdate: NoAction)
+  qualifications       Qualification?      @relation(fields: [qualification_id], references: [qualification_id], onDelete: NoAction, onUpdate: NoAction)
+  races                Race?               @relation(fields: [race_id], references: [race_id], onDelete: NoAction, onUpdate: NoAction)
+  subscription_types   subscription_types? @relation(fields: [subscription_type_id], references: [subscription_type_id], onDelete: NoAction, onUpdate: NoAction)
+  wards                Ward                @relation(fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_number], map: "idx_applications_id_number")
+  @@index([application_number], map: "idx_applications_number")
+  @@index([status], map: "idx_applications_status")
+  @@index([status, submitted_at], map: "idx_applications_status_submitted")
+  @@index([submitted_at], map: "idx_applications_submitted")
+  @@index([ward_code], map: "idx_applications_ward")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model membership_renewals {
+  renewal_id                                                                               Int                 @id @default(autoincrement())
+  membership_id                                                                            Int
+  member_id                                                                                Int
+  renewal_year                                                                             Int
+  renewal_type                                                                             String              @default("Annual") @db.VarChar(20)
+  renewal_status                                                                           String              @default("Pending") @db.VarChar(20)
+  renewal_due_date                                                                         DateTime            @db.Date
+  renewal_requested_date                                                                   DateTime?           @default(now()) @db.Timestamp(6)
+  renewal_processed_date                                                                   DateTime?           @db.Timestamp(6)
+  renewal_completed_date                                                                   DateTime?           @db.Timestamp(6)
+  grace_period_end_date                                                                    DateTime?           @db.Date
+  previous_expiry_date                                                                     DateTime            @db.Date
+  new_expiry_date                                                                          DateTime?           @db.Date
+  previous_subscription_type_id                                                            Int?
+  new_subscription_type_id                                                                 Int?
+  renewal_amount                                                                           Decimal             @db.Decimal(10, 2)
+  payment_method                                                                           String?             @db.VarChar(50)
+  payment_reference                                                                        String?             @db.VarChar(100)
+  payment_status                                                                           String?             @default("Pending") @db.VarChar(20)
+  payment_date                                                                             DateTime?           @db.Date
+  processed_by                                                                             Int?
+  renewal_notes                                                                            String?
+  auto_renewal                                                                             Boolean?            @default(false)
+  reminder_sent_count                                                                      Int?                @default(0)
+  last_reminder_sent                                                                       DateTime?           @db.Timestamp(6)
+  created_at                                                                               DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at                                                                               DateTime?           @default(now()) @db.Timestamp(6)
+  members                                                                                  Member              @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  memberships                                                                              Membership          @relation(fields: [membership_id], references: [membership_id], onDelete: Cascade, onUpdate: NoAction)
+  subscription_types_membership_renewals_new_subscription_type_idTosubscription_types      subscription_types? @relation("membership_renewals_new_subscription_type_idTosubscription_types", fields: [new_subscription_type_id], references: [subscription_type_id], onDelete: NoAction, onUpdate: NoAction)
+  subscription_types_membership_renewals_previous_subscription_type_idTosubscription_types subscription_types? @relation("membership_renewals_previous_subscription_type_idTosubscription_types", fields: [previous_subscription_type_id], references: [subscription_type_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([renewal_due_date], map: "idx_renewals_due_date")
+  @@index([member_id], map: "idx_renewals_member")
+  @@index([membership_id], map: "idx_renewals_membership")
+  @@index([renewal_status], map: "idx_renewals_status")
+  @@index([renewal_year], map: "idx_renewals_year")
+}
+
+model membership_statuses {
+  status_id         Int          @id @default(autoincrement())
+  status_name       String       @unique @db.VarChar(50)
+  status_code       String?      @unique @db.VarChar(10)
+  description       String?
+  is_active         Boolean?     @default(true)
+  allows_voting     Boolean?     @default(false)
+  allows_leadership Boolean?     @default(false)
+  created_at        DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?    @default(now()) @db.Timestamp(6)
+  memberships       Membership[]
+
+  @@index([is_active], map: "idx_membership_statuses_active")
+  @@index([allows_voting], map: "idx_membership_statuses_voting")
+}
+
+model message_deliveries {
+  id                      Int                      @id @default(autoincrement())
+  campaign_id             Int?
+  recipient_id            Int?
+  recipient_type          String?                  @default("Member") @db.VarChar(50)
+  delivery_channel        String                   @db.VarChar(50)
+  delivery_status         String?                  @default("Pending") @db.VarChar(50)
+  created_at              DateTime?                @default(now()) @db.Timestamp(6)
+  delivered_at            DateTime?                @db.Timestamp(6)
+  opened_at               DateTime?                @db.Timestamp(6)
+  clicked_at              DateTime?                @db.Timestamp(6)
+  updated_at              DateTime?                @default(now()) @db.Timestamp(6)
+  communication_campaigns communication_campaigns? @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([campaign_id], map: "idx_message_deliveries_campaign_id")
+  @@index([delivery_channel], map: "idx_message_deliveries_channel")
+  @@index([created_at], map: "idx_message_deliveries_created_at")
+  @@index([recipient_id, recipient_type], map: "idx_message_deliveries_recipient")
+  @@index([delivery_status], map: "idx_message_deliveries_status")
+}
+
+model message_queue {
+  id            Int       @id @default(autoincrement())
+  type          String    @db.VarChar(50)
+  recipient     String    @db.VarChar(255)
+  subject       String?   @db.VarChar(500)
+  message       String
+  status        String?   @default("pending") @db.VarChar(50)
+  priority      Int?      @default(5)
+  scheduled_at  DateTime? @default(now()) @db.Timestamp(6)
+  processed_at  DateTime? @db.Timestamp(6)
+  attempts      Int?      @default(0)
+  max_attempts  Int?      @default(3)
+  error_message String?
+  metadata      Json?
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+  scheduled_for DateTime? @db.Timestamp(6)
+  retry_after   DateTime? @db.Timestamp(6)
+
+  @@index([priority], map: "idx_message_queue_priority")
+  @@index([retry_after], map: "idx_message_queue_retry")
+  @@index([scheduled_at], map: "idx_message_queue_scheduled")
+  @@index([status], map: "idx_message_queue_status")
+  @@index([type], map: "idx_message_queue_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model message_templates {
+  template_id   Int        @id @default(autoincrement())
+  name          String     @db.VarChar(255)
+  description   String?
+  template_type String     @db.VarChar(20)
+  category      String?    @default("Custom") @db.VarChar(20)
+  subject       String?    @db.VarChar(500)
+  content       String
+  variables     Json?
+  is_active     Boolean?   @default(true)
+  created_by    Int?
+  created_at    DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?  @default(now()) @db.Timestamp(6)
+  users         User?      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  messages      messages[]
+
+  @@index([is_active], map: "idx_message_templates_active")
+  @@index([category], map: "idx_message_templates_category")
+  @@index([template_type], map: "idx_message_templates_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model messages {
+  message_id        Int                @id @default(autoincrement())
+  conversation_id   String             @db.VarChar(50)
+  campaign_id       Int?
+  sender_type       String             @db.VarChar(20)
+  sender_id         Int?
+  recipient_type    String             @db.VarChar(20)
+  recipient_id      Int?
+  subject           String?            @db.VarChar(500)
+  content           String
+  message_type      String?            @default("Text") @db.VarChar(20)
+  template_id       Int?
+  template_data     Json?
+  delivery_channel  String             @db.VarChar(20)
+  delivery_status   String?            @default("Pending") @db.VarChar(20)
+  delivery_attempts Int?               @default(0)
+  delivered_at      DateTime?          @db.Timestamp(6)
+  failed_reason     String?
+  is_read           Boolean?           @default(false)
+  read_at           DateTime?          @db.Timestamp(6)
+  clicked_links     Json?
+  priority          String?            @default("normal") @db.VarChar(10)
+  scheduled_for     DateTime?          @db.Timestamp(6)
+  created_at        DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?          @default(now()) @db.Timestamp(6)
+  message_templates message_templates? @relation(fields: [template_id], references: [template_id], onUpdate: NoAction)
+
+  @@index([campaign_id], map: "idx_messages_campaign")
+  @@index([conversation_id], map: "idx_messages_conversation")
+  @@index([delivery_channel], map: "idx_messages_delivery_channel")
+  @@index([delivery_status], map: "idx_messages_delivery_status")
+  @@index([priority], map: "idx_messages_priority")
+  @@index([recipient_type, recipient_id], map: "idx_messages_recipient")
+  @@index([scheduled_for], map: "idx_messages_scheduled")
+  @@index([sender_type, sender_id], map: "idx_messages_sender")
+}
+
+model mv_birthday_calendar {
+  calendar_id        Int       @id @default(autoincrement())
+  birthday_date      DateTime? @db.Date
+  month_day          String?   @db.VarChar(5)
+  member_id          Int?
+  full_name          String?   @db.VarChar(200)
+  cell_number        String?   @db.VarChar(20)
+  email              String?   @db.VarChar(255)
+  birth_year         Int?
+  current_age        Int?
+  province_name      String?   @db.VarChar(100)
+  municipality_name  String?   @db.VarChar(100)
+  ward_name          String?   @db.VarChar(100)
+  membership_number  String?   @db.VarChar(50)
+  membership_status  String?   @db.VarChar(50)
+  expiry_date        DateTime? @db.Date
+  is_active          Boolean?  @default(true)
+  sms_eligible       Boolean?  @default(false)
+  has_valid_cell     Boolean?  @default(false)
+  last_sms_sent_year Int?
+  sms_sent_this_year Boolean?  @default(false)
+  last_updated       DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([member_id, birthday_date])
+  @@index([sms_eligible, is_active], map: "idx_mv_birthday_calendar_eligible")
+  @@index([month_day], map: "idx_mv_birthday_calendar_month_day")
+}
+
+model mv_change_log {
+  change_id    Int       @id @default(autoincrement())
+  table_name   String    @db.VarChar(100)
+  operation    String    @db.VarChar(10)
+  record_id    Int?
+  changed_at   DateTime? @default(now()) @db.Timestamp(6)
+  processed    Boolean?  @default(false)
+  processed_at DateTime? @db.Timestamp(6)
+
+  @@index([changed_at], map: "idx_mv_change_log_changed_at")
+  @@index([table_name, processed], map: "idx_mv_change_log_table_processed")
+}
+
+model mv_daily_statistics {
+  stat_date                   DateTime  @id @db.Date
+  total_members               Int?      @default(0)
+  active_members              Int?      @default(0)
+  new_registrations           Int?      @default(0)
+  renewals                    Int?      @default(0)
+  expirations                 Int?      @default(0)
+  provinces_with_members      Int?      @default(0)
+  municipalities_with_members Int?      @default(0)
+  wards_with_members          Int?      @default(0)
+  wards_good_standing         Int?      @default(0)
+  wards_acceptable            Int?      @default(0)
+  wards_needs_improvement     Int?      @default(0)
+  birthdays_today             Int?      @default(0)
+  birthday_sms_sent           Int?      @default(0)
+  birthday_sms_delivered      Int?      @default(0)
+  total_sms_campaigns         Int?      @default(0)
+  total_sms_sent              Int?      @default(0)
+  sms_delivery_rate           Decimal?  @default(0.00) @db.Decimal(5, 2)
+  payments_received           Int?      @default(0)
+  total_payment_amount        Decimal?  @default(0.00) @db.Decimal(12, 2)
+  avg_response_time_ms        Int?      @default(0)
+  peak_concurrent_users       Int?      @default(0)
+  created_at                  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([stat_date(sort: Desc)], map: "idx_mv_daily_statistics_date")
+}
+
+model mv_leadership_hierarchy {
+  hierarchy_id       Int       @id @default(autoincrement())
+  position_id        Int?
+  position_name      String?   @db.VarChar(255)
+  position_level     Int?
+  position_category  String?   @db.VarChar(50)
+  province_code      String?   @db.VarChar(10)
+  province_name      String?   @db.VarChar(100)
+  municipality_code  String?   @db.VarChar(10)
+  municipality_name  String?   @db.VarChar(100)
+  ward_code          String?   @db.VarChar(20)
+  ward_name          String?   @db.VarChar(100)
+  member_id          Int?
+  member_name        String?   @db.VarChar(200)
+  appointment_date   DateTime? @db.Date
+  appointment_status String?   @db.VarChar(50)
+  is_active          Boolean?  @default(true)
+  parent_position_id Int?
+  hierarchy_path     String?
+  cell_number        String?   @db.VarChar(20)
+  email              String?   @db.VarChar(255)
+  last_updated       DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_active], map: "idx_mv_leadership_hierarchy_active")
+  @@index([position_level], map: "idx_mv_leadership_hierarchy_level")
+  @@index([member_id], map: "idx_mv_leadership_hierarchy_member")
+  @@index([municipality_code], map: "idx_mv_leadership_hierarchy_municipality")
+  @@index([province_code], map: "idx_mv_leadership_hierarchy_province")
+  @@index([ward_code], map: "idx_mv_leadership_hierarchy_ward")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model mv_member_search {
+  member_id            Int       @id
+  id_number            String?   @db.VarChar(20)
+  membership_number    String?   @db.VarChar(50)
+  firstname            String?   @db.VarChar(100)
+  surname              String?   @db.VarChar(100)
+  full_name            String?   @db.VarChar(200)
+  search_name          String?
+  search_id            String?
+  search_membership    String?
+  cell_number          String?   @db.VarChar(20)
+  email                String?   @db.VarChar(255)
+  province_code        String?   @db.VarChar(10)
+  province_name        String?   @db.VarChar(100)
+  municipality_code    String?   @db.VarChar(10)
+  municipality_name    String?   @db.VarChar(100)
+  ward_code            String?   @db.VarChar(20)
+  ward_name            String?   @db.VarChar(100)
+  voting_district_code String?   @db.VarChar(20)
+  membership_status    String?   @db.VarChar(50)
+  is_active            Boolean?  @default(true)
+  expiry_date          DateTime? @db.Date
+  gender_name          String?   @db.VarChar(50)
+  race_name            String?   @db.VarChar(50)
+  age                  Int?
+  date_of_birth        DateTime? @db.Date
+  is_expired           Boolean?  @default(false)
+  days_until_expiry    Int?
+  has_valid_contact    Boolean?  @default(false)
+  last_updated         DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([cell_number], map: "idx_mv_member_search_cell")
+  @@index([search_id], map: "idx_mv_member_search_id")
+  @@index([search_membership], map: "idx_mv_member_search_membership")
+  @@index([province_code], map: "idx_mv_member_search_province")
+  @@index([ward_code], map: "idx_mv_member_search_ward")
+}
+
+model mv_membership_summary {
+  summary_id              Int       @id @default(autoincrement())
+  province_code           String?   @db.VarChar(10)
+  province_name           String?   @db.VarChar(100)
+  district_code           String?   @db.VarChar(10)
+  district_name           String?   @db.VarChar(100)
+  municipality_code       String?   @db.VarChar(10)
+  municipality_name       String?   @db.VarChar(100)
+  ward_code               String?   @db.VarChar(20)
+  ward_name               String?   @db.VarChar(100)
+  total_members           Int?      @default(0)
+  active_members          Int?      @default(0)
+  expired_members         Int?      @default(0)
+  suspended_members       Int?      @default(0)
+  new_members_this_month  Int?      @default(0)
+  new_members_this_year   Int?      @default(0)
+  male_members            Int?      @default(0)
+  female_members          Int?      @default(0)
+  other_gender_members    Int?      @default(0)
+  age_18_25               Int?      @default(0)
+  age_26_35               Int?      @default(0)
+  age_36_45               Int?      @default(0)
+  age_46_55               Int?      @default(0)
+  age_56_65               Int?      @default(0)
+  age_over_65             Int?      @default(0)
+  members_with_email      Int?      @default(0)
+  members_with_cell       Int?      @default(0)
+  members_with_valid_cell Int?      @default(0)
+  ward_performance_level  String?   @db.VarChar(20)
+  membership_growth_rate  Decimal?  @default(0.00) @db.Decimal(5, 2)
+  retention_rate          Decimal?  @default(0.00) @db.Decimal(5, 2)
+  birthdays_this_month    Int?      @default(0)
+  birthdays_next_month    Int?      @default(0)
+  last_updated            DateTime? @default(now()) @db.Timestamp(6)
+  data_as_of_date         DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+
+  @@unique([province_code, district_code, municipality_code, ward_code])
+  @@index([municipality_code], map: "idx_mv_membership_summary_municipality")
+  @@index([ward_performance_level], map: "idx_mv_membership_summary_performance")
+  @@index([province_code], map: "idx_mv_membership_summary_province")
+  @@index([ward_code], map: "idx_mv_membership_summary_ward")
+}
+
+model mv_refresh_schedule {
+  schedule_id              Int       @id @default(autoincrement())
+  table_name               String    @db.VarChar(100)
+  refresh_type             String?   @default("FULL") @db.VarChar(20)
+  schedule_cron            String?   @db.VarChar(50)
+  last_refresh             DateTime? @db.Timestamp(6)
+  next_refresh             DateTime? @db.Timestamp(6)
+  refresh_duration_seconds Int?      @default(0)
+  rows_affected            Int?      @default(0)
+  is_active                Boolean?  @default(true)
+  created_at               DateTime? @default(now()) @db.Timestamp(6)
+  updated_at               DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  notification_id              Int                            @id @default(autoincrement())
+  user_id                      Int?
+  member_id                    Int?
+  recipient_type               String                         @default("User") @db.VarChar(20)
+  notification_type            String                         @db.VarChar(50)
+  delivery_channel             String                         @default("Email") @db.VarChar(20)
+  delivery_status              String                         @default("Pending") @db.VarChar(20)
+  title                        String                         @db.VarChar(255)
+  message                      String
+  sent_at                      DateTime?                      @db.Timestamp(6)
+  read_at                      DateTime?                      @db.Timestamp(6)
+  template_id                  String?                        @db.VarChar(50)
+  template_data                Json?
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  bulk_notification_recipients bulk_notification_recipients[]
+  members                      Member?                        @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  users                        User?                          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model occupation_categories {
+  category_id   Int          @id @default(autoincrement())
+  category_name String       @unique @db.VarChar(100)
+  category_code String?      @unique @db.VarChar(20)
+  description   String?
+  is_active     Boolean?     @default(true)
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?    @default(now()) @db.Timestamp(6)
+  occupations   Occupation[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model operation_templates {
+  template_id          Int       @id @default(autoincrement())
+  template_name        String    @db.VarChar(255)
+  template_description String?
+  operation_type       String    @db.VarChar(20)
+  template_config      Json
+  is_public            Boolean?  @default(false)
+  usage_count          Int?      @default(0)
+  created_by           Int
+  created_at           DateTime? @default(now()) @db.Timestamp(6)
+  updated_at           DateTime? @default(now()) @db.Timestamp(6)
+  users                User      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([created_by], map: "idx_operation_templates_created_by")
+  @@index([template_name], map: "idx_operation_templates_name")
+  @@index([is_public], map: "idx_operation_templates_public")
+  @@index([operation_type], map: "idx_operation_templates_type")
+  @@index([usage_count], map: "idx_operation_templates_usage")
+}
+
+model password_history {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  password_hash String    @db.VarChar(255)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  users         User      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_password_history_created_at")
+  @@index([user_id], map: "idx_password_history_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payments {
+  payment_id             Int         @id @default(autoincrement())
+  member_id              Int?
+  membership_id          Int?
+  payment_reference      String      @unique @db.VarChar(100)
+  payment_method         String      @db.VarChar(20)
+  payment_provider       String?     @db.VarChar(50)
+  amount                 Decimal     @db.Decimal(10, 2)
+  currency               String?     @default("ZAR") @db.VarChar(3)
+  payment_status         String      @default("Pending") @db.VarChar(20)
+  gateway_transaction_id String?     @db.VarChar(255)
+  gateway_reference      String?     @db.VarChar(255)
+  gateway_response       String?
+  payment_date           DateTime?   @default(now()) @db.Timestamp(6)
+  processed_at           DateTime?   @db.Timestamp(6)
+  completed_at           DateTime?   @db.Timestamp(6)
+  payment_type           String      @db.VarChar(30)
+  description            String?
+  receipt_number         String?     @unique @db.VarChar(50)
+  receipt_issued_at      DateTime?   @db.Timestamp(6)
+  receipt_sent_to        String?     @db.VarChar(255)
+  verified_by            Int?
+  verified_at            DateTime?   @db.Timestamp(6)
+  verification_notes     String?
+  created_at             DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?   @default(now()) @db.Timestamp(6)
+  members                Member?     @relation(fields: [member_id], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  memberships            Membership? @relation(fields: [membership_id], references: [membership_id], onDelete: NoAction, onUpdate: NoAction)
+  users                  User?       @relation(fields: [verified_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([payment_date(sort: Desc)], map: "idx_payments_date")
+  @@index([gateway_transaction_id], map: "idx_payments_gateway_id")
+  @@index([member_id], map: "idx_payments_member")
+  @@index([membership_id], map: "idx_payments_membership")
+  @@index([payment_provider], map: "idx_payments_provider")
+  @@index([payment_reference], map: "idx_payments_reference")
+  @@index([payment_status], map: "idx_payments_status")
+  @@index([payment_type], map: "idx_payments_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model renewal_pricing_overrides {
+  override_id                                         Int       @id @default(autoincrement())
+  member_id                                           Int
+  renewal_year                                        Int
+  original_amount                                     Decimal   @db.Decimal(10, 2)
+  override_amount                                     Decimal   @db.Decimal(10, 2)
+  override_reason                                     String
+  override_type                                       String    @db.VarChar(15)
+  requested_by                                        Int
+  approved_by                                         Int?
+  approval_status                                     String?   @default("pending") @db.VarChar(10)
+  approval_date                                       DateTime? @db.Timestamp(6)
+  approval_notes                                      String?
+  created_at                                          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                                          DateTime? @default(now()) @db.Timestamp(6)
+  users_renewal_pricing_overrides_approved_byTousers  User?     @relation("renewal_pricing_overrides_approved_byTousers", fields: [approved_by], references: [user_id], onUpdate: NoAction)
+  members                                             Member    @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  users_renewal_pricing_overrides_requested_byTousers User      @relation("renewal_pricing_overrides_requested_byTousers", fields: [requested_by], references: [user_id], onUpdate: NoAction)
+
+  @@unique([member_id, renewal_year])
+  @@index([member_id], map: "idx_override_member")
+  @@index([requested_by], map: "idx_override_requested_by")
+  @@index([approval_status], map: "idx_override_status")
+  @@index([renewal_year], map: "idx_override_year")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model renewal_pricing_rules {
+  rule_id          Int       @id @default(autoincrement())
+  rule_name        String    @db.VarChar(100)
+  rule_type        String    @db.VarChar(10)
+  condition_type   String    @db.VarChar(20)
+  condition_value  Json?
+  adjustment_type  String    @db.VarChar(15)
+  adjustment_value Decimal   @db.Decimal(10, 2)
+  max_adjustment   Decimal?  @db.Decimal(10, 2)
+  description      String?
+  is_active        Boolean?  @default(true)
+  priority         Int?      @default(0)
+  valid_from       DateTime? @db.Date
+  valid_until      DateTime? @db.Date
+  created_by       Int?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+  users            User?     @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_pricing_rule_active")
+  @@index([priority], map: "idx_pricing_rule_priority")
+  @@index([rule_type], map: "idx_pricing_rule_type")
+}
+
+model renewal_pricing_tiers {
+  tier_id                     Int       @id @default(autoincrement())
+  tier_name                   String    @unique @db.VarChar(100)
+  tier_code                   String    @unique @db.VarChar(50)
+  description                 String?
+  base_renewal_fee            Decimal   @default(500.00) @db.Decimal(10, 2)
+  early_bird_discount_percent Decimal?  @default(15.00) @db.Decimal(5, 2)
+  early_bird_days             Int?      @default(60)
+  late_fee_percent            Decimal?  @default(20.00) @db.Decimal(5, 2)
+  grace_period_days           Int?      @default(30)
+  min_age                     Int?
+  max_age                     Int?
+  requires_verification       Boolean?  @default(false)
+  membership_duration_months  Int?      @default(12)
+  is_active                   Boolean?  @default(true)
+  display_order               Int?      @default(0)
+  created_at                  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_active], map: "idx_pricing_tier_active")
+  @@index([tier_code], map: "idx_pricing_tier_code")
+  @@index([display_order], map: "idx_pricing_tier_order")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model scheduled_operations {
+  schedule_id      Int       @id @default(autoincrement())
+  operation_name   String    @db.VarChar(255)
+  operation_type   String    @db.VarChar(20)
+  operation_config Json
+  schedule_pattern String    @db.VarChar(100)
+  next_execution   DateTime  @db.Timestamp(6)
+  last_execution   DateTime? @db.Timestamp(6)
+  execution_count  Int?      @default(0)
+  is_active        Boolean?  @default(true)
+  created_by       Int
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+  users            User      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_scheduled_operations_active")
+  @@index([created_by], map: "idx_scheduled_operations_created_by")
+  @@index([next_execution], map: "idx_scheduled_operations_next_execution")
+  @@index([operation_type], map: "idx_scheduled_operations_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model security_alerts {
+  id                                       Int       @id @default(autoincrement())
+  alert_type                               String    @db.VarChar(20)
+  user_id                                  Int?
+  title                                    String    @db.VarChar(255)
+  message                                  String
+  severity                                 String?   @default("warning") @db.VarChar(10)
+  is_read                                  Boolean?  @default(false)
+  is_resolved                              Boolean?  @default(false)
+  resolved_by                              Int?
+  resolved_at                              DateTime? @db.Timestamp(6)
+  metadata                                 Json?
+  created_at                               DateTime? @default(now()) @db.Timestamp(6)
+  users_security_alerts_resolved_byTousers User?     @relation("security_alerts_resolved_byTousers", fields: [resolved_by], references: [user_id], onUpdate: NoAction)
+  users_security_alerts_user_idTousers     User?     @relation("security_alerts_user_idTousers", fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_security_alerts_created_at")
+  @@index([is_read], map: "idx_security_alerts_read")
+  @@index([is_resolved], map: "idx_security_alerts_resolved")
+  @@index([severity], map: "idx_security_alerts_severity")
+  @@index([alert_type], map: "idx_security_alerts_type")
+  @@index([user_id], map: "idx_security_alerts_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model security_events {
+  id         Int       @id @default(autoincrement())
+  user_id    Int?
+  event_type String    @db.VarChar(20)
+  ip_address String    @db.Inet
+  user_agent String?
+  details    Json?
+  severity   String?   @default("medium") @db.VarChar(10)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      User?     @relation(fields: [user_id], references: [user_id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_security_events_created_at")
+  @@index([ip_address], map: "idx_security_events_ip")
+  @@index([severity], map: "idx_security_events_severity")
+  @@index([event_type], map: "idx_security_events_type")
+  @@index([user_id], map: "idx_security_events_user")
+  @@index([user_id, event_type], map: "idx_security_events_user_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model security_policies {
+  id           Int       @id @default(autoincrement())
+  policy_name  String    @unique @db.VarChar(100)
+  policy_value String
+  policy_type  String?   @default("string") @db.VarChar(10)
+  description  String?
+  is_active    Boolean?  @default(true)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_active], map: "idx_security_policies_active")
+  @@index([policy_name], map: "idx_security_policies_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sms_campaigns {
+  campaign_id         Int            @id @default(autoincrement())
+  campaign_name       String         @db.VarChar(200)
+  campaign_code       String?        @unique @db.VarChar(50)
+  description         String?
+  template_id         Int?
+  target_type         String         @default("Manual") @db.VarChar(20)
+  target_criteria     Json?
+  province_codes      String[]
+  district_codes      String[]
+  municipality_codes  String[]
+  ward_codes          String[]
+  membership_statuses Int[]
+  member_types        String[]
+  age_range_min       Int?
+  age_range_max       Int?
+  scheduled_at        DateTime?      @db.Timestamp(6)
+  started_at          DateTime?      @db.Timestamp(6)
+  completed_at        DateTime?      @db.Timestamp(6)
+  status              String         @default("Draft") @db.VarChar(20)
+  total_recipients    Int?           @default(0)
+  messages_sent       Int?           @default(0)
+  messages_delivered  Int?           @default(0)
+  messages_failed     Int?           @default(0)
+  sender_name         String?        @default("EFF") @db.VarChar(20)
+  priority            String?        @default("Normal") @db.VarChar(10)
+  created_by          Int?
+  created_at          DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?      @default(now()) @db.Timestamp(6)
+  users               User?          @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  sms_templates       sms_templates? @relation(fields: [template_id], references: [template_id], onDelete: NoAction, onUpdate: NoAction)
+  sms_messages        sms_messages[]
+
+  @@index([scheduled_at], map: "idx_sms_campaigns_scheduled")
+  @@index([status], map: "idx_sms_campaigns_status")
+}
+
+model sms_contact_list_members {
+  id                Int               @id @default(autoincrement())
+  list_id           Int
+  phone_number      String            @db.VarChar(20)
+  name              String?           @db.VarChar(255)
+  member_id         Int?
+  metadata          Json?
+  is_active         Boolean?          @default(true)
+  opted_out         Boolean?          @default(false)
+  opted_out_at      DateTime?         @db.Timestamp(6)
+  created_at        DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?         @default(now()) @db.Timestamp(6)
+  sms_contact_lists sms_contact_lists @relation(fields: [list_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members           Member?           @relation(fields: [member_id], references: [member_id], onUpdate: NoAction)
+
+  @@unique([list_id, phone_number])
+  @@index([is_active], map: "idx_sms_contact_list_members_active")
+  @@index([list_id], map: "idx_sms_contact_list_members_list")
+  @@index([member_id], map: "idx_sms_contact_list_members_member")
+  @@index([phone_number], map: "idx_sms_contact_list_members_phone")
+}
+
+model sms_contact_lists {
+  id                       Int                        @id @default(autoincrement())
+  name                     String                     @db.VarChar(255)
+  description              String?
+  total_contacts           Int?                       @default(0)
+  active_contacts          Int?                       @default(0)
+  is_active                Boolean?                   @default(true)
+  allow_duplicates         Boolean?                   @default(false)
+  created_by               Int?
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  sms_contact_list_members sms_contact_list_members[]
+  users                    User?                      @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_sms_contact_lists_active")
+  @@index([created_by], map: "idx_sms_contact_lists_created_by")
+}
+
+model sms_delivery_reports {
+  report_id           Int           @id @default(autoincrement())
+  message_id          Int?
+  provider_message_id String?       @db.VarChar(100)
+  delivery_status     String        @db.VarChar(50)
+  delivery_timestamp  DateTime?     @db.Timestamp(6)
+  provider_response   Json?
+  error_code          String?       @db.VarChar(20)
+  error_description   String?
+  received_at         DateTime?     @default(now()) @db.Timestamp(6)
+  processed_at        DateTime?     @db.Timestamp(6)
+  sms_messages        sms_messages? @relation(fields: [message_id], references: [message_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model sms_delivery_tracking {
+  id                  Int       @id @default(autoincrement())
+  message_id          String    @unique @db.VarChar(255)
+  provider_message_id String?   @db.VarChar(255)
+  status              String?   @default("pending") @db.VarChar(50)
+  delivery_timestamp  DateTime? @db.Timestamp(6)
+  error_code          String?   @db.VarChar(50)
+  error_message       String?
+  retry_count         Int?      @default(0)
+  cost                Decimal?  @db.Decimal(10, 4)
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+  provider_name       String?   @db.VarChar(100)
+
+  @@index([delivery_timestamp], map: "idx_sms_delivery_tracking_delivery_time")
+  @@index([message_id], map: "idx_sms_delivery_tracking_message_id")
+  @@index([provider_message_id], map: "idx_sms_delivery_tracking_provider_id")
+  @@index([provider_name], map: "idx_sms_delivery_tracking_provider_name")
+  @@index([status], map: "idx_sms_delivery_tracking_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sms_messages {
+  message_id           Int                    @id @default(autoincrement())
+  campaign_id          Int?
+  template_id          Int?
+  member_id            Int?
+  recipient_name       String?                @db.VarChar(255)
+  recipient_number     String                 @db.VarChar(20)
+  message_text         String
+  sender_name          String?                @default("EFF") @db.VarChar(20)
+  status               String                 @default("Pending") @db.VarChar(20)
+  sent_at              DateTime?              @db.Timestamp(6)
+  delivered_at         DateTime?              @db.Timestamp(6)
+  failed_at            DateTime?              @db.Timestamp(6)
+  provider_name        String?                @db.VarChar(50)
+  provider_message_id  String?                @db.VarChar(100)
+  provider_status      String?                @db.VarChar(50)
+  provider_response    Json?
+  cost_per_message     Decimal?               @default(0.0000) @db.Decimal(10, 4)
+  currency             String?                @default("ZAR") @db.VarChar(3)
+  error_code           String?                @db.VarChar(20)
+  error_message        String?
+  retry_count          Int?                   @default(0)
+  max_retries          Int?                   @default(3)
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?              @default(now()) @db.Timestamp(6)
+  sms_delivery_reports sms_delivery_reports[]
+  sms_campaigns        sms_campaigns?         @relation(fields: [campaign_id], references: [campaign_id], onDelete: Cascade, onUpdate: NoAction)
+  members              Member?                @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  sms_templates        sms_templates?         @relation(fields: [template_id], references: [template_id], onDelete: NoAction, onUpdate: NoAction)
+  sms_queue            sms_queue[]
+
+  @@index([campaign_id], map: "idx_sms_messages_campaign")
+  @@index([member_id], map: "idx_sms_messages_member")
+  @@index([sent_at], map: "idx_sms_messages_sent")
+  @@index([status], map: "idx_sms_messages_status")
+}
+
+model sms_provider_config {
+  id                        Int       @id @default(autoincrement())
+  provider_name             String    @unique @db.VarChar(100)
+  api_endpoint              String?   @db.VarChar(500)
+  api_key                   String?   @db.VarChar(500)
+  api_secret                String?   @db.VarChar(500)
+  sender_id                 String?   @db.VarChar(50)
+  supports_delivery_reports Boolean?  @default(false)
+  supports_unicode          Boolean?  @default(false)
+  max_message_length        Int?      @default(160)
+  rate_limit_per_minute     Int?      @default(100)
+  rate_limit_per_hour       Int?      @default(1000)
+  cost_per_sms              Decimal?  @default(0.0000) @db.Decimal(10, 4)
+  is_active                 Boolean?  @default(false)
+  is_primary                Boolean?  @default(false)
+  created_at                DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_active], map: "idx_sms_provider_config_active")
+  @@index([is_primary], map: "idx_sms_provider_config_primary")
+}
+
+model sms_provider_health {
+  id                        Int       @id @default(autoincrement())
+  provider_name             String    @unique @db.VarChar(100)
+  is_healthy                Boolean?  @default(true)
+  health_message            String?
+  response_time_ms          Int?
+  consecutive_failures      Int?      @default(0)
+  last_error_message        String?
+  last_error_timestamp      DateTime? @db.Timestamp(6)
+  success_rate_24h          Decimal?  @default(100.00) @db.Decimal(5, 2)
+  average_response_time_24h Int?      @default(0)
+  total_messages_24h        Int?      @default(0)
+  last_check_timestamp      DateTime? @default(now()) @db.Timestamp(6)
+  created_at                DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_healthy], map: "idx_sms_provider_health_healthy")
+  @@index([last_check_timestamp], map: "idx_sms_provider_health_last_check")
+  @@index([provider_name], map: "idx_sms_provider_health_provider")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sms_providers {
+  provider_id               Int       @id @default(autoincrement())
+  provider_name             String    @unique @db.VarChar(50)
+  provider_type             String    @db.VarChar(20)
+  endpoint_url              String?   @db.VarChar(500)
+  username                  String?   @db.VarChar(100)
+  password                  String?   @db.VarChar(255)
+  api_key                   String?   @db.VarChar(255)
+  host                      String?   @db.VarChar(255)
+  port                      Int?
+  system_id                 String?   @db.VarChar(50)
+  system_type               String?   @db.VarChar(20)
+  default_sender            String?   @db.VarChar(20)
+  supports_delivery_reports Boolean?  @default(false)
+  cost_per_message          Decimal?  @default(0.0000) @db.Decimal(10, 4)
+  currency                  String?   @default("ZAR") @db.VarChar(3)
+  is_active                 Boolean?  @default(true)
+  is_primary                Boolean?  @default(false)
+  priority_order            Int?      @default(1)
+  max_messages_per_second   Int?      @default(10)
+  max_messages_per_minute   Int?      @default(100)
+  max_messages_per_hour     Int?      @default(1000)
+  created_at                DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sms_queue {
+  queue_id      Int           @id @default(autoincrement())
+  message_id    Int?
+  priority      Int?          @default(5)
+  scheduled_at  DateTime?     @default(now()) @db.Timestamp(6)
+  attempts      Int?          @default(0)
+  max_attempts  Int?          @default(3)
+  status        String        @default("Pending") @db.VarChar(20)
+  processed_at  DateTime?     @db.Timestamp(6)
+  last_error    String?
+  next_retry_at DateTime?     @db.Timestamp(6)
+  created_at    DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?     @default(now()) @db.Timestamp(6)
+  sms_messages  sms_messages? @relation(fields: [message_id], references: [message_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([priority, scheduled_at], map: "idx_sms_queue_priority")
+  @@index([scheduled_at], map: "idx_sms_queue_scheduled")
+  @@index([status], map: "idx_sms_queue_status")
+}
+
+model sms_templates {
+  template_id      Int             @id @default(autoincrement())
+  template_name    String          @unique @db.VarChar(100)
+  template_code    String          @unique @db.VarChar(50)
+  category         String          @default("General") @db.VarChar(50)
+  subject          String?         @db.VarChar(255)
+  message_template String
+  variables        Json?
+  is_active        Boolean?        @default(true)
+  created_by       Int?
+  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamp(6)
+  sms_campaigns    sms_campaigns[]
+  sms_messages     sms_messages[]
+  users            User?           @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_sms_templates_active")
+  @@index([template_code], map: "idx_sms_templates_code")
+}
+
+model subscription_types {
+  subscription_type_id                                                                      Int                       @id @default(autoincrement())
+  subscription_name                                                                         String                    @unique @db.VarChar(100)
+  subscription_code                                                                         String?                   @unique @db.VarChar(20)
+  description                                                                               String?
+  duration_months                                                                           Int?                      @default(12)
+  base_amount                                                                               Decimal?                  @default(0.00) @db.Decimal(10, 2)
+  is_active                                                                                 Boolean?                  @default(true)
+  created_at                                                                                DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at                                                                                DateTime?                 @default(now()) @db.Timestamp(6)
+  membership_applications                                                                   membership_applications[]
+  membership_renewals_membership_renewals_new_subscription_type_idTosubscription_types      membership_renewals[]     @relation("membership_renewals_new_subscription_type_idTosubscription_types")
+  membership_renewals_membership_renewals_previous_subscription_type_idTosubscription_types membership_renewals[]     @relation("membership_renewals_previous_subscription_type_idTosubscription_types")
+  memberships                                                                               Membership[]
+
+  @@index([is_active], map: "idx_subscription_types_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model system_configuration {
+  id           Int       @id @default(autoincrement())
+  config_key   String    @unique @db.VarChar(100)
+  config_value Json
+  description  String?
+  category     String?   @default("system") @db.VarChar(20)
+  is_encrypted Boolean?  @default(false)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([category], map: "idx_system_configuration_category")
+  @@index([config_key], map: "idx_system_configuration_key")
+}
+
+model system_logs {
+  id         Int       @id @default(autoincrement())
+  level      String    @db.VarChar(20)
+  category   String    @db.VarChar(100)
+  message    String
+  details    Json?
+  user_id    Int?
+  ip_address String?   @db.Inet
+  user_agent String?
+  request_id String?   @db.VarChar(100)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      User?     @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([category], map: "idx_system_logs_category")
+  @@index([created_at], map: "idx_system_logs_created")
+  @@index([level], map: "idx_system_logs_level")
+  @@index([user_id], map: "idx_system_logs_user")
+}
+
+model trusted_devices {
+  id                 Int       @id @default(autoincrement())
+  user_id            Int
+  device_fingerprint String    @db.VarChar(255)
+  device_name        String?   @db.VarChar(255)
+  device_type        String?   @db.VarChar(50)
+  browser            String?   @db.VarChar(100)
+  os                 String?   @db.VarChar(100)
+  ip_address         String    @db.Inet
+  is_trusted         Boolean?  @default(false)
+  trusted_at         DateTime? @db.Timestamp(6)
+  last_used_at       DateTime? @default(now()) @db.Timestamp(6)
+  expires_at         DateTime? @db.Timestamp(6)
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+  users              User      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, device_fingerprint])
+  @@index([expires_at], map: "idx_trusted_devices_expires")
+  @@index([device_fingerprint], map: "idx_trusted_devices_fingerprint")
+  @@index([is_trusted], map: "idx_trusted_devices_trusted")
+  @@index([user_id], map: "idx_trusted_devices_user")
+}
+
+model user_activity_logs {
+  log_id           Int       @id @default(autoincrement())
+  user_id          Int?
+  action_type      String    @db.VarChar(50)
+  resource_type    String?   @db.VarChar(50)
+  resource_id      Int?
+  description      String?
+  ip_address       String?   @db.Inet
+  user_agent       String?
+  request_method   String?   @db.VarChar(10)
+  request_url      String?
+  response_status  Int?
+  response_time_ms Int?
+  metadata         Json?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  users            User?     @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([action_type], map: "idx_user_activity_logs_action")
+  @@index([ip_address], map: "idx_user_activity_logs_ip")
+  @@index([resource_type, resource_id], map: "idx_user_activity_logs_resource")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_user_activity_logs_user_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_creation_workflow {
+  id                                                  Int       @id @default(autoincrement())
+  request_id                                          String    @unique @db.VarChar(50)
+  requested_by                                        Int
+  user_data                                           Json
+  admin_level                                         String    @db.VarChar(20)
+  justification                                       String?
+  status                                              String?   @default("pending") @db.VarChar(20)
+  reviewed_by                                         Int?
+  reviewed_at                                         DateTime? @db.Timestamp(6)
+  review_notes                                        String?
+  created_user_id                                     Int?
+  created_at                                          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                                          DateTime? @default(now()) @db.Timestamp(6)
+  users_user_creation_workflow_created_user_idTousers User?     @relation("user_creation_workflow_created_user_idTousers", fields: [created_user_id], references: [user_id], onUpdate: NoAction)
+  users_user_creation_workflow_requested_byTousers    User      @relation("user_creation_workflow_requested_byTousers", fields: [requested_by], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+  users_user_creation_workflow_reviewed_byTousers     User?     @relation("user_creation_workflow_reviewed_byTousers", fields: [reviewed_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([admin_level], map: "idx_user_creation_workflow_admin_level")
+  @@index([created_at], map: "idx_user_creation_workflow_created_at")
+  @@index([requested_by], map: "idx_user_creation_workflow_requested_by")
+  @@index([status], map: "idx_user_creation_workflow_status")
+}
+
+model user_mfa_settings {
+  id           Int       @id @default(autoincrement())
+  user_id      Int       @unique
+  secret_key   String    @db.VarChar(255)
+  backup_codes Json?
+  is_enabled   Boolean?  @default(false)
+  enabled_at   DateTime? @db.Timestamp(6)
+  disabled_at  DateTime? @db.Timestamp(6)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  users        User      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_enabled], map: "idx_user_mfa_settings_enabled")
+  @@index([user_id], map: "idx_user_mfa_settings_user")
+}
+
+model user_role_history {
+  id              Int       @id @default(autoincrement())
+  user_id         Int
+  old_admin_level String?   @db.VarChar(50)
+  new_admin_level String?   @db.VarChar(50)
+  changed_by      Int?
+  change_reason   String?
+  effective_date  DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model user_security_settings {
+  id                       Int       @id @default(autoincrement())
+  user_id                  Int       @unique
+  mfa_enabled              Boolean?  @default(false)
+  session_timeout_minutes  Int?      @default(1440)
+  max_failed_attempts      Int?      @default(5)
+  lockout_duration_minutes Int?      @default(30)
+  password_expiry_days     Int?      @default(90)
+  require_password_change  Boolean?  @default(false)
+  email_notifications      Boolean?  @default(true)
+  sms_notifications        Boolean?  @default(false)
+  created_at               DateTime? @default(now()) @db.Timestamp(6)
+  updated_at               DateTime? @default(now()) @db.Timestamp(6)
+  users                    User      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_user_security_settings_user")
+}
+
+model user_sessions {
+  session_id    String    @id @db.VarChar(255)
+  user_id       Int
+  ip_address    String?   @db.VarChar(45)
+  user_agent    String?
+  payload       String?
+  last_activity DateTime? @default(now()) @db.Timestamp(6)
+  expires_at    DateTime? @db.Timestamp(6)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  is_active     Boolean?  @default(true)
+  users         User      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expires_at], map: "idx_user_sessions_expires")
+  @@index([user_id], map: "idx_user_sessions_user")
+}
+
+model voter_statuses {
+  status_id   Int       @id @default(autoincrement())
+  status_name String    @unique @db.VarChar(50)
+  status_code String?   @unique @db.VarChar(10)
+  description String?
+  is_active   Boolean?  @default(true)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  members     Member[]
+
+  @@index([is_active], map: "idx_voter_statuses_active")
+}
+
+model voting_districts {
+  voting_district_id   Int               @id @default(autoincrement())
+  voting_district_code String            @unique @db.VarChar(20)
+  voting_district_name String            @db.VarChar(150)
+  ward_code            String            @db.VarChar(20)
+  population           Int?
+  registered_voters    Int?
+  is_active            Boolean?          @default(true)
+  created_at           DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?         @default(now()) @db.Timestamp(6)
+  members              Member[]
+  wards                Ward              @relation(fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
+  voting_stations      voting_stations[]
+
+  @@index([voting_district_code], map: "idx_voting_districts_code")
+  @@index([voting_district_code, voting_district_name], map: "idx_voting_districts_code_name")
+  @@index([ward_code], map: "idx_voting_districts_ward")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model voting_stations {
+  voting_station_id    Int               @id @default(autoincrement())
+  station_code         String?           @unique @db.VarChar(20)
+  station_name         String            @db.VarChar(200)
+  voting_district_code String?           @db.VarChar(20)
+  ward_code            String            @db.VarChar(20)
+  address              String?
+  latitude             Decimal?          @db.Decimal(10, 8)
+  longitude            Decimal?          @db.Decimal(11, 8)
+  registered_voters    Int?              @default(0)
+  is_active            Boolean?          @default(true)
+  created_at           DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?         @default(now()) @db.Timestamp(6)
+  members              Member[]
+  voting_districts     voting_districts? @relation(fields: [voting_district_code], references: [voting_district_code], onDelete: NoAction, onUpdate: NoAction)
+  wards                Ward              @relation(fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([station_code], map: "idx_voting_stations_code")
+  @@index([voting_station_id, station_code], map: "idx_voting_stations_id_code")
+  @@index([ward_code], map: "idx_voting_stations_ward")
+}

@@ -260,14 +260,14 @@ export class MembershipApplicationModel {
           NULL as province_name,
           NULL as reviewer_name
         FROM membership_applications ma
-        WHERE ma.id = ?
+        WHERE ma.application_id = ?
       `;
 
       const application = await executeQuerySingle<MembershipApplicationDetails>(query, [id]);
-      
+
       if (application) {
         // Get associated documents
-        application.documents = await this.getApplicationDocuments(id);
+        application.documents = await this.getApplicationDocuments(application.id);
       }
 
       return application;
@@ -293,7 +293,7 @@ export class MembershipApplicationModel {
       `;
 
       const application = await executeQuerySingle<MembershipApplicationDetails>(query, [applicationNumber]);
-      
+
       if (application) {
         application.documents = await this.getApplicationDocuments(application.id);
       }
@@ -513,7 +513,7 @@ export class MembershipApplicationModel {
       // Ultra-simple query to avoid any issues
       const query = `
         SELECT
-          id,
+          application_id as id,
           application_number,
           first_name,
           last_name,
@@ -521,8 +521,7 @@ export class MembershipApplicationModel {
           cell_number,
           id_number,
           status,
-          workflow_stage,
-          financial_status,
+          application_type,
           membership_type,
           created_at,
           submitted_at,

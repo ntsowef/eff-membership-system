@@ -93,7 +93,7 @@ export class VoterVerificationService {
 
     while (retryCount < maxRetries) {
       try {
-        const response = await axios.post(`${this.API_BASE_URL}token`,
+        const response = await axios.post('' + this.API_BASE_URL + 'token',
           new URLSearchParams({
             grant_type: 'password',
             username: config.iec.username,
@@ -115,7 +115,7 @@ export class VoterVerificationService {
         }
       } catch (error) {
         retryCount++;
-        console.error(`❌ Failed to get access token (attempt ${retryCount}):`, error);
+        console.error('❌ Failed to get access token (attempt ' + retryCount + '):', error);
         
         if (retryCount < maxRetries) {
           await this.delay(2000 * retryCount); // Exponential backoff
@@ -163,17 +163,17 @@ export class VoterVerificationService {
   ): Promise<VoterData | null> {
     try {
       const accessToken = await this.getAccessToken();
-      let url = `${this.API_BASE_URL}api/Voters/IDNumber/${idNumber}`;
+      let url = '${this.API_BASE_URL}api/Voters/IDNumber/' + idNumber + '';
 
       // Add electoral event ID to the request if provided
       if (electoralEventId) {
-        url += `?ElectoralEventID=${electoralEventId}`;
+        url += '? ElectoralEventID=' + electoralEventId + '';
       }
 
-      const response: AxiosResponse = await axios.get(url, {
+      const response : AxiosResponse = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `bearer ${accessToken}`
+          'Authorization': 'bearer ' + accessToken + ''
         },
         timeout: config.iec.timeout
       });
@@ -193,12 +193,12 @@ export class VoterVerificationService {
           id: idNumber,
           bRegistered: response.data.bRegistered || false,
           ward_id: response.data.VotingStation?.Delimitation?.WardID || null,
-          province: response.data.VotingStation?.Delimitation?.Province || '',
-          municipality: response.data.VotingStation?.Delimitation?.Municipality || '',
+          province: response.data.VotingStation?.Delimitation.Province || '',
+          municipality : response.data.VotingStation.Delimitation.Municipality || '',
           voting_station: response.data.VotingStation?.Name || '',
-          vd_number: response.data.VotingStation?.Delimitation?.VDNumber || '',
-          suburb: response.data.VotingStation?.Location?.Suburb || '',
-          street: response.data.VotingStation?.Location?.Street || ''
+          vd_number : response.data.VotingStation.Delimitation.VDNumber || '',
+          suburb: response.data.VotingStation?.Location.Suburb || '',
+          street : response.data.VotingStation.Location.Street || ''
         };
 
         // Add electoral event context if available
@@ -216,7 +216,7 @@ export class VoterVerificationService {
 
       return null;
     } catch (error) {
-      console.error(`❌ Error fetching voter data for ID ${idNumber} with electoral event ${electoralEventId}:`, error);
+      console.error('❌ Error fetching voter data for ID ${idNumber} with electoral event ' + electoralEventId + ':', error);
       return null;
     }
   }
@@ -224,12 +224,12 @@ export class VoterVerificationService {
   static async fetchVoterData(idNumber: string): Promise<VoterData | null> {
     try {
       const accessToken = await this.getAccessToken();
-      const url = `${this.API_BASE_URL}api/Voters/IDNumber/${idNumber}`;
+      const url = '${this.API_BASE_URL}api/Voters/IDNumber/' + idNumber + '';
       
       const response: AxiosResponse = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `bearer ${accessToken}`
+          'Authorization': 'bearer ' + accessToken + ''
         },
         timeout: config.iec.timeout
       });
@@ -242,12 +242,12 @@ export class VoterVerificationService {
           id: idNumber,
           bRegistered: response.data.bRegistered || false,
           ward_id: response.data.VotingStation?.Delimitation?.WardID || null,
-          province: response.data.VotingStation?.Delimitation?.Province || '',
-          municipality: response.data.VotingStation?.Delimitation?.Municipality || '',
+          province: response.data.VotingStation?.Delimitation.Province || '',
+          municipality : response.data.VotingStation.Delimitation.Municipality || '',
           voting_station: response.data.VotingStation?.Name || '',
-          vd_number: response.data.VotingStation?.Delimitation?.VDNumber || '',
-          suburb: response.data.VotingStation?.Location?.Suburb || '',
-          street: response.data.VotingStation?.Location?.Street || ''
+          vd_number : response.data.VotingStation.Delimitation.VDNumber || '',
+          suburb: response.data.VotingStation?.Location.Suburb || '',
+          street : response.data.VotingStation.Location.Street || ''
         };
 
         // Add electoral event context if available
@@ -265,7 +265,7 @@ export class VoterVerificationService {
 
       return null;
     } catch (error) {
-      console.error(`❌ Error fetching voter data for ID ${idNumber}:`, error);
+      console.error('❌ Error fetching voter data for ID ' + idNumber + ':', error);
       return null;
     }
   }
@@ -282,13 +282,13 @@ export class VoterVerificationService {
 
       // Validate file exists
       if (!fs.existsSync(filePath)) {
-        throw new Error(`File not found: ${filePath}`);
+        throw new Error('File not found: ' + filePath + '');
       }
 
       // Check if file is already processed (avoid infinite loops)
       const fileName = path.basename(filePath);
       if (fileName.includes('_processed')) {
-        throw new Error(`File appears to be already processed: ${fileName}`);
+        throw new Error('File appears to be already processed: ' + fileName + '');
       }
 
       progressCallback?.(10, 'Reading Excel file...');
@@ -328,7 +328,7 @@ export class VoterVerificationService {
         throw new Error('No valid ID numbers found in Excel file');
       }
 
-      progressCallback?.(30, `Processing ${idNumbers.length} ID numbers...`);
+      progressCallback?.(30, 'Processing ' + idNumbers.length + ' ID numbers...');
 
       // Process voter data with concurrency control
       const results = await this.processVoterDataConcurrently(
@@ -336,7 +336,7 @@ export class VoterVerificationService {
         wardNumber,
         (processed, total) => {
           const progress = 30 + Math.floor((processed / total) * 50);
-          progressCallback?.(progress, `Processed ${processed}/${total} ID numbers...`);
+          progressCallback?.(progress, 'Processed ${processed}/' + total + ' ID numbers...');
         }
       );
 
@@ -364,10 +364,10 @@ export class VoterVerificationService {
       // Clean up: Remove the original file after successful processing
       try {
         await fsPromises.unlink(filePath);
-        console.log(`🗑️ Original file removed: ${filePath}`);
+        console.log('🗑️ Original file removed: ' + filePath + '');
       } catch (cleanupError) {
         const errorMessage = cleanupError instanceof Error ? cleanupError.message : 'Unknown error';
-        console.warn(`⚠️ Failed to remove original file: ${errorMessage}`);
+        console.warn('⚠️ Failed to remove original file: ' + errorMessage + '');
         // Don't fail the entire process if cleanup fails
       }
 
@@ -475,7 +475,7 @@ export class VoterVerificationService {
           results.set(idNumber, result.value);
         } else {
           results.set(idNumber, null);
-          console.error(`Failed to process ID ${idNumber}:`, result.reason);
+          console.error('Failed to process ID ' + idNumber + ':', result.reason);
         }
         processed++;
         progressCallback?.(processed, idNumbers.length);
@@ -540,10 +540,10 @@ export class VoterVerificationService {
       const voterData = voterResults.get(idNumber);
 
       // Extract member data from Excel row using column mapping
-      const firstname = columnMapping.firstnameIndex >= 0 ? String(row[columnMapping.firstnameIndex] || '') : '';
-      const surname = columnMapping.surnameIndex >= 0 ? String(row[columnMapping.surnameIndex] || '') : '';
-      const name = `${firstname} ${surname}`.trim().toUpperCase();
-      const cellNumber = columnMapping.cellNumberIndex >= 0 ? String(row[columnMapping.cellNumberIndex] || '').replace('.0', '') : '';
+      const firstname = columnMapping.firstnameIndex >= 0 ? String(row[columnMapping.firstnameIndex] || '')  : '';
+      const surname = columnMapping.surnameIndex >= 0 ? String(row[columnMapping.surnameIndex] || '')  : '';
+      const name = '${firstname} ' + surname + ''.trim().toUpperCase();
+      const cellNumber = columnMapping.cellNumberIndex >= 0 ? String(row[columnMapping.cellNumberIndex] || '').replace('.0', '')  : '';
 
       const voterRecord: VoterRecord = {
         NAME: name || '',
@@ -551,11 +551,11 @@ export class VoterVerificationService {
         ID_NUMBER: idNumber,
         CELL_NUMBER: cellNumber || '',
         REGISTERED_VD: voterData?.voting_station || '',
-        VD_NUMBER: voterData?.vd_number || '',
+        VD_NUMBER : voterData?.vd_number || '',
         SIGNATURE: '',
         NEW_CELL_NUM: '',
         PROVINCE: voterData?.province || '',
-        MUNICIPALITY: voterData?.municipality || ''
+        MUNICIPALITY : voterData?.municipality || ''
       };
 
       // Categorize based on voter data
@@ -632,7 +632,7 @@ export class VoterVerificationService {
         votingStation = record.REGISTERED_VD;
         province = record.PROVINCE;
         municipality = record.MUNICIPALITY;
-        address = `${record.PROVINCE} ${record.MUNICIPALITY}`.trim();
+        address = '${record.PROVINCE} ' + record.MUNICIPALITY + ''.trim();
       }
 
       row.push(status, votingStation, province, municipality, address);
@@ -677,10 +677,10 @@ export class VoterVerificationService {
 
     // Save Excel file with retry logic for file locking issues
     const fileTimestamp = timestamp || new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const excelPath = path.join(outputDir, `${baseName}_processed_${fileTimestamp}.xlsx`);
+    const excelPath = path.join(outputDir, '${baseName}_processed_' + fileTimestamp + '.xlsx');
     await this.writeExcelFileWithRetry(workbook, excelPath);
 
-    console.log(`📊 Generated Excel file: ${excelPath}`);
+    console.log('📊 Generated Excel file: ' + excelPath + '');
     return excelPath;
   }
 
@@ -692,7 +692,7 @@ export class VoterVerificationService {
     timestamp?: string
   ): Promise<string> {
     const fileTimestamp = timestamp || new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const reportPath = path.join(outputDir, `${baseName}_Attendance_Register_${fileTimestamp}.pdf`);
+    const reportPath = path.join(outputDir, '${baseName}_Attendance_Register_' + fileTimestamp + '.pdf');
 
     return new Promise((resolve, reject) => {
       try {
@@ -714,8 +714,8 @@ export class VoterVerificationService {
         const quorum = Math.floor(total / 2) + 1;
 
         // Get province and municipality from first registered voter
-        const province = categories.RegisteredInWard[0]?.PROVINCE || 'Unknown';
-        const municipality = categories.RegisteredInWard[0]?.MUNICIPALITY || 'Unknown';
+        const province = categories.RegisteredInWard[0].PROVINCE || 'Unknown';
+        const municipality = categories.RegisteredInWard[0].MUNICIPALITY || 'Unknown';
 
         // Count unique voting stations
         const votingStations = new Set(
@@ -744,16 +744,16 @@ export class VoterVerificationService {
 
         // Left column
         doc.fontSize(10).font('Helvetica')
-           .text(`PROVINCE: ${province}`, leftX, startY)
-           .text(`TOTAL MEMBERSHIP IN GOOD STANDING: ${total}`, leftX, startY + 15)
-           .text(`QUORUM: ${quorum}`, leftX, startY + 30)
+           .text('PROVINCE: ' + province + '', leftX, startY)
+           .text('TOTAL MEMBERSHIP IN GOOD STANDING: ' + total + '', leftX, startY + 15)
+           .text('QUORUM: ' + quorum + '', leftX, startY + 30)
            .text('DATE OF BPA/BGA:', leftX, startY + 45);
 
         // Right column
-        doc.text(`SUB REGION: ${municipality}`, rightX, startY)
-           .text(`WARD: ${wardNumber}`, rightX, startY + 15)
+        doc.text('SUB REGION: ' + municipality + '', rightX, startY)
+           .text('WARD: ' + wardNumber + '', rightX, startY + 15)
            .text('BPA: |_| BGA: |_|', rightX, startY + 30)
-           .text(`TOTAL NUMBER OF VOTING STATIONS: ${votingStations.size}`, rightX, startY + 45);
+           .text('TOTAL NUMBER OF VOTING STATIONS: ' + votingStations.size + '', rightX, startY + 45);
 
         doc.y = startY + 70;
         doc.moveDown(1);
@@ -798,7 +798,7 @@ export class VoterVerificationService {
              .rect(startX, currentY, tableWidth, 15)
              .fillAndStroke('#e0e0e0', '#000000')
              .fillColor('#000000')
-             .text(`Voting Station: ${station || 'Unknown'}`, startX + 2, currentY + 3);
+             .text('Voting Station: ' + station || 'Unknown' + '', startX + 2, currentY + 3);
 
           currentY += 15;
 
@@ -920,7 +920,7 @@ export class VoterVerificationService {
              .rect(startX, currentY, tableWidth, 15)
              .fillAndStroke('#ffff99', '#000000')
              .fillColor('#000000')
-             .text(`Total Not Registered in Ward Voters: ${categories.NotRegisteredInWard.length}`, startX + 2, currentY + 3);
+             .text('Total Not Registered in Ward Voters: ' + categories.NotRegisteredInWard.length + '', startX + 2, currentY + 3);
         }
 
         // Add footer to current page
@@ -929,7 +929,7 @@ export class VoterVerificationService {
         doc.end();
 
         stream.on('finish', () => {
-          console.log(`📄 Generated PDF report: ${reportPath}`);
+          console.log('📄 Generated PDF report: ' + reportPath + '');
           resolve(reportPath);
         });
 
@@ -1014,9 +1014,9 @@ export class VoterVerificationService {
   private static addFooterToCurrentPage(doc: any, municipality: string, wardNumber: number): void {
     const currentPageNumber = doc.bufferedPageRange().start + doc.bufferedPageRange().count;
     doc.fontSize(10).font('Helvetica')
-       .text(`SUB REGION: ${municipality}`, 36, doc.page.height - 30)
-       .text(`WARD: ${wardNumber}`, doc.page.width - 100, doc.page.height - 30)
-       .text(`Page ${currentPageNumber}`, doc.page.width / 2 - 20, doc.page.height - 30);
+       .text('SUB REGION: ' + municipality + '', 36, doc.page.height - 30)
+       .text('WARD: ' + wardNumber + '', doc.page.width - 100, doc.page.height - 30)
+       .text('Page ' + currentPageNumber + '', doc.page.width / 2 - 20, doc.page.height - 30);
   }
 
   private static async writeExcelFileWithRetry(workbook: any, filePath: string, maxRetries: number = 5): Promise<void> {
@@ -1028,10 +1028,10 @@ export class VoterVerificationService {
         if (fs.existsSync(filePath)) {
           try {
             await fsPromises.unlink(filePath);
-            console.log(`🗑️ Removed existing file: ${filePath}`);
+            console.log('🗑️ Removed existing file: ' + filePath + '');
           } catch (unlinkError: any) {
             if (unlinkError.code !== 'ENOENT') {
-              console.warn(`⚠️ Could not remove existing file: ${unlinkError.message}`);
+              console.warn('⚠️ Could not remove existing file: ' + unlinkError.message + '');
             }
           }
         }
@@ -1041,7 +1041,7 @@ export class VoterVerificationService {
         const dir = path.dirname(filePath);
         const ext = path.extname(filePath);
         const baseName = path.basename(filePath, ext);
-        const uniqueFilePath = path.join(dir, `${baseName}_${timestamp}${ext}`);
+        const uniqueFilePath = path.join(dir, '${baseName}_${timestamp}' + ext + '');
 
         // Write the file
         XLSX.writeFile(workbook, uniqueFilePath);
@@ -1050,32 +1050,32 @@ export class VoterVerificationService {
         if (fs.existsSync(uniqueFilePath)) {
           try {
             await fsPromises.rename(uniqueFilePath, filePath);
-            console.log(`✅ Excel file written successfully: ${filePath}`);
+            console.log('✅ Excel file written successfully: ' + filePath + '');
             return;
           } catch (renameError: any) {
             // If rename fails, keep the unique filename
-            console.log(`✅ Excel file written with unique name: ${uniqueFilePath}`);
+            console.log('✅ Excel file written with unique name: ' + uniqueFilePath + '');
             return;
           }
         }
 
       } catch (error: any) {
         lastError = error;
-        console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed to write Excel file: ${error.message}`);
+        console.warn('⚠️ Attempt ${attempt}/${maxRetries} failed to write Excel file: ' + error.message + '');
 
         if (attempt < maxRetries) {
           // Wait before retrying (exponential backoff)
           const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+          console.log('⏳ Waiting ' + waitTime + 'ms before retry...');
           await this.delay(waitTime);
         }
       }
     }
 
-    throw new Error(`Failed to write Excel file after ${maxRetries} attempts. Last error: ${lastError?.message}`);
+    throw new Error('Failed to write Excel file after ${maxRetries} attempts. Last error: ' + lastError?.message + '');
   }
 
-  private static delay(ms: number): Promise<void> {
+  private static delay(ms : number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

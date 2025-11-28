@@ -53,7 +53,7 @@ export class QueueService {
         INSERT INTO message_queue (
           campaign_id, message_id, queue_type, priority, 
           scheduled_for, status
-        ) VALUES (?, ?, ?, ?, ?, 'Pending')
+        ) VALUES ($1, $2, $3, $4, $5, 'Pending')
       `;
 
       const params = [
@@ -206,7 +206,7 @@ export class QueueService {
         const query = `
           SELECT member_id, firstname, surname, email, cell_number, ward_code
           FROM members 
-          WHERE member_id = ?
+          WHERE member_id = $1
         `;
         return await executeQuerySingle(query, [message.recipient_id]);
       } catch (error) {
@@ -310,8 +310,8 @@ export class QueueService {
     try {
       const query = `
         UPDATE message_queue 
-        SET status = ?, processed_at = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET status = $1, processed_at = $2, error_message = $3, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4
       `;
 
       const processedAt = status === 'Completed' || status === 'Failed' ? new Date().toISOString() : null;
@@ -329,7 +329,7 @@ export class QueueService {
 
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
-          updateFields.push(`${key} = ?`);
+          updateFields.push(`${key} = $${params.length + 1}`);
           params.push(value);
         }
       });
@@ -339,7 +339,8 @@ export class QueueService {
       updateFields.push('updated_at = CURRENT_TIMESTAMP');
       params.push(queueId);
 
-      const query = `UPDATE message_queue SET ${updateFields.join(', ')} WHERE id = ?`;
+      const query = `UPDATE message_queue SET ${updateFields.join(', ')} WHERE id = $${params.length + 1}`;
+      params.push(queueId);
       await executeQuery(query, params);
     } catch (error) {
       console.error('Failed to update queue item:', error);
@@ -358,9 +359,9 @@ export class QueueService {
         SELECT 
           status,
           COUNT(*) as count,
-          AVG(TIMESTAMPDIFF(SECOND, created_at, COALESCE(processed_at, NOW()))) as avg_processing_time
-        FROM message_queue 
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+          AVG(EXTRACT(EPOCH FROM (COALESCE(processed_at, NOW()) - created_at))) as avg_processing_time
+        FROM message_queue
+        WHERE created_at >= NOW() - INTERVAL '24 hours'
         GROUP BY status
       `;
 
@@ -382,7 +383,7 @@ export class QueueService {
       const query = `
         DELETE FROM message_queue 
         WHERE status IN ('Completed', 'Failed') 
-        AND processed_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+        AND processed_at < NOW() - INTERVAL '$1 days'
       `;
 
       const result = await executeQuery(query, [olderThanDays]);
@@ -394,5 +395,4 @@ export class QueueService {
   }
 }
 
-// Initialize queue service when module is loaded
-QueueService.initialize();
+// Queue service will be initialized manually after database connection
