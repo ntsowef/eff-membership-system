@@ -22,7 +22,7 @@ const API_BASE_URL = 'http://localhost:5000/api/v1';
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60 seconds - increased for PDF generation and large exports
   headers: {
     'Content-Type': 'application/json',
   },
