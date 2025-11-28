@@ -90,6 +90,14 @@ export const isPrismaAvailable = (): boolean => {
   return prisma !== null;
 };
 
+// Get the raw PostgreSQL pool instance (for direct pool operations)
+export const getPool = (): Pool => {
+  if (!pool) {
+    throw new Error('Database pool not initialized. Call initializeDatabase() first.');
+  }
+  return pool;
+};
+
 // Get PostgreSQL connection from pool for raw SQL
 export const getConnection = async (): Promise<PoolClient> => {
   if (!pool) {
