@@ -15,6 +15,7 @@ import { geographicApi } from '../../services/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
 import { LocationOn } from '@mui/icons-material';
+import { devLog, devWarn } from '../../utils/logger';
 
 interface Province {
   province_code: string;
@@ -48,7 +49,7 @@ const ProvinceFilter: React.FC<ProvinceFilterProps> = ({
     queryKey: ['provinces'],
     queryFn: async () => {
       const result = await geographicApi.getProvinces();
-      console.log('ProvinceFilter - API response:', result);
+      devLog('ProvinceFilter - API response:', result);
       return result;
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -60,12 +61,12 @@ const ProvinceFilter: React.FC<ProvinceFilterProps> = ({
     if (municipalityContext.isMunicipalityAdmin) {
       return false;
     }
-    
+
     // Provincial Admin users should not see province filter (they're restricted to their province)
     if (provinceContext.isProvincialAdmin) {
       return false;
     }
-    
+
     // National Admin and other roles should see the filter
     return true;
   };
@@ -92,7 +93,7 @@ const ProvinceFilter: React.FC<ProvinceFilterProps> = ({
       provincesArray = (provinces as any).provinces;
     }
     else {
-      console.warn('Unexpected provinces data format:', provinces);
+      devWarn('Unexpected provinces data format:', provinces);
       return [];
     }
 

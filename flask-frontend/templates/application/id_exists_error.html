@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}ID Number Already Registered - EFF Membership{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-danger">
+            <div class="card-body py-5">
+                <div class="text-center mb-4">
+                    <i class="fas fa-exclamation-triangle text-danger" style="font-size: 5rem;"></i>
+                </div>
+                
+                <h2 class="text-danger text-center mb-4">ID Number Already Registered</h2>
+                
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-info-circle me-2"></i>This ID Number is Already in Our System
+                    </h5>
+                    <p class="mb-0">
+                        The ID number you entered is already registered in our membership system. 
+                        You cannot submit a new application with this ID number.
+                    </p>
+                </div>
+
+                {% if id_check_error.exists_in_members %}
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <h6 class="card-title text-success">
+                            <i class="fas fa-user-check me-2"></i>Existing Member Found
+                        </h6>
+                        {% if id_check_error.member_details %}
+                        <p class="mb-2">
+                            <strong>Name:</strong> {{ id_check_error.member_details.full_name }}
+                        </p>
+                        {% if id_check_error.member_details.ward_name %}
+                        <p class="mb-2">
+                            <strong>Ward:</strong> {{ id_check_error.member_details.ward_name }}
+                        </p>
+                        {% endif %}
+                        {% if id_check_error.member_details.province_name %}
+                        <p class="mb-2">
+                            <strong>Province:</strong> {{ id_check_error.member_details.province_name }}
+                        </p>
+                        {% endif %}
+                        <p class="mb-0">
+                            <strong>Member ID:</strong> {{ id_check_error.member_details.member_id }}
+                        </p>
+                        {% endif %}
+                        <hr>
+                        <p class="text-muted mb-0">
+                            <small>
+                                <i class="fas fa-lightbulb me-1"></i>
+                                You are already a registered member. If you need to update your information or renew your membership, 
+                                please contact your branch office or email 
+                                <a href="mailto:membership@eff.org.za">membership@eff.org.za</a>
+                            </small>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if id_check_error.exists_in_applications %}
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <h6 class="card-title text-warning">
+                            <i class="fas fa-clock me-2"></i>Pending Application Found
+                        </h6>
+                        {% if id_check_error.application_details %}
+                        <p class="mb-2">
+                            <strong>Application Reference:</strong> 
+                            <span class="badge bg-primary">{{ id_check_error.application_details.application_number }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>Name:</strong> {{ id_check_error.application_details.full_name }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Status:</strong> 
+                            <span class="badge bg-info">{{ id_check_error.application_details.status }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>Submitted:</strong> {{ id_check_error.application_details.created_at }}
+                        </p>
+                        {% endif %}
+                        <hr>
+                        <p class="text-muted mb-0">
+                            <small>
+                                <i class="fas fa-lightbulb me-1"></i>
+                                You have a pending membership application. Please wait for it to be processed. 
+                                You can check your application status using the reference number above.
+                            </small>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-question-circle me-2"></i>What Should I Do?
+                        </h6>
+                        <ul class="mb-0">
+                            {% if id_check_error.exists_in_members %}
+                            <li>If you are already a member and need to update your information, please contact your branch office</li>
+                            <li>If you need to renew your membership, please use the membership renewal process</li>
+                            <li>If you believe this is an error, please contact us at <a href="mailto:membership@eff.org.za">membership@eff.org.za</a></li>
+                            {% elif id_check_error.exists_in_applications %}
+                            <li>Wait for your pending application to be processed</li>
+                            <li>Check your application status using the reference number provided</li>
+                            <li>If you have questions about your application, contact us at <a href="mailto:membership@eff.org.za">membership@eff.org.za</a></li>
+                            {% else %}
+                            <li>Contact us at <a href="mailto:membership@eff.org.za">membership@eff.org.za</a> for assistance</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-home"></i> Return to Home
+                    </a>
+                    {% if id_check_error.exists_in_applications and id_check_error.application_details %}
+                    <a href="{{ url_for('application_status', application_number=id_check_error.application_details.application_number) }}" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-search"></i> Check Application Status
+                    </a>
+                    {% endif %}
+                </div>
+
+                <hr class="my-4">
+                
+                <p class="text-center text-muted mb-0">
+                    <small>
+                        For any questions or concerns, please contact us at 
+                        <a href="mailto:membership@eff.org.za">membership@eff.org.za</a> or call our membership hotline.
+                    </small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

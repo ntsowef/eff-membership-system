@@ -185,6 +185,8 @@ export class ViewsService {
           m.voter_registration_number,
           m.voter_registration_date,
           m.voter_status_id,
+          m.voter_registration_id,
+          m.is_registered_voter,
           m.membership_status_id,
           m.voting_station_id,
           m.voting_district_code,

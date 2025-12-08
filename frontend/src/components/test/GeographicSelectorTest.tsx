@@ -8,6 +8,7 @@ import {
   Button
 } from '@mui/material';
 import GeographicSelector from '../common/GeographicSelector';
+import { devLog } from '../../utils/logger';
 
 const GeographicSelectorTest: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -67,48 +68,48 @@ const GeographicSelectorTest: React.FC = () => {
             selectedWard={formData.ward_code}
             selectedVotingDistrict={formData.voting_district_code}
             onProvinceChange={(code) => {
-              console.log('Province changed:', code);
-              setFormData(prev => ({ 
-                ...prev, 
-                province_code: code, 
-                district_code: '', 
-                municipal_code: '', 
-                ward_code: '', 
-                voting_district_code: '' 
+              devLog('Province changed:', code);
+              setFormData(prev => ({
+                ...prev,
+                province_code: code,
+                district_code: '',
+                municipal_code: '',
+                ward_code: '',
+                voting_district_code: ''
               }));
             }}
             onDistrictChange={(code) => {
-              console.log('District changed:', code);
-              setFormData(prev => ({ 
-                ...prev, 
-                district_code: code, 
-                municipal_code: '', 
-                ward_code: '', 
-                voting_district_code: '' 
+              devLog('District changed:', code);
+              setFormData(prev => ({
+                ...prev,
+                district_code: code,
+                municipal_code: '',
+                ward_code: '',
+                voting_district_code: ''
               }));
             }}
             onMunicipalityChange={(code) => {
-              console.log('Municipality changed:', code);
-              setFormData(prev => ({ 
-                ...prev, 
-                municipal_code: code, 
-                ward_code: '', 
-                voting_district_code: '' 
+              devLog('Municipality changed:', code);
+              setFormData(prev => ({
+                ...prev,
+                municipal_code: code,
+                ward_code: '',
+                voting_district_code: ''
               }));
             }}
             onWardChange={(code) => {
-              console.log('Ward changed:', code);
-              setFormData(prev => ({ 
-                ...prev, 
-                ward_code: code, 
-                voting_district_code: '' 
+              devLog('Ward changed:', code);
+              setFormData(prev => ({
+                ...prev,
+                ward_code: code,
+                voting_district_code: ''
               }));
             }}
             onVotingDistrictChange={(code) => {
-              console.log('Voting District changed:', code);
-              setFormData(prev => ({ 
-                ...prev, 
-                voting_district_code: code 
+              devLog('Voting District changed:', code);
+              setFormData(prev => ({
+                ...prev,
+                voting_district_code: code
               }));
             }}
             showVotingDistricts={true}

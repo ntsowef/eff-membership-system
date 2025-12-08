@@ -6,6 +6,7 @@ import { Box, Typography, Alert, Button, Card, CardContent, CircularProgress } f
 import { CheckCircle, Refresh } from '@mui/icons-material';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
+import { devLog } from '../../utils/logger';
 
 const { LeadershipAPI } = LeadershipService;
 type MemberFilters = LeadershipService.MemberFilters;
@@ -27,16 +28,16 @@ const ApiTest: React.FC = () => {
         q: undefined // No search term
       };
 
-      console.log('Testing members API with filters:', filters);
-      
+      devLog('Testing members API with filters:', filters);
+
       const response = await LeadershipAPI.getMembers(filters);
-      
+
       setResults({
         success: true,
         data: response,
         message: `Successfully fetched ${response.members?.length || 0} members`
       });
-      
+
       addNotification({
         type: 'success',
         message: `✅ API test successful! Fetched ${response.members?.length || 0} members`
@@ -71,8 +72,8 @@ const ApiTest: React.FC = () => {
         q: 'john' // Test search functionality
       };
 
-      console.log('Testing members API with search:', filters);
-      
+      devLog('Testing members API with search:', filters);
+
       const response = await LeadershipAPI.getMembers(filters);
       
       setResults({
@@ -109,8 +110,8 @@ const ApiTest: React.FC = () => {
     setResults(null);
     
     try {
-      console.log('Testing positions API...');
-      
+      devLog('Testing positions API...');
+
       const positions = await LeadershipAPI.getPositions();
       
       setResults({

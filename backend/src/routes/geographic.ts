@@ -187,43 +187,6 @@ router.get('/subregions/:code',
   })
 );
 
-// Get sub-regions for a municipality (wards for metros, local municipalities for regular)
-router.get('/municipality-subregions', asyncHandler(async (req, res) => {
-  const { municipality_code } = req.query;
-
-  if (!municipality_code || typeof municipality_code !== 'string') {
-    throw new ValidationError('municipality_code parameter is required');
-  }
-
-  // Get municipality details to check type
-  const municipality = await GeographicModel.getMunicipalityByCode(municipality_code);
-
-  if (!municipality) {
-    throw new NotFoundError(`Municipality with code '${municipality_code}' not found`);
-  }
-
-  let subregions;
-  let isMetro = false;
-
-  // Check if municipality is Metropolitan type
-  if (municipality.municipality_type === 'Metropolitan') {
-    // For metros, return wards as sub-regions
-    isMetro = true;
-    subregions = await GeographicModel.getWardsByMunicipality(municipality_code);
-  } else {
-    // For regular districts, return local municipalities (sub-regions)
-    subregions = await GeographicModel.getSubregionsByMunicipality(municipality_code);
-  }
-
-  sendSuccess(res, {
-    municipality_code,
-    municipality_name: municipality.municipality_name,
-    municipality_type: municipality.municipality_type,
-    is_metro: isMetro,
-    subregions
-  }, 'Sub-regions retrieved successfully');
-}));
-
 // Ward routes
 router.get('/wards',
   validate({

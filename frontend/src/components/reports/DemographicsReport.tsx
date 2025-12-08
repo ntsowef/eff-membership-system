@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface DemographicsData {
   gender: {
@@ -91,7 +92,7 @@ const DemographicsReport: React.FC = () => {
     queryKey: ['demographics', filters, refreshKey],
     queryFn: async () => {
       const response = await api.get('/statistics/demographics', { params: filters });
-      console.log('Demographics API Response:', response.data);
+      devLog('Demographics API Response:', response.data);
 
       // Handle the nested data structure: response.data.data.demographics
       if (response.data && response.data.data && response.data.data.demographics) {

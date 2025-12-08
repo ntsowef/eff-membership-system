@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { geographicApi } from '../../services/api';
+import { devLog } from '../../utils/logger';
 
 const APIDebugTest: React.FC = () => {
   const [testParams, setTestParams] = useState({
@@ -26,7 +27,7 @@ const APIDebugTest: React.FC = () => {
   const { data: provinces, isLoading: provincesLoading, error: provincesError } = useQuery({
     queryKey: ['debug-provinces'],
     queryFn: () => {
-      console.log('🌍 API Call: getProvinces()');
+      devLog('🌍 API Call: getProvinces()');
       return geographicApi.getProvinces();
     },
     enabled: activeTest === 'provinces',
@@ -36,7 +37,7 @@ const APIDebugTest: React.FC = () => {
   const { data: districts, isLoading: districtsLoading, error: districtsError } = useQuery({
     queryKey: ['debug-districts', testParams.provinceCode],
     queryFn: () => {
-      console.log('🏘️ API Call: getDistricts(' + testParams.provinceCode + ')');
+      devLog('🏘️ API Call: getDistricts(' + testParams.provinceCode + ')');
       return geographicApi.getDistricts(testParams.provinceCode);
     },
     enabled: activeTest === 'districts',
@@ -46,7 +47,7 @@ const APIDebugTest: React.FC = () => {
   const { data: municipalities, isLoading: municipalitiesLoading, error: municipalitiesError } = useQuery({
     queryKey: ['debug-municipalities', testParams.districtCode],
     queryFn: () => {
-      console.log('🏢 API Call: getMunicipalities(' + testParams.districtCode + ')');
+      devLog('🏢 API Call: getMunicipalities(' + testParams.districtCode + ')');
       return geographicApi.getMunicipalities(testParams.districtCode);
     },
     enabled: activeTest === 'municipalities',
@@ -56,7 +57,7 @@ const APIDebugTest: React.FC = () => {
   const { data: wards, isLoading: wardsLoading, error: wardsError } = useQuery({
     queryKey: ['debug-wards', testParams.municipalCode],
     queryFn: () => {
-      console.log('🏘️ API Call: getWards(' + testParams.municipalCode + ')');
+      devLog('🏘️ API Call: getWards(' + testParams.municipalCode + ')');
       return geographicApi.getWards(testParams.municipalCode);
     },
     enabled: activeTest === 'wards',
@@ -66,7 +67,7 @@ const APIDebugTest: React.FC = () => {
   const { data: votingDistricts, isLoading: votingDistrictsLoading, error: votingDistrictsError } = useQuery({
     queryKey: ['debug-voting-districts', testParams.wardCode],
     queryFn: () => {
-      console.log('🗳️ API Call: getVotingDistrictsByWard(' + testParams.wardCode + ')');
+      devLog('🗳️ API Call: getVotingDistrictsByWard(' + testParams.wardCode + ')');
       return geographicApi.getVotingDistrictsByWard(testParams.wardCode);
     },
     enabled: activeTest === 'voting-districts',

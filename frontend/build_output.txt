@@ -1,0 +1,770 @@
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+src/components/admin/FinancialMonitoringDashboard.tsx(41,15): error TS6133: 'DownloadIcon' is declared but its value is never read.
+src/components/admin/FinancialMonitoringDashboard.tsx(334,44): error TS6133: 'e' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(26,3): error TS6133: 'People' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(29,3): error TS6133: 'Assessment' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(34,3): error TS6133: 'FilterList' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(39,3): error TS6133: 'LineChart' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(41,3): error TS6133: 'AreaChart' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(43,3): error TS6133: 'BarChart' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(44,3): error TS6133: 'Bar' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(45,3): error TS6133: 'PieChart' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(46,3): error TS6133: 'Pie' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(47,3): error TS6133: 'Cell' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(55,3): error TS6133: 'Scatter' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(56,3): error TS6133: 'ScatterChart' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(138,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(144,59): error TS2353: Object literal may only specify known properties, and 'timeRange' does not exist in type 'ReportFilters'.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(151,58): error TS2353: Object literal may only specify known properties, and 'timeRange' does not exist in type 'ReportFilters'.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(158,53): error TS2353: Object literal may only specify known properties, and 'timeRange' does not exist in type 'ReportFilters'.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(257,11): error TS6133: 'activeMembers' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(319,36): error TS6133: 'growthData' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(381,33): error TS6133: 'analytics' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(393,26): error TS6133: 'analytics' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(445,34): error TS6133: 'analytics' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(445,50): error TS6133: 'stats' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(465,32): error TS6133: 'analytics' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(482,41): error TS6133: 'analytics' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(495,5): error TS6133: 'insights' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(496,5): error TS6133: 'predictions' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(497,5): error TS6133: 'risks' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(786,74): error TS6133: 'index' is declared but its value is never read.
+src/components/analytics/BusinessIntelligenceDashboard.tsx(1168,54): error TS6133: 'index' is declared but its value is never read.
+src/components/application/PartyDeclarationStep.tsx(12,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/application/PersonalInfoStep.tsx(12,3): error TS6133: 'Chip' is declared but its value is never read.
+src/components/application/PersonalInfoStep.tsx(18,25): error TS6133: 'formatIdNumber' is declared but its value is never read.
+src/components/applications/EnhancedFinancialReviewPanel.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/applications/EnhancedFinancialReviewPanel.tsx(85,3): error TS6133: 'approvalStatus' is declared but its value is never read.
+src/components/applications/EnhancedFinancialReviewPanel.tsx(171,28): error TS6133: 'event' is declared but its value is never read.
+src/components/applications/FinalReviewPanel.tsx(20,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/applications/FinalReviewPanel.tsx(26,3): error TS6133: 'Warning' is declared but its value is never read.
+src/components/audit/MunicipalityDetailsModal.tsx(454,58): error TS6133: 'entry' is declared but its value is never read.
+src/components/audit/MunicipalityFilter.tsx(17,20): error TS6133: 'Lock' is declared but its value is never read.
+src/components/audit/MunicipalityFilter.tsx(111,29): error TS2339: Property 'municipalities' does not exist on type 'ApiResponse<any>'.
+src/components/audit/MunicipalityFilter.tsx(111,76): error TS2339: Property 'municipalities' does not exist on type 'ApiResponse<any>'.
+src/components/audit/MunicipalityFilter.tsx(112,44): error TS2339: Property 'municipalities' does not exist on type 'ApiResponse<any>'.
+src/components/audit/MunicipalityPerformanceTable.tsx(66,3): error TS6133: 'onShowMessage' is declared but its value is never read.
+src/components/audit/MunicipalityPerformanceTable.tsx(88,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/audit/MunicipalityPerformanceTable.tsx(207,21): error TS18046: 'error' is of type 'unknown'.
+src/components/audit/ProvinceFilter.tsx(17,22): error TS6133: 'Lock' is declared but its value is never read.
+src/components/audit/ProvinceFilter.tsx(91,24): error TS2339: Property 'provinces' does not exist on type 'ApiResponse<any>'.
+src/components/audit/ProvinceFilter.tsx(91,61): error TS2339: Property 'provinces' does not exist on type 'ApiResponse<any>'.
+src/components/audit/ProvinceFilter.tsx(92,34): error TS2339: Property 'provinces' does not exist on type 'ApiResponse<any>'.
+src/components/audit/WardAuditOverview.tsx(15,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/audit/WardAuditOverview.tsx(24,3): error TS6133: 'LocationCity' is declared but its value is never read.
+src/components/audit/WardAuditOverview.tsx(32,1): error TS6133: 'wardMembershipAuditApi' is declared but its value is never read.
+src/components/audit/WardAuditOverview.tsx(34,32): error TS6133: 'MUNICIPALITY_PERFORMANCE_COLORS' is declared but its value is never read.
+src/components/audit/WardAuditOverview.tsx(56,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/audit/WardAuditOverview.tsx(139,9): error TS6133: 'getPerformanceIcon' is declared but its value is never read.
+src/components/audit/WardAuditTable.tsx(66,3): error TS6133: 'onShowMessage' is declared but its value is never read.
+src/components/audit/WardAuditTable.tsx(90,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/audit/WardAuditTable.tsx(211,21): error TS18046: 'error' is of type 'unknown'.
+src/components/audit/WardDetailsModal.tsx(21,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/audit/WardDetailsModal.tsx(27,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/audit/WardDetailsModal.tsx(106,9): error TS6133: 'getTrendIcon' is declared but its value is never read.
+src/components/audit/WardTrendsAnalysis.tsx(1,28): error TS6133: 'useState' is declared but its value is never read.
+src/components/audit/WardTrendsAnalysis.tsx(33,1): error TS6133: 'wardMembershipAuditApi' is declared but its value is never read.
+src/components/audit/WardTrendsAnalysis.tsx(57,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/auth/AuthProvider.tsx(96,13): error TS6133: 'requestInterceptor' is declared but its value is never read.
+src/components/auth/AuthProvider.tsx(105,13): error TS6133: 'responseInterceptor' is declared but its value is never read.
+src/components/auth/LoginForm.tsx(13,3): error TS6133: 'Link' is declared but its value is never read.
+src/components/cards/BulkCardGenerator.tsx(52,21): error TS6133: 'setSendEmail' is declared but its value is never read.
+src/components/cards/CardVerification.tsx(14,3): error TS6133: 'Avatar' is declared but its value is never read.
+src/components/cards/DigitalCardGenerator.tsx(32,3): error TS6133: 'Print' is declared but its value is never read.
+src/components/cards/MemberCardDisplay.tsx(12,3): error TS6133: 'Avatar' is declared but its value is never read.
+src/components/cards/MemberCardDisplay.tsx(13,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/cards/MemberCardDisplay.tsx(27,3): error TS6133: 'LocationOn' is declared but its value is never read.
+src/components/common/CascadingGeographicFilter.tsx(10,3): error TS6133: 'Alert' is declared but its value is never read.
+src/components/common/CogLoader.tsx(21,38): error TS6133: 'theme' is declared but its value is never read.
+src/components/common/CogLoader.tsx(51,29): error TS6133: 'theme' is declared but its value is never read.
+src/components/common/CogLoader.tsx(61,30): error TS6133: 'theme' is declared but its value is never read.
+src/components/common/CogLoader.tsx(72,32): error TS6133: 'theme' is declared but its value is never read.
+src/components/common/PermissionGate.tsx(3,10): error TS6133: 'Box' is declared but its value is never read.
+src/components/common/PermissionGate.tsx(25,63): error TS6133: 'getAdminLevelDisplay' is declared but its value is never read.
+src/components/common/ProvinceContextBanner.tsx(3,3): error TS6133: 'Alert' is declared but its value is never read.
+src/components/common/SessionWarningDialog.test.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/components/common/SessionWarningDialog.test.tsx(20,46): error TS2345: Argument of type '{ sessionStatus: { isValid: true; timeRemaining: number; needsWarning: true; canExtend: true; }; isExtending: false; extendSession: jest.Mock<any, any, any>; dismissWarning: jest.Mock<any, any, any>; handleLogout: jest.Mock<...>; formatTimeRemaining: (minutes: number) => string; }' is not assignable to parameter of type '{ sessionStatus: SessionStatus; showWarning: boolean; isExtending: boolean; extendSession: () => Promise<boolean>; dismissWarning: () => void; handleLogout: () => void; formatTimeRemaining: (minutes: number) => string; }'.
+  Property 'showWarning' is missing in type '{ sessionStatus: { isValid: true; timeRemaining: number; needsWarning: true; canExtend: true; }; isExtending: false; extendSession: jest.Mock<any, any, any>; dismissWarning: jest.Mock<any, any, any>; handleLogout: jest.Mock<...>; formatTimeRemaining: (minutes: number) => string; }' but required in type '{ sessionStatus: SessionStatus; showWarning: boolean; isExtending: boolean; extendSession: () => Promise<boolean>; dismissWarning: () => void; handleLogout: () => void; formatTimeRemaining: (minutes: number) => string; }'.
+src/components/common/SessionWarningDialog.tsx(11,3): error TS6133: 'CircularProgress' is declared but its value is never read.
+src/components/common/SessionWarningDialog.tsx(16,14): error TS6133: 'RefreshIcon' is declared but its value is never read.
+src/components/common/SessionWarningDialog.tsx(32,5): error TS6133: 'isExtending' is declared but its value is never read.
+src/components/dashboard/EnhancedMembershipOverview.tsx(23,3): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/components/dashboard/EnhancedMembershipOverview.tsx(25,3): error TS6133: 'Notifications' is declared but its value is never read.
+src/components/dashboard/EnhancedMembershipOverview.tsx(27,3): error TS6133: 'Visibility' is declared but its value is never read.
+src/components/dashboard/ExpiredMembersSection.tsx(29,1): error TS6133: 'statisticsApi' is declared but its value is never read.
+src/components/dashboard/ExpiredMembersSection.tsx(119,71): error TS2339: Property 'filtered_by_municipality' does not exist on type 'ExpiredMembersData'.
+src/components/dashboard/ExpiredMembersSection.tsx(244,44): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(244,83): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(245,44): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(245,83): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(250,49): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(250,95): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(251,57): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(284,52): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/ExpiredMembersSection.tsx(290,52): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/components/dashboard/MembershipStatusOverview.tsx(61,13): error TS7009: 'new' expression, whose target lacks a construct signature, implicitly has an 'any' type.
+src/components/dashboard/MembershipStatusOverview.tsx(61,23): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & SvgIconOwnProps & CommonProps & Omit<any, "fontSize" | ... 10 more ... | "titleAccess">): Element | null', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type '{ component: ElementType<any, keyof IntrinsicElements>; } & SvgIconOwnProps & CommonProps & Omit<any, "fontSize" | ... 10 more ... | "titleAccess">'.
+      Type 'string' is not assignable to type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<SvgIconTypeMap<{}, "svg">>): Element | null', gave the following error.
+    Type '"Invalid membership status data structure"' has no properties in common with type 'DefaultComponentProps<SvgIconTypeMap<{}, "svg">>'.
+src/components/debug/UserRoleDebug.tsx(89,38): error TS2345: Argument of type 'string' is not assignable to parameter of type 'keyof PermissionMap'.
+src/components/debug/UserRoleDebug.tsx(90,38): error TS2345: Argument of type 'string' is not assignable to parameter of type 'keyof PermissionMap'.
+src/components/file-processing/FileProcessingDashboard.tsx(12,3): error TS6133: 'Dialog' is declared but its value is never read.
+src/components/file-processing/FileProcessingDashboard.tsx(13,3): error TS6133: 'DialogTitle' is declared but its value is never read.
+src/components/file-processing/FileProcessingDashboard.tsx(14,3): error TS6133: 'DialogContent' is declared but its value is never read.
+src/components/file-processing/FileProcessingDashboard.tsx(15,3): error TS6133: 'DialogActions' is declared but its value is never read.
+src/components/file-processing/FileProcessingDashboard.tsx(50,10): error TS6133: 'uploadDialogOpen' is declared but its value is never read.
+src/components/file-processing/FileProcessingDashboard.tsx(165,9): error TS6133: 'handleUpload' is declared but its value is never read.
+src/components/file-processing/FileProcessingStatusModal.tsx(58,3): error TS6133: 'initialJobData' is declared but its value is never read.
+src/components/file-processing/FileProcessingStatusModal.tsx(62,5): error TS6133: 'currentJob' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(18,3): error TS6133: 'TextField' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(38,3): error TS6133: 'ExpandMore' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(39,3): error TS6133: 'ExpandLess' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(43,3): error TS6133: 'Search' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(44,3): error TS6133: 'Clear' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(169,9): error TS6133: 'handleClearFilters' is declared but its value is never read.
+src/components/financial/FinancialTransactionHistory.tsx(183,41): error TS6133: 'event' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(15,3): error TS6133: 'Chip' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(16,3): error TS6133: 'Button' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(27,3): error TS6133: 'AccountBalance' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(30,3): error TS6133: 'Payment' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(43,3): error TS6133: 'Notifications' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(47,3): error TS6133: 'LineChart' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(65,33): error TS6133: 'twoTierApprovalApi' is declared but its value is never read.
+src/components/financial/UnifiedFinancialDashboard.tsx(185,51): error TS2339: Property 'trends' does not exist on type 'FinancialTrends'.
+src/components/financial/UnifiedFinancialDashboard.tsx(185,73): error TS2339: Property 'trends' does not exist on type 'FinancialTrends'.
+src/components/financial/UnifiedFinancialDashboard.tsx(203,51): error TS2339: Property 'alerts' does not exist on type 'FinancialAlert[]'.
+src/components/financial/UnifiedFinancialDashboard.tsx(203,73): error TS2339: Property 'alerts' does not exist on type 'FinancialAlert[]'.
+src/components/financial/UnifiedFinancialDashboard.tsx(207,29): error TS2339: Property 'metrics' does not exist on type 'FinancialMetrics'.
+src/components/financial/UnifiedFinancialDashboard.tsx(367,22): error TS6133: 'e' is declared but its value is never read.
+src/components/layout/AdminNavigation.tsx(49,9): error TS6133: 'permissions' is declared but its value is never read.
+src/components/layout/Sidebar.tsx(43,3): error TS6133: 'Logout' is declared but its value is never read.
+src/components/layout/Sidebar.tsx(335,24): error TS6133: 'hasPermission' is declared but its value is never read.
+src/components/leadership/ApiTest.tsx(6,23): error TS6133: 'Error' is declared but its value is never read.
+src/components/leadership/DatabaseTest.tsx(6,23): error TS6133: 'Error' is declared but its value is never read.
+src/components/leadership/DatabaseTest.tsx(24,73): error TS2353: Object literal may only specify known properties, and 'limit' does not exist in type 'AppointmentFilters'.
+src/components/leadership/EligibleMembersView.tsx(63,29): error TS6133: 'event' is declared but its value is never read.
+src/components/leadership/EligibleMembersView.tsx(80,9): error TS6133: 'getHierarchyLevelColor' is declared but its value is never read.
+src/components/leadership/FinalTest.tsx(32,15): error TS7009: 'new' expression, whose target lacks a construct signature, implicitly has an 'any' type.
+src/components/leadership/FinalTest.tsx(32,25): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & SvgIconOwnProps & CommonProps & Omit<any, "fontSize" | ... 10 more ... | "titleAccess">): Element | null', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type '{ component: ElementType<any, keyof IntrinsicElements>; } & SvgIconOwnProps & CommonProps & Omit<any, "fontSize" | ... 10 more ... | "titleAccess">'.
+      Type 'string' is not assignable to type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<SvgIconTypeMap<{}, "svg">>): Element | null', gave the following error.
+    Type '"LeadershipAPI not properly imported"' has no properties in common with type 'DefaultComponentProps<SvgIconTypeMap<{}, "svg">>'.
+src/components/leadership/GeographicFilterTest.tsx(19,10): error TS6133: 'CheckCircle' is declared but its value is never read.
+src/components/leadership/GeographicFilterTest.tsx(134,20): error TS18046: 'error' is of type 'unknown'.
+src/components/leadership/ImportTest.tsx(6,23): error TS6133: 'Error' is declared but its value is never read.
+src/components/leadership/ImportTest.tsx(126,11): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/components/leadership/ImportTest.tsx(126,29): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/components/leadership/ImportTest.tsx(126,53): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/components/leadership/LeadershipAssignment.tsx(4,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/leadership/LeadershipAssignment.tsx(32,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/leadership/LeadershipAssignment.tsx(40,3): error TS6133: 'Add' is declared but its value is never read.
+src/components/leadership/LeadershipAssignment.tsx(42,3): error TS6133: 'Edit' is declared but its value is never read.
+src/components/leadership/LeadershipAssignment.tsx(45,3): error TS6133: 'Info' is declared but its value is never read.
+src/components/leadership/LeadershipAssignment.tsx(122,11): error TS6196: 'PositionWithVacancy' is declared but never used.
+src/components/leadership/LeadershipAssignment.tsx(139,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/leadership/LeadershipAssignment.tsx(274,7): error TS2322: Type 'string' is not assignable to type '"National" | "Municipality" | "Province" | "Ward" | "District"'.
+src/components/leadership/LeadershipAssignment.tsx(536,11): error TS2719: Type '(member: Member) => void' is not assignable to type '(member: Member) => void'. Two different types with this name exist, but they are unrelated.
+  Types of parameters 'member' and 'member' are incompatible.
+    Type 'Member' is not assignable to type 'Member'. Two different types with this name exist, but they are unrelated.
+      Types of property 'firstname' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/LeadershipManagement.tsx(116,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/leadership/LeadershipManagement.tsx(120,64): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/LeadershipRoster.tsx(39,3): error TS6133: 'Delete' is declared but its value is never read.
+src/components/leadership/LeadershipRoster.tsx(65,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/leadership/LeadershipTest.tsx(44,9): error TS6198: All destructured elements are unused.
+src/components/leadership/LeadershipTest.tsx(92,19): error TS6133: 'testData' is declared but its value is never read.
+src/components/leadership/MemberSelector.tsx(136,9): error TS6133: 'provinceContext' is declared but its value is never read.
+src/components/leadership/MemberSelectorDebug.tsx(27,6): error TS6196: 'MemberFilters' is declared but never used.
+src/components/leadership/MemberSelectorDebug.tsx(30,9): error TS6133: 'addNotification' is declared but its value is never read.
+src/components/leadership/QuickTest.tsx(6,23): error TS6133: 'Error' is declared but its value is never read.
+src/components/leadership/WarCouncilAppointmentDialog.tsx(31,3): error TS6133: 'Warning' is declared but its value is never read.
+src/components/leadership/WarCouncilAppointmentDialog.tsx(85,9): error TS6133: 'user' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignment.tsx(18,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignment.tsx(19,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignment.tsx(25,3): error TS1484: 'DropResult' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/leadership/WarCouncilAssignment.tsx(33,11): error TS6133: 'InfoIcon' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignment.tsx(61,11): error TS2339: Property 'showNotification' does not exist on type 'UIState'.
+src/components/leadership/WarCouncilAssignment.tsx(79,23): error TS2339: Property 'getEligibleMembers' does not exist on type 'typeof LeadershipAPI'.
+src/components/leadership/WarCouncilAssignment.tsx(98,26): error TS6133: 'source' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignment.tsx(122,46): error TS2554: Expected 2 arguments, but got 1.
+src/components/leadership/WarCouncilAssignment.tsx(153,9): error TS2820: Type '"Appointment"' is not assignable to type '"Elected" | "Appointed" | "Acting" | "Interim"'. Did you mean '"Appointed"'?
+src/components/leadership/WarCouncilAssignment.tsx(332,64): error TS6133: 'onAssign' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignmentSimple.tsx(23,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignmentSimple.tsx(24,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignmentSimple.tsx(27,13): error TS6133: 'PersonIcon' is declared but its value is never read.
+src/components/leadership/WarCouncilAssignmentSimple.tsx(62,11): error TS2339: Property 'showNotification' does not exist on type 'UIState'.
+src/components/leadership/WarCouncilAssignmentSimple.tsx(123,46): error TS2554: Expected 2 arguments, but got 1.
+src/components/leadership/WarCouncilAssignmentSimple.tsx(154,9): error TS2820: Type '"Appointment"' is not assignable to type '"Elected" | "Appointed" | "Acting" | "Interim"'. Did you mean '"Appointed"'?
+src/components/leadership/WarCouncilDashboard.tsx(17,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/leadership/WarCouncilDashboard.tsx(52,77): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/WarCouncilDashboard.tsx(53,9): error TS6133: 'canManageAppointments' is declared but its value is never read.
+src/components/leadership/WarCouncilDashboard.tsx(53,87): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/WarCouncilDashboard.tsx(54,9): error TS6133: 'uiConfig' is declared but its value is never read.
+src/components/leadership/WarCouncilDashboard.tsx(54,54): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/WarCouncilStructure.tsx(10,3): error TS6133: 'Table' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(11,3): error TS6133: 'TableBody' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(12,3): error TS6133: 'TableCell' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(13,3): error TS6133: 'TableContainer' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(14,3): error TS6133: 'TableHead' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(15,3): error TS6133: 'TableRow' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(16,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(19,3): error TS6133: 'Dialog' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(20,3): error TS6133: 'DialogTitle' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(21,3): error TS6133: 'DialogContent' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(22,3): error TS6133: 'DialogActions' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(33,3): error TS6133: 'Gavel' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(37,3): error TS6133: 'Info' is declared but its value is never read.
+src/components/leadership/WarCouncilStructure.tsx(89,68): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/WarCouncilStructure.tsx(90,87): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/WarCouncilStructure.tsx(91,54): error TS2345: Argument of type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User | null' is not assignable to parameter of type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User | null'.
+  Type 'import("C:/Development/NewProj/Membership-new/frontend/src/store/index").User' is not assignable to type 'import("C:/Development/NewProj/Membership-new/frontend/src/utils/warCouncilPermissions").User'.
+    Types of property 'role_name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/leadership/WarCouncilStructure.tsx(113,28): error TS6133: 'event' is declared but its value is never read.
+src/components/members/bulk-upload/UploadHistoryTab.tsx(98,29): error TS6133: 'event' is declared but its value is never read.
+src/components/members/GeographicFilter.tsx(89,7): error TS6133: 'isSpecialVotingDistrict' is declared but its value is never read.
+src/components/members/GeographicFilter.tsx(129,81): error TS2339: Property 'data' does not exist on type 'never'.
+src/components/membership/ExpirationManagement.tsx(15,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(32,3): error TS6133: 'Stack' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(36,3): error TS6133: 'FilterList' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(37,3): error TS6133: 'Download' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(44,3): error TS6133: 'PersonOff' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(48,3): error TS6133: 'GetApp' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(77,21): error TS6133: 'setSortOrder' is declared but its value is never read.
+src/components/membership/ExpirationManagement.tsx(229,42): error TS6133: 'daysUntilExpiration' is declared but its value is never read.
+src/components/membership/ExpiredMembers.tsx(37,3): error TS6133: 'Schedule' is declared but its value is never read.
+src/components/membership/ExpiredMembers.tsx(49,8): error TS6133: 'ExpiredMember' is declared but its value is never read.
+src/components/membership/ExpiredMembers.tsx(118,29): error TS6133: 'event' is declared but its value is never read.
+src/components/membership/ExpiringSoonMembers.tsx(38,3): error TS6133: 'Warning' is declared but its value is never read.
+src/components/membership/ExpiringSoonMembers.tsx(48,8): error TS6133: 'ExpiringSoonMember' is declared but its value is never read.
+src/components/membership/ExpiringSoonMembers.tsx(117,29): error TS6133: 'event' is declared but its value is never read.
+src/components/modals/MembersListModal.tsx(65,29): error TS6133: 'event' is declared but its value is never read.
+src/components/modals/VotingStationMembersModal.tsx(66,29): error TS6133: 'event' is declared but its value is never read.
+src/components/profile/ProfileInformation.tsx(15,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/components/profile/ProfileInformation.tsx(26,17): error TS6133: 'LocationIcon' is declared but its value is never read.
+src/components/profile/ProfileInformation.tsx(54,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SecuritySettings.tsx(12,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/profile/SecuritySettings.tsx(23,3): error TS6133: 'Switch' is declared but its value is never read.
+src/components/profile/SecuritySettings.tsx(24,3): error TS6133: 'FormControlLabel' is declared but its value is never read.
+src/components/profile/SecuritySettings.tsx(34,13): error TS6133: 'CancelIcon' is declared but its value is never read.
+src/components/profile/SecuritySettings.tsx(83,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SecuritySettings.tsx(94,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SecuritySettings.tsx(117,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SecuritySettings.tsx(133,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SecuritySettings.tsx(152,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SessionManagement.tsx(16,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/profile/SessionManagement.tsx(65,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SessionManagement.tsx(76,14): error TS18046: 'response' is of type 'unknown'.
+src/components/profile/SessionManagement.tsx(94,14): error TS18046: 'response' is of type 'unknown'.
+src/components/renewal/ApprovalQueueTab.tsx(36,3): error TS6133: 'HourglassEmpty' is declared but its value is never read.
+src/components/renewal/ApprovalQueueTab.tsx(133,29): error TS6133: 'event' is declared but its value is never read.
+src/components/renewal/AuditTrailTab.tsx(41,3): error TS6133: 'Circle' is declared but its value is never read.
+src/components/renewal/AuditTrailTab.tsx(73,29): error TS6133: 'event' is declared but its value is never read.
+src/components/renewal/AuditTrailTab.tsx(300,45): error TS6133: 'index' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(31,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(32,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(38,3): error TS6133: 'Stop' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(41,3): error TS6133: 'Warning' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(42,3): error TS6133: 'Info' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(43,3): error TS6133: 'Receipt' is declared but its value is never read.
+src/components/renewal/BulkRenewalProcessor.tsx(44,3): error TS6133: 'Send' is declared but its value is never read.
+src/components/renewal/BulkUploadManager.tsx(54,5): error TS6133: 'isPolling' is declared but its value is never read.
+src/components/renewal/FraudCasesTab.tsx(71,29): error TS6133: 'event' is declared but its value is never read.
+src/components/renewal/ManualNotesInterface.tsx(29,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/components/renewal/ManualNotesInterface.tsx(30,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/components/renewal/ManualNotesInterface.tsx(40,12): error TS6133: 'ErrorIcon' is declared but its value is never read.
+src/components/renewal/ManualNotesInterface.tsx(50,3): error TS6133: 'getPendingFollowUps' is declared but its value is never read.
+src/components/renewal/ManualNotesInterface.tsx(153,11): error TS2353: Object literal may only specify known properties, and 'note_priority' does not exist in type 'NoteFormData'.
+src/components/renewal/ManualNotesInterface.tsx(187,28): error TS6133: 'event' is declared but its value is never read.
+src/components/renewal/ManualNotesTab.tsx(39,1): error TS6133: 'DatePicker' is declared but its value is never read.
+src/components/renewal/ManualNotesTab.tsx(40,1): error TS6133: 'LocalizationProvider' is declared but its value is never read.
+src/components/renewal/ManualNotesTab.tsx(41,1): error TS6133: 'AdapterDateFns' is declared but its value is never read.
+src/components/renewal/ManualNotesTab.tsx(155,9): error TS2353: Object literal may only specify known properties, and 'note_priority' does not exist in type 'NoteFormData'.
+src/components/renewal/ManualNotesTab.tsx(408,28): error TS6133: 'e' is declared but its value is never read.
+src/components/renewal/MemberSelfServicePortal.tsx(88,24): error TS6133: 'data' is declared but its value is never read.
+src/components/renewal/MemberSelfServicePortal.tsx(128,17): error TS6133: 'result' is declared but its value is never read.
+src/components/renewal/MemberSelfServicePortal.tsx(147,50): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ standard: number; upgrade: number; }'.
+src/components/renewal/RenewalAnalytics.tsx(19,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/renewal/RenewalAnalytics.tsx(35,3): error TS6133: 'GetApp' is declared but its value is never read.
+src/components/renewal/RenewalAnalytics.tsx(72,60): error TS6133: 'onExportReport' is declared but its value is never read.
+src/components/renewal/RenewalAnalytics.tsx(282,55): error TS2339: Property 'overall_retention_rate' does not exist on type '{ first_year_retention: number; multi_year_retention: number; churn_rate: number; lifetime_value: number; }'.
+src/components/renewal/RenewalAnalytics.tsx(289,44): error TS2339: Property 'overall_retention_rate' does not exist on type '{ first_year_retention: number; multi_year_retention: number; churn_rate: number; lifetime_value: number; }'.
+src/components/renewal/RenewalAnalytics.tsx(314,55): error TS2339: Property 'long_term_retention' does not exist on type '{ first_year_retention: number; multi_year_retention: number; churn_rate: number; lifetime_value: number; }'.
+src/components/renewal/RenewalAnalytics.tsx(321,44): error TS2339: Property 'long_term_retention' does not exist on type '{ first_year_retention: number; multi_year_retention: number; churn_rate: number; lifetime_value: number; }'.
+src/components/renewal/RenewalAnalytics.tsx(350,73): error TS2339: Property 'average_membership_duration' does not exist on type '{ first_year_retention: number; multi_year_retention: number; churn_rate: number; lifetime_value: number; }'.
+src/components/renewal/RenewalDashboard.tsx(14,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/renewal/RenewalDashboard.tsx(22,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/renewal/RenewalDashboard.tsx(65,3): error TS6133: 'onProcessRenewal' is declared but its value is never read.
+src/components/renewal/RenewalDashboard.tsx(82,13): error TS7009: 'new' expression, whose target lacks a construct signature, implicitly has an 'any' type.
+src/components/renewal/RenewalDashboard.tsx(82,23): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & SvgIconOwnProps & CommonProps & Omit<any, "fontSize" | ... 10 more ... | "titleAccess">): Element | null', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type '{ component: ElementType<any, keyof IntrinsicElements>; } & SvgIconOwnProps & CommonProps & Omit<any, "fontSize" | ... 10 more ... | "titleAccess">'.
+      Type 'string' is not assignable to type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<SvgIconTypeMap<{}, "svg">>): Element | null', gave the following error.
+    Type '"Invalid renewal dashboard data structure"' has no properties in common with type 'DefaultComponentProps<SvgIconTypeMap<{}, "svg">>'.
+src/components/renewal/shared/DataTable.tsx(17,3): error TS6133: 'Box' is declared but its value is never read.
+src/components/renewal/shared/FilterBar.tsx(16,3): error TS6133: 'Box' is declared but its value is never read.
+src/components/renewal/shared/FilterBar.tsx(18,18): error TS6133: 'FilterList' is declared but its value is never read.
+src/components/renewal/shared/PriorityBadge.tsx(7,16): error TS1484: 'ChipProps' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/renewal/shared/SeverityBadge.tsx(7,16): error TS1484: 'ChipProps' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/renewal/shared/StatusChip.tsx(7,16): error TS1484: 'ChipProps' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/renewal/UploadHistoryTab.tsx(30,3): error TS6133: 'Visibility' is declared but its value is never read.
+src/components/renewal/UploadHistoryTab.tsx(40,1): error TS6133: 'BulkUpload' is declared but its value is never read.
+src/components/renewal/UploadHistoryTab.tsx(58,29): error TS6133: 'event' is declared but its value is never read.
+src/components/reports/MemberDirectory.tsx(29,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/reports/MemberDirectory.tsx(35,3): error TS6133: 'Download' is declared but its value is never read.
+src/components/reports/MemberDirectory.tsx(44,3): error TS6133: 'Sort' is declared but its value is never read.
+src/components/reports/MonthlySummaryReport.tsx(18,3): error TS6133: 'Stack' is declared but its value is never read.
+src/components/reports/MonthlySummaryReport.tsx(31,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/reports/MonthlySummaryReport.tsx(232,13): error TS6133: 'params' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(13,3): error TS6133: 'Divider' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(26,3): error TS6133: 'Info' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(29,3): error TS6133: 'LineChart' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(30,3): error TS6133: 'Line' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(33,3): error TS6133: 'BarChart' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(34,3): error TS6133: 'Bar' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(48,11): error TS6196: 'DashboardMetrics' is declared but never used.
+src/components/reports/PerformanceDashboard.tsx(327,64): error TS6133: 'entry' is declared but its value is never read.
+src/components/reports/PerformanceDashboard.tsx(327,64): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/components/reports/PerformanceDashboard.tsx(327,71): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/reports/PerformanceDashboard.tsx(399,56): error TS7006: Parameter 'area' implicitly has an 'any' type.
+src/components/reports/PerformanceDashboard.tsx(399,62): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/reports/ProvincialDistributionReport.tsx(39,3): error TS6133: 'Clear' is declared but its value is never read.
+src/components/reports/ProvincialDistributionReport.tsx(40,3): error TS6133: 'BarChart' is declared but its value is never read.
+src/components/reports/ProvincialDistributionReport.tsx(41,3): error TS6133: 'PieChart' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(32,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(33,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(41,3): error TS6133: 'Add' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(42,3): error TS6133: 'Remove' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(46,3): error TS6133: 'Clear' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(47,3): error TS6133: 'Search' is declared but its value is never read.
+src/components/reports/RegionalComparisonReport.tsx(214,13): error TS6133: 'params' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(23,3): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(24,3): error TS6133: 'TrendingDown' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(30,3): error TS6133: 'Print' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(32,3): error TS6133: 'ArrowUpward' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(33,3): error TS6133: 'ArrowDownward' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(35,3): error TS6133: 'PieChart' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(39,3): error TS6133: 'LineChart' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(40,3): error TS6133: 'Line' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(43,15): error TS6133: 'RechartsBarChart' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(44,3): error TS6133: 'Bar' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(45,15): error TS6133: 'RechartsPieChart' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(46,3): error TS6133: 'Pie' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(47,3): error TS6133: 'Cell' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(54,3): error TS6133: 'RadarChart' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(55,3): error TS6133: 'PolarGrid' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(56,3): error TS6133: 'PolarAngleAxis' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(57,3): error TS6133: 'PolarRadiusAxis' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(58,3): error TS6133: 'Radar' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(120,7): error TS6133: 'COLORS' is declared but its value is never read.
+src/components/reports/StrategicInsights.tsx(309,21): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & ChipOwnProps & CommonProps & Omit<any, "disabled" | ... 15 more ... | "skipFocusWhenDisabled">): Element | null', gave the following error.
+    Type '"large"' is not assignable to type 'OverridableStringUnion<"small" | "medium", ChipPropsSizeOverrides> | undefined'.
+  Overload 2 of 2, '(props: DefaultComponentProps<ChipTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '"large"' is not assignable to type 'OverridableStringUnion<"small" | "medium", ChipPropsSizeOverrides> | undefined'.
+src/components/security/ProvinceErrorBoundary.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/components/security/ProvinceErrorBoundary.tsx(1,28): error TS1484: 'ErrorInfo' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/security/ProvinceErrorBoundary.tsx(1,39): error TS1484: 'ReactNode' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/test/PDFExportTest.tsx(18,10): error TS6133: 'Download' is declared but its value is never read.
+src/components/test/VotingDistrictsTest.tsx(115,72): error TS6133: 'index' is declared but its value is never read.
+src/components/test/VotingDistrictsVisualization.tsx(32,9): error TS6133: 'wards' is declared but its value is never read.
+src/components/test/VotingDistrictsVisualization.tsx(173,39): error TS6133: 'entry' is declared but its value is never read.
+src/components/ui/ActionButton.tsx(7,3): error TS6133: 'Box' is declared but its value is never read.
+src/components/user-management/AdminList.tsx(38,1): error TS6133: 'User' is declared but its value is never read.
+src/components/user-management/AdminList.tsx(38,10): error TS1484: 'User' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/user-management/AdminList.tsx(58,29): error TS6133: 'event' is declared but its value is never read.
+src/components/user-management/AdminList.tsx(284,34): error TS2339: Property 'province_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(284,63): error TS2339: Property 'province_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(285,34): error TS2339: Property 'district_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(285,65): error TS2339: Property 'district_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(286,34): error TS2339: Property 'municipal_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(286,66): error TS2339: Property 'municipal_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(287,34): error TS2339: Property 'ward_code' does not exist on type 'User'.
+src/components/user-management/AdminList.tsx(287,61): error TS2339: Property 'ward_code' does not exist on type 'User'.
+src/components/user-management/UserManagementDashboard.tsx(12,3): error TS6133: 'Paper' is declared but its value is never read.
+src/components/user-management/UserManagementDashboard.tsx(23,17): error TS6133: 'TrendingUpIcon' is declared but its value is never read.
+src/components/user-management/UserManagementDashboard.tsx(46,5): error TS6133: 'sessionsLoading' is declared but its value is never read.
+src/components/user-management/UserManagementDashboard.tsx(48,5): error TS6133: 'mfaLoading' is declared but its value is never read.
+src/components/users/CreateUserDialog.tsx(21,3): error TS6133: 'Switch' is declared but its value is never read.
+src/components/users/CreateUserDialog.tsx(22,3): error TS6133: 'FormControlLabel' is declared but its value is never read.
+src/components/users/CreateUserDialog.tsx(32,3): error TS6133: 'Link' is declared but its value is never read.
+src/components/users/CreateUserDialog.tsx(33,3): error TS6133: 'Warning' is declared but its value is never read.
+src/components/users/EditUserDialog.tsx(27,3): error TS6133: 'Phone' is declared but its value is never read.
+src/components/users/EditUserDialog.tsx(31,3): error TS6133: 'Edit' is declared but its value is never read.
+src/components/users/MemberLookupDialog.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/components/users/MemberLookupDialog.tsx(18,3): error TS6133: 'Chip' is declared but its value is never read.
+src/components/users/MemberLookupDialog.tsx(23,3): error TS6133: 'FormControl' is declared but its value is never read.
+src/components/users/MemberLookupDialog.tsx(24,3): error TS6133: 'InputLabel' is declared but its value is never read.
+src/components/users/MemberLookupDialog.tsx(25,3): error TS6133: 'Select' is declared but its value is never read.
+src/components/users/MemberLookupDialog.tsx(26,3): error TS6133: 'MenuItem' is declared but its value is never read.
+src/contexts/MaintenanceContext.tsx(1,65): error TS1484: 'ReactNode' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/hooks/useErrorHandler.ts(21,5): error TS6133: 'showNotification' is declared but its value is never read.
+src/hooks/useErrorHandler.ts(22,5): error TS6133: 'redirectOnError' is declared but its value is never read.
+src/hooks/usePermissions.ts(83,32): error TS6133: 'storeHasPermission' is declared but its value is never read.
+src/hooks/usePermissions.ts(83,52): error TS6133: 'hasAdminLevel' is declared but its value is never read.
+src/hooks/usePermissions.ts(98,11): error TS6133: 'isMunicipalAdmin' is declared but its value is never read.
+src/hooks/usePermissions.ts(99,11): error TS6133: 'isWardAdmin' is declared but its value is never read.
+src/hooks/useRenewalBulkUpload.ts(18,3): error TS6196: 'UploadFormData' is declared but never used.
+src/hooks/useSecureApi.ts(31,7): error TS2345: Argument of type 'Record<string, any> | undefined' is not assignable to parameter of type 'Record<string, any>'.
+  Type 'undefined' is not assignable to type 'Record<string, any>'.
+src/hooks/useSecureApi.ts(74,7): error TS2345: Argument of type 'Record<string, any> | undefined' is not assignable to parameter of type 'Record<string, any>'.
+  Type 'undefined' is not assignable to type 'Record<string, any>'.
+src/hooks/useSecureApi.ts(78,45): error TS2554: Expected 1-2 arguments, but got 3.
+src/hooks/useSecureApi.ts(117,7): error TS2345: Argument of type 'Record<string, any> | undefined' is not assignable to parameter of type 'Record<string, any>'.
+  Type 'undefined' is not assignable to type 'Record<string, any>'.
+src/hooks/useSecureApi.ts(121,44): error TS2554: Expected 1-2 arguments, but got 3.
+src/hooks/useSecureApi.ts(140,7): error TS2345: Argument of type 'Record<string, any> | undefined' is not assignable to parameter of type 'Record<string, any>'.
+  Type 'undefined' is not assignable to type 'Record<string, any>'.
+src/hooks/useSecureApi.ts(144,35): error TS2554: Expected 1 arguments, but got 2.
+src/hooks/useSessionManagement.ts(3,1): error TS6133: 'api' is declared but its value is never read.
+src/hooks/useSessionManagement.ts(12,11): error TS6196: 'SessionWarning' is declared but never used.
+src/hooks/useSessionManagement.ts(42,9): error TS6133: 'getSessionId' is declared but its value is never read.
+src/pages/admin/AdminManagementDashboard.tsx(16,3): error TS6133: 'Paper' is declared but its value is never read.
+src/pages/admin/AdminManagementDashboard.tsx(179,28): error TS6133: 'event' is declared but its value is never read.
+src/pages/admin/DigitalMembershipCards.tsx(82,28): error TS6133: 'event' is declared but its value is never read.
+src/pages/admin/DigitalMembershipCards.tsx(304,33): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & TypographyOwnProps & CommonProps & Omit<any, "top" | ... 112 more ... | "variantMapping">): Element | null', gave the following error.
+    Type 'unknown' is not assignable to type 'ReactNode'.
+  Overload 2 of 2, '(props: DefaultComponentProps<TypographyTypeMap<{}, "span">>): Element | null', gave the following error.
+    Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/admin/RenewalManagement.tsx(12,3): error TS6133: 'DialogActions' is declared but its value is never read.
+src/pages/admin/RenewalManagement.tsx(81,28): error TS6133: 'event' is declared but its value is never read.
+src/pages/admin/SMSManagement.tsx(49,14): error TS6133: 'WarningIcon' is declared but its value is never read.
+src/pages/admin/SMSManagement.tsx(132,10): error TS6133: 'upcomingBirthdays' is declared but its value is never read.
+src/pages/admin/SMSManagement.tsx(137,10): error TS6133: 'providerHealth' is declared but its value is never read.
+src/pages/admin/SMSManagement.tsx(137,26): error TS6133: 'setProviderHealth' is declared but its value is never read.
+src/pages/admin/SMSManagement.tsx(275,13): error TS6133: 'response' is declared but its value is never read.
+src/pages/admin/VotingDistrictsPage.tsx(43,10): error TS1484: 'VotingDistrict' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/admin/VotingDistrictsPage.tsx(43,26): error TS1484: 'VotingDistrictCreateRequest' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/admin/VotingDistrictsPage.tsx(494,22): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(props: { href: string; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<Omit<DetailedHTMLProps<AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>, "ref"> & { ...; }, "disabled" | ... 20 more ... | "disableGutters">): Element', gave the following error.
+    Type '{ children: string; value: boolean; }' is not assignable to type 'IntrinsicAttributes & { href: string; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & { href: string; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+  Overload 2 of 3, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: string; value: boolean; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 3 of 3, '(props: DefaultComponentProps<ExtendButtonBaseTypeMap<MenuItemTypeMap<{}, "li">>>): Element | null', gave the following error.
+    Type 'true' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/admin/VotingDistrictsPage.tsx(495,22): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(props: { href: string; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<Omit<DetailedHTMLProps<AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>, "ref"> & { ...; }, "disabled" | ... 20 more ... | "disableGutters">): Element', gave the following error.
+    Type '{ children: string; value: boolean; }' is not assignable to type 'IntrinsicAttributes & { href: string; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+      Property 'value' does not exist on type 'IntrinsicAttributes & { href: string; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>'.
+  Overload 2 of 3, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & MenuItemOwnProps & Omit<ButtonBaseOwnProps, "classes"> & CommonProps & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: string; value: boolean; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 3 of 3, '(props: DefaultComponentProps<ExtendButtonBaseTypeMap<MenuItemTypeMap<{}, "li">>>): Element | null', gave the following error.
+    Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/analytics/AnalyticsPage.tsx(13,3): error TS6133: 'Button' is declared but its value is never read.
+src/pages/analytics/AnalyticsPage.tsx(27,3): error TS6133: 'Download' is declared but its value is never read.
+src/pages/analytics/AnalyticsPage.tsx(30,3): error TS6133: 'BarChart' is declared but its value is never read.
+src/pages/analytics/AnalyticsPage.tsx(31,3): error TS6133: 'PieChart' is declared but its value is never read.
+src/pages/analytics/AnalyticsPage.tsx(32,3): error TS6133: 'ShowChart' is declared but its value is never read.
+src/pages/analytics/AnalyticsPage.tsx(551,79): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(551,85): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(595,75): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(595,81): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(639,72): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(639,78): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(677,76): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(677,82): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(964,69): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(964,75): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(1002,74): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(1002,80): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(1081,78): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/pages/analytics/AnalyticsPage.tsx(1081,84): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/applications/ApplicationDetailPage.tsx(19,3): error TS6133: 'FormControl' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(20,3): error TS6133: 'InputLabel' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(21,3): error TS6133: 'Select' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(22,3): error TS6133: 'MenuItem' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(24,3): error TS6133: 'Table' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(25,3): error TS6133: 'TableBody' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(26,3): error TS6133: 'TableCell' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(27,3): error TS6133: 'TableContainer' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(28,3): error TS6133: 'TableHead' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(29,3): error TS6133: 'TableRow' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(36,3): error TS6133: 'Avatar' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(37,3): error TS6133: 'List' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(38,3): error TS6133: 'ListItem' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(39,3): error TS6133: 'ListItemIcon' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(40,3): error TS6133: 'ListItemText' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(41,3): error TS6133: 'ListItemSecondaryAction' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(49,3): error TS6133: 'CalendarToday' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(53,3): error TS6133: 'Edit' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(54,3): error TS6133: 'Visibility' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(57,3): error TS6133: 'Receipt' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(60,3): error TS6133: 'Warning' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(63,3): error TS6133: 'Business' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(69,3): error TS6133: 'Flag' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(70,3): error TS6133: 'Create' is declared but its value is never read.
+src/pages/applications/ApplicationDetailPage.tsx(117,59): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/applications/ApplicationsListPage.tsx(5,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/applications/ApplicationsListPage.tsx(6,3): error TS6133: 'CardContent' is declared but its value is never read.
+src/pages/applications/ApplicationsListPage.tsx(32,3): error TS6133: 'PersonAdd' is declared but its value is never read.
+src/pages/applications/ApplicationsListPage.tsx(38,3): error TS6133: 'FilterList' is declared but its value is never read.
+src/pages/applications/ApplicationsListPage.tsx(88,53): error TS6133: 'refetch' is declared but its value is never read.
+src/pages/applications/ApplicationsListPage.tsx(96,22): error TS18046: 'response' is of type 'unknown'.
+src/pages/applications/ApplicationsListPage.tsx(96,53): error TS18046: 'response' is of type 'unknown'.
+src/pages/applications/ApplicationsListPage.tsx(97,23): error TS18046: 'response' is of type 'unknown'.
+src/pages/applications/ApplicationsListPage.tsx(97,47): error TS18046: 'response' is of type 'unknown'.
+src/pages/audit/MemberAuditDashboard.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
+src/pages/audit/MemberAuditDashboard.tsx(9,3): error TS6133: 'ButtonGroup' is declared but its value is never read.
+src/pages/audit/MemberAuditDashboard.tsx(16,3): error TS6133: 'Tabs' is declared but its value is never read.
+src/pages/audit/MemberAuditDashboard.tsx(17,3): error TS6133: 'Tab' is declared but its value is never read.
+src/pages/audit/MemberAuditDashboard.tsx(29,3): error TS6133: 'CheckCircle' is declared but its value is never read.
+src/pages/audit/MemberAuditDashboard.tsx(71,10): error TS6133: 'activeTab' is declared but its value is never read.
+src/pages/audit/MemberAuditDashboard.tsx(106,9): error TS6133: 'handleTabChange' is declared but its value is never read.
+src/pages/audit/MemberAuditReport.tsx(10,3): error TS6133: 'Alert' is declared but its value is never read.
+src/pages/audit/MemberAuditReport.tsx(42,3): error TS6133: 'LocationOn' is declared but its value is never read.
+src/pages/audit/MemberAuditReport.tsx(81,24): error TS6133: 'setSearchParams' is declared but its value is never read.
+src/pages/audit/MunicipalityAuditReport.tsx(32,3): error TS6133: 'LocationCity' is declared but its value is never read.
+src/pages/audit/MunicipalityAuditReport.tsx(33,3): error TS6133: 'People' is declared but its value is never read.
+src/pages/audit/MunicipalityAuditReport.tsx(34,3): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/pages/audit/WardAuditReport.tsx(21,3): error TS6133: 'TextField' is declared but its value is never read.
+src/pages/audit/WardAuditReport.tsx(31,3): error TS6133: 'People' is declared but its value is never read.
+src/pages/audit/WardAuditReport.tsx(32,3): error TS6133: 'HowToVote' is declared but its value is never read.
+src/pages/audit/WardAuditReport.tsx(40,3): error TS6133: 'TrendingDown' is declared but its value is never read.
+src/pages/audit/WardAuditReport.tsx(98,9): error TS6133: 'handleFilterChange' is declared but its value is never read.
+src/pages/audit/WardDetailAudit.tsx(28,3): error TS6133: 'LocationCity' is declared but its value is never read.
+src/pages/audit/WardDetailAudit.tsx(36,3): error TS6133: 'Person' is declared but its value is never read.
+src/pages/auth/ForgotPasswordPage.tsx(6,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/auth/ForgotPasswordPage.tsx(53,31): error TS6133: 'data' is declared but its value is never read.
+src/pages/auth/LoginDemo.tsx(28,10): error TS6133: 'loginSuccess' is declared but its value is never read.
+src/pages/auth/LoginPage.tsx(6,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/auth/LoginPage.tsx(30,15): error TS6133: 'SecurityIcon' is declared but its value is never read.
+src/pages/auth/LoginPage.tsx(60,9): error TS6133: 'isMobile' is declared but its value is never read.
+src/pages/auth/LoginPage.tsx(71,5): error TS2322: Type 'Resolver<{ email: string; password: string; rememberMe: boolean | undefined; }, any, { rememberMe?: boolean | undefined; email: string; password: string; }>' is not assignable to type 'Resolver<LoginFormData, any, LoginFormData>'.
+  Types of parameters 'options' and 'options' are incompatible.
+    Type 'ResolverOptions<LoginFormData>' is not assignable to type 'ResolverOptions<{ email: string; password: string; rememberMe: boolean | undefined; }>'.
+      Type 'boolean | undefined' is not assignable to type 'boolean'.
+        Type 'undefined' is not assignable to type 'boolean'.
+src/pages/auth/LoginPage.tsx(198,47): error TS2345: Argument of type '(data: LoginFormData) => Promise<void>' is not assignable to parameter of type 'SubmitHandler<TFieldValues>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'TFieldValues' is not assignable to type 'LoginFormData'.
+      Type 'FieldValues' is missing the following properties from type 'LoginFormData': email, password, rememberMe
+src/pages/dashboard/DashboardPage.tsx(28,16): error TS6133: 'DashboardIcon' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(30,3): error TS6133: 'SupervisorAccount' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(32,10): error TS6133: 'AddIcon' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(35,1): error TS6133: 'apiGet' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(146,9): error TS6133: 'analyticsStats' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(155,9): error TS6133: 'alerts' is declared but its value is never read.
+src/pages/dashboard/HierarchicalDashboard.tsx(38,30): error TS6133: 'useProvinceBreadcrumbs' is declared but its value is never read.
+src/pages/dashboard/HierarchicalDashboard.tsx(135,11): error TS6196: 'DrillDownSectionState' is declared but never used.
+src/pages/dashboard/HierarchicalDashboard.tsx(827,17): error TS2322: Type 'string' is not assignable to type '"success" | "error" | "warning" | "info" | "primary" | "secondary" | undefined'.
+src/pages/dashboard/HierarchicalDashboard.tsx(828,29): error TS2339: Property 'trend' does not exist on type '{ title: string; value: string; icon: OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }; color: string; } | { title: string; ... 4 more ...; subtitle: string; } | { ...; }'.
+  Property 'trend' does not exist on type '{ title: string; value: string; icon: OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }; color: string; }'.
+src/pages/dashboard/HierarchicalDashboard.tsx(829,32): error TS2339: Property 'subtitle' does not exist on type '{ title: string; value: string; icon: OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }; color: string; } | { title: string; ... 4 more ...; subtitle: string; } | { ...; }'.
+  Property 'subtitle' does not exist on type '{ title: string; value: string; icon: OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }; color: string; }'.
+src/pages/elections/ElectionsPage.tsx(5,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/elections/ElectionsPage.tsx(48,3): error TS6133: 'People' is declared but its value is never read.
+src/pages/elections/ElectionsPage.tsx(52,3): error TS6133: 'Groups' is declared but its value is never read.
+src/pages/elections/ElectionsPage.tsx(53,3): error TS6133: 'EventAvailable' is declared but its value is never read.
+src/pages/errors/ErrorBoundary.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/errors/ErrorBoundary.tsx(1,28): error TS1484: 'ErrorInfo' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/errors/ErrorBoundary.tsx(1,39): error TS1484: 'ReactNode' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/errors/GenericError.tsx(59,9): error TS6133: 'handleGoBack' is declared but its value is never read.
+src/pages/financial/FinancialDashboardPage.tsx(14,3): error TS6133: 'Dashboard' is declared but its value is never read.
+src/pages/financial/FinancialDashboardPage.tsx(24,9): error TS6133: 'navigate' is declared but its value is never read.
+src/pages/financial/FinancialDashboardPage.tsx(31,42): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialDashboardPage.tsx(32,42): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialDashboardPage.tsx(33,42): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialDashboardPage.tsx(91,16): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(36,9): error TS6133: 'navigate' is declared but its value is never read.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(50,37): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(51,37): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(52,37): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(53,37): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(54,37): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/financial/FinancialTransactionHistoryPage.tsx(209,16): error TS2339: Property 'role' does not exist on type 'User'.
+src/pages/meetings/DocumentEditorPage.tsx(368,48): error TS2304: Cannot find name 'Article'.
+src/pages/meetings/HierarchicalMeetingCreatePage.tsx(157,49): error TS6133: 'meetingLoading' is declared but its value is never read.
+src/pages/meetings/HierarchicalMeetingCreatePage.tsx(208,17): error TS6133: 'response' is declared but its value is never read.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(401,18): error TS2304: Cannot find name 'FormControl'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(402,20): error TS2304: Cannot find name 'InputLabel'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(402,48): error TS2304: Cannot find name 'InputLabel'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(403,20): error TS2552: Cannot find name 'Select'. Did you mean 'onselect'?
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(405,32): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(414,21): error TS2304: Cannot find name 'Select'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(415,19): error TS2304: Cannot find name 'FormControl'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(419,18): error TS2304: Cannot find name 'FormControl'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(420,20): error TS2304: Cannot find name 'InputLabel'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(420,39): error TS2304: Cannot find name 'InputLabel'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(421,20): error TS2304: Cannot find name 'Select'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(423,32): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(433,21): error TS2304: Cannot find name 'Select'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(434,19): error TS2304: Cannot find name 'FormControl'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(438,18): error TS2304: Cannot find name 'FormControl'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(439,20): error TS2304: Cannot find name 'InputLabel'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(439,41): error TS2304: Cannot find name 'InputLabel'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(440,20): error TS2304: Cannot find name 'Select'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(442,32): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(451,21): error TS2304: Cannot find name 'Select'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(452,19): error TS2304: Cannot find name 'FormControl'.
+src/pages/meetings/HierarchicalMeetingsDashboard.tsx(678,10): error TS2304: Cannot find name 'Divider'.
+src/pages/meetings/MeetingAttendancePage.tsx(1,17): error TS6133: 'useState' is declared but its value is never read.
+src/pages/meetings/MeetingAttendancePage.tsx(3,20): error TS6133: 'useMutation' is declared but its value is never read.
+src/pages/meetings/MeetingAttendancePage.tsx(20,3): error TS6133: 'IconButton' is declared but its value is never read.
+src/pages/meetings/MeetingAttendancePage.tsx(30,13): error TS6133: 'CancelIcon' is declared but its value is never read.
+src/pages/meetings/MeetingAttendancePage.tsx(87,9): error TS6133: 'queryClient' is declared but its value is never read.
+src/pages/meetings/MeetingAttendancePage.tsx(334,25): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & ChipOwnProps & CommonProps & Omit<any, "disabled" | ... 15 more ... | "skipFocusWhenDisabled">): Element | null', gave the following error.
+    Type 'Element | null' is not assignable to type 'ReactElement<any, string | JSXElementConstructor<any>> | undefined'.
+      Type 'null' is not assignable to type 'ReactElement<any, string | JSXElementConstructor<any>> | undefined'.
+  Overload 2 of 2, '(props: DefaultComponentProps<ChipTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type 'Element | null' is not assignable to type 'ReactElement<any, string | JSXElementConstructor<any>> | undefined'.
+      Type 'null' is not assignable to type 'ReactElement<any, string | JSXElementConstructor<any>> | undefined'.
+src/pages/meetings/MeetingCreatePage.tsx(5,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/meetings/MeetingCreatePage.tsx(6,3): error TS6133: 'CardContent' is declared but its value is never read.
+src/pages/meetings/MeetingCreatePage.tsx(18,10): error TS6133: 'Event' is declared but its value is never read.
+src/pages/meetings/MeetingDetailPage.tsx(33,3): error TS6133: 'Schedule' is declared but its value is never read.
+src/pages/meetings/MeetingDetailPage.tsx(111,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+  Overload 3 of 3, '(options: UseQueryOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+src/pages/meetings/MeetingDetailPage.tsx(115,44): error TS6133: 'attendanceLoading' is declared but its value is never read.
+src/pages/meetings/MeetingDetailPage.tsx(125,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+  Overload 3 of 3, '(options: UseQueryOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+src/pages/meetings/MeetingDocumentsPage.tsx(69,11): error TS6196: 'ActionItem' is declared but never used.
+src/pages/meetings/MeetingDocumentsPage.tsx(86,11): error TS6196: 'MeetingDecision' is declared but never used.
+src/pages/meetings/MeetingDocumentsPage.tsx(216,9): error TS6133: 'getPriorityColor' is declared but its value is never read.
+src/pages/meetings/MeetingDocumentsPage.tsx(226,9): error TS6133: 'getActionStatusColor' is declared but its value is never read.
+src/pages/meetings/MeetingDocumentsPage.tsx(236,9): error TS6133: 'getDecisionStatusColor' is declared but its value is never read.
+src/pages/meetings/MeetingEditPage.tsx(5,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/meetings/MeetingEditPage.tsx(6,3): error TS6133: 'CardContent' is declared but its value is never read.
+src/pages/meetings/MeetingEditPage.tsx(18,10): error TS6133: 'Event' is declared but its value is never read.
+src/pages/meetings/MeetingEditPage.tsx(35,11): error TS6196: 'Meeting' is declared but never used.
+src/pages/meetings/MeetingEditPage.tsx(95,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+  Overload 3 of 3, '(options: UseQueryOptions<unknown, Error, unknown, (string | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<unknown, Error>', gave the following error.
+    Type 'boolean | "" | undefined' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+      Type '""' is not assignable to type 'Enabled<unknown, Error, unknown, (string | undefined)[]> | undefined'.
+src/pages/meetings/MeetingEditPage.tsx(119,17): error TS6133: 'response' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(5,3): error TS6133: 'Card' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(6,3): error TS6133: 'CardContent' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(24,3): error TS6133: 'TextField' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(25,3): error TS6133: 'FormControl' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(26,3): error TS6133: 'InputLabel' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(27,3): error TS6133: 'Select' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(43,3): error TS6133: 'People' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(47,3): error TS6133: 'FilterList' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(50,3): error TS6133: 'Groups' is declared but its value is never read.
+src/pages/meetings/MeetingsPage.tsx(55,1): error TS6133: 'getMockMeetings' is declared but its value is never read.
+src/pages/members/MemberBulkUploadPage.tsx(40,28): error TS6133: 'event' is declared but its value is never read.
+src/pages/members/MemberDetailPage.tsx(274,39): error TS2339: Property 'membership_date_joined' does not exist on type 'Member'.
+src/pages/members/MemberDetailPage.tsx(274,102): error TS2339: Property 'membership_date_joined' does not exist on type 'Member'.
+src/pages/members/MembersDirectoryPage.tsx(44,1): error TS6133: 'Member' is declared but its value is never read.
+src/pages/members/MembersDirectoryPage.tsx(81,10): error TS6133: 'selectedSearch' is declared but its value is never read.
+src/pages/members/MembersDirectoryPage.tsx(316,32): error TS2345: Argument of type 'GeographicFilters' is not assignable to parameter of type 'SetStateAction<{ province: string; district: string; municipality: string; subregion: string; ward: string; votingDistrict: string; }>'.
+  Type 'GeographicFilters' is not assignable to type '{ province: string; district: string; municipality: string; subregion: string; ward: string; votingDistrict: string; }'.
+    Types of property 'province' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/pages/members/MembersListPage.tsx(148,30): error TS6133: 'setProcessingWardCode' is declared but its value is never read.
+src/pages/members/MembersListPage.tsx(149,30): error TS6133: 'setProcessingWardName' is declared but its value is never read.
+src/pages/members/MembersListPage.tsx(150,29): error TS6133: 'setProcessingJobData' is declared but its value is never read.
+src/pages/profile/ProfileSettingsPage.tsx(11,3): error TS6133: 'Alert' is declared but its value is never read.
+src/pages/public/MembershipApplicationPage.tsx(158,13): error TS2353: Object literal may only specify known properties, and 'iec_verification' does not exist in type 'Partial<MembershipApplication>'.
+src/pages/public/MyMembershipCard.tsx(14,3): error TS6133: 'CreditCard' is declared but its value is never read.
+src/pages/reports/ReportsPage.tsx(37,3): error TS6133: 'Lightbulb' is declared but its value is never read.
+src/pages/search/GeographicSearchPage.tsx(173,53): error TS2339: Property 'label' does not exist on type '{}'.
+src/pages/system/SystemPage.tsx(1,37): error TS6133: 'useEffect' is declared but its value is never read.
+src/pages/system/SystemPage.tsx(117,10): error TS6133: 'selectedLog' is declared but its value is never read.
+src/pages/system/SystemPage.tsx(126,68): error TS6133: 'refetchSettings' is declared but its value is never read.
+src/pages/users/UserManagementPage.tsx(35,1): error TS6133: 'apiGet' is declared but its value is never read.
+src/pages/wardAudit/MunicipalityDelegateReport.tsx(33,45): error TS6196: 'ReportType' is declared but never used.
+src/pages/wardAudit/WardAuditDashboard.tsx(33,13): error TS6133: 'PeopleIcon' is declared but its value is never read.
+src/pages/wardAudit/WardComplianceDetail.tsx(33,3): error TS6133: 'Tooltip' is declared but its value is never read.
+src/pages/wardAudit/WardComplianceDetail.tsx(41,11): error TS6133: 'InfoIcon' is declared but its value is never read.
+src/pages/wardAudit/WardComplianceDetail.tsx(44,15): error TS6196: 'WardComplianceSummary' is declared but never used.
+src/pages/wardAudit/WardDelegateManagement.tsx(27,3): error TS6133: 'Badge' is declared but its value is never read.
+src/pages/wardAudit/WardDelegateManagement.tsx(91,9): error TS6133: 'assemblyTypes' is declared but its value is never read.
+src/pages/wardAudit/WardDelegateManagement.tsx(123,24): error TS2322: Type 'string' is not assignable to type 'number'.
+src/routes/AppRoutes.tsx(27,3): error TS6133: 'ErrorBoundary' is declared but its value is never read.
+src/routes/AppRoutes.tsx(113,1): error TS6133: 'NotFoundPage' is declared but its value is never read.
+src/services/renewalBulkUploadService.ts(8,3): error TS6196: 'BulkUpload' is declared but never used.
+src/services/renewalBulkUploadService.ts(9,3): error TS6196: 'BulkUploadRecord' is declared but never used.
+src/services/renewalBulkUploadService.ts(10,3): error TS6196: 'FraudCase' is declared but never used.
+src/services/renewalBulkUploadService.ts(11,3): error TS6196: 'ApprovalRequest' is declared but never used.
+src/services/renewalBulkUploadService.ts(12,3): error TS6196: 'AuditTrailEntry' is declared but never used.
+src/services/renewalBulkUploadService.ts(37,5): error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+src/services/renewalBulkUploadService.ts(38,5): error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+src/services/wardMembershipAuditApi.ts(46,29): error TS2367: This comparison appears to be unintentional because the types 'WardStanding' and '"all"' have no overlap.
+src/services/wardMembershipAuditApi.ts(91,32): error TS2367: This comparison appears to be unintentional because the types 'MunicipalityPerformance' and '"all"' have no overlap.
+src/services/wardMembershipAuditApi.ts(154,29): error TS2367: This comparison appears to be unintentional because the types 'WardStanding' and '"all"' have no overlap.
+src/services/wardMembershipAuditApi.ts(188,32): error TS2367: This comparison appears to be unintentional because the types 'MunicipalityPerformance' and '"all"' have no overlap.
+src/store/userManagementSlice.ts(36,58): error TS2345: Argument of type '{ name: string; email: string; password: string; admin_level: "national" | "province" | "district" | "municipality" | "ward"; role_name: string; province_code?: string | undefined; district_code?: string | undefined; municipal_code?: string | undefined; ward_code?: string | undefined; justification?: string | undefi...' is not assignable to parameter of type 'CreateAdminRequest'.
+  Types of property 'admin_level' are incompatible.
+    Type '"national" | "province" | "district" | "municipality" | "ward"' is not assignable to type '"national"'.
+      Type '"province"' is not assignable to type '"national"'.
+src/store/userManagementSlice.ts(351,45): error TS6133: 'action' is declared but its value is never read.
+src/store/wardMembershipAuditStore.ts(57,13): error TS6133: 'get' is declared but its value is never read.
+src/utils/errorInterceptor.ts(48,7): error TS6133: 'EXCLUDED_ERROR_TYPES' is declared but its value is never read.
+src/utils/errorInterceptor.ts(126,11): error TS6133: 'errorState' is declared but its value is never read.
+src/utils/errorInterceptor.ts(159,7): error TS2345: Argument of type '(response: AxiosResponse) => AxiosResponse' is not assignable to parameter of type '(value: AxiosResponse<any, any>) => AxiosResponse<any, any> | Promise<AxiosResponse<any, any>>'.
+  Types of parameters 'response' and 'value' are incompatible.
+    Type 'AxiosResponse<any, any>' is not assignable to type 'AxiosResponse'.
+      Types of property 'headers' are incompatible.
+        Type 'AxiosResponseHeaders | Partial<RawAxiosHeaders & { "Content-Length": AxiosHeaderValue; "Content-Encoding": AxiosHeaderValue; "Content-Type": AxiosHeaderValue; Server: AxiosHeaderValue; "Cache-Control": AxiosHeaderValue; } & { ...; }>' is not assignable to type 'Record<string, string>'.
+          Type 'Partial<RawAxiosHeaders & { "Content-Length": AxiosHeaderValue; "Content-Encoding": AxiosHeaderValue; "Content-Type": AxiosHeaderValue; Server: AxiosHeaderValue; "Cache-Control": AxiosHeaderValue; } & { ...; }>' is not assignable to type 'Record<string, string>'.
+            'string' index signatures are incompatible.
+              Type 'AxiosHeaderValue | undefined' is not assignable to type 'string'.
+                Type 'undefined' is not assignable to type 'string'.
+src/utils/errorInterceptor.ts(235,9): error TS6133: 'errorState' is declared but its value is never read.
+src/utils/warCouncilValidation.ts(4,40): error TS6196: 'WarCouncilValidation' is declared but never used.

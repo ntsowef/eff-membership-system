@@ -48,6 +48,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { showSuccess, showError, showInfo } from '../../utils/sweetAlert';
 
 interface Member {
   member_id: string;
@@ -191,11 +192,11 @@ const ExpirationManagement: React.FC<ExpirationManagementProps> = ({
     try {
       // Mock SMS sending
       await new Promise(resolve => setTimeout(resolve, 2000));
-      alert(`SMS notifications sent to ${selectedMembers.length} members`);
+      showSuccess(`SMS notifications sent to ${selectedMembers.length} members`, 'SMS Sent');
       setSmsDialogOpen(false);
       setSelectedMembers([]);
     } catch (error) {
-      alert('Failed to send SMS notifications');
+      showError('Failed to send SMS notifications');
     } finally {
       setIsProcessing(false);
     }
@@ -206,12 +207,12 @@ const ExpirationManagement: React.FC<ExpirationManagementProps> = ({
     try {
       // Mock bulk renewal
       await new Promise(resolve => setTimeout(resolve, 2000));
-      alert(`${selectedMembers.length} memberships renewed for ${renewalMonths} months`);
+      showSuccess(`${selectedMembers.length} memberships renewed for ${renewalMonths} months`, 'Renewal Complete');
       setRenewalDialogOpen(false);
       setSelectedMembers([]);
       refetch();
     } catch (error) {
-      alert('Failed to perform bulk renewal');
+      showError('Failed to perform bulk renewal');
     } finally {
       setIsProcessing(false);
     }
@@ -219,9 +220,9 @@ const ExpirationManagement: React.FC<ExpirationManagementProps> = ({
 
   const handleExportPDF = async () => {
     try {
-      alert('PDF export functionality is being implemented. Please check back soon.');
+      showInfo('PDF export functionality is being implemented. Please check back soon.', 'Coming Soon');
     } catch (error) {
-      alert('Failed to export PDF');
+      showError('Failed to export PDF');
     }
   };
 

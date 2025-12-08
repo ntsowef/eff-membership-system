@@ -1,0 +1,1030 @@
+import { getPrisma } from './prismaService';
+import { createDatabaseError } from '../middleware/errorHandler';
+
+const prisma = getPrisma();
+
+// Interfaces for two-tier approval system
+export interface WorkflowAction {
+  applicationId?: number;
+  renewalId?: number;
+  userId: number;
+  userRole: string;
+  actionType: 'financial_review_start' | 'financial_approve' | 'financial_reject' | 'final_review_start' | 'final_approve' | 'final_reject' | 'status_change' |
+             'renewal_financial_review_start' | 'renewal_financial_approve' | 'renewal_financial_reject' | 'renewal_payment_verify';
+  notes?: string;
+  metadata?: any;
+}
+
+export interface FinancialReviewData {
+  financial_status: 'Approved' | 'Rejected';
+  financial_rejection_reason?: string;
+  financial_admin_notes?: string;
+}
+
+export interface RenewalFinancialReviewData {
+  financial_status: 'Approved' | 'Rejected' | 'Pending';
+  financial_rejection_reason?: string;
+  financial_admin_notes?: string;
+  payment_verified?: boolean;
+  payment_amount?: number;
+  payment_reference?: string;
+}
+
+export interface FinalReviewData {
+  status: 'Approved' | 'Rejected';
+  rejection_reason?: string;
+  admin_notes?: string;
+}
+
+export interface WorkflowNotification {
+  applicationId?: number;
+  renewalId?: number;
+  fromUserId: number;
+  toRole: string;
+  notificationType: 'financial_review_complete' | 'ready_for_final_review' | 'application_approved' | 'application_rejected' |
+                   'renewal_financial_review_complete' | 'renewal_ready_for_processing' | 'renewal_approved' | 'renewal_rejected';
+  title: string;
+  message: string;
+}
+
+export class TwoTierApprovalService {
+  
+  // Start financial review process
+  static async startFinancialReview(applicationId: number, userId: number): Promise<void> {
+    try {
+      // Update application workflow stage
+      await prisma.membership_applications.updateMany({
+        where: {
+          application_id: applicationId,
+          workflow_stage: 'Submitted'
+        },
+        data: {
+          workflow_stage: 'Financial Review',
+          financial_status: 'Under Review'
+        }
+      });
+
+      // Log audit trail
+      await this.logWorkflowAction({
+        applicationId,
+        userId,
+        userRole: 'financial_reviewer',
+        actionType: 'financial_review_start',
+        notes: 'Financial review started'
+      });
+
+    } catch (error) {
+      throw createDatabaseError('Failed to start financial review', error);
+    }
+  }
+
+  // Complete financial review (approve/reject payment)
+  static async completeFinancialReview(
+    applicationId: number,
+    userId: number,
+    reviewData: FinancialReviewData
+  ): Promise<void> {
+    try {
+      const isApproved = reviewData.financial_status === 'Approved';
+      const newWorkflowStage = isApproved ? 'Payment Approved' : 'Rejected';
+      const newStatus = isApproved ? 'Under Review' : 'Rejected';
+
+      // Update application
+      await prisma.membership_applications.updateMany({
+        where: {
+          application_id: applicationId,
+          workflow_stage: { in: ['Financial Review', 'Submitted'] }
+        },
+        data: {
+          financial_status: reviewData.financial_status,
+          financial_reviewed_at: new Date(),
+          financial_reviewed_by: userId,
+          financial_rejection_reason: reviewData.financial_rejection_reason || null,
+          financial_admin_notes: reviewData.financial_admin_notes || null,
+          workflow_stage: newWorkflowStage,
+          status: newStatus
+        }
+      });
+
+      // Log audit trail
+      await this.logWorkflowAction({
+        applicationId,
+        userId,
+        userRole: 'financial_reviewer',
+        actionType: isApproved ? 'financial_approve' : 'financial_reject',
+        notes: reviewData.financial_admin_notes || `Financial review ${reviewData.financial_status.toLowerCase()}`
+      });
+
+      // Send notification to membership approvers if approved
+      if (isApproved) {
+        await this.sendWorkflowNotification({
+          applicationId,
+          fromUserId: userId,
+          toRole: 'membership_approver',
+          notificationType: 'ready_for_final_review',
+          title: 'Application Ready for Final Review',
+          message: `Application #${applicationId} has been financially approved and is ready for final membership review.`
+        });
+      }
+
+    } catch (error) {
+      throw createDatabaseError('Failed to complete financial review', error);
+    }
+  }
+
+  // Start final review process
+  static async startFinalReview(applicationId: number, userId: number): Promise<void> {
+    try {
+      // Verify application is in correct stage
+      const application = await prisma.membership_applications.findFirst({
+        where: { application_id: applicationId },
+        select: {
+          application_id: true,
+          workflow_stage: true,
+          financial_status: true,
+          financial_reviewed_by: true
+        }
+      });
+
+      if (!application) {
+        throw new Error('Application not found');
+      }
+
+      if (application.workflow_stage !== 'Payment Approved') {
+        throw new Error('Application is not ready for final review');
+      }
+
+      if (application.financial_reviewed_by === userId) {
+        throw new Error('Cannot perform final review on application you financially reviewed (separation of duties)');
+      }
+
+      // Update application workflow stage
+      await prisma.membership_applications.updateMany({
+        where: {
+          application_id: applicationId,
+          workflow_stage: 'Payment Approved'
+        },
+        data: {
+          workflow_stage: 'Final Review'
+        }
+      });
+
+      // Log audit trail
+      await this.logWorkflowAction({
+        applicationId,
+        userId,
+        userRole: 'membership_approver',
+        actionType: 'final_review_start',
+        notes: 'Final review started'
+      });
+
+    } catch (error) {
+      throw createDatabaseError('Failed to start final review', error);
+    }
+  }
+
+  // Complete final review (approve/reject membership)
+  static async completeFinalReview(
+    applicationId: number,
+    userId: number,
+    reviewData: FinalReviewData
+  ): Promise<void> {
+    try {
+      // Verify separation of duties
+      const application = await prisma.membership_applications.findFirst({
+        where: { application_id: applicationId },
+        select: {
+          application_id: true,
+          financial_reviewed_by: true
+        }
+      });
+
+      if (application?.financial_reviewed_by === userId) {
+        throw new Error('Cannot perform final review on application you financially reviewed (separation of duties)');
+      }
+
+      const isApproved = reviewData.status === 'Approved';
+      const newWorkflowStage = isApproved ? 'Approved' : 'Rejected';
+
+      // Update application
+      await prisma.membership_applications.updateMany({
+        where: {
+          application_id: applicationId,
+          workflow_stage: { in: ['Final Review', 'Payment Approved'] }
+        },
+        data: {
+          status: reviewData.status,
+          reviewed_at: new Date(),
+          reviewed_by: userId,
+          final_reviewed_at: new Date(),
+          final_reviewed_by: userId,
+          rejection_reason: reviewData.rejection_reason || null,
+          admin_notes: reviewData.admin_notes || null,
+          workflow_stage: newWorkflowStage
+        }
+      });
+
+      // Log audit trail
+      await this.logWorkflowAction({
+        applicationId,
+        userId,
+        userRole: 'membership_approver',
+        actionType: isApproved ? 'final_approve' : 'final_reject',
+        notes: reviewData.admin_notes || `Final review ${reviewData.status.toLowerCase()}`
+      });
+
+      // Send notification
+      await this.sendWorkflowNotification({
+        applicationId,
+        fromUserId: userId,
+        toRole: 'system',
+        notificationType: isApproved ? 'application_approved' : 'application_rejected',
+        title: `Application ${reviewData.status}`,
+        message: `Application #${applicationId} has been ${reviewData.status.toLowerCase()} by final reviewer.`
+      });
+
+      // If approved, create membership record
+      if (isApproved) {
+        await this.createMembershipFromApplication(applicationId);
+      }
+
+    } catch (error) {
+      throw createDatabaseError('Failed to complete final review', error);
+    }
+  }
+
+  // Get applications for financial review
+  static async getApplicationsForFinancialReview(userId: number): Promise<any[]> {
+    try {
+      const applications = await prisma.membership_applications.findMany({
+        where: {
+          workflow_stage: { in: ['Submitted', 'Financial Review'] }
+        },
+        include: {
+          wards: {
+            select: {
+              ward_name: true,
+              municipalities: {
+                select: {
+                  municipality_name: true,
+                  districts: {
+                    select: {
+                      district_name: true,
+                      provinces: {
+                        select: {
+                          province_name: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        orderBy: { submitted_at: 'asc' }
+      });
+
+      // Flatten the nested structure
+      return applications.map(app => ({
+        ...app,
+        ward_name: app.wards?.ward_name || null,
+        municipality_name: app.wards?.municipalities?.municipality_name || null,
+        district_name: app.wards?.municipalities?.districts?.district_name || null,
+        province_name: app.wards?.municipalities?.districts?.provinces?.province_name || null
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get applications for financial review', error);
+    }
+  }
+
+  // Get applications for final review
+  static async getApplicationsForFinalReview(userId: number): Promise<any[]> {
+    try {
+      const applications = await prisma.membership_applications.findMany({
+        where: {
+          workflow_stage: { in: ['Payment Approved', 'Final Review'] },
+          OR: [
+            { financial_reviewed_by: { not: userId } },
+            { financial_reviewed_by: null }
+          ]
+        },
+        include: {
+          wards: {
+            select: {
+              ward_name: true,
+              municipalities: {
+                select: {
+                  municipality_name: true,
+                  districts: {
+                    select: {
+                      district_name: true,
+                      provinces: {
+                        select: {
+                          province_name: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          users_membership_applications_financial_reviewed_byTousers: {
+            select: {
+              name: true
+            }
+          }
+        },
+        orderBy: { financial_reviewed_at: 'asc' }
+      });
+
+      // Flatten the nested structure
+      return applications.map(app => ({
+        ...app,
+        ward_name: app.wards?.ward_name || null,
+        municipality_name: app.wards?.municipalities?.municipality_name || null,
+        district_name: app.wards?.municipalities?.districts?.district_name || null,
+        province_name: app.wards?.municipalities?.districts?.provinces?.province_name || null,
+        financial_reviewer_name: app.users_membership_applications_financial_reviewed_byTousers?.name || null
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get applications for final review', error);
+    }
+  }
+
+  // Log workflow action to audit trail
+  private static async logWorkflowAction(action: WorkflowAction): Promise<void> {
+    try {
+      await prisma.approval_audit_trail.create({
+        data: {
+          application_id: action.applicationId || null,
+          renewal_id: action.renewalId || null,
+          user_id: action.userId,
+          user_role: action.userRole,
+          action_type: action.actionType,
+          entity_type: action.renewalId ? 'renewal' : 'application',
+          notes: action.notes || null,
+          metadata: action.metadata || null
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log workflow action:', error);
+      // Don't throw error to avoid breaking main workflow
+    }
+  }
+
+  // Send workflow notification
+  private static async sendWorkflowNotification(notification: WorkflowNotification): Promise<void> {
+    try {
+      await prisma.workflow_notifications.create({
+        data: {
+          application_id: notification.applicationId || null,
+          renewal_id: notification.renewalId || null,
+          from_user_id: notification.fromUserId,
+          to_role: notification.toRole,
+          notification_type: notification.notificationType,
+          title: notification.title,
+          message: notification.message
+        }
+      });
+    } catch (error) {
+      console.error('Failed to send workflow notification:', error);
+      // Don't throw error to avoid breaking main workflow
+    }
+  }
+
+  // Log renewal financial audit trail
+  private static async logRenewalFinancialAudit(auditData: {
+    renewalId: number;
+    userId: number;
+    action: string;
+    workflowStageBefore?: string;
+    workflowStageAfter?: string;
+    financialStatusBefore?: string;
+    financialStatusAfter?: string;
+    amountReviewed?: number;
+    paymentMethod?: string;
+    paymentReference?: string;
+    approvalStatus?: string;
+    rejectionReason?: string;
+    notes?: string;
+  }): Promise<void> {
+    try {
+      // Get member_id for the renewal
+      const renewal = await prisma.membership_renewals.findFirst({
+        where: { renewal_id: auditData.renewalId },
+        select: { member_id: true }
+      });
+
+      if (!renewal) {
+        throw new Error('Renewal not found for audit logging');
+      }
+
+      await prisma.renewal_financial_audit_trail.create({
+        data: {
+          renewal_id: auditData.renewalId,
+          member_id: renewal.member_id,
+          workflow_stage_before: auditData.workflowStageBefore || null,
+          workflow_stage_after: auditData.workflowStageAfter || null,
+          financial_status_before: auditData.financialStatusBefore || null,
+          financial_status_after: auditData.financialStatusAfter || null,
+          reviewed_by: auditData.userId,
+          reviewer_role: 'financial_reviewer',
+          review_action: auditData.action,
+          amount_reviewed: auditData.amountReviewed || null,
+          payment_method: auditData.paymentMethod || null,
+          payment_reference: auditData.paymentReference || null,
+          approval_status: auditData.approvalStatus || null,
+          rejection_reason: auditData.rejectionReason || null,
+          reviewer_notes: auditData.notes || null
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log renewal financial audit:', error);
+      // Don't throw error to avoid breaking main workflow
+    }
+  }
+
+  // Log financial operations audit
+  private static async logFinancialOperation(operationData: {
+    operationId: string;
+    operationType: string;
+    applicationId?: number;
+    renewalId?: number;
+    memberId?: number;
+    transactionReference?: string;
+    amountBefore?: number;
+    amountAfter?: number;
+    performedBy: number;
+    performedByRole: string;
+    operationStatus: string;
+    operationNotes?: string;
+    systemNotes?: string;
+  }): Promise<void> {
+    try {
+      await prisma.financial_operations_audit.create({
+        data: {
+          operation_id: operationData.operationId,
+          operation_type: operationData.operationType,
+          application_id: operationData.applicationId || null,
+          renewal_id: operationData.renewalId || null,
+          member_id: operationData.memberId || null,
+          transaction_reference: operationData.transactionReference || null,
+          amount_before: operationData.amountBefore || null,
+          amount_after: operationData.amountAfter || null,
+          performed_by: operationData.performedBy,
+          performed_by_role: operationData.performedByRole,
+          operation_status: operationData.operationStatus,
+          operation_notes: operationData.operationNotes || null,
+          system_notes: operationData.systemNotes || null
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log financial operation:', error);
+      // Don't throw error to avoid breaking main workflow
+    }
+  }
+
+  // Create membership from approved application
+  private static async createMembershipFromApplication(applicationId: number): Promise<void> {
+    try {
+      // This would integrate with the existing membership creation service
+      // For now, just log that membership should be created
+      console.log(`Creating membership for approved application ${applicationId}`);
+      
+      // TODO: Integrate with existing MembershipApprovalService.approveApplication
+      // This would create the member record and membership record
+      
+    } catch (error) {
+      console.error('Failed to create membership from application:', error);
+      // Don't throw error to avoid breaking approval workflow
+    }
+  }
+
+  // =====================================================
+  // RENEWAL FINANCIAL REVIEW METHODS
+  // =====================================================
+
+  // Get renewals pending financial review
+  static async getRenewalsForFinancialReview(userId: number, limit: number = 50, offset: number = 0): Promise<any[]> {
+    try {
+      // Use raw SQL for complex query with multiple joins
+      const result = await prisma.$queryRaw`
+        SELECT
+          mr.*,
+          m.firstname,
+          m.surname,
+          m.email,
+          m.cell_number as phone,
+          w.ward_name,
+          mu.municipality_name,
+          d.district_name,
+          p.province_name,
+          u.name as financial_reviewer_name
+        FROM membership_renewals mr
+        LEFT JOIN members m ON mr.member_id = m.member_id
+        LEFT JOIN wards w ON m.ward_code = w.ward_code
+        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        LEFT JOIN districts d ON mu.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN users u ON mr.financial_reviewed_by = u.user_id
+        WHERE mr.workflow_stage IN ('Submitted', 'Payment Verification')
+          AND (mr.financial_status IS NULL OR mr.financial_status = 'Pending')
+        ORDER BY mr.created_at ASC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      ` as any[];
+
+      return result;
+    } catch (error) {
+      throw createDatabaseError('Failed to get renewals for financial review', error);
+    }
+  }
+
+  // Start renewal financial review process
+  static async startRenewalFinancialReview(renewalId: number, userId: number): Promise<void> {
+    try {
+      // Verify renewal exists and is in correct stage
+      const renewal = await prisma.membership_renewals.findFirst({
+        where: { renewal_id: renewalId },
+        select: {
+          renewal_id: true,
+          workflow_stage: true,
+          financial_status: true,
+          financial_reviewed_by: true
+        }
+      });
+
+      if (!renewal) {
+        throw new Error('Renewal not found');
+      }
+
+      if (!renewal.workflow_stage || !['Submitted', 'Payment Verification'].includes(renewal.workflow_stage)) {
+        throw new Error('Renewal is not ready for financial review');
+      }
+
+      if (renewal.financial_reviewed_by && renewal.financial_reviewed_by !== userId) {
+        throw new Error('Renewal is already being reviewed by another financial reviewer');
+      }
+
+      // Update renewal workflow stage and assign reviewer
+      await prisma.membership_renewals.updateMany({
+        where: {
+          renewal_id: renewalId,
+          workflow_stage: { in: ['Submitted', 'Payment Verification'] }
+        },
+        data: {
+          workflow_stage: 'Financial Review',
+          financial_status: 'Under Review',
+          financial_reviewed_by: userId
+        }
+      });
+
+      // Log audit trail
+      await this.logWorkflowAction({
+        renewalId,
+        userId,
+        userRole: 'financial_reviewer',
+        actionType: 'renewal_financial_review_start',
+        notes: 'Renewal financial review started'
+      });
+
+      // Log to renewal financial audit trail
+      await this.logRenewalFinancialAudit({
+        renewalId,
+        userId,
+        action: 'review_started',
+        workflowStageBefore: renewal.workflow_stage || 'Submitted',
+        workflowStageAfter: 'Financial Review',
+        financialStatusBefore: renewal.financial_status || 'Pending',
+        financialStatusAfter: 'Under Review',
+        notes: 'Financial review process initiated'
+      });
+
+    } catch (error) {
+      throw createDatabaseError('Failed to start renewal financial review', error);
+    }
+  }
+
+  // Complete renewal financial review (approve/reject payment)
+  static async completeRenewalFinancialReview(
+    renewalId: number,
+    userId: number,
+    reviewData: RenewalFinancialReviewData
+  ): Promise<void> {
+    try {
+      // Verify renewal is in correct stage and assigned to this reviewer
+      const renewal = await prisma.membership_renewals.findFirst({
+        where: { renewal_id: renewalId },
+        select: {
+          renewal_id: true,
+          workflow_stage: true,
+          financial_status: true,
+          financial_reviewed_by: true,
+          member_id: true
+        }
+      });
+
+      if (!renewal) {
+        throw new Error('Renewal not found');
+      }
+
+      if (renewal.workflow_stage !== 'Financial Review') {
+        throw new Error('Renewal is not in financial review stage');
+      }
+
+      if (renewal.financial_reviewed_by !== userId) {
+        throw new Error('You are not assigned to review this renewal');
+      }
+
+      const isApproved = reviewData.financial_status === 'Approved';
+      const newWorkflowStage = isApproved ? 'Payment Approved' : 'Payment Rejected';
+
+      // Update renewal with review results
+      await prisma.membership_renewals.updateMany({
+        where: {
+          renewal_id: renewalId,
+          workflow_stage: 'Financial Review'
+        },
+        data: {
+          financial_status: reviewData.financial_status,
+          financial_reviewed_at: new Date(),
+          financial_rejection_reason: reviewData.financial_rejection_reason || null,
+          financial_admin_notes: reviewData.financial_admin_notes || null,
+          workflow_stage: newWorkflowStage
+        }
+      });
+
+      // Log audit trail
+      await this.logWorkflowAction({
+        renewalId,
+        userId,
+        userRole: 'financial_reviewer',
+        actionType: isApproved ? 'renewal_financial_approve' : 'renewal_financial_reject',
+        notes: reviewData.financial_admin_notes || `Renewal financial review ${reviewData.financial_status.toLowerCase()}`
+      });
+
+      // Log to renewal financial audit trail
+      await this.logRenewalFinancialAudit({
+        renewalId,
+        userId,
+        action: isApproved ? 'payment_approved' : 'payment_rejected',
+        workflowStageBefore: 'Financial Review',
+        workflowStageAfter: newWorkflowStage,
+        financialStatusBefore: 'Under Review',
+        financialStatusAfter: reviewData.financial_status,
+        amountReviewed: reviewData.payment_amount,
+        paymentReference: reviewData.payment_reference,
+        approvalStatus: isApproved ? 'approved' : 'rejected',
+        rejectionReason: reviewData.financial_rejection_reason,
+        notes: reviewData.financial_admin_notes
+      });
+
+      // Log to financial operations audit
+      await this.logFinancialOperation({
+        operationId: `renewal_review_${renewalId}_${Date.now()}`,
+        operationType: isApproved ? 'payment_approved' : 'payment_rejected',
+        renewalId,
+        memberId: renewal.member_id,
+        performedBy: userId,
+        performedByRole: 'financial_reviewer',
+        operationStatus: 'completed',
+        operationNotes: reviewData.financial_admin_notes,
+        amountAfter: reviewData.payment_amount
+      });
+
+      // Send notification if approved (ready for membership processing)
+      if (isApproved) {
+        await this.sendWorkflowNotification({
+          renewalId,
+          fromUserId: userId,
+          toRole: 'membership_approver',
+          notificationType: 'renewal_ready_for_processing',
+          title: 'Renewal Ready for Processing',
+          message: `Renewal #${renewalId} has been financially approved and is ready for membership processing.`
+        });
+      }
+
+    } catch (error) {
+      throw createDatabaseError('Failed to complete renewal financial review', error);
+    }
+  }
+
+  // Get workflow audit trail for application
+  static async getWorkflowAuditTrail(applicationId: number): Promise<any[]> {
+    try {
+      const trails = await prisma.approval_audit_trail.findMany({
+        where: { application_id: applicationId },
+        include: {
+          users: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { created_at: 'asc' }
+      });
+
+      return trails.map(trail => ({
+        ...trail,
+        user_name: trail.users?.name || null,
+        user_email: trail.users?.email || null
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get workflow audit trail', error);
+    }
+  }
+
+  // Get workflow audit trail for renewal
+  static async getRenewalWorkflowAuditTrail(renewalId: number): Promise<any[]> {
+    try {
+      const trails = await prisma.approval_audit_trail.findMany({
+        where: { renewal_id: renewalId },
+        include: {
+          users: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { created_at: 'asc' }
+      });
+
+      return trails.map(trail => ({
+        ...trail,
+        user_name: trail.users?.name || null,
+        user_email: trail.users?.email || null
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get renewal workflow audit trail', error);
+    }
+  }
+
+  // Get comprehensive audit trail for renewal (includes financial audit)
+  static async getRenewalComprehensiveAuditTrail(renewalId: number): Promise<any[]> {
+    try {
+      // Note: This uses a view - if view doesn't exist, this will fail
+      // For now, use raw query with fallback
+      try {
+        const result = await prisma.$queryRaw`
+          SELECT
+            audit_source,
+            audit_id,
+            operation_type,
+            user_name,
+            performed_by_role,
+            operation_notes,
+            metadata,
+            created_at,
+            entity_description
+          FROM comprehensive_audit_trail
+          WHERE renewal_id = ${renewalId}
+          ORDER BY created_at ASC
+        `;
+        return result as any[];
+      } catch (viewError) {
+        console.warn('comprehensive_audit_trail view not found, returning empty array');
+        return [];
+      }
+    } catch (error) {
+      throw createDatabaseError('Failed to get renewal comprehensive audit trail', error);
+    }
+  }
+
+  // Get renewal details with role-based access control
+  static async getRenewalWithRoleAccess(renewalId: number, userId: number, userRole: string): Promise<any> {
+    try {
+      const result = await prisma.$queryRaw`
+        SELECT
+          mr.*,
+          m.firstname,
+          m.surname,
+          m.email,
+          m.phone,
+          m.member_number,
+          m.id_number,
+          w.ward_name,
+          mu.municipality_name,
+          d.district_name,
+          p.province_name,
+          fr.name as financial_reviewer_name,
+          uft.amount as payment_amount,
+          uft.payment_method,
+          uft.payment_reference,
+          uft.payment_status,
+          uft.payment_date,
+          uft.transaction_id
+        FROM membership_renewals mr
+        LEFT JOIN members m ON mr.member_id = m.member_id
+        LEFT JOIN wards w ON m.ward_code = w.ward_code
+        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        LEFT JOIN districts d ON w.district_code = d.district_code
+        LEFT JOIN provinces p ON w.province_code = p.province_code
+        LEFT JOIN users fr ON mr.financial_reviewed_by = fr.id
+        LEFT JOIN unified_financial_transactions uft ON (
+          uft.entity_id = mr.renewal_id AND
+          uft.transaction_type = 'Renewal'
+        )
+        WHERE mr.renewal_id = ${renewalId}
+      ` as any[];
+
+      const renewal = result[0] || null;
+
+      if (!renewal) {
+        return null;
+      }
+
+      // Apply role-based access control
+      if (userRole === 'financial_reviewer') {
+        // Financial reviewers can only see renewals in appropriate stages
+        if (!['Submitted', 'Payment Verification', 'Financial Review', 'Payment Approved', 'Payment Rejected'].includes(renewal.workflow_stage)) {
+          return null;
+        }
+      } else if (userRole === 'membership_approver') {
+        // Membership approvers can only see financially approved renewals
+        if (!['Payment Approved', 'Processing', 'Approved', 'Rejected'].includes(renewal.workflow_stage)) {
+          return null;
+        }
+        // Cannot see renewals they financially reviewed (separation of duties)
+        if (renewal.financial_reviewed_by === userId) {
+          return null;
+        }
+      }
+
+      return renewal;
+    } catch (error) {
+      throw createDatabaseError('Failed to get renewal with role access', error);
+    }
+  }
+
+  // Get workflow notifications for role
+  static async getWorkflowNotifications(role: string, isRead?: boolean): Promise<any[]> {
+    try {
+      const whereClause: any = {
+        to_role: role
+      };
+
+      if (isRead !== undefined) {
+        whereClause.is_read = isRead;
+      }
+
+      const notifications = await prisma.workflow_notifications.findMany({
+        where: whereClause,
+        include: {
+          membership_applications: {
+            select: {
+              application_number: true,
+              first_name: true,
+              last_name: true
+            }
+          },
+          users: {
+            select: {
+              name: true
+            }
+          }
+        },
+        orderBy: { created_at: 'desc' }
+      });
+
+      return notifications.map(notif => ({
+        ...notif,
+        application_number: notif.membership_applications?.application_number || null,
+        first_name: notif.membership_applications?.first_name || null,
+        last_name: notif.membership_applications?.last_name || null,
+        from_user_name: notif.users?.name || null
+      }));
+    } catch (error) {
+      throw createDatabaseError('Failed to get workflow notifications', error);
+    }
+  }
+
+  // Mark notification as read
+  static async markNotificationAsRead(notificationId: number, userId: number): Promise<void> {
+    try {
+      await prisma.workflow_notifications.update({
+        where: { id: notificationId },
+        data: {
+          is_read: true,
+          read_at: new Date()
+        }
+      });
+    } catch (error) {
+      throw createDatabaseError('Failed to mark notification as read', error);
+    }
+  }
+
+  // Get workflow statistics
+  static async getWorkflowStatistics(userRole: string): Promise<any> {
+    try {
+      if (userRole === 'financial_reviewer') {
+        const [pending, under, approved, rejected] = await Promise.all([
+          prisma.membership_applications.count({ where: { workflow_stage: 'Submitted' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Financial Review' } }),
+          prisma.membership_applications.count({ where: { financial_status: 'Approved' } }),
+          prisma.membership_applications.count({ where: { financial_status: 'Rejected' } })
+        ]);
+        return {
+          pending_financial_review: pending,
+          under_financial_review: under,
+          financially_approved: approved,
+          financially_rejected: rejected
+        };
+      } else if (userRole === 'membership_approver') {
+        const [pending, under, approved, rejected] = await Promise.all([
+          prisma.membership_applications.count({ where: { workflow_stage: 'Payment Approved' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Final Review' } }),
+          prisma.membership_applications.count({ where: { status: 'Approved' } }),
+          prisma.membership_applications.count({ where: { status: 'Rejected' } })
+        ]);
+        return {
+          pending_final_review: pending,
+          under_final_review: under,
+          approved: approved,
+          rejected: rejected
+        };
+      } else {
+        // Super admin gets all statistics
+        const [pendingFin, underFin, pendingFinal, underFinal, approved, rejected] = await Promise.all([
+          prisma.membership_applications.count({ where: { workflow_stage: 'Submitted' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Financial Review' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Payment Approved' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Final Review' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Approved' } }),
+          prisma.membership_applications.count({ where: { workflow_stage: 'Rejected' } })
+        ]);
+        return {
+          pending_financial_review: pendingFin,
+          under_financial_review: underFin,
+          pending_final_review: pendingFinal,
+          under_final_review: underFinal,
+          approved: approved,
+          rejected: rejected
+        };
+      }
+    } catch (error) {
+      throw createDatabaseError('Failed to get workflow statistics', error);
+    }
+  }
+
+  // Get application with role-based access
+  static async getApplicationWithRoleAccess(applicationId: number, userId: number, userRole: string): Promise<any> {
+    try {
+      // Query with geographic joins to get location names
+      const result = await prisma.$queryRaw`
+        SELECT
+          ma.*,
+          w.ward_name,
+          m.municipality_name,
+          d.district_name,
+          p.province_name,
+          u1.name as financial_reviewer_name,
+          u2.name as final_reviewer_name,
+          l.language_name,
+          o.occupation_name,
+          q.qualification_name
+        FROM membership_applications ma
+        LEFT JOIN wards w ON ma.ward_code = w.ward_code
+        LEFT JOIN municipalities m ON ma.municipal_code = m.municipality_code
+        LEFT JOIN districts d ON ma.district_code = d.district_code
+        LEFT JOIN provinces p ON ma.province_code = p.province_code
+        LEFT JOIN users u1 ON ma.financial_reviewed_by = u1.user_id
+        LEFT JOIN users u2 ON ma.final_reviewed_by = u2.user_id
+        LEFT JOIN languages l ON ma.language_id = l.language_id
+        LEFT JOIN occupations o ON ma.occupation_id = o.occupation_id
+        LEFT JOIN qualifications q ON ma.qualification_id = q.qualification_id
+        WHERE ma.application_id = ${applicationId}
+      ` as any[];
+
+      const application = result[0] || null;
+
+      if (!application) {
+        return null;
+      }
+
+      // Apply role-based access control
+      if (userRole === 'financial_reviewer') {
+        // Financial reviewers can only see applications in appropriate stages
+        if (!['Submitted', 'Financial Review', 'Payment Approved', 'Rejected'].includes(application.workflow_stage)) {
+          return null;
+        }
+      } else if (userRole === 'membership_approver') {
+        // Membership approvers can only see financially approved applications
+        if (!['Payment Approved', 'Final Review', 'Approved', 'Rejected'].includes(application.workflow_stage)) {
+          return null;
+        }
+        // Cannot see applications they financially reviewed (separation of duties)
+        if (application.financial_reviewed_by === userId) {
+          return null;
+        }
+      }
+
+      return application;
+    } catch (error) {
+      throw createDatabaseError('Failed to get application with role access', error);
+    }
+  }
+}

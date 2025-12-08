@@ -56,6 +56,7 @@ import { useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
+import { devLog } from '../../utils/logger';
 
 // Interface definitions
 interface Meeting {
@@ -126,7 +127,7 @@ const MeetingsPage: React.FC = () => {
       params.append('order', 'desc');
 
       const result = await apiGet(`/meetings?${params.toString()}`);
-      console.log('✅ Meetings API Response:', result);
+      devLog('✅ Meetings API Response:', result);
       return result;
     },
   });
@@ -146,9 +147,9 @@ const MeetingsPage: React.FC = () => {
   const meetings = (meetingsData as any)?.data?.meetings || (meetingsData as any)?.meetings || [];
 
   // Debug logging
-  console.log('Meetings Data:', meetingsData);
-  console.log('Extracted Meetings:', meetings);
-  console.log('Meetings Length:', meetings.length);
+  devLog('Meetings Data:', meetingsData);
+  devLog('Extracted Meetings:', meetings);
+  devLog('Meetings Length:', meetings.length);
 
   // Filter meetings by tab
   const getFilteredMeetings = () => {

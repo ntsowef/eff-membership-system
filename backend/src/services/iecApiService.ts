@@ -1,6 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import cloudscraper from 'cloudscraper';
 import { config } from '../config/config';
+
+// Type assertion for cloudscraper to handle defaults method
+const cloudscraperWithDefaults = cloudscraper as any;
 import { createDatabaseError } from '../middleware/errorHandler';
 import { getPrisma } from './prismaService';
 
@@ -111,7 +114,7 @@ class IECApiService {
 
   constructor() {
     // Create CloudScraper instance with browser configuration (matching Python)
-    this.scraper = cloudscraper.defaults({
+    this.scraper = cloudscraperWithDefaults.defaults({
       agentOptions: {
         ciphers: 'ECDHE-RSA-AES128-GCM-SHA256'
       }
@@ -331,13 +334,14 @@ class IECApiService {
             console.warn(` No province mapping found for IEC Province ID: ${delimitation.ProvinceID}`);
           }
 
-          // 2. Map Municipality - Use municipality mapping table or lookup by name
+          // 2. Map Municipality - Use enhanced municipality mapping table (includes district_code)
           const municipalityMapping = await prisma.iec_municipality_mappings.findFirst({
             where: {
               iec_municipality_id: delimitation.MunicipalityID.toString()
             },
             select: {
-              municipality_code: true
+              municipality_code: true,
+              district_code: true  // Now included directly in the mapping table
             }
           });
 
@@ -345,22 +349,13 @@ class IECApiService {
             voterDetails.municipality_code = municipalityMapping.municipality_code;
             console.log(` Municipality mapped: IEC Municipality ID ${delimitation.MunicipalityID} → ${municipalityMapping.municipality_code}`);
 
-            // Get district code from municipality
-            const municipality = await prisma.municipalities.findUnique({
-              where: {
-                municipality_code: municipalityMapping.municipality_code
-              },
-              select: {
-                district_code: true
-              }
-            });
-
-            if (municipality?.district_code) {
-              voterDetails.district_code = municipality.district_code;
-              console.log(` District mapped: ${municipality.district_code}`);
+            // District code is now directly in the mapping table - no extra lookup needed!
+            if (municipalityMapping.district_code) {
+              voterDetails.district_code = municipalityMapping.district_code;
+              console.log(` District mapped (from mapping table): ${municipalityMapping.district_code}`);
             }
           } else {
-            // Fallback: Try to find municipality by name matching
+            // Fallback: Try to find municipality by name matching in municipalities table
             console.log(` No municipality mapping found, trying name match...`);
             const municipality = await prisma.municipalities.findFirst({
               where: {

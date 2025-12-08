@@ -39,12 +39,14 @@ import PageHeader from '../../components/ui/PageHeader';
 import ExpiredMembersSection from '../../components/dashboard/ExpiredMembersSection';
 import MembershipFilterBar from '../../components/dashboard/MembershipFilterBar';
 import MembershipAnalyticsCards from '../../components/dashboard/MembershipAnalyticsCards';
+import VoterRegistrationStats from '../../components/dashboard/VoterRegistrationStats';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
 import type { MembershipFilterType } from '../../types/membership';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
 import MunicipalityContextBanner from '../../components/common/MunicipalityContextBanner';
 import { useSecureApi } from '../../hooks/useSecureApi';
+import { devLog } from '../../utils/logger';
 
 // Interface definitions (currently unused but kept for future use)
 // interface MembershipApplication {
@@ -106,11 +108,11 @@ const DashboardPage: React.FC = () => {
   const { data: dashboardData, isLoading: statsLoading, error: statsError, refetch: refetchDashboard } = useQuery({
     queryKey: ['dashboard-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter(), membershipFilter],
     queryFn: async () => {
-      console.log('🔍 Dashboard API Call - Making request to /statistics/dashboard');
-      console.log('🔍 Filter params:', getFilterParams());
+      devLog('🔍 Dashboard API Call - Making request to /statistics/dashboard');
+      devLog('🔍 Filter params:', getFilterParams());
       try {
         const result = await secureGet('/statistics/dashboard', getFilterParams());
-        console.log('✅ Dashboard API Call - Success:', result);
+        devLog('✅ Dashboard API Call - Success:', result);
         return result;
       } catch (error) {
         console.error('❌ Dashboard API Call - Error:', error);
@@ -153,12 +155,21 @@ const DashboardPage: React.FC = () => {
     enabled: municipalityContext.shouldRestrictToMunicipality, // Only fetch for municipality admins
   });
 
+  // Fetch voter registration statistics
+  const { data: voterRegistrationData, isLoading: voterRegistrationLoading, error: voterRegistrationError, refetch: refetchVoterRegistration } = useQuery({
+    queryKey: ['voter-registration-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
+    queryFn: () => secureGet('/statistics/voter-registration', getFilterParams()),
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+  });
+
   // Manual refresh function
   const handleRefresh = () => {
     setRefreshTimestamp(Date.now());
     refetchDashboard();
     refetchAnalytics();
     refetchBreakdown();
+    refetchVoterRegistration();
   };
 
   // Extract data from API response (handles both { data: {...} } and direct {...} structures)
@@ -167,17 +178,17 @@ const DashboardPage: React.FC = () => {
   // const _analyticsStats = (analyticsData as any)?.statistics || {};
 
   // Debug logging
-  console.log('🔍 Dashboard Data:', dashboardData);
-  console.log('🔍 Dashboard Data Extracted:', dashboardDataExtracted);
-  console.log('🔍 System Stats:', systemStats);
+  devLog('🔍 Dashboard Data:', dashboardData);
+  devLog('🔍 Dashboard Data Extracted:', dashboardDataExtracted);
+  devLog('🔍 System Stats:', systemStats);
 
   // Extract the actual data from the nested API response structure
   const totals = systemStats.totals || {};
   const growth = systemStats.growth || {};
   // const _alerts = dashboardDataExtracted?.alerts || {};
 
-  console.log('🔍 Totals:', totals);
-  console.log('🔍 Growth:', growth);
+  devLog('🔍 Totals:', totals);
+  devLog('🔍 Growth:', growth);
 
   // Fetch recent applications
   const { data: applicationsData } = useQuery({
@@ -414,9 +425,53 @@ const DashboardPage: React.FC = () => {
               }}
               onFilterByProvince={(provinceCode) => {
                 // Handle province filtering - could update URL params or state
-                console.log('Filter by province:', provinceCode);
+                devLog('Filter by province:', provinceCode);
               }}
             />
+          </Grid>
+        </Grid>
+
+        {/* Voter Registration Statistics Section */}
+        <Grid container spacing={3} sx={{ mt: 2 }}>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <VoterRegistrationStats
+                summary={(voterRegistrationData as any)?.summary || null}
+                geographicBreakdown={(voterRegistrationData as any)?.geographic_breakdown || []}
+                breakdownType={(voterRegistrationData as any)?.breakdown_type || 'province'}
+                isLoading={voterRegistrationLoading}
+                error={voterRegistrationError as Error | null}
+                onExport={async (format) => {
+                  try {
+                    const response = await secureGet('/statistics/voter-registration/export', {
+                      ...getFilterParams(),
+                      format
+                    });
+                    if (format === 'csv' && response) {
+                      // For CSV, the backend returns the file directly
+                      const blob = new Blob([response as any], { type: 'text/csv' });
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `voter-registration-statistics-${new Date().toISOString().split('T')[0]}.csv`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    }
+                  } catch (error) {
+                    console.error('Export failed:', error);
+                  }
+                }}
+                contextLabel={
+                  municipalityContext.shouldRestrictToMunicipality
+                    ? municipalityContext.assignedMunicipality?.name
+                    : provinceContext.isProvincialAdmin
+                    ? provinceContext.assignedProvince?.name
+                    : undefined
+                }
+              />
+            </Paper>
           </Grid>
         </Grid>
 

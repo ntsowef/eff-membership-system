@@ -147,3 +147,5 @@ coverage/
 
 # Compiled TypeScript
 *.tsbuildinfo
+production_database.dump
+wards_backup.dump

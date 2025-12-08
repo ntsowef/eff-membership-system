@@ -1,0 +1,1274 @@
+{
+  "wards": [
+    {
+      "ward_code": "10101001",
+      "ward_name": "Ward 1",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101002",
+      "ward_name": "Ward 2",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101003",
+      "ward_name": "Ward 3",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101004",
+      "ward_name": "Ward 4",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101005",
+      "ward_name": "Ward 5",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101006",
+      "ward_name": "Ward 6",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101007",
+      "ward_name": "Ward 7",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10101008",
+      "ward_name": "Ward 8",
+      "municipality_code": "WC011"
+    },
+    {
+      "ward_code": "10102001",
+      "ward_name": "Ward 1",
+      "municipality_code": "WC012"
+    },
+    {
+      "ward_code": "10102002",
+      "ward_name": "Ward 2",
+      "municipality_code": "WC012"
+    },
+    {
+      "ward_code": "10102003",
+      "ward_name": "Ward 3",
+      "municipality_code": "WC012"
+    },
+    {
+      "ward_code": "10102004",
+      "ward_name": "Ward 4",
+      "municipality_code": "WC012"
+    },
+    {
+      "ward_code": "10102005",
+      "ward_name": "Ward 5",
+      "municipality_code": "WC012"
+    },
+    {
+      "ward_code": "10102006",
+      "ward_name": "Ward 6",
+      "municipality_code": "WC012"
+    },
+    {
+      "ward_code": "10103001",
+      "ward_name": "Ward 1",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10103002",
+      "ward_name": "Ward 2",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10103003",
+      "ward_name": "Ward 3",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10103004",
+      "ward_name": "Ward 4",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10103005",
+      "ward_name": "Ward 5",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10103006",
+      "ward_name": "Ward 6",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10103007",
+      "ward_name": "Ward 7",
+      "municipality_code": "WC013"
+    },
+    {
+      "ward_code": "10104001",
+      "ward_name": "Ward 1",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104002",
+      "ward_name": "Ward 2",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104003",
+      "ward_name": "Ward 3",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104004",
+      "ward_name": "Ward 4",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104005",
+      "ward_name": "Ward 5",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104006",
+      "ward_name": "Ward 6",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104007",
+      "ward_name": "Ward 7",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104008",
+      "ward_name": "Ward 8",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104009",
+      "ward_name": "Ward 9",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104010",
+      "ward_name": "Ward 10",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104011",
+      "ward_name": "Ward 11",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104012",
+      "ward_name": "Ward 12",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104013",
+      "ward_name": "Ward 13",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10104014",
+      "ward_name": "Ward 14",
+      "municipality_code": "WC014"
+    },
+    {
+      "ward_code": "10105001",
+      "ward_name": "Ward 1",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105002",
+      "ward_name": "Ward 2",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105003",
+      "ward_name": "Ward 3",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105004",
+      "ward_name": "Ward 4",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105005",
+      "ward_name": "Ward 5",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105006",
+      "ward_name": "Ward 6",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105007",
+      "ward_name": "Ward 7",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105008",
+      "ward_name": "Ward 8",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105009",
+      "ward_name": "Ward 9",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105010",
+      "ward_name": "Ward 10",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105011",
+      "ward_name": "Ward 11",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10105012",
+      "ward_name": "Ward 12",
+      "municipality_code": "WC015"
+    },
+    {
+      "ward_code": "10202001",
+      "ward_name": "Ward 1",
+      "municipality_code": "WC022"
+    },
+    {
+      "ward_code": "10202002",
+      "ward_name": "Ward 2",
+      "municipality_code": "WC022"
+    },
+    {
+      "ward_code": "10202003",
+      "ward_name": "Ward 3",
+      "municipality_code": "WC022"
+    }
+  ],
+  "genders": [
+    {
+      "gender_id": 1,
+      "gender_name": "Male",
+      "gender_code": "M",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.775Z",
+      "updated_at": "2025-09-24T03:17:08.775Z"
+    },
+    {
+      "gender_id": 2,
+      "gender_name": "Female",
+      "gender_code": "F",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.775Z",
+      "updated_at": "2025-09-24T03:17:08.775Z"
+    },
+    {
+      "gender_id": 3,
+      "gender_name": "Other",
+      "gender_code": "O",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.775Z",
+      "updated_at": "2025-09-24T03:17:08.775Z"
+    },
+    {
+      "gender_id": 4,
+      "gender_name": "Prefer not to say",
+      "gender_code": "N",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.775Z",
+      "updated_at": "2025-09-24T03:17:08.775Z"
+    }
+  ],
+  "races": [
+    {
+      "race_id": 1,
+      "race_name": "African",
+      "race_code": "A",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.875Z",
+      "updated_at": "2025-09-24T03:17:08.875Z"
+    },
+    {
+      "race_id": 2,
+      "race_name": "Coloured",
+      "race_code": "C",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.875Z",
+      "updated_at": "2025-09-24T03:17:08.875Z"
+    },
+    {
+      "race_id": 3,
+      "race_name": "Indian",
+      "race_code": "I",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.875Z",
+      "updated_at": "2025-09-24T03:17:08.875Z"
+    },
+    {
+      "race_id": 4,
+      "race_name": "White",
+      "race_code": "W",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.875Z",
+      "updated_at": "2025-09-24T03:17:08.875Z"
+    },
+    {
+      "race_id": 5,
+      "race_name": "Other",
+      "race_code": "O",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.875Z",
+      "updated_at": "2025-09-24T03:17:08.875Z"
+    },
+    {
+      "race_id": 6,
+      "race_name": "Prefer not to say",
+      "race_code": "N",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.875Z",
+      "updated_at": "2025-09-24T03:17:08.875Z"
+    }
+  ],
+  "citizenships": [
+    {
+      "citizenship_id": 1,
+      "citizenship_name": "South African Citizen",
+      "citizenship_code": "SA",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.979Z",
+      "updated_at": "2025-09-24T03:17:08.979Z"
+    },
+    {
+      "citizenship_id": 2,
+      "citizenship_name": "Permanent Resident",
+      "citizenship_code": "PR",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.979Z",
+      "updated_at": "2025-09-24T03:17:08.979Z"
+    },
+    {
+      "citizenship_id": 3,
+      "citizenship_name": "Temporary Resident",
+      "citizenship_code": "TR",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.979Z",
+      "updated_at": "2025-09-24T03:17:08.979Z"
+    },
+    {
+      "citizenship_id": 4,
+      "citizenship_name": "Refugee",
+      "citizenship_code": "RF",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.979Z",
+      "updated_at": "2025-09-24T03:17:08.979Z"
+    },
+    {
+      "citizenship_id": 5,
+      "citizenship_name": "Other",
+      "citizenship_code": "OT",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:08.979Z",
+      "updated_at": "2025-09-24T03:17:08.979Z"
+    }
+  ],
+  "languages": [
+    {
+      "language_id": 1,
+      "language_name": "Afrikaans",
+      "language_code": "af",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 2,
+      "language_name": "English",
+      "language_code": "en",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 3,
+      "language_name": "isiNdebele",
+      "language_code": "nr",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 4,
+      "language_name": "isiXhosa",
+      "language_code": "xh",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 5,
+      "language_name": "isiZulu",
+      "language_code": "zu",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 6,
+      "language_name": "Sepedi",
+      "language_code": "nso",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 7,
+      "language_name": "Sesotho",
+      "language_code": "st",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 8,
+      "language_name": "Setswana",
+      "language_code": "tn",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 9,
+      "language_name": "siSwati",
+      "language_code": "ss",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 10,
+      "language_name": "Tshivenda",
+      "language_code": "ve",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 11,
+      "language_name": "Xitsonga",
+      "language_code": "ts",
+      "is_official": true,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    },
+    {
+      "language_id": 12,
+      "language_name": "Other",
+      "language_code": "ot",
+      "is_official": false,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.068Z",
+      "updated_at": "2025-09-24T03:17:09.068Z"
+    }
+  ],
+  "occupations": [
+    {
+      "occupation_id": 1,
+      "occupation_name": "Teacher",
+      "category_id": 1,
+      "occupation_code": "TEACH",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 2,
+      "occupation_name": "Nurse",
+      "category_id": 1,
+      "occupation_code": "NURSE",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 3,
+      "occupation_name": "Engineer",
+      "category_id": 1,
+      "occupation_code": "ENG",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 4,
+      "occupation_name": "Manager",
+      "category_id": 2,
+      "occupation_code": "MGR",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 5,
+      "occupation_name": "Administrator",
+      "category_id": 3,
+      "occupation_code": "ADMIN",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 6,
+      "occupation_name": "Sales Representative",
+      "category_id": 4,
+      "occupation_code": "SALES",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 7,
+      "occupation_name": "Farmer",
+      "category_id": 5,
+      "occupation_code": "FARM",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 8,
+      "occupation_name": "Electrician",
+      "category_id": 6,
+      "occupation_code": "ELEC",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 9,
+      "occupation_name": "Driver",
+      "category_id": 7,
+      "occupation_code": "DRIV",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 10,
+      "occupation_name": "Cleaner",
+      "category_id": 8,
+      "occupation_code": "CLEAN",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 11,
+      "occupation_name": "Student",
+      "category_id": 9,
+      "occupation_code": "STUD",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 12,
+      "occupation_name": "Unemployed",
+      "category_id": 10,
+      "occupation_code": "UNEM",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 13,
+      "occupation_name": "Retired",
+      "category_id": 11,
+      "occupation_code": "RET",
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:15.750Z",
+      "updated_at": "2025-09-24T03:17:15.750Z"
+    },
+    {
+      "occupation_id": 14,
+      "occupation_name": "Pensioner",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-26T23:30:13.626Z",
+      "updated_at": "2025-09-26T23:30:13.626Z"
+    },
+    {
+      "occupation_id": 15,
+      "occupation_name": "05/06/2021",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-26T23:30:13.626Z",
+      "updated_at": "2025-09-26T23:30:13.626Z"
+    },
+    {
+      "occupation_id": 16,
+      "occupation_name": "06/05/2021",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": false,
+      "created_at": "2025-09-26T23:30:13.626Z",
+      "updated_at": "2025-11-23T02:50:32.201Z"
+    },
+    {
+      "occupation_id": 17,
+      "occupation_name": "2021-06-05 00:00:00",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": false,
+      "created_at": "2025-09-26T23:30:13.626Z",
+      "updated_at": "2025-11-23T02:52:32.810Z"
+    },
+    {
+      "occupation_id": 26,
+      "occupation_name": "No",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-27T00:59:06.407Z",
+      "updated_at": "2025-09-27T00:59:06.407Z"
+    },
+    {
+      "occupation_id": 27,
+      "occupation_name": "Yes",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-27T00:59:06.407Z",
+      "updated_at": "2025-09-27T00:59:06.407Z"
+    },
+    {
+      "occupation_id": 28,
+      "occupation_name": "Employed",
+      "category_id": 12,
+      "occupation_code": null,
+      "description": null,
+      "is_active": true,
+      "created_at": "2025-09-27T00:59:22.115Z",
+      "updated_at": "2025-09-27T00:59:22.115Z"
+    }
+  ],
+  "qualifications": [
+    {
+      "qualification_id": 1,
+      "qualification_name": "No Formal Education",
+      "qualification_code": "NONE",
+      "level_order": 1,
+      "description": "No formal education",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 2,
+      "qualification_name": "Primary Education",
+      "qualification_code": "PRIM",
+      "level_order": 2,
+      "description": "Primary school education",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 3,
+      "qualification_name": "Secondary Education (Grade 9-11)",
+      "qualification_code": "SEC1",
+      "level_order": 3,
+      "description": "Incomplete secondary education",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 4,
+      "qualification_name": "Matric/Grade 12",
+      "qualification_code": "MATR",
+      "level_order": 4,
+      "description": "Completed secondary education",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 5,
+      "qualification_name": "Certificate",
+      "qualification_code": "CERT",
+      "level_order": 5,
+      "description": "Post-school certificate",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 6,
+      "qualification_name": "Diploma",
+      "qualification_code": "DIPL",
+      "level_order": 6,
+      "description": "Post-school diploma",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 7,
+      "qualification_name": "Bachelor's Degree",
+      "qualification_code": "BACH",
+      "level_order": 7,
+      "description": "Undergraduate degree",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 8,
+      "qualification_name": "Honours Degree",
+      "qualification_code": "HONS",
+      "level_order": 8,
+      "description": "Honours degree",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 9,
+      "qualification_name": "Master's Degree",
+      "qualification_code": "MAST",
+      "level_order": 9,
+      "description": "Master's degree",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 10,
+      "qualification_name": "Doctoral Degree",
+      "qualification_code": "DOCT",
+      "level_order": 10,
+      "description": "Doctoral degree",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    },
+    {
+      "qualification_id": 11,
+      "qualification_name": "Other",
+      "qualification_code": "OTHR",
+      "level_order": 11,
+      "description": "Other qualification",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.390Z",
+      "updated_at": "2025-09-24T03:17:09.390Z"
+    }
+  ],
+  "subscription_types": [
+    {
+      "subscription_type_id": 1,
+      "subscription_name": "Annual Membership",
+      "subscription_code": "ANN",
+      "description": "Standard annual membership",
+      "duration_months": 12,
+      "base_amount": "120.00",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.707Z",
+      "updated_at": "2025-09-24T03:17:09.707Z"
+    },
+    {
+      "subscription_type_id": 2,
+      "subscription_name": "Student Membership",
+      "subscription_code": "STU",
+      "description": "Discounted membership for students",
+      "duration_months": 12,
+      "base_amount": "60.00",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.707Z",
+      "updated_at": "2025-09-24T03:17:09.707Z"
+    },
+    {
+      "subscription_type_id": 3,
+      "subscription_name": "Senior Membership",
+      "subscription_code": "SEN",
+      "description": "Discounted membership for seniors (65+)",
+      "duration_months": 12,
+      "base_amount": "60.00",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.707Z",
+      "updated_at": "2025-09-24T03:17:09.707Z"
+    },
+    {
+      "subscription_type_id": 4,
+      "subscription_name": "Honorary Membership",
+      "subscription_code": "HON",
+      "description": "Honorary membership (no fee)",
+      "duration_months": 12,
+      "base_amount": "0.00",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.707Z",
+      "updated_at": "2025-09-24T03:17:09.707Z"
+    },
+    {
+      "subscription_type_id": 5,
+      "subscription_name": "Life Membership",
+      "subscription_code": "LIFE",
+      "description": "Lifetime membership",
+      "duration_months": 0,
+      "base_amount": "1200.00",
+      "is_active": true,
+      "created_at": "2025-09-24T03:17:09.707Z",
+      "updated_at": "2025-09-24T03:17:09.707Z"
+    },
+    {
+      "subscription_type_id": 6,
+      "subscription_name": "New",
+      "subscription_code": "NEW",
+      "description": "New membership registration",
+      "duration_months": 12,
+      "base_amount": "10.00",
+      "is_active": true,
+      "created_at": "2025-10-03T11:29:40.526Z",
+      "updated_at": "2025-10-03T11:29:40.526Z"
+    },
+    {
+      "subscription_type_id": 7,
+      "subscription_name": "Renewal",
+      "subscription_code": "REN",
+      "description": "Membership renewal",
+      "duration_months": 12,
+      "base_amount": "10.00",
+      "is_active": true,
+      "created_at": "2025-10-03T11:29:40.526Z",
+      "updated_at": "2025-10-03T11:29:40.526Z"
+    },
+    {
+      "subscription_type_id": 8,
+      "subscription_name": "NEW",
+      "subscription_code": "NEW2",
+      "description": "New membership (uppercase)",
+      "duration_months": 12,
+      "base_amount": "10.00",
+      "is_active": true,
+      "created_at": "2025-10-03T11:29:40.526Z",
+      "updated_at": "2025-10-03T11:29:40.526Z"
+    }
+  ],
+  "membership_statuses": [
+    {
+      "status_id": 1,
+      "status_name": "Active",
+      "status_code": "ACT",
+      "description": "Active membership in good standing",
+      "is_active": true,
+      "allows_voting": true,
+      "allows_leadership": true,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 2,
+      "status_name": "Expired",
+      "status_code": "EXP",
+      "description": "Membership has expired",
+      "is_active": false,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 3,
+      "status_name": "Suspended",
+      "status_code": "SUS",
+      "description": "Membership temporarily suspended",
+      "is_active": false,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 4,
+      "status_name": "Cancelled",
+      "status_code": "CAN",
+      "description": "Membership cancelled",
+      "is_active": false,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 5,
+      "status_name": "Pending",
+      "status_code": "PEN",
+      "description": "Membership application pending",
+      "is_active": false,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 6,
+      "status_name": "Inactive",
+      "status_code": "INA",
+      "description": "Inactive membership",
+      "is_active": false,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 7,
+      "status_name": "Grace Period",
+      "status_code": "GRA",
+      "description": "In grace period after expiry",
+      "is_active": true,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-09-24T03:17:09.589Z",
+      "updated_at": "2025-09-24T03:17:09.589Z"
+    },
+    {
+      "status_id": 8,
+      "status_name": "Good Standing",
+      "status_code": null,
+      "description": "Member in good standing with all obligations met",
+      "is_active": true,
+      "allows_voting": false,
+      "allows_leadership": false,
+      "created_at": "2025-10-03T11:43:20.845Z",
+      "updated_at": "2025-10-03T11:43:20.845Z"
+    }
+  ],
+  "provinces": [
+    {
+      "province_code": "EC",
+      "province_name": "Eastern Cape"
+    },
+    {
+      "province_code": "FS",
+      "province_name": "Free State"
+    },
+    {
+      "province_code": "GP",
+      "province_name": "Gauteng"
+    },
+    {
+      "province_code": "KZN",
+      "province_name": "KwaZulu-Natal"
+    },
+    {
+      "province_code": "LP",
+      "province_name": "Limpopo"
+    },
+    {
+      "province_code": "MP",
+      "province_name": "Mpumalanga"
+    },
+    {
+      "province_code": "NC",
+      "province_name": "Northern Cape"
+    },
+    {
+      "province_code": "NW",
+      "province_name": "North West"
+    },
+    {
+      "province_code": "WC",
+      "province_name": "Western Cape"
+    }
+  ],
+  "municipalities": [
+    {
+      "municipality_code": "BUF",
+      "municipality_name": "Buffalo City Metropolitan Municipality",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "BUF001",
+      "municipality_name": "BUF - East London",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "BUF002",
+      "municipality_name": "BUF - King Williams Town",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "BUF003",
+      "municipality_name": "BUF - Mdantsane",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "BUF004",
+      "municipality_name": "BUF-Duncan Village",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "CPT",
+      "municipality_name": "City of Cape Town Metropolitan Municipality",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT001",
+      "municipality_name": "CPT - Zone 1",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT002",
+      "municipality_name": "CPT - Zone 10",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT003",
+      "municipality_name": "CPT - Zone 2",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT004",
+      "municipality_name": "CPT - Zone 3",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT005",
+      "municipality_name": "CPT - Zone 4",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT006",
+      "municipality_name": "CPT - Zone 5",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT007",
+      "municipality_name": "CPT - Zone 6",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT008",
+      "municipality_name": "CPT - Zone 7",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT009",
+      "municipality_name": "CPT - Zone 8",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "CPT010",
+      "municipality_name": "CPT - Zone 9",
+      "province_code": "WC"
+    },
+    {
+      "municipality_code": "EC101",
+      "municipality_name": "Dr Beyers Naude Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC102",
+      "municipality_name": "Blue Crane Route Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC104",
+      "municipality_name": "Makana Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC105",
+      "municipality_name": "Ndlambe Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC106",
+      "municipality_name": "Sundays River Valley Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC108",
+      "municipality_name": "Kouga Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC109",
+      "municipality_name": "Kou-Kamma Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC121",
+      "municipality_name": "Mbhashe Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC122",
+      "municipality_name": "Mnquma Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC123",
+      "municipality_name": "Great Kei Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC124",
+      "municipality_name": "Amahlathi Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC126",
+      "municipality_name": "Ngqushwa Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC129",
+      "municipality_name": "Raymond Mhlaba Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC131",
+      "municipality_name": "Inxuba Yethemba Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC135",
+      "municipality_name": "Intsika Yethu Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC136",
+      "municipality_name": "Emalahleni Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC137",
+      "municipality_name": "Engcobo Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC138",
+      "municipality_name": "Sakhisizwe Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC139",
+      "municipality_name": "Enoch Mgijima Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC141",
+      "municipality_name": "Elundini Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC142",
+      "municipality_name": "Senqu Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC145",
+      "municipality_name": "Walter Sisulu Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC153",
+      "municipality_name": "Ingquza Hill Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC154",
+      "municipality_name": "Port St Johns Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC155",
+      "municipality_name": "Nyandeni Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC156",
+      "municipality_name": "Mhlontlo Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC157",
+      "municipality_name": "King Sabata Dalindyebo Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC441",
+      "municipality_name": "Matatiele Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC442",
+      "municipality_name": "Umzimvubu Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC443",
+      "municipality_name": "Mbizana Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EC444",
+      "municipality_name": "Ntabankulu Sub-Region",
+      "province_code": "EC"
+    },
+    {
+      "municipality_code": "EKU",
+      "municipality_name": "Ekurhuleni Metropolitan Municipality",
+      "province_code": "GP"
+    },
+    {
+      "municipality_code": "EKU001",
+      "municipality_name": "EKU - Central",
+      "province_code": "GP"
+    },
+    {
+      "municipality_code": "EKU002",
+      "municipality_name": "EKU - East",
+      "province_code": "GP"
+    }
+  ]
+}

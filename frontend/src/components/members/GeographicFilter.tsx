@@ -46,6 +46,7 @@ import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../common/ProvinceContextBanner';
 import WardMembersModal from './WardMembersModal';
+import { devLog, devWarn } from '../../utils/logger';
 
 // Types for geographic hierarchy
 interface GeographicData {
@@ -135,10 +136,10 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     queryKey: ['member-stats-provinces', membershipStatus],
     queryFn: async () => {
       try {
-        console.log('🌍 Fetching province stats...');
+        devLog('🌍 Fetching province stats...');
         const statusParam = membershipStatus ? `?membership_status=${membershipStatus}` : '';
         const result = await apiGet<GeographicData[]>(`/members/stats/provinces${statusParam}`);
-        console.log('🌍 Province stats response:', result);
+        devLog('🌍 Province stats response:', result);
 
         // Extract data from API response - handle nested structure
         // Backend returns: { success: true, data: { data: [...] } }
@@ -153,14 +154,14 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
           } else if (Array.isArray((result as any).data)) {
             extractedData = (result as any).data;
           } else {
-            console.warn('🌍 Unexpected province stats response structure:', result);
+            devWarn('🌍 Unexpected province stats response structure:', result);
             extractedData = [];
           }
         } else {
           extractedData = [];
         }
 
-        console.log('🌍 Extracted province data:', extractedData);
+        devLog('🌍 Extracted province data:', extractedData);
         return { data: extractedData };
       } catch (error) {
         console.error('🌍 Failed to fetch province stats:', error);
@@ -187,15 +188,15 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   const { data: districtStats, isLoading: districtsLoading } = useQuery({
     queryKey: ['member-stats-districts', filters.province, membershipStatus],
     queryFn: async () => {
-      console.log('🏘️ Fetching districts for province:', filters.province);
+      devLog('🏘️ Fetching districts for province:', filters.province);
       try {
         const statusParam = membershipStatus ? `&membership_status=${membershipStatus}` : '';
         const result = await apiGet<{ data: GeographicData[] }>(`/members/stats/districts?province=${filters.province}${statusParam}`);
-        console.log('🏘️ Districts response:', result);
+        devLog('🏘️ Districts response:', result);
 
         // Extract data - handle nested structure
         const extracted = (result as any)?.data?.data || (result as any)?.data || result;
-        console.log('🏘️ Extracted districts:', extracted);
+        devLog('🏘️ Extracted districts:', extracted);
         return { data: Array.isArray(extracted) ? extracted : [] };
       } catch (error) {
         console.error('🏘️ Failed to fetch districts:', error);
@@ -268,7 +269,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
   // Update cascading dropdowns
   useEffect(() => {
-    console.log('🏘️ District stats changed:', districtStats);
+    devLog('🏘️ District stats changed:', districtStats);
 
     // Handle nested response structure: { data: { data: [...] } }
     let districtsArray = null;
@@ -283,16 +284,16 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     }
 
     if (districtsArray && districtsArray.length > 0) {
-      console.log('🏘️ Setting districts:', districtsArray);
+      devLog('🏘️ Setting districts:', districtsArray);
       setDistricts(districtsArray);
     } else {
-      console.log('🏘️ Clearing districts (no valid array found)');
+      devLog('🏘️ Clearing districts (no valid array found)');
       setDistricts([]);
     }
   }, [districtStats]);
 
   useEffect(() => {
-    console.log('🏢 Municipality stats changed:', municipalityStats);
+    devLog('🏢 Municipality stats changed:', municipalityStats);
 
     // Handle nested response structure: { data: { data: [...] } }
     let municipalitiesArray = null;
@@ -307,16 +308,16 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     }
 
     if (municipalitiesArray && municipalitiesArray.length > 0) {
-      console.log('🏢 Setting municipalities:', municipalitiesArray);
+      devLog('🏢 Setting municipalities:', municipalitiesArray);
       setMunicipalities(municipalitiesArray);
     } else {
-      console.log('🏢 Clearing municipalities (no valid array found)');
+      devLog('🏢 Clearing municipalities (no valid array found)');
       setMunicipalities([]);
     }
   }, [municipalityStats]);
 
   useEffect(() => {
-    console.log('🏢 Subregion stats changed:', subregionStats);
+    devLog('🏢 Subregion stats changed:', subregionStats);
 
     // Handle nested response structure: { data: { data: [...] } }
     let subregionsArray = null;
@@ -331,16 +332,16 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     }
 
     if (subregionsArray && subregionsArray.length > 0) {
-      console.log('🏢 Setting subregions:', subregionsArray);
+      devLog('🏢 Setting subregions:', subregionsArray);
       setSubregions(subregionsArray);
     } else {
-      console.log('🏢 Clearing subregions (no valid array found)');
+      devLog('🏢 Clearing subregions (no valid array found)');
       setSubregions([]);
     }
   }, [subregionStats]);
 
   useEffect(() => {
-    console.log('🏠 Ward stats changed:', wardStats);
+    devLog('🏠 Ward stats changed:', wardStats);
 
     // Handle nested response structure: { data: { data: [...] } }
     let wardsArray = null;
@@ -355,16 +356,16 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     }
 
     if (wardsArray && wardsArray.length > 0) {
-      console.log('🏠 Setting wards:', wardsArray);
+      devLog('🏠 Setting wards:', wardsArray);
       setWards(wardsArray);
     } else {
-      console.log('🏠 Clearing wards (no valid array found)');
+      devLog('🏠 Clearing wards (no valid array found)');
       setWards([]);
     }
   }, [wardStats]);
 
   useEffect(() => {
-    console.log('🗳️ Voting district stats changed:', votingDistrictStats);
+    devLog('🗳️ Voting district stats changed:', votingDistrictStats);
 
     // Handle nested response structure: { data: { data: [...] } }
     let votingDistrictsArray = null;
@@ -379,10 +380,10 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     }
 
     if (votingDistrictsArray && votingDistrictsArray.length > 0) {
-      console.log('🗳️ Setting voting districts:', votingDistrictsArray);
+      devLog('🗳️ Setting voting districts:', votingDistrictsArray);
       setVotingDistricts(votingDistrictsArray);
     } else {
-      console.log('🗳️ Clearing voting districts (no valid array found)');
+      devLog('🗳️ Clearing voting districts (no valid array found)');
       setVotingDistricts([]);
     }
   }, [votingDistrictStats]);
@@ -416,8 +417,8 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
   // Handle filter changes with cascading reset
   const handleProvinceChange = (province: string) => {
-    console.log('🌍 Province changed to:', province);
-    console.log('🌍 Current filters before change:', filters);
+    devLog('🌍 Province changed to:', province);
+    devLog('🌍 Current filters before change:', filters);
 
     // FORCE RESET: Clear all state first to prevent corruption
     setDistricts([]);
@@ -436,14 +437,14 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
       votingDistrict: undefined
     };
 
-    console.log('🌍 Clean filters being set:', cleanFilters);
+    devLog('🌍 Clean filters being set:', cleanFilters);
 
     // Update filters with clean state
     onFiltersChange(cleanFilters);
   };
 
   const handleDistrictChange = (district: string) => {
-    console.log('🏘️ District changed to:', district);
+    devLog('🏘️ District changed to:', district);
     // Ensure we keep province but clear lower levels
     setMunicipalities([]);
     setSubregions([]);
@@ -463,7 +464,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   };
 
   const handleMunicipalityChange = (municipality: string) => {
-    console.log('🏢 Municipality changed to:', municipality);
+    devLog('🏢 Municipality changed to:', municipality);
     // Ensure we keep province and district but clear lower levels
     setSubregions([]);
     setWards([]);
@@ -479,7 +480,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   };
 
   const handleSubregionChange = (subregion: string) => {
-    console.log('🏢 Subregion changed to:', subregion);
+    devLog('🏢 Subregion changed to:', subregion);
     // Ensure we keep province, district, and municipality but clear lower levels
     setWards([]);
     setVotingDistricts([]);
@@ -494,7 +495,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   };
 
   const handleWardChange = (ward: string) => {
-    console.log('🏠 Ward changed to:', ward);
+    devLog('🏠 Ward changed to:', ward);
     setVotingDistricts([]);
     onFiltersChange({
       ...filters,
@@ -504,7 +505,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   };
 
   const handleVotingDistrictChange = (votingDistrict: string) => {
-    console.log('🗳️ Voting district changed to:', votingDistrict);
+    devLog('🗳️ Voting district changed to:', votingDistrict);
     onFiltersChange({ ...filters, votingDistrict });
   };
 
@@ -569,7 +570,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
   // Get current data for visualization
   const getCurrentData = () => {
-    console.log('📊 Getting current data:', {
+    devLog('📊 Getting current data:', {
       filters,
       votingDistrictsLength: votingDistricts.length,
       wardsLength: wards.length,
@@ -628,7 +629,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
         code: item.province_code,
       }));
     }
-    console.log('📊 Returning empty array');
+    devLog('📊 Returning empty array');
     return [];
   };
 
@@ -687,7 +688,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [chartType, currentData.length, currentPage, totalPages]);
 
-  console.log('📊 Current chart data:', {
+  devLog('📊 Current chart data:', {
     currentDataLength: currentData.length,
     totalMembers,
     sampleData: currentData.slice(0, 3)
@@ -699,7 +700,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
     const clickData = data?.payload || data;
     const code = clickData?.code;
 
-    console.log('📊 Chart clicked:', {
+    devLog('📊 Chart clicked:', {
       data,
       clickData,
       code,
@@ -718,7 +719,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
       ['GP', 'KZN', 'WC', 'LP', 'EC', 'MP', 'NW', 'FS', 'NC'].includes(item.code)
     );
 
-    console.log('📊 Analysis:', {
+    devLog('📊 Analysis:', {
       isViewingProvinces,
       currentDataSample: currentData.slice(0, 2),
       filterState: filters
@@ -726,27 +727,27 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
     if (isViewingProvinces) {
       // We're viewing provinces - clicking should set province (ignore corrupted filter state)
-      console.log('📊 Clicking on province:', code);
+      devLog('📊 Clicking on province:', code);
       handleProvinceChange(code);
     } else if (!filters.district || filters.province === filters.district) {
       // We're viewing districts OR filter state is corrupted - clicking should set district
-      console.log('📊 Clicking on district:', code);
+      devLog('📊 Clicking on district:', code);
       handleDistrictChange(code);
     } else if (!filters.municipality) {
       // District selected but no municipality - we're viewing municipalities, clicking sets municipality
-      console.log('📊 Clicking on municipality:', code);
+      devLog('📊 Clicking on municipality:', code);
       handleMunicipalityChange(code);
     } else if (filters.municipality && subregions.length > 0 && !filters.subregion) {
       // Municipality selected and has subregions - we're viewing subregions, clicking sets subregion
-      console.log('📊 Clicking on subregion:', code);
+      devLog('📊 Clicking on subregion:', code);
       handleSubregionChange(code);
     } else if (!filters.ward) {
       // Municipality/subregion selected but no ward - we're viewing wards, clicking sets ward
-      console.log('📊 Clicking on ward:', code);
+      devLog('📊 Clicking on ward:', code);
       handleWardChange(code);
     } else if (!filters.votingDistrict) {
       // Ward selected but no voting district - we're viewing voting districts, clicking sets voting district
-      console.log('📊 Clicking on voting district:', code);
+      devLog('📊 Clicking on voting district:', code);
       handleVotingDistrictChange(code);
     }
   };
@@ -762,7 +763,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
       );
     }
 
-    console.log('📊 Rendering chart with data:', currentData);
+    devLog('📊 Rendering chart with data:', currentData);
 
     if (chartType === 'pie') {
       return (
@@ -1059,9 +1060,18 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
           {/* Chart Visualization */}
           {currentData.length > 0 ? (
             <Box sx={{ mb: 3 }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>Total Members: {totalMembers.toLocaleString()}</strong>
+                  {' '}(includes all members regardless of status)
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Note: The Members Directory table below shows only <strong>active members</strong> by default.
+                  Select "All Members" in the Membership Status filter to see everyone.
+                </Typography>
+              </Alert>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Total Members: {totalMembers.toLocaleString()} • Click on chart segments to drill down
-                {totalMembers === 0 && ' (No data available - showing structure)'}
+                Click on chart segments to drill down
                 {chartType === 'bar' && currentData.length > itemsPerPage && (
                   <span> • Use pagination controls to navigate through all {currentData.length} items</span>
                 )}

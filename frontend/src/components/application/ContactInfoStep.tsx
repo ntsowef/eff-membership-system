@@ -5,9 +5,12 @@ import {
   Typography,
   Box,
   Alert,
+  Chip,
 } from '@mui/material';
+import { CheckCircle, Warning, LocationOn, Lock } from '@mui/icons-material';
 import { useApplication } from '../../store';
 import GeographicSelector from '../common/GeographicSelector';
+import { devLog } from '../../utils/logger';
 
 interface ContactInfoStepProps {
   errors: Record<string, string>;
@@ -20,12 +23,15 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
     updateApplicationData({ [field]: value });
   };
 
+  // Check if user is a registered voter (from IEC verification)
+  const isRegisteredVoter = (applicationData as any).is_registered_voter === true;
+  const iecData = (applicationData as any).iec_verification;
+  const hasIecData = iecData && iecData.is_registered && iecData.province_code;
+
   // Auto-populate geographic fields from IEC verification data
   useEffect(() => {
-    const iecData = (applicationData as any).iec_verification;
-
     if (iecData && iecData.is_registered) {
-      console.log('🗺️ Auto-populating geographic fields from IEC data:', iecData);
+      devLog('🗺️ Auto-populating geographic fields from IEC data:', iecData);
 
       const updates: any = {};
 
@@ -46,16 +52,23 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
         updates.voting_district_code = iecData.voting_district_code;
       }
 
+      // Auto-populate address fields if available
+      if (iecData.street && !applicationData.address) {
+        const addressParts = [iecData.street, iecData.suburb, iecData.town].filter(Boolean);
+        if (addressParts.length > 0) {
+          updates.address = addressParts.join(', ');
+        }
+      }
+      if (iecData.town && !applicationData.city) {
+        updates.city = iecData.town;
+      }
+
       if (Object.keys(updates).length > 0) {
-        console.log('✅ Auto-populating fields:', updates);
+        devLog('✅ Auto-populating fields:', updates);
         updateApplicationData(updates);
       }
     }
   }, []); // Run once on mount
-
-  // Check if IEC data was used
-  const iecData = (applicationData as any).iec_verification;
-  const hasIecData = iecData && iecData.is_registered && iecData.province_code;
 
   return (
     <Box>
@@ -67,11 +80,41 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
         to communicate with you regarding your application and membership.
       </Typography>
 
-      {hasIecData && (
-        <Alert severity="info" sx={{ mb: 3 }}>
+      {/* Status Banner */}
+      {isRegisteredVoter ? (
+        <Alert
+          severity="success"
+          icon={<CheckCircle />}
+          sx={{ mb: 3 }}
+          action={
+            <Chip
+              icon={<LocationOn />}
+              label="IEC Verified"
+              size="small"
+              color="success"
+              variant="outlined"
+            />
+          }
+        >
           <Typography variant="body2">
-            ✅ Your geographic information has been pre-filled from your IEC voter registration.
-            You can modify these fields if needed.
+            Your geographic information has been pre-filled from your IEC voter registration.
+            Fields marked with <Lock sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} /> are pre-filled but can be modified if needed.
+          </Typography>
+          {iecData?.voting_station_name && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <strong>Voting Station:</strong> {iecData.voting_station_name}
+            </Typography>
+          )}
+        </Alert>
+      ) : (
+        <Alert
+          severity="warning"
+          icon={<Warning />}
+          sx={{ mb: 3 }}
+        >
+          <Typography variant="body2">
+            Please enter your contact and geographic information manually.
+            Ensure all required fields are completed accurately.
           </Typography>
         </Alert>
       )}

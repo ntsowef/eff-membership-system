@@ -47,6 +47,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiDelete } from '../../lib/api';
 import { useParams, useNavigate } from 'react-router-dom';
+import { devLog } from '../../utils/logger';
 
 interface Meeting {
   meeting_id: number;
@@ -104,8 +105,8 @@ const MeetingDetailPage: React.FC = () => {
     queryKey: ['meeting', id],
     queryFn: async () => {
       const result = await apiGet(`/meetings/${id}`);
-      console.log('✅ Meeting Detail API Response:', result);
-      console.log('✅ Response structure:', JSON.stringify(result, null, 2));
+      devLog('✅ Meeting Detail API Response:', result);
+      devLog('✅ Response structure:', JSON.stringify(result, null, 2));
       return result;
     },
     enabled: isValidId as any,
@@ -118,7 +119,7 @@ const MeetingDetailPage: React.FC = () => {
       try {
         return await apiGet(`/meetings/${id}/attendance`);
       } catch (error) {
-        console.log('Failed to fetch attendance data:', error);
+        devLog('Failed to fetch attendance data:', error);
         return { data: { attendance: [], summary: { total_attendees: 0, present: 0, absent: 0, excused: 0, late: 0 } } };
       }
     },
@@ -140,10 +141,10 @@ const MeetingDetailPage: React.FC = () => {
   const meeting = (meetingData as any)?.meeting as Meeting | undefined;
 
   // Debug logging
-  console.log('🔍 Meeting Data:', meetingData);
-  console.log('🔍 Extracted Meeting:', meeting);
-  console.log('🔍 Meeting ID:', meeting?.meeting_id);
-  console.log('🔍 Meeting Title:', meeting?.meeting_title);
+  devLog('🔍 Meeting Data:', meetingData);
+  devLog('🔍 Extracted Meeting:', meeting);
+  devLog('🔍 Meeting ID:', meeting?.meeting_id);
+  devLog('🔍 Meeting Title:', meeting?.meeting_title);
 
   // Delete handlers
   const handleDeleteClick = () => {
@@ -592,7 +593,7 @@ const MeetingDetailPage: React.FC = () => {
                     startIcon={<PersonAdd />}
                     onClick={() => {
                       // TODO: Add invite members functionality
-                      console.log('Invite members clicked');
+                      devLog('Invite members clicked');
                     }}
                   >
                     Invite Members

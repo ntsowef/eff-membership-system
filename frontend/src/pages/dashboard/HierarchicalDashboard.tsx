@@ -33,6 +33,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiGet } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 import StatsCard from '../../components/ui/StatsCard';
 import PageHeader from '../../components/ui/PageHeader';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
@@ -173,7 +174,7 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
       try {
         const result = await apiGet<any>(url);
 
-        console.log('🔍 DrillDownSection - API Response:', {
+        devLog('🔍 DrillDownSection - API Response:', {
           level,
           url,
           resultType: typeof result,
@@ -187,7 +188,7 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
         // Handle different response formats
         if (level === 'ward' && result?.data) {
           // Voting districts endpoint: apiGet extracts to { data: [...] }
-          console.log('✅ Ward level - Mapping voting districts:', result.data.length, 'items');
+          devLog('✅ Ward level - Mapping voting districts:', result.data.length, 'items');
           return result.data.map((vd: any) => ({
             code: vd.voting_district_code,
             name: vd.voting_district_name || `Voting District ${vd.voting_district_number || ''}`,
@@ -197,7 +198,7 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
         }
 
         // Other endpoints return arrays directly
-        console.log('📋 Non-ward level - Returning result directly');
+        devLog('📋 Non-ward level - Returning result directly');
         return result || [];
       } catch (error) {
         console.error('❌ Failed to fetch child entities:', error);
@@ -232,16 +233,16 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
   };
 
   const handleChildClick = (childCode: string) => {
-    console.log('🖱️ Child clicked:', { childLevel, childCode, level });
+    devLog('🖱️ Child clicked:', { childLevel, childCode, level });
 
     // For ward level, we're showing voting districts, so navigate to members list
     if (level === 'ward' || childLevel === 'voting_station') {
       // Navigate to members list filtered by voting district
-      console.log('🗳️ Navigating to members list with voting_district_code:', childCode);
+      devLog('🗳️ Navigating to members list with voting_district_code:', childCode);
       navigate(`/admin/members?voting_district_code=${childCode}`);
     } else {
       // For other levels, continue hierarchical navigation
-      console.log('📊 Navigating to hierarchical dashboard:', childLevel, childCode);
+      devLog('📊 Navigating to hierarchical dashboard:', childLevel, childCode);
       navigate(`/admin/dashboard/hierarchical/${childLevel}/${childCode}`);
     }
   };
@@ -599,17 +600,17 @@ const HierarchicalDashboard: React.FC = () => {
     const { member_statistics: memberStats, geographic_statistics: geoStats } = dashboardData;
     const cards = [];
 
-    // Member statistics cards
+    // Member statistics cards - Shows ACTIVE members only (excludes expired/inactive)
     cards.push({
-      title: 'Total Members',
+      title: 'Active Members',
       value: memberStats.total_members?.toLocaleString() || '0',
       icon: People,
       color: 'primary',
       trend: {
         value: 5.2,
-        isPositive: (memberStats.active_members || 0) > (memberStats.expired_members || 0)
+        isPositive: true
       },
-      subtitle: `${memberStats.active_members || 0} active, ${memberStats.expired_members || 0} expired`
+      subtitle: `${memberStats.expired_members || 0} expired members excluded`
     });
 
     cards.push({

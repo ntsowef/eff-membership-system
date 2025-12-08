@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}EFF Membership Application - Home{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Hero Section -->
+        <div class="card mb-4">
+            <div class="card-body text-center py-5">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-fist-raised text-danger"></i>
+                    Join the Economic Freedom Fighters
+                </h1>
+                <p class="lead mb-4">
+                    Be part of the movement for economic freedom and social justice in South Africa.
+                </p>
+                <a href="{{ url_for('start_application') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-edit"></i> Start Your Application
+                </a>
+            </div>
+        </div>
+        
+        <!-- Information Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-plus fa-3x text-danger mb-3"></i>
+                        <h5 class="card-title">Easy Registration</h5>
+                        <p class="card-text">
+                            Complete your membership application in just 5 simple steps.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Secure Process</h5>
+                        <p class="card-text">
+                            Your personal information is protected with industry-standard security.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-credit-card fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Flexible Payment</h5>
+                        <p class="card-text">
+                            Multiple payment options including card, cash, and bank transfer.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Application Steps -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">Application Process</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="fas fa-check-circle"></i> Step 1: Personal Information</h6>
+                        <p class="text-muted">Provide your basic personal details and ID information.</p>
+                        
+                        <h6 class="text-danger"><i class="fas fa-check-circle"></i> Step 2: Contact Information</h6>
+                        <p class="text-muted">Enter your contact details and geographic location.</p>
+                        
+                        <h6 class="text-danger"><i class="fas fa-check-circle"></i> Step 3: Party Declaration</h6>
+                        <p class="text-muted">Accept the party declaration and provide your signature.</p>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="fas fa-check-circle"></i> Step 4: Payment Information</h6>
+                        <p class="text-muted">Choose your payment method and complete the transaction.</p>
+                        
+                        <h6 class="text-danger"><i class="fas fa-check-circle"></i> Step 5: Review & Submit</h6>
+                        <p class="text-muted">Review your application and submit for processing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Requirements -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">Requirements</h4>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="fas fa-check text-success"></i> Valid South African ID number</li>
+                    <li class="mb-2"><i class="fas fa-check text-success"></i> Contact information (email and phone)</li>
+                    <li class="mb-2"><i class="fas fa-check text-success"></i> Residential address details</li>
+                    <li class="mb-2"><i class="fas fa-check text-success"></i> Membership fee payment (R10.00)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Check Application Status -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Already Applied?</h5>
+                <p class="card-text">Check the status of your existing application.</p>
+                <form action="{{ url_for('application_status', application_number='') }}" method="get" class="row g-3">
+                    <div class="col-md-8">
+                        <input type="text" class="form-control" name="application_number" 
+                               placeholder="Enter your application number (e.g., APP0001234)" required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-search"></i> Check Status
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

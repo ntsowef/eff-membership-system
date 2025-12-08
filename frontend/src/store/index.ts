@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { devLog } from '../utils/logger';
 
 // Types
 export interface User {
@@ -166,6 +167,30 @@ export interface MembershipApplication {
   agree_communications?: boolean;
   created_at: string;
   updated_at: string;
+  // IEC Verification fields
+  iec_verification?: IECVerificationData;
+  is_registered_voter?: boolean;
+}
+
+// IEC Verification Data interface
+export interface IECVerificationData {
+  is_registered: boolean;
+  voter_status: string;
+  province_code?: string;
+  province_name?: string;
+  district_code?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+  ward_code?: string;
+  ward_id?: number;
+  voting_district_code?: string;
+  voting_district_name?: string;
+  voting_station_name?: string;
+  voting_station_address?: string;
+  town?: string;
+  suburb?: string;
+  street?: string;
+  verification_error?: boolean;
 }
 
 // Auth Store
@@ -197,7 +222,7 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: false, // Require proper authentication
         provinceContext: null,
         login: (user, token, sessionId) => {
-          console.log('🔐 Zustand login called with:', {
+          devLog('🔐 Zustand login called with:', {
             user: user.email,
             role: user.role,
             hasToken: !!token,
@@ -221,7 +246,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Verify the state was set
           const currentState = get();
-          console.log('✅ Zustand state after login:', {
+          devLog('✅ Zustand state after login:', {
             hasUser: !!currentState.user,
             hasToken: !!currentState.token,
             isAuthenticated: currentState.isAuthenticated,
@@ -230,11 +255,11 @@ export const useAuthStore = create<AuthState>()(
 
           // Verify localStorage
           const authStorage = localStorage.getItem('auth-storage');
-          console.log('✅ localStorage auth-storage:', authStorage ? 'EXISTS' : 'NULL');
+          devLog('✅ localStorage auth-storage:', authStorage ? 'EXISTS' : 'NULL');
           if (authStorage) {
             try {
               const parsed = JSON.parse(authStorage);
-              console.log('✅ localStorage parsed token:', parsed.state?.token ? parsed.state.token.substring(0, 30) + '...' : 'NULL');
+              devLog('✅ localStorage parsed token:', parsed.state?.token ? parsed.state.token.substring(0, 30) + '...' : 'NULL');
             } catch (e) {
               console.error('❌ Failed to parse auth-storage:', e);
             }

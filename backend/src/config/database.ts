@@ -10,6 +10,7 @@ import {
   closeDatabaseConnections
 } from './database-hybrid';
 import { SQLMigrationService } from '../services/sqlMigrationService';
+import { isVerboseLogging } from '../utils/logger';
 
 // =====================================================================================
 // BACKWARD COMPATIBILITY LAYER
@@ -19,7 +20,7 @@ import { SQLMigrationService } from '../services/sqlMigrationService';
 
 // Initialize database (now uses hybrid system)
 export const initializeDatabase = async (): Promise<void> => {
-  console.log('🔄 Initializing hybrid database system (Prisma + Raw SQL)...');
+  if (isVerboseLogging()) console.log('🔄 Initializing hybrid database system (Prisma + Raw SQL)...');
   await initHybridDatabase();
 };
 

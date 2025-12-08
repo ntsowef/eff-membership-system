@@ -57,6 +57,7 @@ import {
 import { wardMembershipAuditApi, downloadBlob } from '../../services/wardMembershipAuditApi';
 import { WARD_STANDING_COLORS, MUNICIPALITY_PERFORMANCE_COLORS } from '../../types/wardMembershipAudit';
 import type { WardStanding, MunicipalityPerformance } from '../../types/wardMembershipAudit';
+import { showWarning, showError } from '../../utils/sweetAlert';
 
 // Colors for pie chart
 const COLORS = ['#4caf50', '#ff9800', '#f44336'];
@@ -117,9 +118,9 @@ const MunicipalityDetailsModal: React.FC<MunicipalityDetailsModalProps> = ({
       console.error('Export failed:', error);
       // Handle 501 Not Implemented response
       if (error.response?.status === 501) {
-        alert('Export feature is not yet implemented. This feature will be available in a future update.');
+        showWarning('Export feature is not yet implemented. This feature will be available in a future update.', 'Coming Soon');
       } else {
-        alert('Export failed. Please try again.');
+        showError('Export failed. Please try again.');
       }
     }
   };
@@ -133,9 +134,9 @@ const MunicipalityDetailsModal: React.FC<MunicipalityDetailsModalProps> = ({
       console.error('Export failed:', error);
       // Handle 501 Not Implemented response
       if (error.response?.status === 501) {
-        alert('Export feature is not yet implemented. This feature will be available in a future update.');
+        showWarning('Export feature is not yet implemented. This feature will be available in a future update.', 'Coming Soon');
       } else {
-        alert('Export failed. Please try again.');
+        showError('Export failed. Please try again.');
       }
     }
   };

@@ -200,7 +200,7 @@ router.post('/appointments',
 
     const appointmentData = {
       ...value,
-      appointed_by: req.user?.id || 8571 // Use authenticated user ID or default to first admin
+      appointed_by: 1 // Default system user for development
     };
 
     const appointmentId = await LeadershipService.createAppointment(appointmentData);
@@ -238,32 +238,6 @@ router.get('/appointments/:id', async (req: Request, res: Response, next: NextFu
       message: 'Appointment retrieved successfully',
       data: {
         appointment
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Delete appointment (hard delete - for testing/cleanup purposes)
-router.delete('/appointments/:id',
-  authenticate,
-  requireLeadershipManagementPermission(),
-  async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const appointmentId = parseInt(req.params.id);
-    if (isNaN(appointmentId)) {
-      throw new ValidationError('Invalid appointment ID');
-    }
-
-    const success = await LeadershipService.deleteAppointment(appointmentId);
-
-    res.json({
-      success: true,
-      message: 'Appointment deleted successfully',
-      data: {
-        deleted: success
       },
       timestamp: new Date().toISOString()
     });

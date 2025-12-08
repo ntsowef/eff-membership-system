@@ -1,0 +1,389 @@
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { createDatabaseError } from '../middleware/errorHandler';
+import { MembershipApplicationModel } from '../models/membershipApplications';
+
+export interface ApprovalResult {
+  success: boolean;
+  member_id?: number;
+  membership_id?: number;
+  membership_number?: string;
+  message: string;
+}
+
+export interface MemberCreationData {
+  id_number: string;
+  firstname: string;
+  surname: string;
+  date_of_birth: string;
+  gender_id: number;
+  ward_code: string;
+  cell_number?: string;
+  email?: string;
+  residential_address?: string;
+  postal_address?: string;
+  membership_type?: string;
+  application_id: number;
+  province_code?: string;
+  province_name?: string;
+  district_code?: string;
+  district_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+}
+
+export interface MembershipCreationData {
+  member_id: number;
+  date_joined: string;
+  last_payment_date?: string;
+  expiry_date?: string | null;
+  subscription_type_id: number;
+  membership_amount: number;
+  status_id: number;
+  payment_method?: string;
+}
+
+export class MembershipApprovalService {
+  
+  /**
+   * Approve a membership application and create member + membership records
+   */
+  static async approveApplication(
+    applicationId: number, 
+    approvedBy: number,
+    adminNotes?: string
+  ): Promise<ApprovalResult> {
+    try {
+      // Get the application details
+      const application = await MembershipApplicationModel.getApplicationById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+
+      if (application.status !== 'Submitted' && application.status !== 'Under Review') {
+        throw new Error(`Cannot approve application with status: ${application.status}`);
+      }
+
+      // Check if member already exists with this ID number
+      const existingMember = await this.checkExistingMember(application.id_number);
+      if (existingMember) {
+        throw new Error('A member with this ID number already exists');
+      }
+
+      // Start transaction
+      await executeQuery('BEGIN');
+
+      try {
+        // 1. Create member record with membership fields (consolidated schema)
+        const result = await this.createMemberWithMembershipFromApplication(application);
+
+        // 2. Update application status
+        await this.updateApplicationStatus(applicationId, 'Approved', approvedBy, adminNotes);
+
+        // 3. Create approval history record
+        await this.createApprovalHistory(applicationId, result.member_id, approvedBy, 'approved', adminNotes);
+
+        // Commit transaction
+        await executeQuery('COMMIT');
+
+        return {
+          success: true,
+          member_id: result.member_id,
+          membership_id: result.member_id, // In consolidated schema, member_id serves as membership reference
+          membership_number: result.membership_number,
+          message: 'Application approved successfully and member created'
+        };
+
+      } catch (error) {
+        // Rollback transaction
+        console.error('❌ Transaction error:', error);
+        await executeQuery('ROLLBACK');
+        throw error;
+      }
+
+    } catch (error) {
+      console.error('❌ Approval error:', error);
+      throw createDatabaseError('Failed to approve membership application', error);
+    }
+  }
+
+  /**
+   * Check if a member already exists with the given ID number
+   */
+  private static async checkExistingMember(idNumber: string): Promise<boolean> {
+    const query = 'SELECT member_id FROM members WHERE id_number = $1';
+    const result = await executeQuerySingle(query, [idNumber]);
+    return !!result;
+  }
+
+  /**
+   * Create a member record with membership fields from approved application (consolidated schema)
+   */
+  private static async createMemberWithMembershipFromApplication(application: any): Promise<{ member_id: number; membership_number: string }> {
+    // Map gender to gender_id (assuming: 1=Male, 2=Female, 3=Other)
+    const genderMap: { [key: string]: number } = {
+      'Male': 1,
+      'Female': 2,
+      'Other': 3,
+      'Prefer not to say': 3
+    };
+
+    // Get geographic names from related tables
+    const geographicQuery = `
+      SELECT
+        p.province_name,
+        d.district_name,
+        m.municipality_name
+      FROM provinces p
+      LEFT JOIN districts d ON d.province_code = p.province_code AND d.district_code = $2
+      LEFT JOIN municipalities m ON m.district_code = d.district_code AND m.municipality_code = $3
+      WHERE p.province_code = $1
+      LIMIT 1
+    `;
+
+    const geographicResult = await executeQuery(geographicQuery, [
+      application.province_code,
+      application.district_code,
+      application.municipal_code
+    ]);
+
+    const geographicData = Array.isArray(geographicResult) && geographicResult.length > 0
+      ? geographicResult[0]
+      : { province_name: null, district_name: null, municipality_name: null };
+
+    // Calculate membership dates
+    const dateJoined = application.created_at
+      ? new Date(application.created_at).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    // Calculate expiry_date as 24 months (2 years) after date_joined or last_payment_date
+    const baseDate = application.last_payment_date
+      ? new Date(application.last_payment_date)
+      : new Date(dateJoined);
+    const expiryDate = new Date(baseDate);
+    expiryDate.setMonth(expiryDate.getMonth() + 24); // Add 24 months
+    const expiryDateStr = expiryDate.toISOString().split('T')[0];
+
+    // Generate membership number (will be updated after member_id is known)
+    const tempMembershipNumber = `TEMP${Date.now()}`;
+
+    // Insert member with membership fields (consolidated schema)
+    const query = `
+      INSERT INTO members (
+        id_number, firstname, surname, date_of_birth, gender_id,
+        ward_code, cell_number, email, residential_address, postal_address,
+        membership_type, application_id,
+        province_code, province_name, district_code, district_name,
+        municipality_code, municipality_name,
+        membership_number, date_joined, last_payment_date, expiry_date,
+        subscription_type_id, membership_amount, membership_status_id,
+        payment_method, payment_status,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22, $23, $24, $25, $26, $27,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      )
+      RETURNING member_id
+    `;
+
+    const params = [
+      application.id_number,
+      application.first_name,
+      application.last_name,
+      application.date_of_birth,
+      genderMap[application.gender] || 3,
+      application.ward_code,
+      application.cell_number,
+      application.email,
+      application.residential_address,
+      application.postal_address,
+      application.membership_type || 'Regular',
+      application.id,
+      application.province_code,
+      geographicData.province_name,
+      application.district_code,
+      geographicData.district_name,
+      application.municipal_code,
+      geographicData.municipality_name,
+      tempMembershipNumber, // Will be updated below
+      dateJoined,
+      application.last_payment_date || null,
+      expiryDateStr,
+      1, // Default subscription_type_id
+      application.payment_amount || 10.00,
+      1, // Active membership_status_id (1 = Good Standing)
+      application.payment_method || 'Pending',
+      application.payment_status || 'Pending'
+    ];
+
+    console.log('🔍 Creating member with membership fields (consolidated schema):', {
+      date_joined: dateJoined,
+      last_payment_date: application.last_payment_date,
+      expiry_date: expiryDateStr,
+      membership_amount: application.payment_amount || 10.00
+    });
+
+    const result = await executeQuery(query, params);
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error('Failed to create member: No member_id returned');
+    }
+
+    const memberId = result[0].member_id;
+
+    // Generate proper membership number based on member_id
+    const membershipNumber = await this.generateMembershipNumber(memberId);
+
+    // Update member with proper membership number
+    await executeQuery(
+      'UPDATE members SET membership_number = $1 WHERE member_id = $2',
+      [membershipNumber, memberId]
+    );
+
+    console.log('✅ Member created successfully with membership fields:', {
+      member_id: memberId,
+      membership_number: membershipNumber
+    });
+
+    return { member_id: memberId, membership_number: membershipNumber };
+  }
+
+  /**
+   * Generate a unique membership number
+   */
+  private static async generateMembershipNumber(memberId: number): Promise<string> {
+    const year = new Date().getFullYear();
+    const membershipNumber = `EFF${year}${memberId.toString().padStart(6, '0')}`;
+    return membershipNumber;
+  }
+
+  /**
+   * Update application status
+   */
+  private static async updateApplicationStatus(
+    applicationId: number,
+    status: string,
+    reviewedBy: number,
+    adminNotes?: string
+  ): Promise<void> {
+    const query = `
+      UPDATE membership_applications
+      SET status = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP, admin_notes = $3
+      WHERE application_id = $4
+    `;
+
+    await executeQuery(query, [status, reviewedBy, adminNotes, applicationId]);
+  }
+
+  /**
+   * Create approval history record
+   */
+  private static async createApprovalHistory(
+    applicationId : number,
+    memberId: number | null,
+    approvedBy: number,
+    action: string,
+    notes?: string
+  ): Promise<void> {
+    // Create a simple approval history table if it doesn't exist
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS application_approval_history (
+        id SERIAL PRIMARY KEY,
+        application_id INT NOT NULL,
+        member_id INT NULL,
+        action VARCHAR(50) CHECK (action IN ('approved', 'rejected', 'under_review')) NOT NULL,
+        performed_by INT NOT NULL,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (application_id) REFERENCES membership_applications(application_id) ON DELETE CASCADE,
+        FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE SET NULL
+      )
+    `;
+
+    // Create indexes if they don't exist
+    const createIndexQueries = [
+      `CREATE INDEX IF NOT EXISTS idx_application_history_application ON application_approval_history(application_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_application_history_member ON application_approval_history(member_id)`
+    ];
+
+    await executeQuery(createTableQuery);
+    for (const indexQuery of createIndexQueries) {
+      await executeQuery(indexQuery);
+    }
+
+    const insertQuery = `
+      INSERT INTO application_approval_history (
+        application_id, member_id, action, performed_by, notes
+      ) VALUES ($1, $2, $3, $4, $5)
+    `;
+
+    await executeQuery(insertQuery, [applicationId, memberId, action, approvedBy, notes]);
+  }
+
+  /**
+   * Reject a membership application
+   */
+  static async rejectApplication(
+    applicationId: number,
+    rejectedBy: number,
+    rejectionReason: string,
+    adminNotes?: string
+  ): Promise<ApprovalResult> {
+    try {
+      // Get the application details
+      const application = await MembershipApplicationModel.getApplicationById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+
+      if (application.status !== 'Submitted' && application.status !== 'Under Review') {
+        throw new Error(`Cannot reject application with status: ${application.status}`);
+      }
+
+      // Update application status
+      const query = `
+        UPDATE membership_applications
+        SET status = 'Rejected', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP,
+            rejection_reason = $2, admin_notes = $3
+        WHERE application_id = $4
+      `;
+
+      await executeQuery(query, [rejectedBy, rejectionReason, adminNotes, applicationId]);
+
+      // Create rejection history record
+      await this.createApprovalHistory(applicationId, null, rejectedBy, 'rejected', `${rejectionReason}. ${adminNotes || ''}`);
+
+      return {
+        success : true,
+        message: 'Application rejected successfully'
+      };
+
+    } catch (error) {
+      throw createDatabaseError('Failed to reject membership application', error);
+    }
+  }
+
+  /**
+   * Get approval statistics
+   */
+  static async getApprovalStatistics(): Promise<any> {
+    try {
+      const query = `
+        SELECT 
+          COUNT(*) as total_applications,
+          SUM(CASE WHEN status = 'Submitted' THEN 1 ELSE 0 END) as pending_approval,
+          SUM(CASE WHEN status = 'Under Review' THEN 1 ELSE 0 END) as under_review,
+          SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved,
+          SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected,
+          SUM(CASE WHEN status = 'Draft' THEN 1 ELSE 0 END) as draft
+        FROM membership_applications
+      `;
+
+      const stats = await executeQuerySingle(query);
+      return stats;
+
+    } catch (error) {
+      throw createDatabaseError('Failed to get approval statistics', error);
+    }
+  }
+}

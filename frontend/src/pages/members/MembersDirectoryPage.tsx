@@ -263,11 +263,19 @@ const MembersDirectoryPage: React.FC = () => {
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
-                Total Members
+                {filters.membership_status === 'all' ? 'Total Members' :
+                 filters.membership_status === 'active' ? 'Good Standing Members' :
+                 filters.membership_status === 'expired' ? 'Expired Members' :
+                 'Active Members (within grace)'}
               </Typography>
               <Typography variant="h4">
                 {members.length}
               </Typography>
+              {!filters.membership_status && (
+                <Typography variant="caption" color="text.secondary">
+                  Select "All Members" to see everyone
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -444,8 +452,9 @@ const MembersDirectoryPage: React.FC = () => {
                   onChange={(e) => handleFilterChange('membership_status', e.target.value)}
                   label="Membership Status"
                 >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="good_standing">Good Standing</MenuItem>
+                  <MenuItem value="">Active Only (default)</MenuItem>
+                  <MenuItem value="all">All Members</MenuItem>
+                  <MenuItem value="active">Good Standing</MenuItem>
                   <MenuItem value="expired">Expired</MenuItem>
                 </Select>
               </FormControl>

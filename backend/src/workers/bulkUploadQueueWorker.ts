@@ -131,7 +131,7 @@ export function initializeBulkUploadWorker(): void {
 
   // Process jobs
   queue.process(CONCURRENCY, async (job: Job<BulkUploadJobData>) => {
-    const { jobId, filePath, fileName, uploadedBy, userId, fileId } = job.data;
+    const { jobId, filePath, fileName, uploadedBy, userId, fileId, userEmail } = job.data;
 
     console.log(`🔄 [Worker] Processing bulk upload job: ${jobId}`);
     console.log(`   File: ${fileName}`);
@@ -188,7 +188,9 @@ export function initializeBulkUploadWorker(): void {
         dbPool: pool,
         reportsDir,
         iecVerificationEnabled: process.env.IEC_VERIFICATION_ENABLED !== 'false',
-        progressCallback
+        progressCallback,
+        userEmail,
+        userName: uploadedBy
       });
 
       // Process upload

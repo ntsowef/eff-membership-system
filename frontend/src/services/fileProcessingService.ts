@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { api } from '../lib/api';
 import type { FileProcessingJob, QueueStatus } from '../types/fileProcessing';
+import { devLog } from '../utils/logger';
 
 export class FileProcessingService {
   private static instance: FileProcessingService;
@@ -22,21 +23,22 @@ export class FileProcessingService {
       return;
     }
 
-    this.socket = io('http://localhost:5000', {
+    const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:5000';
+    this.socket = io(wsUrl, {
       auth: { token },
       path: '/socket.io',
       transports: ['websocket', 'polling']
     });
 
     this.socket.on('connect', () => {
-      console.log('🔌 Connected to file processing service');
+      devLog('🔌 Connected to file processing service');
       this.isConnected = true;
       this.socket?.emit('subscribe_file_processing');
       this.emit('connected', { connected: true });
     });
 
     this.socket.on('disconnect', () => {
-      console.log('🔌 Disconnected from file processing service');
+      devLog('🔌 Disconnected from file processing service');
       this.isConnected = false;
       this.emit('disconnected', { connected: false });
     });
@@ -48,32 +50,32 @@ export class FileProcessingService {
 
     // File processing events
     this.socket.on('file_queued', (data) => {
-      console.log('📄 File queued:', data);
+      devLog('📄 File queued:', data);
       this.emit('file_queued', data);
     });
 
     this.socket.on('job_started', (data) => {
-      console.log('🔄 Job started:', data);
+      devLog('🔄 Job started:', data);
       this.emit('job_started', data);
     });
 
     this.socket.on('job_progress', (data) => {
-      console.log('📊 Job progress:', data);
+      devLog('📊 Job progress:', data);
       this.emit('job_progress', data);
     });
 
     this.socket.on('job_completed', (data) => {
-      console.log('✅ Job completed:', data);
+      devLog('✅ Job completed:', data);
       this.emit('job_completed', data);
     });
 
     this.socket.on('job_failed', (data) => {
-      console.log('❌ Job failed:', data);
+      devLog('❌ Job failed:', data);
       this.emit('job_failed', data);
     });
 
     this.socket.on('job_cancelled', (data) => {
-      console.log('⏹️ Job cancelled:', data);
+      devLog('⏹️ Job cancelled:', data);
       this.emit('job_cancelled', data);
     });
 

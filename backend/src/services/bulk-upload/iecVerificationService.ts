@@ -229,6 +229,15 @@ export class IECVerificationService {
         };
       }
 
+      // Debug: Log the raw iecDetails.municipality before mapping
+      console.log(`   🔍 Raw iecDetails for ${idNumber}:`, {
+        is_registered: iecDetails.is_registered,
+        voter_status: iecDetails.voter_status,
+        municipality: iecDetails.municipality,
+        municipality_code: iecDetails.municipality_code,
+        ward_code: iecDetails.ward_code
+      });
+
       // Map IEC response to our format
       const result: IECVerificationResult = {
         id_number: idNumber,
@@ -237,11 +246,15 @@ export class IECVerificationService {
         province_code: iecDetails.province_code,
         district_code: iecDetails.district_code,
         municipality_code: iecDetails.municipality_code,
+        municipality: iecDetails.municipality,  // IEC municipality name (e.g., "JHB - City of Johannesburg")
         ward_code: iecDetails.ward_code,
         voting_district_code: this.mapVotingDistrictCode(iecDetails),
         voting_station_name: iecDetails.voting_station_name,
         verification_date: new Date()
       };
+
+      // Debug: Log the municipality mapping
+      console.log(`   🏛️ IEC Verification Result for ${idNumber}: municipality="${result.municipality || 'UNDEFINED'}"`);
 
       return result;
     } catch (error: any) {
@@ -327,6 +340,11 @@ export class IECVerificationService {
           iec_ward: result.ward_code,
           iec_vd_code: result.voting_district_code,
           iec_voting_station: result.voting_station_name,
+          iec_municipality: result.municipality,  // IEC municipality name
+          iec_province_code: result.province_code,
+          iec_district_code: result.district_code,
+          iec_municipality_code: result.municipality_code,
+          iec_voter_status: result.voter_status,
           iec_verification_date: result.verification_date,
           iec_error: result.error
         });

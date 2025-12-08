@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   FormControl,
   InputLabel,
@@ -16,6 +16,7 @@ import { geographicApi } from '../../services/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
 import { LocationOn, Lock } from '@mui/icons-material';
+import { devLog } from '../../utils/logger';
 // Define types locally to avoid import issues
 interface Province {
   id: number;
@@ -178,7 +179,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   const { data: votingDistricts, isLoading: votingDistrictsLoading, error: votingDistrictsError } = useQuery({
     queryKey: ['voting-districts', selectedWard],
     queryFn: () => {
-      console.log('🗳️ Fetching voting districts for ward:', selectedWard);
+      devLog('🗳️ Fetching voting districts for ward:', selectedWard);
       return geographicApi.getVotingDistrictsByWard(selectedWard!);
     },
     enabled: !!selectedWard && showVotingDistricts,
@@ -186,7 +187,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   });
 
   // Debug logging
-  console.log('GeographicSelector Debug:', {
+  devLog('GeographicSelector Debug:', {
     selectedWard,
     showVotingDistricts,
     votingDistrictsLoading,
@@ -194,49 +195,66 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
     votingDistrictsError
   });
 
+  // Track previous values to detect actual changes (not initial population)
+  const prevProvinceRef = useRef<string | undefined>(undefined);
+  const prevDistrictRef = useRef<string | undefined>(undefined);
+  const prevMunicipalityRef = useRef<string | undefined>(undefined);
+  const prevWardRef = useRef<string | undefined>(undefined);
+
   // Reset dependent selections when parent changes
+  // Key insight: Only reset when changing from one NON-EMPTY value to another
+  // Going from empty to value = initial population (don't reset)
+  // Going from value to different value = user changed selection (reset)
   useEffect(() => {
-    if (selectedProvince && onDistrictChange) {
-      onDistrictChange('');
+    const prev = prevProvinceRef.current;
+    prevProvinceRef.current = selectedProvince;
+
+    // Only reset if previous was non-empty and current is different
+    // This prevents resetting on initial population (empty -> value)
+    if (prev && prev !== '' && prev !== selectedProvince) {
+      devLog('🔄 Province changed from', prev, 'to', selectedProvince, '- resetting dependent fields');
+      if (onDistrictChange) onDistrictChange('');
+      if (onMunicipalityChange) onMunicipalityChange('');
+      if (onWardChange) onWardChange('');
+      if (onVotingDistrictChange) onVotingDistrictChange('');
     }
-    if (onMunicipalityChange) {
-      onMunicipalityChange('');
-    }
-    if (onWardChange) {
-      onWardChange('');
-    }
-    if (onVotingDistrictChange) {
-      onVotingDistrictChange('');
-    }
-  }, [selectedProvince]);
+  }, [selectedProvince, onDistrictChange, onMunicipalityChange, onWardChange, onVotingDistrictChange]);
 
   useEffect(() => {
-    if (selectedDistrict && onMunicipalityChange) {
-      onMunicipalityChange('');
+    const prev = prevDistrictRef.current;
+    prevDistrictRef.current = selectedDistrict;
+
+    // Only reset if previous was non-empty and current is different
+    if (prev && prev !== '' && prev !== selectedDistrict) {
+      devLog('🔄 District changed from', prev, 'to', selectedDistrict, '- resetting dependent fields');
+      if (onMunicipalityChange) onMunicipalityChange('');
+      if (onWardChange) onWardChange('');
+      if (onVotingDistrictChange) onVotingDistrictChange('');
     }
-    if (onWardChange) {
-      onWardChange('');
-    }
-    if (onVotingDistrictChange) {
-      onVotingDistrictChange('');
-    }
-  }, [selectedDistrict]);
+  }, [selectedDistrict, onMunicipalityChange, onWardChange, onVotingDistrictChange]);
 
   useEffect(() => {
-    if (selectedMunicipality && onWardChange) {
-      onWardChange('');
-    }
-    if (onVotingDistrictChange) {
-      onVotingDistrictChange('');
-    }
-  }, [selectedMunicipality]);
+    const prev = prevMunicipalityRef.current;
+    prevMunicipalityRef.current = selectedMunicipality;
 
-  // Clear voting district when ward changes (but only if we're changing to a different ward)
-  useEffect(() => {
-    if (onVotingDistrictChange) {
-      onVotingDistrictChange('');
+    // Only reset if previous was non-empty and current is different
+    if (prev && prev !== '' && prev !== selectedMunicipality) {
+      devLog('🔄 Municipality changed from', prev, 'to', selectedMunicipality, '- resetting dependent fields');
+      if (onWardChange) onWardChange('');
+      if (onVotingDistrictChange) onVotingDistrictChange('');
     }
-  }, [selectedWard]);
+  }, [selectedMunicipality, onWardChange, onVotingDistrictChange]);
+
+  useEffect(() => {
+    const prev = prevWardRef.current;
+    prevWardRef.current = selectedWard;
+
+    // Only reset if previous was non-empty and current is different
+    if (prev && prev !== '' && prev !== selectedWard) {
+      devLog('🔄 Ward changed from', prev, 'to', selectedWard, '- resetting voting district');
+      if (onVotingDistrictChange) onVotingDistrictChange('');
+    }
+  }, [selectedWard, onVotingDistrictChange]);
 
   return (
     <Box>
@@ -488,7 +506,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               ) : (
                 wards?.data?.map((ward: Ward) => (
                   <MenuItem key={ward.ward_code} value={ward.ward_code}>
-                    Ward {ward.ward_number} - {ward.ward_name}
+                    {ward.ward_code} - {ward.ward_name}
                   </MenuItem>
                 ))
               )}
@@ -555,7 +573,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               {provinces?.data?.find((p: Province) => p.province_code === selectedProvince)?.province_name}
               {selectedDistrict && ` → ${districts?.data?.find((d: District) => d.district_code === selectedDistrict)?.district_name}`}
               {selectedMunicipality && ` → ${municipalities?.data?.find((m: Municipality) => m.municipality_code === selectedMunicipality)?.municipality_name}`}
-              {selectedWard && ` → Ward ${wards?.data?.find((w: Ward) => w.ward_code === selectedWard)?.ward_number} (${wards?.data?.find((w: Ward) => w.ward_code === selectedWard)?.ward_name})`}
+              {selectedWard && ` → ${selectedWard} (${wards?.data?.find((w: Ward) => w.ward_code === selectedWard)?.ward_name})`}
               {selectedVotingDistrict && ` → VD ${votingDistricts?.data?.find((vd: VotingDistrict) => vd.voting_district_code === selectedVotingDistrict)?.voting_district_number} (${votingDistricts?.data?.find((vd: VotingDistrict) => vd.voting_district_code === selectedVotingDistrict)?.voting_district_name})`}
             </Typography>
           </Alert>

@@ -1,0 +1,38 @@
+{
+  "national": {
+    "tests": [
+      {
+        "name": "Get National Positions",
+        "status": "PASS"
+      },
+      {
+        "name": "Create National Appointment",
+        "status": "PASS"
+      },
+      {
+        "name": "Get National Appointments",
+        "status": "PASS"
+      }
+    ],
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ODU3MSwiZW1haWwiOiJuYXRpb25hbC5hZG1pbkBlZmYub3JnLnphIiwicm9sZV9uYW1lIjoiTmF0aW9uYWwgQWRtaW5pc3RyYXRvciIsImFkbWluX2xldmVsIjoibmF0aW9uYWwiLCJwcm92aW5jZV9jb2RlIjpudWxsLCJkaXN0cmljdF9jb2RlIjpudWxsLCJtdW5pY2lwYWxfY29kZSI6bnVsbCwid2FyZF9jb2RlIjpudWxsLCJpYXQiOjE3NjExMDMwNDIsImV4cCI6MTc2MTE4OTQ0Mn0._Z0dxRav4UURYxeOaAa4Kxa5UivxwJ6wOumIph1ai3c",
+    "loginSuccess": true
+  },
+  "provincial": {
+    "tests": [
+      {
+        "name": "Get Provincial Positions",
+        "status": "PASS"
+      },
+      {
+        "name": "Create Provincial Appointment",
+        "status": "PASS"
+      },
+      {
+        "name": "Get Provincial Appointments",
+        "status": "PASS"
+      }
+    ],
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ODU3NCwiZW1haWwiOiJnYXV0ZW5nLmFkbWluQGVmZi5vcmcuemEiLCJyb2xlX25hbWUiOiJQcm92aW5jaWFsIEFkbWluaXN0cmF0b3IiLCJhZG1pbl9sZXZlbCI6InByb3ZpbmNlIiwicHJvdmluY2VfY29kZSI6IkdQIiwiZGlzdHJpY3RfY29kZSI6bnVsbCwibXVuaWNpcGFsX2NvZGUiOm51bGwsIndhcmRfY29kZSI6bnVsbCwiaWF0IjoxNzYxMTAzMDQ3LCJleHAiOjE3NjExODk0NDd9.jsXvYtgLvl7aiMsTUIdW-5odX4kXgz7ygd2mRH6IHoc",
+    "loginSuccess": true
+  }
+}

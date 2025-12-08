@@ -39,6 +39,7 @@ import type { ReportFilters } from '../../lib/analyticsApi';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
+import ExpiredRegisteredVotersStats from '../../components/analytics/ExpiredRegisteredVotersStats';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
@@ -143,6 +144,13 @@ const AnalyticsPage: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch expired registered voters statistics with geographic filtering
+  const { data: expiredRegisteredData, isLoading: expiredRegisteredLoading, error: expiredRegisteredError, refetch: refetchExpiredRegistered } = useQuery({
+    queryKey: ['expired-registered-voters-analytics', filters, provinceFilter, municipalityContext.getMunicipalityFilter()],
+    queryFn: () => secureGet('/statistics/expired-registered-voters', getFilterParams()),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Extract payloads from API response (handles both wrapped { data: {...} } and direct {...} structures)
   const dashboardStats = (((dashboardData as any)?.data) || dashboardData)?.statistics;
   const membershipAnalytics = (((membershipData as any)?.data) || membershipData)?.analytics;
@@ -158,6 +166,7 @@ const AnalyticsPage: React.FC = () => {
     refetchMembership();
     refetchMeetings();
     refetchLeadership();
+    refetchExpiredRegistered();
   };
 
   const handleExport = async (type: string) => {
@@ -801,42 +810,40 @@ const AnalyticsPage: React.FC = () => {
                 </Card>
               </Grid>
 
-              {/* Voter Registration Status */}
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Voter Registration Status
-                    </Typography>
-                    {membershipAnalytics?.voter_registration_status?.map((item: any, index: number) => (
-                      <Box key={index} sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2">{item.voter_status}</Typography>
-                          <Typography variant="body2">
-                            {item.member_count} ({Number(item.percentage).toFixed(1)}%)
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: 8,
-                            backgroundColor: 'grey.200',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: `${Number(item.percentage)}%`,
-                              height: '100%',
-                              backgroundColor: item.voter_status === 'Registered' ? 'success.main' : 'error.main',
-                              borderRadius: 1,
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    ))}
-                  </CardContent>
-                </Card>
+              {/* Expired Registered Voters Analysis - Track Potential Member Loss */}
+              <Grid item xs={12}>
+                <Paper sx={{ p: 3 }}>
+                  <ExpiredRegisteredVotersStats
+                    summary={(expiredRegisteredData as any)?.summary || null}
+                    geographicBreakdown={(expiredRegisteredData as any)?.geographic_breakdown || []}
+                    breakdownType={(expiredRegisteredData as any)?.breakdown_type || 'province'}
+                    isLoading={expiredRegisteredLoading}
+                    error={expiredRegisteredError as Error | null}
+                    onExport={async () => {
+                      try {
+                        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/statistics/expired-registered-voters/export`, {
+                          method: 'GET',
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                          },
+                        });
+                        if (response.ok) {
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `expired-registered-voters-${new Date().toISOString().split('T')[0]}.csv`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(url);
+                        }
+                      } catch (error) {
+                        console.error('Export failed:', error);
+                      }
+                    }}
+                  />
+                </Paper>
               </Grid>
 
               {/* Best Performing Wards */}

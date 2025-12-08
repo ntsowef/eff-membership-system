@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Authentication - Real-time Monitor</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .log-container {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            padding: 8px;
+            margin: 5px 0;
+            border-left: 3px solid #007acc;
+            background-color: #2d2d30;
+        }
+        .log-entry.error {
+            border-left-color: #f48771;
+            background-color: #3a2626;
+        }
+        .log-entry.success {
+            border-left-color: #89d185;
+            background-color: #263a26;
+        }
+        .log-entry.warning {
+            border-left-color: #dcdcaa;
+            background-color: #3a3826;
+        }
+        .timestamp {
+            color: #858585;
+            font-size: 0.9em;
+        }
+        .status-box {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .status-box.online {
+            background-color: #263a26;
+            color: #89d185;
+        }
+        .status-box.offline {
+            background-color: #3a2626;
+            color: #f48771;
+        }
+        button {
+            background-color: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover {
+            background-color: #1177bb;
+        }
+        pre {
+            background-color: #1e1e1e;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Authentication Debug Monitor</h1>
+    
+    <div>
+        <span class="status-box" id="authStatus">Checking...</span>
+        <span class="status-box" id="tokenStatus">Checking...</span>
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <button onclick="checkNow()">🔄 Check Now</button>
+        <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        <button onclick="copyLogs()">📋 Copy Logs</button>
+        <button onclick="testAPI()">🧪 Test API Call</button>
+    </div>
+    
+    <h2>📊 Current Status</h2>
+    <div class="log-container" id="statusContainer"></div>
+    
+    <h2>📝 Activity Log</h2>
+    <div class="log-container" id="logContainer"></div>
+    
+    <script>
+        let logs = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push({ timestamp, message, type });
+            
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            // Keep only last 50 logs
+            if (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+        
+        function updateStatus() {
+            const authStorage = localStorage.getItem('auth-storage');
+            const statusContainer = document.getElementById('statusContainer');
+            const authStatus = document.getElementById('authStatus');
+            const tokenStatus = document.getElementById('tokenStatus');
+            
+            let statusHTML = '';
+            
+            if (authStorage) {
+                try {
+                    const parsed = JSON.parse(authStorage);
+                    const token = parsed.state?.token;
+                    const user = parsed.state?.user;
+                    const isAuthenticated = parsed.state?.isAuthenticated;
+                    
+                    if (token && isAuthenticated) {
+                        authStatus.className = 'status-box online';
+                        authStatus.textContent = '✅ Authenticated';
+                        tokenStatus.className = 'status-box online';
+                        tokenStatus.textContent = `✅ Token: ${token.length} chars`;
+                        
+                        statusHTML = `
+                            <div class="log-entry success">
+                                <strong>✅ Authentication Active</strong><br>
+                                <strong>User:</strong> ${user?.email || 'Unknown'}<br>
+                                <strong>Role:</strong> ${user?.role_name || 'Unknown'}<br>
+                                <strong>Admin Level:</strong> ${user?.admin_level || 'Unknown'}<br>
+                                <strong>Token Length:</strong> ${token.length} characters<br>
+                                <strong>Token Preview:</strong> ${token.substring(0, 50)}...<br>
+                                <strong>Session ID:</strong> ${parsed.state?.sessionId || 'None'}
+                            </div>
+                        `;
+                        
+                        addLog('✅ Auth check: Token found and valid', 'success');
+                    } else {
+                        authStatus.className = 'status-box offline';
+                        authStatus.textContent = '❌ Not Authenticated';
+                        tokenStatus.className = 'status-box offline';
+                        tokenStatus.textContent = '❌ No Token';
+                        
+                        statusHTML = `
+                            <div class="log-entry error">
+                                <strong>❌ Authentication Missing</strong><br>
+                                Token: ${token ? 'Present but invalid' : 'NULL'}<br>
+                                Is Authenticated: ${isAuthenticated}<br>
+                                <strong>Action Required:</strong> Please log in
+                            </div>
+                        `;
+                        
+                        addLog('❌ Auth check: Token is NULL or invalid', 'error');
+                    }
+                    
+                    statusHTML += `
+                        <div class="log-entry">
+                            <strong>Full Auth Storage:</strong>
+                            <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                        </div>
+                    `;
+                } catch (error) {
+                    authStatus.className = 'status-box offline';
+                    authStatus.textContent = '❌ Parse Error';
+                    tokenStatus.className = 'status-box offline';
+                    tokenStatus.textContent = '❌ Invalid';
+                    
+                    statusHTML = `
+                        <div class="log-entry error">
+                            <strong>❌ Failed to Parse Auth Storage</strong><br>
+                            Error: ${error.message}<br>
+                            <pre>${authStorage}</pre>
+                        </div>
+                    `;
+                    
+                    addLog(`❌ Parse error: ${error.message}`, 'error');
+                }
+            } else {
+                authStatus.className = 'status-box offline';
+                authStatus.textContent = '❌ No Auth Data';
+                tokenStatus.className = 'status-box offline';
+                tokenStatus.textContent = '❌ Not Found';
+                
+                statusHTML = `
+                    <div class="log-entry error">
+                        <strong>❌ No Auth Storage Found</strong><br>
+                        The 'auth-storage' key is missing from localStorage.<br>
+                        <strong>Action Required:</strong> Please log in
+                    </div>
+                `;
+                
+                addLog('❌ Auth check: No auth-storage in localStorage', 'error');
+            }
+            
+            // Show all localStorage keys
+            const allKeys = Object.keys(localStorage);
+            statusHTML += `
+                <div class="log-entry">
+                    <strong>All localStorage Keys (${allKeys.length}):</strong><br>
+                    ${allKeys.join(', ')}
+                </div>
+            `;
+            
+            statusContainer.innerHTML = statusHTML;
+        }
+        
+        function checkNow() {
+            addLog('🔄 Manual check triggered', 'info');
+            updateStatus();
+        }
+        
+        function clearLogs() {
+            logs = [];
+            document.getElementById('logContainer').innerHTML = '';
+            addLog('🗑️ Logs cleared', 'info');
+        }
+        
+        function copyLogs() {
+            const logText = logs.map(log => `[${log.timestamp}] ${log.message}`).join('\n');
+            navigator.clipboard.writeText(logText).then(() => {
+                addLog('📋 Logs copied to clipboard', 'success');
+            });
+        }
+        
+        async function testAPI() {
+            addLog('🧪 Testing API call to /reports/daily', 'info');
+            
+            const authStorage = localStorage.getItem('auth-storage');
+            if (!authStorage) {
+                addLog('❌ Cannot test: No auth storage', 'error');
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(authStorage);
+                const token = parsed.state?.token;
+                
+                if (!token) {
+                    addLog('❌ Cannot test: No token in auth storage', 'error');
+                    return;
+                }
+                
+                addLog(`🔑 Using token: ${token.substring(0, 30)}...`, 'info');
+                
+                const response = await fetch('/api/v1/reports/daily?date=2025-11-07&format=excel', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    addLog(`✅ API call successful: ${response.status} ${response.statusText}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    addLog(`❌ API call failed: ${response.status} ${response.statusText}`, 'error');
+                    addLog(`❌ Error details: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ API call error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Monitor localStorage changes
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'auth-storage') {
+                addLog('🔔 Auth storage changed!', 'warning');
+                updateStatus();
+            }
+        });
+        
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            updateStatus();
+        }, 5000);
+        
+        // Initial check
+        addLog('🚀 Debug monitor started', 'success');
+        updateStatus();
+    </script>
+</body>
+</html>
+

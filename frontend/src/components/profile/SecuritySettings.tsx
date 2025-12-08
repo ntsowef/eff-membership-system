@@ -37,6 +37,7 @@ import {
 import { useAuth } from '../../store';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiPost, apiGet } from '../../lib/api';
+import { showDangerConfirm } from '../../utils/sweetAlert';
 
 interface PasswordFormData {
   current_password: string;
@@ -89,6 +90,7 @@ const SecuritySettings: React.FC = () => {
       const response: any = await apiPost('/profile/me/change-password', {
         current_password: data.current_password,
         new_password: data.new_password,
+        confirm_password: data.confirm_password,
       });
       return response.data;
     },
@@ -207,8 +209,13 @@ const SecuritySettings: React.FC = () => {
     }
   };
 
-  const handleMFADisable = () => {
-    if (window.confirm('Are you sure you want to disable Multi-Factor Authentication? This will make your account less secure.')) {
+  const handleMFADisable = async () => {
+    const confirmed = await showDangerConfirm(
+      'This will make your account less secure.',
+      'Disable Multi-Factor Authentication?',
+      'Yes, disable MFA'
+    );
+    if (confirmed) {
       disableMFAMutation.mutate();
     }
   };

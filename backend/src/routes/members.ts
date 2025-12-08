@@ -47,6 +47,7 @@ router.get('/',
       age_min,
       age_max,
       membership_type,
+      membership_status, // 'all' | 'active' | 'expired' - controls expiry filtering
       has_email,
       has_cell_number,
       q: search
@@ -67,6 +68,7 @@ router.get('/',
       age_min: age_min ? parseInt(age_min as string) : undefined,
       age_max: age_max ? parseInt(age_max as string) : undefined,
       membership_type: membership_type as string,
+      membership_status: membership_status as string, // Pass through to model
       has_email: has_email === 'true' ? true : has_email === 'false' ? false : undefined,
       has_cell_number: has_cell_number === 'true' ? true : has_cell_number === 'false' ? false : undefined,
       search: search as string
@@ -212,15 +214,17 @@ router.get('/export',
 );
 
 // Drill-down API endpoints for hierarchical navigation (must be before /:id route)
+// OPTIMIZED: Uses materialized view for fast performance, filters for Active members only
 router.get('/provinces',
+  cacheMiddleware({ ttl: 120 }),
   asyncHandler(async (req, res) => {
+    // Use materialized view for FAST performance
     const query = `
-      SELECT DISTINCT
+      SELECT
         province_code as code,
         province_name as name,
-        COUNT(*) as member_count
-      FROM vw_member_details
-      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
+        SUM(active_members) as member_count
+      FROM mv_hierarchical_dashboard_stats
       GROUP BY province_code, province_name
       ORDER BY province_name
     `;
@@ -232,23 +236,24 @@ router.get('/provinces',
 );
 
 router.get('/regions',
+  cacheMiddleware({ ttl: 120 }),
   asyncHandler(async (req, res) => {
     const { province } = req.query;
 
+    // Use materialized view for FAST performance
     let query = `
-      SELECT DISTINCT
+      SELECT
         district_code as code,
         district_name as name,
         province_code,
         province_name,
-        COUNT(*) as member_count
-      FROM vw_member_details
-      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
+        SUM(active_members) as member_count
+      FROM mv_hierarchical_dashboard_stats
     `;
 
     const params: any[] = [];
     if (province) {
-      query += ' AND province_code = ?';
+      query += ' WHERE province_code = $1';
       params.push(province);
     }
 
@@ -261,25 +266,26 @@ router.get('/regions',
 );
 
 router.get('/municipalities',
+  cacheMiddleware({ ttl: 120 }),
   asyncHandler(async (req, res) => {
     const { region } = req.query;
 
+    // Use materialized view for FAST performance
     let query = `
-      SELECT DISTINCT
+      SELECT
         municipality_code as code,
         municipality_name as name,
         district_code as region_code,
         district_name as region_name,
         province_code,
         province_name,
-        COUNT(*) as member_count
-      FROM vw_member_details
-      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
+        SUM(active_members) as member_count
+      FROM mv_hierarchical_dashboard_stats
     `;
 
     const params: any[] = [];
     if (region) {
-      query += ' AND district_code = ?';
+      query += ' WHERE district_code = $1';
       params.push(region);
     }
 
@@ -292,11 +298,13 @@ router.get('/municipalities',
 );
 
 router.get('/wards',
+  cacheMiddleware({ ttl: 120 }),
   asyncHandler(async (req, res) => {
     const { municipality } = req.query;
 
+    // Use materialized view for FAST performance
     let query = `
-      SELECT DISTINCT
+      SELECT
         ward_code as code,
         ward_name as name,
         ward_number,
@@ -306,18 +314,17 @@ router.get('/wards',
         district_name as region_name,
         province_code,
         province_name,
-        COUNT(*) as member_count
-      FROM vw_member_details
-      WHERE expiry_date >= CURRENT_DATE - INTERVAL '90 days'
+        active_members as member_count
+      FROM mv_hierarchical_dashboard_stats
     `;
 
     const params: any[] = [];
     if (municipality) {
-      query += ' AND municipality_code = ?';
+      query += ' WHERE municipality_code = $1';
       params.push(municipality);
     }
 
-    query += ' GROUP BY ward_code, ward_name, ward_number, municipality_code, municipality_name, district_code, district_name, province_code, province_name ORDER BY ward_name';
+    query += ' ORDER BY ward_name';
 
     const wards = await executeQuery(query, params);
 
@@ -2104,8 +2111,11 @@ router.post('/bulk-action',
 
 
 
-// Hierarchical Dashboard Statistics
+// Hierarchical Dashboard Statistics - OPTIMIZED with caching
 router.get('/dashboard/stats/:level/:code?',
+  cacheMiddleware({
+    ttl: 300 // 5 minutes cache for dashboard stats
+  }),
   validate({
     params: Joi.object({
       level: Joi.string().valid('national', 'province', 'region', 'municipality', 'ward').required(),
@@ -2147,237 +2157,250 @@ router.get('/dashboard/stats/:level/:code?',
   })
 );
 
-// Helper functions for dashboard statistics
+// Helper functions for dashboard statistics - OPTIMIZED using materialized view
+// Only counts ACTIVE members (membership_status = 'Active'), excludes expired/inactive/grace period
+// Uses mv_hierarchical_dashboard_stats for sub-second performance
 async function getNationalDashboardStats() {
-  // Use simple counts to avoid collation issues
-  const memberStatsQuery = `
+  // Use materialized view for FAST performance (pre-aggregated data)
+  const statsQuery = `
     SELECT
-      COUNT(*) as total_members,
-      0 as male_members,
-      0 as female_members,
-      0 as active_members,
-      0 as expired_members,
-      0 as registered_voters
-    FROM vw_member_details
-  `;
-
-  const geographicStatsQuery = `
-    SELECT
+      SUM(active_members) as total_members,
+      SUM(male_members) as male_members,
+      SUM(female_members) as female_members,
+      SUM(active_members) as active_members,
+      SUM(expired_members) as expired_members,
+      SUM(registered_voters) as registered_voters,
       COUNT(DISTINCT province_code) as total_provinces,
       COUNT(DISTINCT district_code) as total_regions,
       COUNT(DISTINCT municipality_code) as total_municipalities,
       COUNT(DISTINCT ward_code) as total_wards
-    FROM vw_member_details
+    FROM mv_hierarchical_dashboard_stats
   `;
 
-  const [memberStatsResult, geoStatsResult] = await Promise.all([
-    executeQuery(memberStatsQuery),
-    executeQuery(geographicStatsQuery)
-  ]);
-
-  const memberStats = memberStatsResult[0];
-  const geoStats = geoStatsResult[0];
+  const result = await executeQuery(statsQuery);
+  const stats = result[0];
 
   return {
     level: 'national',
     entity: { name: 'South Africa', code: 'ZA' },
-    member_statistics: memberStats,
-    geographic_statistics: geoStats,
+    member_statistics: {
+      total_members: Number(stats?.total_members || 0),
+      male_members: Number(stats?.male_members || 0),
+      female_members: Number(stats?.female_members || 0),
+      active_members: Number(stats?.active_members || 0),
+      expired_members: Number(stats?.expired_members || 0),
+      registered_voters: Number(stats?.registered_voters || 0)
+    },
+    geographic_statistics: {
+      total_provinces: Number(stats?.total_provinces || 0),
+      total_regions: Number(stats?.total_regions || 0),
+      total_municipalities: Number(stats?.total_municipalities || 0),
+      total_wards: Number(stats?.total_wards || 0)
+    },
     timestamp: new Date().toISOString()
   };
 }
 
 async function getProvinceDashboardStats(provinceCode: string) {
-  // Get province info from member details view
-  const provinceQuery = `
-    SELECT DISTINCT province_code as code, province_name as name
-    FROM vw_member_details
-    WHERE province_code = ?
-  `;
-  const provinceResult = await executeQuery(provinceQuery, [provinceCode]);
-  const province = provinceResult[0];
-
-  if (!province) {
-    throw new NotFoundError(`Province with code ${provinceCode} not found`);
-  }
-
-  const memberStatsQuery = `
+  // Use materialized view for FAST performance
+  const statsQuery = `
     SELECT
-      COUNT(*) as total_members,
-      0 as male_members,
-      0 as female_members,
-      0 as active_members,
-      0 as expired_members,
-      0 as registered_voters
-    FROM vw_member_details
-    WHERE province_code = ?
-  `;
-
-  const geographicStatsQuery = `
-    SELECT
+      province_code as code,
+      province_name as name,
+      SUM(active_members) as total_members,
+      SUM(male_members) as male_members,
+      SUM(female_members) as female_members,
+      SUM(active_members) as active_members,
+      SUM(expired_members) as expired_members,
+      SUM(registered_voters) as registered_voters,
       COUNT(DISTINCT district_code) as total_regions,
       COUNT(DISTINCT municipality_code) as total_municipalities,
       COUNT(DISTINCT ward_code) as total_wards
-    FROM vw_member_details
-    WHERE province_code = ?
+    FROM mv_hierarchical_dashboard_stats
+    WHERE province_code = $1
+    GROUP BY province_code, province_name
   `;
 
-  const [memberStatsResult, geoStatsResult] = await Promise.all([
-    executeQuery(memberStatsQuery, [provinceCode]),
-    executeQuery(geographicStatsQuery, [provinceCode])
-  ]);
+  const result = await executeQuery(statsQuery, [provinceCode]);
+  const stats = result[0];
 
-  const memberStats = memberStatsResult[0];
-  const geoStats = geoStatsResult[0];
+  if (!stats) {
+    throw new NotFoundError(`Province with code ${provinceCode} not found`);
+  }
 
   return {
     level: 'province',
-    entity: province,
-    member_statistics: memberStats,
-    geographic_statistics: geoStats,
+    entity: { code: stats.code, name: stats.name },
+    member_statistics: {
+      total_members: Number(stats?.total_members || 0),
+      male_members: Number(stats?.male_members || 0),
+      female_members: Number(stats?.female_members || 0),
+      active_members: Number(stats?.active_members || 0),
+      expired_members: Number(stats?.expired_members || 0),
+      registered_voters: Number(stats?.registered_voters || 0)
+    },
+    geographic_statistics: {
+      total_regions: Number(stats?.total_regions || 0),
+      total_municipalities: Number(stats?.total_municipalities || 0),
+      total_wards: Number(stats?.total_wards || 0)
+    },
     timestamp: new Date().toISOString()
   };
 }
 
 async function getRegionDashboardStats(regionCode: string) {
-  // Get region info from member details view
-  const regionQuery = `
-    SELECT DISTINCT district_code as code, district_name as name,
-           province_code, province_name
-    FROM vw_member_details
-    WHERE district_code = ?
+  // Use materialized view for FAST performance
+  const statsQuery = `
+    SELECT
+      district_code as code,
+      district_name as name,
+      province_code,
+      province_name,
+      SUM(active_members) as total_members,
+      SUM(active_members) as active_members,
+      SUM(expired_members) as expired_members,
+      SUM(registered_voters) as registered_voters,
+      COUNT(DISTINCT municipality_code) as total_municipalities,
+      COUNT(DISTINCT ward_code) as total_wards
+    FROM mv_hierarchical_dashboard_stats
+    WHERE district_code = $1
+    GROUP BY district_code, district_name, province_code, province_name
   `;
-  const regionResult = await executeQuery(regionQuery, [regionCode]);
-  const region = regionResult[0];
 
-  if (!region) {
+  const result = await executeQuery(statsQuery, [regionCode]);
+  const stats = result[0];
+
+  if (!stats) {
     throw new NotFoundError(`Region with code ${regionCode} not found`);
   }
 
-  const memberStatsQuery = `
-    SELECT
-      COUNT(*) as total_members,
-      0 as active_members,
-      0 as expired_members,
-      0 as registered_voters
-    FROM vw_member_details
-    WHERE district_code = ?
-  `;
-
-  const geographicStatsQuery = `
-    SELECT
-      COUNT(DISTINCT municipality_code) as total_municipalities,
-      COUNT(DISTINCT ward_code) as total_wards
-    FROM vw_member_details
-    WHERE district_code = ?
-  `;
-
-  const [memberStatsResult, geoStatsResult] = await Promise.all([
-    executeQuery(memberStatsQuery, [regionCode]),
-    executeQuery(geographicStatsQuery, [regionCode])
-  ]);
-
-  const memberStats = memberStatsResult[0];
-  const geoStats = geoStatsResult[0];
-
   return {
     level: 'region',
-    entity: region,
-    member_statistics: memberStats,
-    geographic_statistics: geoStats,
+    entity: {
+      code: stats.code,
+      name: stats.name,
+      province_code: stats.province_code,
+      province_name: stats.province_name
+    },
+    member_statistics: {
+      total_members: Number(stats?.total_members || 0),
+      active_members: Number(stats?.active_members || 0),
+      expired_members: Number(stats?.expired_members || 0),
+      registered_voters: Number(stats?.registered_voters || 0)
+    },
+    geographic_statistics: {
+      total_municipalities: Number(stats?.total_municipalities || 0),
+      total_wards: Number(stats?.total_wards || 0)
+    },
     timestamp: new Date().toISOString()
   };
 }
 
 async function getMunicipalityDashboardStats(municipalityCode: string) {
-  // Get municipality info from member details view
-  const municipalityQuery = `
-    SELECT DISTINCT municipality_code as code, municipality_name as name,
-           district_code as region_code, district_name as region_name,
-           province_code, province_name
-    FROM vw_member_details
-    WHERE municipality_code = ?
+  // Use materialized view for FAST performance
+  const statsQuery = `
+    SELECT
+      municipality_code as code,
+      municipality_name as name,
+      district_code as region_code,
+      district_name as region_name,
+      province_code,
+      province_name,
+      SUM(active_members) as total_members,
+      SUM(active_members) as active_members,
+      SUM(expired_members) as expired_members,
+      SUM(registered_voters) as registered_voters,
+      COUNT(DISTINCT ward_code) as total_wards
+    FROM mv_hierarchical_dashboard_stats
+    WHERE municipality_code = $1
+    GROUP BY municipality_code, municipality_name, district_code, district_name, province_code, province_name
   `;
-  const municipalityResult = await executeQuery(municipalityQuery, [municipalityCode]);
-  const municipality = municipalityResult[0];
 
-  if (!municipality) {
+  const result = await executeQuery(statsQuery, [municipalityCode]);
+  const stats = result[0];
+
+  if (!stats) {
     throw new NotFoundError(`Municipality with code ${municipalityCode} not found`);
   }
 
-  const memberStatsQuery = `
-    SELECT
-      COUNT(*) as total_members,
-      0 as active_members,
-      0 as expired_members,
-      0 as registered_voters
-    FROM vw_member_details
-    WHERE municipality_code = ?
-  `;
-
-  const geographicStatsQuery = `
-    SELECT
-      COUNT(DISTINCT ward_code) as total_wards
-    FROM vw_member_details
-    WHERE municipality_code = ?
-  `;
-
-  const [memberStatsResult, geoStatsResult] = await Promise.all([
-    executeQuery(memberStatsQuery, [municipalityCode]),
-    executeQuery(geographicStatsQuery, [municipalityCode])
-  ]);
-
-  const memberStats = memberStatsResult[0];
-  const geoStats = geoStatsResult[0];
-
   return {
     level: 'municipality',
-    entity: municipality,
-    member_statistics: memberStats,
-    geographic_statistics: geoStats,
+    entity: {
+      code: stats.code,
+      name: stats.name,
+      region_code: stats.region_code,
+      region_name: stats.region_name,
+      province_code: stats.province_code,
+      province_name: stats.province_name
+    },
+    member_statistics: {
+      total_members: Number(stats?.total_members || 0),
+      active_members: Number(stats?.active_members || 0),
+      expired_members: Number(stats?.expired_members || 0),
+      registered_voters: Number(stats?.registered_voters || 0)
+    },
+    geographic_statistics: {
+      total_wards: Number(stats?.total_wards || 0)
+    },
     timestamp: new Date().toISOString()
   };
 }
 
 async function getWardDashboardStats(wardCode: string) {
-  // Get ward info from member details view
-  const wardQuery = `
-    SELECT DISTINCT ward_code as code, ward_name as name, ward_number,
-           municipality_code, municipality_name,
-           district_code as region_code, district_name as region_name,
-           province_code, province_name
-    FROM vw_member_details
-    WHERE ward_code = ?
+  // Use materialized view for FAST performance
+  const statsQuery = `
+    SELECT
+      ward_code as code,
+      ward_name as name,
+      ward_number,
+      municipality_code,
+      municipality_name,
+      district_code as region_code,
+      district_name as region_name,
+      province_code,
+      province_name,
+      active_members as total_members,
+      active_members,
+      expired_members,
+      registered_voters,
+      male_members,
+      female_members,
+      COALESCE(average_age, 0) as average_age
+    FROM mv_hierarchical_dashboard_stats
+    WHERE ward_code = $1
   `;
-  const wardResult = await executeQuery(wardQuery, [wardCode]);
-  const ward = wardResult[0];
 
-  if (!ward) {
+  const result = await executeQuery(statsQuery, [wardCode]);
+  const stats = result[0];
+
+  if (!stats) {
     throw new NotFoundError(`Ward with code ${wardCode} not found`);
   }
 
-  const memberStatsQuery = `
-    SELECT
-      COUNT(*) as total_members,
-      0 as active_members,
-      0 as expired_members,
-      0 as registered_voters,
-      0 as male_members,
-      0 as female_members,
-      0 as average_age
-    FROM vw_member_details
-    WHERE ward_code = ?
-  `;
-
-  const memberStatsResult = await executeQuery(memberStatsQuery, [wardCode]);
-  const memberStats = memberStatsResult[0];
-
   return {
     level: 'ward',
-    entity: ward,
-    member_statistics: memberStats,
+    entity: {
+      code: stats.code,
+      name: stats.name,
+      ward_number: stats.ward_number,
+      municipality_code: stats.municipality_code,
+      municipality_name: stats.municipality_name,
+      region_code: stats.region_code,
+      region_name: stats.region_name,
+      province_code: stats.province_code,
+      province_name: stats.province_name
+    },
+    member_statistics: {
+      total_members: Number(stats?.total_members || 0),
+      active_members: Number(stats?.active_members || 0),
+      expired_members: Number(stats?.expired_members || 0),
+      registered_voters: Number(stats?.registered_voters || 0),
+      male_members: Number(stats?.male_members || 0),
+      female_members: Number(stats?.female_members || 0),
+      average_age: Math.round(Number(stats?.average_age || 0))
+    },
     geographic_statistics: {
-      total_members: memberStats.total_members
+      total_members: Number(stats?.total_members || 0)
     },
     timestamp: new Date().toISOString()
   };

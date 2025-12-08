@@ -47,6 +47,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as LeadershipService from '../../services/leadershipApi';
 import type { GeographicSelection } from './GeographicSelector';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
+import { devLog } from '../../utils/logger';
 
 // Extract what we need from the service
 const { LeadershipAPI } = LeadershipService;
@@ -166,15 +167,15 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
         const level = geographicSelection.hierarchyLevel;
         if (level === 'Province' && geographicSelection.province?.province_code) {
           filters.province_code = geographicSelection.province.province_code;
-          console.log(`✅ Geographic filter applied: Province = ${filters.province_code}`);
+          devLog(`✅ Geographic filter applied: Province = ${filters.province_code}`);
         }
         if (level === 'Municipality' && geographicSelection.municipality?.municipality_code) {
           filters.municipality_code = geographicSelection.municipality.municipality_code;
-          console.log(`✅ Geographic filter applied: Municipality = ${filters.municipality_code}`);
+          devLog(`✅ Geographic filter applied: Municipality = ${filters.municipality_code}`);
         }
         if (level === 'Ward' && geographicSelection.ward?.ward_code) {
           filters.ward_code = geographicSelection.ward.ward_code;
-          console.log(`✅ Geographic filter applied: Ward = ${filters.ward_code}`);
+          devLog(`✅ Geographic filter applied: Ward = ${filters.ward_code}`);
         }
       } else if (filterByLevel && entityId) {
         // Fallback: try to use entityId if provided (less precise)
@@ -217,7 +218,7 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
   // Debug logging
   React.useEffect(() => {
     if (open) {
-      console.log('🔍 MemberSelector data received:', {
+      devLog('🔍 MemberSelector data received:', {
         membersData,
         membersCount: members.length,
         firstMember: members[0],
@@ -234,7 +235,7 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
   const filteredMembers = members.filter(member => {
     // Exclude specified member IDs
     if (excludeMemberIds.includes(member.member_id)) {
-      console.log(`🔍 Filtering out excluded member: ${member.member_id}`);
+      devLog(`🔍 Filtering out excluded member: ${member.member_id}`);
       return false;
     }
 
@@ -242,7 +243,7 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
     if (membershipStatusFilter && membershipStatusFilter !== 'All') {
       const memberStatus = member.membership_status || 'Active';
       if (memberStatus !== membershipStatusFilter) {
-        console.log(`🔍 Filtering out member ${member.member_id} - status mismatch: "${memberStatus}" !== "${membershipStatusFilter}"`);
+        devLog(`🔍 Filtering out member ${member.member_id} - status mismatch: "${memberStatus}" !== "${membershipStatusFilter}"`);
         return false;
       }
     }
@@ -251,7 +252,7 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
     if (genderFilter && genderFilter !== 'All') {
       const memberGender = member.gender_name || member.gender || 'Unknown';
       if (memberGender !== genderFilter) {
-        console.log(`🔍 Filtering out member ${member.member_id} - gender mismatch: "${memberGender}" !== "${genderFilter}"`);
+        devLog(`🔍 Filtering out member ${member.member_id} - gender mismatch: "${memberGender}" !== "${genderFilter}"`);
         return false;
       }
     }
@@ -262,7 +263,7 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
   // Debug filtered results
   React.useEffect(() => {
     if (open) {
-      console.log('🔍 MemberSelector filtering debug:', {
+      devLog('🔍 MemberSelector filtering debug:', {
         totalMembers: members.length,
         filteredMembers: filteredMembers.length,
         filters: {

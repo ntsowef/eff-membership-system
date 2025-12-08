@@ -369,8 +369,8 @@ export class UserModel {
     }
   }
 
-  // Generate password reset token
-  static async generatePasswordResetToken(email: string): Promise<string | null> {
+  // Generate password reset token - returns token and user info for email
+  static async generatePasswordResetToken(email: string): Promise<{ token: string; userName: string; userEmail: string } | null> {
     try {
       const user = await this.getUserByEmail(email);
       if (!user || !user.is_active) {
@@ -381,14 +381,22 @@ export class UserModel {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
 
+      // Use user_id from the database (primary key column)
+      const userId = (user as any).user_id || user.id;
+      console.log('[GenerateResetToken] Storing reset token for user_id:', userId);
+
       const query = `
         UPDATE users
-        SET password_reset_token = ?, password_reset_expires = ?
-        WHERE id = ?
+        SET password_reset_token = $1, password_reset_expires = $2
+        WHERE user_id = $3
       `;
 
-      await executeQuery(query, [resetToken, expiresAt, user.id]);
-      return resetToken;
+      await executeUpdate(query, [resetToken, expiresAt, userId]);
+      return {
+        token: resetToken,
+        userName: user.name,
+        userEmail: user.email
+      };
     } catch (error) {
       throw createDatabaseError('Failed to generate password reset token', error);
     }
@@ -397,17 +405,29 @@ export class UserModel {
   // Verify password reset token
   static async verifyPasswordResetToken(token: string): Promise<UserDetails | null> {
     try {
+      console.log('[VerifyResetToken] Looking for token:', token.substring(0, 10) + '...');
+
       const query = `
-        SELECT u.*, r.name as role_name
+        SELECT u.*, r.role_name as role_name
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
-        WHERE u.password_reset_token = ?
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        WHERE u.password_reset_token = $1
         AND u.password_reset_expires > NOW()
         AND u.is_active = TRUE
       `;
 
-      return await executeQuerySingle<UserDetails>(query, [token]);
+      const result = await executeQuerySingle<UserDetails>(query, [token]);
+      console.log('[VerifyResetToken] Found user:', result ? 'yes' : 'no');
+      if (result) {
+        console.log('[VerifyResetToken] User details:', {
+          user_id: (result as any).user_id,
+          id: result.id,
+          email: result.email
+        });
+      }
+      return result;
     } catch (error) {
+      console.error('[VerifyResetToken] Error:', error);
       throw createDatabaseError('Failed to verify password reset token', error);
     }
   }
@@ -417,24 +437,30 @@ export class UserModel {
     try {
       const user = await this.verifyPasswordResetToken(tokenData.token);
       if (!user) {
+        console.log('[ResetPassword] Token verification failed - user not found or token expired');
         return false;
       }
+
+      // Handle both user_id and id column names
+      const userId = (user as any).user_id || user.id;
+      console.log('[ResetPassword] Token verified for userId:', userId);
 
       const hashedPassword = await this.hashPassword(tokenData.newPassword);
 
       const query = `
         UPDATE users
         SET
-          password = ?,
+          password = $1,
           password_reset_token = NULL,
           password_reset_expires = NULL,
           failed_login_attempts = 0,
           locked_until = NULL
-        WHERE id = ?
+        WHERE user_id = $2
       `;
 
-      const result = await executeQuery(query, [hashedPassword, user.id]);
-      return result.affectedRows > 0;
+      const result = await executeUpdate(query, [hashedPassword, userId]);
+      console.log('[ResetPassword] Update result:', result);
+      return (result?.affectedRows ?? 0) > 0;
     } catch (error) {
       throw createDatabaseError('Failed to reset password', error);
     }
@@ -448,7 +474,11 @@ export class UserModel {
         return false;
       }
 
-      // Verify current password
+      if (!user.password) {
+        return false;
+      }
+
+      // Verify current password using bcrypt
       const isValidPassword = await this.verifyPassword(passwordData.currentPassword, user.password);
       if (!isValidPassword) {
         return false;
@@ -457,8 +487,8 @@ export class UserModel {
       // Hash new password
       const hashedPassword = await this.hashPassword(passwordData.newPassword);
 
-      const query = 'UPDATE users SET password = ? WHERE id = ?';
-      const result = await executeQuery(query, [hashedPassword, userId]);
+      const query = 'UPDATE users SET password = $1, updated_at = NOW() WHERE user_id = $2';
+      const result = await executeUpdate(query, [hashedPassword, userId]);
 
       return result.affectedRows > 0;
     } catch (error) {

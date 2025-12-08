@@ -6,8 +6,7 @@ import { authenticate, requirePermission, requireHierarchicalAccess } from '../m
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
 import { logAudit } from '../middleware/auditLogger';
 import { AuditAction, EntityType } from '../models/auditLogs';
-import { MemberModel } from '../models/members';
-import { executeQuerySingle } from '../config/database';
+import { executeQuery } from '../config/database';
 import Joi from 'joi';
 
 const router = Router();
@@ -60,15 +59,7 @@ const createApplicationSchema = Joi.object({
   province_code: Joi.string().max(10).optional(),
   district_code: Joi.string().max(10).optional(),
   municipal_code: Joi.string().max(10).optional(),
-  voting_district_code: Joi.string().max(20).allow(null, '').optional(),
-  postal_code: Joi.string().max(10).optional(),
-  // IEC Verification data (from frontend) - accepted but not stored
-  iec_verification: Joi.any().optional(),
-  // Additional frontend fields
-  alternative_phone: Joi.string().min(10).max(20).optional(),
-  agree_terms: Joi.boolean().optional(),
-  agree_privacy: Joi.boolean().optional(),
-  agree_communications: Joi.boolean().optional()
+  voting_district_code: Joi.string().max(20).optional()
 }).custom((value, helpers) => {
   // Ensure we have either frontend or backend field names for required fields
   if (!value.first_name && !value.firstname) {
@@ -104,12 +95,12 @@ const updateApplicationSchema = Joi.object({
 
 const reviewApplicationSchema = Joi.object({
   status: Joi.string().valid('Approved', 'Rejected').required(),
-  rejection_reason: Joi.string().max(500).allow('', null).when('status', {
+  rejection_reason: Joi.string().max(500).when('status', {
     is: 'Rejected',
     then: Joi.required(),
     otherwise: Joi.optional()
   }),
-  admin_notes: Joi.string().max(1000).allow('', null).optional(),
+  admin_notes: Joi.string().max(1000).optional(),
   send_notification: Joi.boolean().default(true)
 });
 
@@ -123,94 +114,6 @@ const bulkReviewSchema = Joi.object({
   }),
   admin_notes: Joi.string().max(1000).optional(),
   send_notifications: Joi.boolean().default(true)
-});
-
-// Check if ID number already exists in members or applications
-router.post('/check-id-number', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id_number } = req.body;
-
-    // Validate ID number format
-    if (!id_number || !/^\d{13}$/.test(id_number)) {
-      throw new ValidationError('ID number must be exactly 13 digits');
-    }
-
-    // Check if ID exists in members table
-    const existsInMembers = await MemberModel.idNumberExists(id_number);
-
-    // Check if ID exists in pending applications
-    const applicationQuery = `
-      SELECT COUNT(*) as count
-      FROM membership_applications
-      WHERE id_number = $1
-      AND status IN ('Draft', 'Submitted', 'Under Review')
-    `;
-    const applicationResult = await executeQuerySingle<{ count: number }>(applicationQuery, [id_number]);
-    const existsInApplications = (applicationResult?.count || 0) > 0;
-
-    // Get member details if exists
-    let memberDetails: any = null;
-    if (existsInMembers) {
-      memberDetails = await MemberModel.getMemberByIdNumber(id_number);
-    }
-
-    // Get application details if exists
-    let applicationDetails: any = null;
-    if (existsInApplications) {
-      const appQuery = `
-        SELECT
-          ma.application_number,
-          ma.status,
-          ma.first_name as firstname,
-          ma.last_name as surname,
-          ma.created_at as submission_date,
-          p.province_name,
-          m.municipality_name,
-          w.ward_code
-        FROM membership_applications ma
-        LEFT JOIN provinces p ON ma.province_code = p.province_code
-        LEFT JOIN municipalities m ON ma.municipal_code = m.municipality_code
-        LEFT JOIN wards w ON ma.ward_code = w.ward_code
-        WHERE ma.id_number = $1
-        AND ma.status IN ('Draft', 'Submitted', 'Under Review')
-        ORDER BY ma.created_at DESC
-        LIMIT 1
-      `;
-      applicationDetails = await executeQuerySingle(appQuery, [id_number]);
-    }
-
-    res.json({
-      success: true,
-      data: {
-        id_number,
-        exists: existsInMembers || existsInApplications,
-        exists_in_members: existsInMembers,
-        exists_in_applications: existsInApplications,
-        member_details: memberDetails ? {
-          member_id: memberDetails.member_id,
-          first_name: memberDetails.firstname,
-          last_name: memberDetails.surname || '',
-          ward_name: memberDetails.ward_name,
-          ward_code: memberDetails.ward_code,
-          province_name: memberDetails.province_name,
-          municipality_name: memberDetails.municipality_name
-        } : null,
-        application_details: applicationDetails ? {
-          application_number: applicationDetails.application_number,
-          status: applicationDetails.status,
-          firstname: applicationDetails.firstname,
-          surname: applicationDetails.surname,
-          province_name: applicationDetails.province_name,
-          municipality_name: applicationDetails.municipality_name,
-          ward_code: applicationDetails.ward_code,
-          submission_date: applicationDetails.submission_date
-        } : null
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
 });
 
 // Create new membership application
@@ -230,16 +133,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       gender: value.gender,
       email: value.email,
       cell_number: value.cell_number || value.phone,
-      alternative_number: value.alternative_number || value.alternative_phone,
+      alternative_number: value.alternative_number,
       residential_address: value.residential_address || value.address,
       postal_address: value.postal_address,
       ward_code: value.ward_code,
       application_type: value.application_type,
-      // Enhanced Personal Information fields
-      language_id: value.language_id,
-      occupation_id: value.occupation_id,
-      qualification_id: value.qualification_id,
-      citizenship_status: value.citizenship_status,
       // Party Declaration fields
       signature_type: value.signature_type,
       signature_data: value.signature_data,
@@ -252,12 +150,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       reason_for_joining: value.reason_for_joining,
       skills_experience: value.skills_experience,
       referred_by: value.referred_by,
-      // Payment Information fields
-      payment_method: value.payment_method,
-      payment_reference: value.payment_reference,
-      last_payment_date: value.last_payment_date,
-      payment_amount: value.payment_amount,
-      payment_notes: value.payment_notes,
       // Geographic fields
       province_code: value.province_code,
       district_code: value.district_code,
@@ -265,82 +157,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       voting_district_code: value.voting_district_code
     };
 
-    console.log('📋 Payment Information Received:');
-    console.log('  - payment_method:', applicationData.payment_method);
-    console.log('  - payment_reference:', applicationData.payment_reference);
-    console.log('  - payment_amount:', applicationData.payment_amount);
-    console.log('  - last_payment_date:', applicationData.last_payment_date);
-    console.log('  - payment_notes:', applicationData.payment_notes);
-
     const applicationId = await MembershipApplicationModel.createApplication(applicationData);
 
-    console.log('🔍 DEBUG: Application created with ID:', applicationId);
-
     const application = await MembershipApplicationModel.getApplicationById(applicationId);
-
-    console.log('🔍 DEBUG: Retrieved application:', application ? 'Found' : 'NULL', application ? `(${application.application_number})` : '');
-
-    // Send SMS notification with application reference
-    if (application) {
-      try {
-        const { SMSService } = await import('../services/smsService');
-
-        // Format phone number (ensure it starts with country code)
-        let phoneNumber = application.cell_number;
-        if (phoneNumber && !phoneNumber.startsWith('+')) {
-          // Assume South African number if no country code
-          phoneNumber = phoneNumber.startsWith('0') ? `+27${phoneNumber.substring(1)}` : `+27${phoneNumber}`;
-        }
-
-        // Create SMS message with application reference
-        const smsMessage = `Thank you for applying to join EFF! Your application reference is: ${application.application_number}. Please keep this for future reference. You will be notified once your application is processed.`;
-
-        // Send SMS
-        const smsResult = await SMSService.sendSMS(phoneNumber, smsMessage, 'EFF');
-
-        if (smsResult.success) {
-          console.log(`✅ Application SMS sent successfully to ${phoneNumber}`, {
-            applicationId,
-            applicationNumber: application.application_number,
-            messageId: smsResult.messageId
-          });
-        } else {
-          console.error(`⚠️ Failed to send application SMS to ${phoneNumber}:`, smsResult.error);
-        }
-      } catch (smsError) {
-        // Don't fail the application creation if SMS fails
-        console.error('❌ Error sending application SMS:', smsError);
-      }
-    }
-
-    // Send Email notification with application reference
-    if (application && application.email) {
-      try {
-        const { emailService } = await import('../services/emailService');
-
-        const applicantName = `${application.first_name} ${application.last_name}`;
-
-        // Send email with application number
-        const emailSent = await emailService.sendApplicationStatusNotification(
-          application.email,
-          applicantName,
-          application.application_number,
-          'Submitted'
-        );
-
-        if (emailSent) {
-          console.log(`✅ Application email sent successfully to ${application.email}`, {
-            applicationId,
-            applicationNumber: application.application_number
-          });
-        } else {
-          console.error(`⚠️ Failed to send application email to ${application.email}`);
-        }
-      } catch (emailError) {
-        // Don't fail the application creation if email fails
-        console.error('❌ Error sending application email:', emailError);
-      }
-    }
 
     res.status(201).json({
       success: true,
@@ -355,11 +174,78 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// Check if ID number already exists (for duplicate prevention during application)
+router.post('/check-id-number', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id_number } = req.body;
+
+    if (!id_number) {
+      throw new ValidationError('ID number is required');
+    }
+
+    // Validate ID number format (13 digits)
+    if (!/^\d{13}$/.test(id_number)) {
+      throw new ValidationError('ID number must be exactly 13 digits');
+    }
+
+    // Check in members table - just check existence
+    const memberQuery = `
+      SELECT member_id
+      FROM members
+      WHERE id_number = $1
+      LIMIT 1
+    `;
+
+    // Check in pending applications - using 'Submitted' status (the actual status value)
+    const applicationQuery = `
+      SELECT application_id
+      FROM membership_applications
+      WHERE id_number = $1 AND status IN ('Pending', 'Submitted', 'Under Review')
+      LIMIT 1
+    `;
+
+    const [memberResults, applicationResults] = await Promise.all([
+      executeQuery(memberQuery, [id_number]),
+      executeQuery(applicationQuery, [id_number])
+    ]);
+
+    const existsInMembers = memberResults.length > 0;
+    const existsInApplications = applicationResults.length > 0;
+
+    if (existsInMembers || existsInApplications) {
+      return res.json({
+        success: true,
+        data: {
+          exists: true,
+          exists_in_members: existsInMembers,
+          exists_in_applications: existsInApplications
+        },
+        message: existsInMembers
+          ? 'This ID number is already registered as a member'
+          : 'This ID number has a pending application'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        exists: false,
+        exists_in_members: false,
+        exists_in_applications: false
+      },
+      message: 'ID number is available'
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get all membership applications (admin only)
 router.get('/', authenticate, requirePermission('applications.read'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 10000); // Increased max limit to 10000
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = (page - 1) * limit;
 
     const filters: ApplicationFilters = {};
@@ -434,7 +320,7 @@ router.get('/:id', authenticate, requirePermission('applications.read'), async (
 router.get('/number/:applicationNumber', authenticate, requirePermission('applications.read'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const applicationNumber = req.params.applicationNumber;
-
+    
     const application = await MembershipApplicationModel.getApplicationByNumber(applicationNumber);
     if (!application) {
       throw new NotFoundError('Membership application not found');
@@ -446,52 +332,6 @@ router.get('/number/:applicationNumber', authenticate, requirePermission('applic
       data: {
         application
       },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get application status by ID or application number (public endpoint - no authentication required)
-router.get('/:id/status', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const idParam = req.params.id;
-    let application;
-
-    // Check if it's a numeric ID or application number
-    const numericId = parseInt(idParam);
-    if (!isNaN(numericId)) {
-      // It's a numeric ID
-      application = await MembershipApplicationModel.getApplicationById(numericId);
-    } else {
-      // It's an application number (e.g., APP51854545592)
-      application = await MembershipApplicationModel.getApplicationByNumber(idParam);
-    }
-
-    if (!application) {
-      throw new NotFoundError('Membership application not found');
-    }
-
-    // Return only public-safe information
-    const publicData = {
-      application_id: application.application_id,
-      application_number: application.application_number,
-      first_name: application.first_name,
-      last_name: application.last_name,
-      status: application.status,
-      workflow_stage: application.workflow_stage,
-      submitted_at: application.submitted_at,
-      reviewed_at: application.reviewed_at,
-      approved_at: application.approved_at,
-      rejected_at: application.rejected_at,
-      rejection_reason: application.rejection_reason
-    };
-
-    res.json({
-      success: true,
-      message: 'Application status retrieved successfully',
-      data: publicData,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -600,76 +440,6 @@ router.post('/:id/review', authenticate, requirePermission('applications.review'
       reviewed_by: req.user!.id
     };
 
-    // If approving, use the approval service to create member record
-    if (value.status === 'Approved') {
-      const result = await MembershipApprovalService.approveApplication(
-        applicationId,
-        req.user!.id,
-        value.admin_notes
-      );
-
-      // Log the approval action
-      await logAudit(
-        req.user!.id,
-        AuditAction.CREATE,
-        EntityType.MEMBER,
-        result.member_id!,
-        {},
-        {
-          application_id: applicationId,
-          membership_id: result.membership_id,
-          membership_number: result.membership_number
-        },
-        req
-      );
-
-      const application = await MembershipApplicationModel.getApplicationById(applicationId);
-
-      // Send notification if requested
-      if (value.send_notification && application?.email) {
-        try {
-          const { emailService } = await import('../services/emailService');
-          const applicantName = `${application.first_name} ${application.last_name}`;
-
-          // Send email notification with membership number
-          await emailService.sendApplicationStatusNotification(
-            application.email,
-            applicantName,
-            application.application_number,
-            'Approved',
-            undefined, // no rejection reason
-            result.membership_number // include membership number
-          );
-
-          // Also send SMS if phone number is available
-          if (application.cell_number) {
-            const { SMSService } = await import('../services/smsService');
-            const smsMessage = `Congratulations ${applicantName}! Your EFF membership application ${application.application_number} has been approved. Your membership number is ${result.membership_number}. Welcome to EFF!`;
-            await SMSService.sendSMS(application.cell_number, smsMessage, 'EFF');
-          }
-
-          console.log(`✅ Approval notification sent to ${application.email}`);
-        } catch (notificationError) {
-          console.error('⚠️ Failed to send approval notification:', notificationError);
-          // Don't fail the approval process if notification fails
-        }
-      }
-
-      res.json({
-        success: true,
-        message: result.message,
-        data: {
-          application,
-          member_id: result.member_id,
-          membership_id: result.membership_id,
-          membership_number: result.membership_number
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
-    // For rejection, just update the status
     const success = await MembershipApplicationModel.reviewApplication(applicationId, reviewData);
     if (!success) {
       throw new ValidationError('Application not found or not in reviewable status');

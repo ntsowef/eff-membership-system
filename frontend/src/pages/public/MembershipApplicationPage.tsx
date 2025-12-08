@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -17,10 +17,11 @@ import {
   DialogActions,
   CircularProgress,
 } from '@mui/material';
-import { ArrowForward, ArrowBack } from '@mui/icons-material';
+import { ArrowForward, ArrowBack, HowToVote, Person, ContactPhone, Gavel, Payment, RateReview } from '@mui/icons-material';
 
 import { useApplication } from '../../store';
-import PersonalInfoStep from '../../components/application/PersonalInfoStep';
+import IdVerificationStep from '../../components/application/IdVerificationStep';
+import IECPersonalInfoStep from '../../components/application/IECPersonalInfoStep';
 import ContactInfoStep from '../../components/application/ContactInfoStep';
 import PartyDeclarationStep from '../../components/application/PartyDeclarationStep';
 import PaymentStep from '../../components/application/PaymentStep';
@@ -29,13 +30,16 @@ import { useMutation } from '@tanstack/react-query';
 import { apiPost, api } from '../../lib/api';
 import { useUI } from '../../store';
 import PublicHeader from '../../components/layout/PublicHeader';
+import { devLog } from '../../utils/logger';
 
+// New multi-step wizard with ID Verification as first step
 const steps = [
-  'Personal Information',
-  'Contact Information',
-  'Party Declaration & Signature',
-  'Payment Information',
-  'Review & Submit',
+  { label: 'ID Verification', icon: <HowToVote /> },
+  { label: 'Personal Information', icon: <Person /> },
+  { label: 'Contact Information', icon: <ContactPhone /> },
+  { label: 'Party Declaration', icon: <Gavel /> },
+  { label: 'Payment Information', icon: <Payment /> },
+  { label: 'Review & Submit', icon: <RateReview /> },
 ];
 
 const MembershipApplicationPage: React.FC = () => {
@@ -46,6 +50,19 @@ const MembershipApplicationPage: React.FC = () => {
   const [isCheckingId, setIsCheckingId] = useState(false);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateData, setDuplicateData] = useState<any>(null);
+  const [idVerified, setIdVerified] = useState(false);
+
+  // Handle IEC verification completion from IdVerificationStep
+  const handleIECVerificationComplete = useCallback((iecData: any, isRegistered: boolean) => {
+    devLog('🔍 IEC Verification Complete:', { iecData, isRegistered });
+    setIdVerified(true);
+
+    // Store verification result in application data
+    updateApplicationData({
+      iec_verification: iecData,
+      is_registered_voter: isRegistered,
+    } as any);
+  }, [updateApplicationData]);
 
   const submitApplicationMutation = useMutation({
     mutationFn: (data: any) => apiPost<{application: {id: number; application_number: string}}>('/membership-applications', data),
@@ -90,8 +107,18 @@ const MembershipApplicationPage: React.FC = () => {
 
     setErrors({});
 
-    // STEP 0: Personal Information - Check for duplicate ID and verify with IEC
+    // STEP 0: ID Verification - Check for duplicate ID before proceeding
     if (applicationStep === 0) {
+      // Check if ID has been verified
+      if (!idVerified) {
+        addNotification({
+          type: 'warning',
+          message: 'Please verify your ID number before proceeding',
+        });
+        return;
+      }
+
+      // Check for duplicate ID
       await checkIdAndVerifyIEC();
       return; // Don't proceed yet - will be handled after checks
     }
@@ -119,74 +146,28 @@ const MembershipApplicationPage: React.FC = () => {
     setIsCheckingId(true);
 
     try {
-      // STEP 1: Check for duplicate ID number
-      console.log('🔍 Step 1: Checking for duplicate ID number...');
-      console.log('📤 Sending request with ID:', idNumber);
+      // Check for duplicate ID number
+      devLog('🔍 Checking for duplicate ID number...');
+      devLog('📤 Sending request with ID:', idNumber);
 
       const duplicateCheckResponse = await api.post('/membership-applications/check-id-number', {
         id_number: idNumber,
       });
 
-      console.log('✅ Duplicate check response:', duplicateCheckResponse.data);
+      devLog('✅ Duplicate check response:', duplicateCheckResponse.data);
 
       // Check if ID exists
       if (duplicateCheckResponse.data.success && duplicateCheckResponse.data.data?.exists) {
-        console.log('❌ Duplicate ID found!');
+        devLog('❌ Duplicate ID found!');
         setDuplicateData(duplicateCheckResponse.data.data);
         setDuplicateDialogOpen(true);
         setIsCheckingId(false);
-        return; // Stop here - don't proceed to IEC verification
+        return; // Stop here - don't proceed
       }
 
-      console.log('✅ No duplicate found. Proceeding to IEC verification...');
+      devLog('✅ No duplicate found. Proceeding to next step...');
 
-      // STEP 2: Verify with IEC API
-      try {
-        console.log('🔍 Step 2: Verifying voter registration with IEC...');
-        const iecResponse = await api.post('/iec/verify-voter-public', {
-          idNumber: idNumber,
-        });
-
-        console.log('✅ IEC verification response:', iecResponse.data);
-
-        // Store IEC verification results in application data
-        if (iecResponse.data.success && iecResponse.data.data) {
-          const iecData = iecResponse.data.data;
-          console.log('✅ IEC verification successful');
-          console.log('   Registered:', iecData.is_registered);
-
-          // Store IEC data for use in Contact Info step
-          updateApplicationData({
-            iec_verification: iecData,
-          } as any);
-
-          if (iecData.is_registered) {
-            addNotification({
-              type: 'success',
-              message: 'Voter registration verified with IEC',
-            });
-          } else {
-            addNotification({
-              type: 'info',
-              message: 'ID verified. You can proceed with your application.',
-            });
-          }
-        } else {
-          console.log('⚠️ IEC verification returned no data');
-          addNotification({
-            type: 'info',
-            message: 'ID verified. You can proceed with your application.',
-          });
-        }
-      } catch (iecError: any) {
-        console.log('⚠️ IEC verification failed:', iecError);
-        // IEC verification failure is not critical - continue with application
-        addNotification({
-          type: 'info',
-          message: 'ID verified. You can proceed with your application.',
-        });
-      }
-
+      // IEC verification is already done in IdVerificationStep
       // All checks passed - proceed to next step
       setIsCheckingId(false);
       setApplicationStep(applicationStep + 1);
@@ -214,16 +195,16 @@ const MembershipApplicationPage: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    console.log('📤 Submitting application with data:', applicationData);
-    console.log('📋 Required fields check:');
-    console.log('  - firstname:', applicationData.firstname);
-    console.log('  - surname:', applicationData.surname);
-    console.log('  - id_number:', applicationData.id_number);
-    console.log('  - date_of_birth:', applicationData.date_of_birth);
-    console.log('  - gender:', applicationData.gender);
-    console.log('  - phone:', applicationData.phone);
-    console.log('  - address:', applicationData.address);
-    console.log('  - ward_code:', applicationData.ward_code);
+    devLog('📤 Submitting application with data:', applicationData);
+    devLog('📋 Required fields check:');
+    devLog('  - firstname:', applicationData.firstname);
+    devLog('  - surname:', applicationData.surname);
+    devLog('  - id_number:', applicationData.id_number);
+    devLog('  - date_of_birth:', applicationData.date_of_birth);
+    devLog('  - gender:', applicationData.gender);
+    devLog('  - phone:', applicationData.phone);
+    devLog('  - address:', applicationData.address);
+    devLog('  - ward_code:', applicationData.ward_code);
 
     submitApplicationMutation.mutate(applicationData);
   };
@@ -232,12 +213,18 @@ const MembershipApplicationPage: React.FC = () => {
     const errors: Record<string, string> = {};
 
     switch (step) {
-      case 0: // Personal Information
+      case 0: // ID Verification
+        if (!applicationData.id_number) errors.id_number = 'ID number is required';
+        if (applicationData.id_number && applicationData.id_number.length !== 13) {
+          errors.id_number = 'ID number must be 13 digits';
+        }
+        break;
+
+      case 1: // Personal Information
         if (!applicationData.firstname) errors.firstname = 'First name is required';
         if (!applicationData.surname) errors.surname = 'Surname is required';
         if (!applicationData.date_of_birth) errors.date_of_birth = 'Date of birth is required';
         if (!applicationData.gender) errors.gender = 'Gender is required';
-        if (!applicationData.id_number) errors.id_number = 'ID number is required';
         // Enhanced Personal Information validation
         if (!applicationData.language_id) errors.language_id = 'Home language is required';
         if (!applicationData.occupation_id) errors.occupation_id = 'Occupation is required';
@@ -245,7 +232,7 @@ const MembershipApplicationPage: React.FC = () => {
         if (!applicationData.citizenship_status) errors.citizenship_status = 'Citizenship status is required';
         break;
 
-      case 1: // Contact Information
+      case 2: // Contact Information
         if (!applicationData.email) errors.email = 'Email is required';
         if (!applicationData.phone) errors.phone = 'Phone number is required';
         if (!applicationData.address) errors.address = 'Address is required';
@@ -258,13 +245,13 @@ const MembershipApplicationPage: React.FC = () => {
         // Note: voting_district_code is optional - not required for form submission
         break;
 
-      case 2: // Party Declaration & Signature
+      case 3: // Party Declaration & Signature
         if (!applicationData.declaration_accepted) errors.declaration_accepted = 'You must accept the party declaration';
         if (!applicationData.constitution_accepted) errors.constitution_accepted = 'You must accept the EFF constitution';
         if (!applicationData.signature_data || !applicationData.signature_type) errors.signature_data = 'Signature is required';
         break;
 
-      case 3: // Payment Information
+      case 4: // Payment Information
         // Payment validation - only validate if payment date is provided
         if (applicationData.last_payment_date) {
           if (!applicationData.payment_method) errors.payment_method = 'Payment method is required when payment date is provided';
@@ -285,7 +272,7 @@ const MembershipApplicationPage: React.FC = () => {
         }
         break;
 
-      case 4: // Review
+      case 5: // Review
         // Final validation
         break;
     }
@@ -296,14 +283,16 @@ const MembershipApplicationPage: React.FC = () => {
   const renderStepContent = (step: number) => {
     switch (step) {
       case 0:
-        return <PersonalInfoStep errors={errors} />;
+        return <IdVerificationStep errors={errors} onVerificationComplete={handleIECVerificationComplete} />;
       case 1:
-        return <ContactInfoStep errors={errors} />;
+        return <IECPersonalInfoStep errors={errors} />;
       case 2:
-        return <PartyDeclarationStep errors={errors} />;
+        return <ContactInfoStep errors={errors} />;
       case 3:
-        return <PaymentStep errors={errors} />;
+        return <PartyDeclarationStep errors={errors} />;
       case 4:
+        return <PaymentStep errors={errors} />;
+      case 5:
         return <ReviewStep />;
       default:
         return <div>Unknown step</div>;
@@ -571,13 +560,35 @@ const MembershipApplicationPage: React.FC = () => {
               },
             }}
           >
-            {steps.map((label) => (
-              <Step key={label}>
+            {steps.map((step, index) => (
+              <Step key={step.label}>
                 <StepLabel
+                  StepIconComponent={() => (
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: index < applicationStep
+                          ? '#8B0000'
+                          : index === applicationStep
+                          ? '#DC143C'
+                          : 'grey.300',
+                        color: index <= applicationStep ? 'white' : 'grey.600',
+                        transition: 'all 0.3s ease',
+                        '& svg': { fontSize: 18 }
+                      }}
+                    >
+                      {step.icon}
+                    </Box>
+                  )}
                   sx={{
                     '& .MuiStepLabel-label': {
                       fontWeight: 500,
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                     },
                     '& .MuiStepLabel-label.Mui-active': {
                       color: '#DC143C',
@@ -589,7 +600,7 @@ const MembershipApplicationPage: React.FC = () => {
                     },
                   }}
                 >
-                  {label}
+                  {step.label}
                 </StepLabel>
               </Step>
             ))}

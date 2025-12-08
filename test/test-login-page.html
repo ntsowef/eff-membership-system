@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Super Admin Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .error {
+            border-left-color: #f44336;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Super Admin Login Test</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testDashboard()">Test Dashboard (with stored token)</button>
+    <button onclick="clearStorage()">Clear LocalStorage</button>
+    <div id="logs"></div>
+
+    <script>
+        function log(message, isError = false) {
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log' + (isError ? ' error' : '');
+            logDiv.textContent = message;
+            logsDiv.appendChild(logDiv);
+            console.log(message);
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            log('✅ LocalStorage cleared');
+        }
+
+        async function testLogin() {
+            document.getElementById('logs').innerHTML = '';
+            log('🧪 Testing Super Admin Login...\n');
+
+            try {
+                // Step 1: Login
+                log('📝 Step 1: Attempting login...');
+                const loginResponse = await fetch('http://localhost:5000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'superadmin@eff.org.za',
+                        password: 'SuperAdmin@2024!'
+                    })
+                });
+
+                const loginData = await loginResponse.json();
+                log('✅ Login Response Status: ' + loginResponse.status);
+                log('✅ Login Response Data:\n' + JSON.stringify(loginData, null, 2));
+
+                if (loginData.success && loginData.data.token) {
+                    const { user, token, session_id } = loginData.data;
+
+                    // Step 2: Store in localStorage (simulating Zustand)
+                    log('\n📝 Step 2: Storing in localStorage...');
+                    const authStorage = {
+                        state: {
+                            user: user,
+                            token: token,
+                            sessionId: session_id,
+                            isAuthenticated: true,
+                            provinceContext: null
+                        },
+                        version: 0
+                    };
+
+                    localStorage.setItem('auth-storage', JSON.stringify(authStorage));
+                    log('✅ Stored in localStorage');
+
+                    // Verify storage
+                    const stored = localStorage.getItem('auth-storage');
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        log('✅ Verified: Token in localStorage: ' + (parsed.state.token ? 'YES' : 'NO'));
+                        log('✅ User role: ' + user.role);
+                    }
+
+                    // Step 3: Test dashboard access
+                    log('\n📝 Step 3: Testing dashboard access...');
+                    await testDashboard();
+                }
+            } catch (error) {
+                log('🚨 Error: ' + error.message, true);
+                console.error(error);
+            }
+        }
+
+        async function testDashboard() {
+            try {
+                // Read token from localStorage
+                const authStorage = localStorage.getItem('auth-storage');
+                if (!authStorage) {
+                    log('❌ No auth-storage found in localStorage', true);
+                    return;
+                }
+
+                const parsed = JSON.parse(authStorage);
+                const token = parsed.state?.token;
+
+                if (!token) {
+                    log('❌ No token found in auth-storage', true);
+                    return;
+                }
+
+                log('🔑 Using token: ' + token.substring(0, 30) + '...');
+
+                const dashboardResponse = await fetch('http://localhost:5000/api/v1/super-admin/dashboard', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                log('✅ Dashboard Response Status: ' + dashboardResponse.status);
+
+                if (dashboardResponse.ok) {
+                    const dashboardData = await dashboardResponse.json();
+                    log('✅ Dashboard Data Retrieved!');
+                    log('User Statistics: ' + JSON.stringify(dashboardData.data.user_statistics, null, 2));
+                } else {
+                    const errorData = await dashboardResponse.json();
+                    log('❌ Dashboard Error: ' + JSON.stringify(errorData, null, 2), true);
+                }
+            } catch (error) {
+                log('🚨 Error: ' + error.message, true);
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
+

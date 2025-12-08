@@ -60,6 +60,7 @@ import { useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
+import { devLog } from '../../utils/logger';
 
 interface HierarchicalMeeting {
   meeting_id: number;
@@ -138,7 +139,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
       params.append('order', 'desc');
 
       const result = await apiGet(`/hierarchical-meetings?${params.toString()}`);
-      console.log('🔍 Hierarchical Meetings API Response:', result);
+      devLog('🔍 Hierarchical Meetings API Response:', result);
       return result;
     },
   });
@@ -148,7 +149,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
     queryKey: ['hierarchical-meeting-statistics'],
     queryFn: async () => {
       const result = await apiGet('/hierarchical-meetings/statistics');
-      console.log('🔍 Statistics API Response:', result);
+      devLog('🔍 Statistics API Response:', result);
       return result;
     },
   });
@@ -157,8 +158,8 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
   const meetings: HierarchicalMeeting[] = (meetingsData as any)?.meetings || [];
   const statistics: MeetingStatistics[] = (statisticsData as any)?.statistics || [];
 
-  console.log('📊 Meetings extracted:', meetings.length, 'meetings');
-  console.log('📊 Statistics extracted:', statistics.length, 'stats');
+  devLog('📊 Meetings extracted:', meetings.length, 'meetings');
+  devLog('📊 Statistics extracted:', statistics.length, 'stats');
 
   // Delete meeting mutation
   const deleteMeetingMutation = useMutation({

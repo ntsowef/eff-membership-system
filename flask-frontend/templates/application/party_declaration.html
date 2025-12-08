@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Party Declaration - EFF Membership Application{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Membership Application</h4>
+            </div>
+            <div class="card-body">
+                <!-- Stepper -->
+                <div class="stepper mb-4">
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Personal Info</div>
+                    </div>
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Contact Info</div>
+                    </div>
+                    <div class="step active">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Declaration</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Payment</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Review</div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-4">Step 3: Party Declaration & Signature</h5>
+                
+                <form method="POST" action="{{ url_for('party_declaration') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Party Declaration Text -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading">EFF Membership Declaration</h6>
+                        <p class="mb-2">I hereby declare that:</p>
+                        <ul class="mb-2">
+                            <li>I am a South African citizen or permanent resident</li>
+                            <li>I am not a member of any other political party</li>
+                            <li>I accept and will uphold the EFF Constitution and policies</li>
+                            <li>I commit to the principles of economic freedom and social justice</li>
+                            <li>I will actively participate in the activities of the EFF</li>
+                        </ul>
+                        <p class="mb-0">
+                            I understand that membership in the EFF requires dedication, discipline, 
+                            and unwavering commitment to the cause of economic freedom and social justice.
+                        </p>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <!-- Signature Type -->
+                        <div class="col-md-12">
+                            <label class="form-label">Signature Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="signature_type" id="typed" value="typed" checked>
+                                <label class="btn btn-outline-primary" for="typed">
+                                    <i class="fas fa-keyboard"></i> Typed Signature
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="signature_type" id="drawn" value="drawn">
+                                <label class="btn btn-outline-primary" for="drawn">
+                                    <i class="fas fa-pen"></i> Draw Signature
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Typed Signature -->
+                        <div class="col-md-12" id="typed-signature-section">
+                            <label for="signature_data" class="form-label">Type Your Full Name</label>
+                            {{ form.signature_data(class="form-control" + (" is-invalid" if form.signature_data.errors else ""), 
+                                                  placeholder="Enter your full name as it appears on your ID") }}
+                            {% if form.signature_data.errors %}
+                                <div class="invalid-feedback">{{ form.signature_data.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Drawn Signature (Canvas) -->
+                        <div class="col-md-12 d-none" id="drawn-signature-section">
+                            <label class="form-label">Draw Your Signature</label>
+                            <div class="border rounded p-2 bg-white">
+                                <canvas id="signature-canvas" width="600" height="150" 
+                                        style="border: 1px solid #dee2e6; cursor: crosshair; width: 100%;"></canvas>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-secondary mt-2" id="clear-signature">
+                                <i class="fas fa-eraser"></i> Clear Signature
+                            </button>
+                        </div>
+                        
+                        <!-- Declaration Acceptance -->
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                {{ form.declaration_accepted(class="form-check-input" + (" is-invalid" if form.declaration_accepted.errors else "")) }}
+                                <label class="form-check-label required" for="declaration_accepted">
+                                    I accept the party declaration and commit to the principles of the EFF
+                                </label>
+                                {% if form.declaration_accepted.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.declaration_accepted.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Constitution Acceptance -->
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                {{ form.constitution_accepted(class="form-check-input" + (" is-invalid" if form.constitution_accepted.errors else "")) }}
+                                <label class="form-check-label required" for="constitution_accepted">
+                                    I have read and accept the EFF Constitution
+                                </label>
+                                {% if form.constitution_accepted.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.constitution_accepted.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-12"><hr></div>
+                        
+                        <!-- Reason for Joining -->
+                        <div class="col-md-12">
+                            <label for="reason_for_joining" class="form-label">Why do you want to join the EFF?</label>
+                            {{ form.reason_for_joining(class="form-control", rows=4, 
+                                                      placeholder="Tell us why you want to become a member of the EFF") }}
+                        </div>
+                        
+                        <!-- Skills and Experience -->
+                        <div class="col-md-12">
+                            <label for="skills_experience" class="form-label">Skills and Experience</label>
+                            {{ form.skills_experience(class="form-control", rows=4, 
+                                                     placeholder="Share any skills or experience that could benefit the organization") }}
+                        </div>
+                        
+                        <!-- Referred By -->
+                        <div class="col-md-6">
+                            <label for="referred_by" class="form-label">Referred By (Optional)</label>
+                            {{ form.referred_by(class="form-control", 
+                                               placeholder="Name of the person who referred you") }}
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('contact_info') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Signature type toggle
+        $('input[name="signature_type"]').change(function() {
+            if ($(this).val() === 'typed') {
+                $('#typed-signature-section').removeClass('d-none');
+                $('#drawn-signature-section').addClass('d-none');
+            } else {
+                $('#typed-signature-section').addClass('d-none');
+                $('#drawn-signature-section').removeClass('d-none');
+            }
+        });
+        
+        // Canvas signature drawing
+        const canvas = document.getElementById('signature-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            // Save canvas data to hidden field
+            if ($('input[name="signature_type"]:checked').val() === 'drawn') {
+                $('#signature_data').val(canvas.toDataURL());
+            }
+        }
+        
+        $('#clear-signature').click(function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            $('#signature_data').val('');
+        });
+    });
+</script>
+{% endblock %}
+

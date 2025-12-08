@@ -34,6 +34,9 @@ export interface OrchestratorConfig {
   // For WebSocket notifications
   fileId?: number;
   jobId?: string;
+  // For sending attendance register emails
+  userEmail?: string;
+  userName?: string;
 }
 
 /**
@@ -53,6 +56,8 @@ export class BulkUploadOrchestrator {
   private progressCallback?: ProgressCallback;
   private fileId?: number;
   private jobId?: string;
+  private userEmail?: string;
+  private userName?: string;
 
   constructor(config: OrchestratorConfig) {
     this.dbPool = config.dbPool;
@@ -61,6 +66,8 @@ export class BulkUploadOrchestrator {
     this.progressCallback = config.progressCallback;
     this.fileId = config.fileId;
     this.jobId = config.jobId;
+    this.userEmail = config.userEmail;
+    this.userName = config.userName;
   }
 
   /**
@@ -168,9 +175,11 @@ export class BulkUploadOrchestrator {
             iecResults.set(record['ID Number'], {
               id_number: record['ID Number'],
               is_registered: record.iec_registered,
-              voter_status: undefined,
-              province_code: undefined,
-              municipality_code: undefined,
+              voter_status: record.iec_voter_status,
+              province_code: record.iec_province_code,
+              district_code: record.iec_district_code,
+              municipality_code: record.iec_municipality_code,
+              municipality: record.iec_municipality,  // IEC municipality name (e.g., "WC015 - Swartland")
               ward_code: record.iec_ward,
               voting_district_code: record.iec_vd_code,
               voting_station_name: record.iec_voting_station,
@@ -243,7 +252,9 @@ export class BulkUploadOrchestrator {
         originalData,
         validationResult,
         iecResults,
-        dbResult
+        dbResult,
+        this.userEmail,
+        this.userName
       );
 
       this.logProgress('report_generation', 95, `✅ Report generated: ${reportFileName}`);

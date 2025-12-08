@@ -35,6 +35,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import cardFrontImage from '../../assets/images/Eff_first.png';
+import { showWarning, showInfo } from '../../utils/sweetAlert';
 
 interface CardTemplate {
   id: string;
@@ -119,7 +120,7 @@ const DigitalCardGenerator: React.FC<DigitalCardGeneratorProps> = ({
 
   const handleGeneratePreview = () => {
     if (!memberId) {
-      alert('Please enter a member ID');
+      showWarning('Please enter a member ID', 'No Member ID');
       return;
     }
 
@@ -132,7 +133,7 @@ const DigitalCardGenerator: React.FC<DigitalCardGeneratorProps> = ({
 
   const handleDownloadCard = () => {
     if (!memberId) {
-      alert('Please enter a member ID');
+      showWarning('Please enter a member ID', 'No Member ID');
       return;
     }
 
@@ -392,7 +393,7 @@ const DigitalCardGenerator: React.FC<DigitalCardGeneratorProps> = ({
           <Button
             variant="outlined"
             startIcon={<Email />}
-            onClick={() => alert('Email functionality would be implemented here')}
+            onClick={() => showInfo('Email functionality would be implemented here', 'Coming Soon')}
           >
             Email Card
           </Button>

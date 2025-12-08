@@ -1,0 +1,1922 @@
+{
+  "matched": [
+    {
+      "municipality_code": "NMA",
+      "municipality_name": "Nelson Mandela Bay Metropolitan Municipality",
+      "province_code": "EC",
+      "iec_municipality_id": "1001",
+      "iec_municipality_name": "NMA - Nelson Mandela Bay",
+      "iec_province_id": 1,
+      "district_code": "NMA"
+    },
+    {
+      "municipality_code": "EC442",
+      "municipality_name": "Umzimvubu Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1031",
+      "iec_municipality_name": "EC442 - Umzimvubu",
+      "iec_province_id": 1,
+      "district_code": "DC44"
+    },
+    {
+      "municipality_code": "EC101",
+      "municipality_name": "Dr Beyers Naude Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1102",
+      "iec_municipality_name": "EC101 - Dr. Beyers Naude",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC102",
+      "municipality_name": "Blue Crane Route Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1103",
+      "iec_municipality_name": "EC102 - Blue Crane Route",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC104",
+      "municipality_name": "Makana Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1105",
+      "iec_municipality_name": "EC104 - Makana",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC105",
+      "municipality_name": "Ndlambe Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1106",
+      "iec_municipality_name": "EC105 - Ndlambe",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC106",
+      "municipality_name": "Sundays River Valley Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1107",
+      "iec_municipality_name": "EC106 - Sundays River Valley",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC108",
+      "municipality_name": "Kouga Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1109",
+      "iec_municipality_name": "EC108 - Kouga",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC109",
+      "municipality_name": "Kou-Kamma Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1110",
+      "iec_municipality_name": "EC109 - Kou-Kamma",
+      "iec_province_id": 1,
+      "district_code": "DC10"
+    },
+    {
+      "municipality_code": "EC121",
+      "municipality_name": "Mbhashe Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1113",
+      "iec_municipality_name": "EC121 - Mbhashe",
+      "iec_province_id": 1,
+      "district_code": "DC12"
+    },
+    {
+      "municipality_code": "EC122",
+      "municipality_name": "Mnquma Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1114",
+      "iec_municipality_name": "EC122 - Mnquma",
+      "iec_province_id": 1,
+      "district_code": "DC12"
+    },
+    {
+      "municipality_code": "EC123",
+      "municipality_name": "Great Kei Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1115",
+      "iec_municipality_name": "EC123 - Great Kei",
+      "iec_province_id": 1,
+      "district_code": "DC12"
+    },
+    {
+      "municipality_code": "EC124",
+      "municipality_name": "Amahlathi Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1116",
+      "iec_municipality_name": "EC124 - Amahlathi",
+      "iec_province_id": 1,
+      "district_code": "DC12"
+    },
+    {
+      "municipality_code": "BUF",
+      "municipality_name": "Buffalo City Metropolitan Municipality",
+      "province_code": "EC",
+      "iec_municipality_id": "1117",
+      "iec_municipality_name": "BUF - Buffalo City",
+      "iec_province_id": 1,
+      "district_code": "BUF"
+    },
+    {
+      "municipality_code": "EC126",
+      "municipality_name": "Ngqushwa Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1118",
+      "iec_municipality_name": "EC126 - Ngqushwa",
+      "iec_province_id": 1,
+      "district_code": "DC12"
+    },
+    {
+      "municipality_code": "EC131",
+      "municipality_name": "Inxuba Yethemba Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1122",
+      "iec_municipality_name": "EC131 - Inxuba Yethemba",
+      "iec_province_id": 1,
+      "district_code": "DC13"
+    },
+    {
+      "municipality_code": "EC135",
+      "municipality_name": "Intsika Yethu Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1126",
+      "iec_municipality_name": "EC135 - Intsika Yethu",
+      "iec_province_id": 1,
+      "district_code": "DC13"
+    },
+    {
+      "municipality_code": "EC136",
+      "municipality_name": "Emalahleni Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1127",
+      "iec_municipality_name": "EC136 - Emalahleni",
+      "iec_province_id": 1,
+      "district_code": "DC13"
+    },
+    {
+      "municipality_code": "EC137",
+      "municipality_name": "Engcobo Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1128",
+      "iec_municipality_name": "EC137 - Engcobo",
+      "iec_province_id": 1,
+      "district_code": "DC13"
+    },
+    {
+      "municipality_code": "EC138",
+      "municipality_name": "Sakhisizwe Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1129",
+      "iec_municipality_name": "EC138 - Sakhisizwe",
+      "iec_province_id": 1,
+      "district_code": "DC13"
+    },
+    {
+      "municipality_code": "EC141",
+      "municipality_name": "Elundini Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1131",
+      "iec_municipality_name": "EC141 - Elundini",
+      "iec_province_id": 1,
+      "district_code": "DC14"
+    },
+    {
+      "municipality_code": "EC142",
+      "municipality_name": "Senqu Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1132",
+      "iec_municipality_name": "EC142 - Senqu",
+      "iec_province_id": 1,
+      "district_code": "DC14"
+    },
+    {
+      "municipality_code": "EC443",
+      "municipality_name": "Mbizana Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1136",
+      "iec_municipality_name": "EC443 - Winnie Madikizela-Mandela",
+      "iec_province_id": 1,
+      "district_code": "DC44"
+    },
+    {
+      "municipality_code": "EC444",
+      "municipality_name": "Ntabankulu Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1137",
+      "iec_municipality_name": "EC444 - Ntabankulu",
+      "iec_province_id": 1,
+      "district_code": "DC44"
+    },
+    {
+      "municipality_code": "EC153",
+      "municipality_name": "Ingquza Hill Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1138",
+      "iec_municipality_name": "EC153 - Ngquza Hill",
+      "iec_province_id": 1,
+      "district_code": "DC15"
+    },
+    {
+      "municipality_code": "EC154",
+      "municipality_name": "Port St Johns Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1139",
+      "iec_municipality_name": "EC154 - Port St Johns",
+      "iec_province_id": 1,
+      "district_code": "DC15"
+    },
+    {
+      "municipality_code": "EC155",
+      "municipality_name": "Nyandeni Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1140",
+      "iec_municipality_name": "EC155 - Nyandeni",
+      "iec_province_id": 1,
+      "district_code": "DC15"
+    },
+    {
+      "municipality_code": "EC156",
+      "municipality_name": "Mhlontlo Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1141",
+      "iec_municipality_name": "EC156 - Mhlontlo",
+      "iec_province_id": 1,
+      "district_code": "DC15"
+    },
+    {
+      "municipality_code": "EC157",
+      "municipality_name": "King Sabata Dalindyebo Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1142",
+      "iec_municipality_name": "EC157 - King Sabata Dalindyebo",
+      "iec_province_id": 1,
+      "district_code": "DC15"
+    },
+    {
+      "municipality_code": "EC129",
+      "municipality_name": "Raymond Mhlaba Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1147",
+      "iec_municipality_name": "EC129 - Raymond Mhlaba",
+      "iec_province_id": 1,
+      "district_code": "DC12"
+    },
+    {
+      "municipality_code": "EC145",
+      "municipality_name": "Walter Sisulu Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1148",
+      "iec_municipality_name": "EC145 - Walter Sisulu",
+      "iec_province_id": 1,
+      "district_code": "DC14"
+    },
+    {
+      "municipality_code": "EC139",
+      "municipality_name": "Enoch Mgijima Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "1149",
+      "iec_municipality_name": "EC139 - Enoch Mgijima",
+      "iec_province_id": 1,
+      "district_code": "DC13"
+    },
+    {
+      "municipality_code": "EC441",
+      "municipality_name": "Matatiele Sub-Region",
+      "province_code": "EC",
+      "iec_municipality_id": "4034",
+      "iec_municipality_name": "EC441 - Matatiele",
+      "iec_province_id": 1,
+      "district_code": "DC44"
+    },
+    {
+      "municipality_code": "FS161",
+      "municipality_name": "Letsemeng Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2202",
+      "iec_municipality_name": "FS161 - Letsemeng",
+      "iec_province_id": 2,
+      "district_code": "DC16"
+    },
+    {
+      "municipality_code": "FS162",
+      "municipality_name": "Kopanong Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2203",
+      "iec_municipality_name": "FS162 - Kopanong",
+      "iec_province_id": 2,
+      "district_code": "DC16"
+    },
+    {
+      "municipality_code": "FS163",
+      "municipality_name": "Mohokare Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2204",
+      "iec_municipality_name": "FS163 - Mohokare",
+      "iec_province_id": 2,
+      "district_code": "DC16"
+    },
+    {
+      "municipality_code": "MAN",
+      "municipality_name": "Mangaung Metropolitan Municipality",
+      "province_code": "FS",
+      "iec_municipality_id": "2207",
+      "iec_municipality_name": "MAN - Mangaung",
+      "iec_province_id": 2,
+      "district_code": "MAN"
+    },
+    {
+      "municipality_code": "FS196",
+      "municipality_name": "Mantsopa Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2208",
+      "iec_municipality_name": "FS196 - Mantsopa",
+      "iec_province_id": 2,
+      "district_code": "DC19"
+    },
+    {
+      "municipality_code": "FS181",
+      "municipality_name": "Masilonyana Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2210",
+      "iec_municipality_name": "FS181 - Masilonyana",
+      "iec_province_id": 2,
+      "district_code": "DC18"
+    },
+    {
+      "municipality_code": "FS182",
+      "municipality_name": "Tokologo Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2211",
+      "iec_municipality_name": "FS182 - Tokologo",
+      "iec_province_id": 2,
+      "district_code": "DC18"
+    },
+    {
+      "municipality_code": "FS183",
+      "municipality_name": "Tswelopele Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2212",
+      "iec_municipality_name": "FS183 - Tswelopele",
+      "iec_province_id": 2,
+      "district_code": "DC18"
+    },
+    {
+      "municipality_code": "FS184",
+      "municipality_name": "Matjhabeng Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2213",
+      "iec_municipality_name": "FS184 - Matjhabeng",
+      "iec_province_id": 2,
+      "district_code": "DC18"
+    },
+    {
+      "municipality_code": "FS185",
+      "municipality_name": "Nala Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2214",
+      "iec_municipality_name": "FS185 - Nala",
+      "iec_province_id": 2,
+      "district_code": "DC18"
+    },
+    {
+      "municipality_code": "FS191",
+      "municipality_name": "Setsoto Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2216",
+      "iec_municipality_name": "FS191 - Setsoto",
+      "iec_province_id": 2,
+      "district_code": "DC19"
+    },
+    {
+      "municipality_code": "FS192",
+      "municipality_name": "Dihlabeng Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2217",
+      "iec_municipality_name": "FS192 - Dihlabeng",
+      "iec_province_id": 2,
+      "district_code": "DC19"
+    },
+    {
+      "municipality_code": "FS193",
+      "municipality_name": "Nketoana Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2218",
+      "iec_municipality_name": "FS193 - Nketoana",
+      "iec_province_id": 2,
+      "district_code": "DC19"
+    },
+    {
+      "municipality_code": "FS194",
+      "municipality_name": "Maluti a Phofung Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2219",
+      "iec_municipality_name": "FS194 - Maluti a Phofung",
+      "iec_province_id": 2,
+      "district_code": "DC19"
+    },
+    {
+      "municipality_code": "FS195",
+      "municipality_name": "Phumelela Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2220",
+      "iec_municipality_name": "FS195 - Phumelela",
+      "iec_province_id": 2,
+      "district_code": "DC19"
+    },
+    {
+      "municipality_code": "FS201",
+      "municipality_name": "Moqhaka Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2222",
+      "iec_municipality_name": "FS201 - Moqhaka",
+      "iec_province_id": 2,
+      "district_code": "DC20"
+    },
+    {
+      "municipality_code": "FS203",
+      "municipality_name": "Ngwathe Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2223",
+      "iec_municipality_name": "FS203 - Ngwathe",
+      "iec_province_id": 2,
+      "district_code": "DC20"
+    },
+    {
+      "municipality_code": "FS204",
+      "municipality_name": "Metsimaholo Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2224",
+      "iec_municipality_name": "FS204 - Metsimaholo",
+      "iec_province_id": 2,
+      "district_code": "DC20"
+    },
+    {
+      "municipality_code": "FS205",
+      "municipality_name": "Mafube Sub-Region",
+      "province_code": "FS",
+      "iec_municipality_id": "2225",
+      "iec_municipality_name": "FS205 - Mafube",
+      "iec_province_id": 2,
+      "district_code": "DC20"
+    },
+    {
+      "municipality_code": "EKU",
+      "municipality_name": "Ekurhuleni Metropolitan Municipality",
+      "province_code": "GP",
+      "iec_municipality_id": "3002",
+      "iec_municipality_name": "EKU - Ekurhuleni",
+      "iec_province_id": 3,
+      "district_code": "EKU"
+    },
+    {
+      "municipality_code": "JHB",
+      "municipality_name": "City of Johannesburg Metropolitan Municipality",
+      "province_code": "GP",
+      "iec_municipality_id": "3003",
+      "iec_municipality_name": "JHB - City of Johannesburg",
+      "iec_province_id": 3,
+      "district_code": "JHB"
+    },
+    {
+      "municipality_code": "TSH",
+      "municipality_name": "City of Tshwane Metropolitan Municipality",
+      "province_code": "GP",
+      "iec_municipality_id": "3004",
+      "iec_municipality_name": "TSH - City of Tshwane",
+      "iec_province_id": 3,
+      "district_code": "TSH"
+    },
+    {
+      "municipality_code": "GT484",
+      "municipality_name": "Merafong City Sub-Region",
+      "province_code": "GP",
+      "iec_municipality_id": "3039",
+      "iec_municipality_name": "GT484 - Merafong City",
+      "iec_province_id": 3,
+      "district_code": "DC48"
+    },
+    {
+      "municipality_code": "GT481",
+      "municipality_name": "Mogale City Sub-Region",
+      "province_code": "GP",
+      "iec_municipality_id": "3040",
+      "iec_municipality_name": "GT481 - Mogale City",
+      "iec_province_id": 3,
+      "district_code": "DC48"
+    },
+    {
+      "municipality_code": "GT421",
+      "municipality_name": "Emfuleni Sub-Region",
+      "province_code": "GP",
+      "iec_municipality_id": "3302",
+      "iec_municipality_name": "GT421 - Emfuleni",
+      "iec_province_id": 3,
+      "district_code": "DC42"
+    },
+    {
+      "municipality_code": "GT422",
+      "municipality_name": "Midvaal Sub-Region",
+      "province_code": "GP",
+      "iec_municipality_id": "3303",
+      "iec_municipality_name": "GT422 - Midvaal",
+      "iec_province_id": 3,
+      "district_code": "DC42"
+    },
+    {
+      "municipality_code": "GT423",
+      "municipality_name": "Lesedi Sub-Region",
+      "province_code": "GP",
+      "iec_municipality_id": "3304",
+      "iec_municipality_name": "GT423 - Lesedi",
+      "iec_province_id": 3,
+      "district_code": "DC42"
+    },
+    {
+      "municipality_code": "GT485",
+      "municipality_name": "Rand West City Sub-Region",
+      "province_code": "GP",
+      "iec_municipality_id": "3332",
+      "iec_municipality_name": "GT485 - Rand West City",
+      "iec_province_id": 3,
+      "district_code": "DC48"
+    },
+    {
+      "municipality_code": "KZN435",
+      "municipality_name": "Umzimkhulu Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "1030",
+      "iec_municipality_name": "KZN435 - uMzimkhulu",
+      "iec_province_id": 4,
+      "district_code": "DC43"
+    },
+    {
+      "municipality_code": "ETH",
+      "municipality_name": "Ethekwini Metropolitan Municipality",
+      "province_code": "KZN",
+      "iec_municipality_id": "4005",
+      "iec_municipality_name": "ETH - eThekwini",
+      "iec_province_id": 4,
+      "district_code": "ETH"
+    },
+    {
+      "municipality_code": "KZN433",
+      "municipality_name": "Greater Kokstad Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4035",
+      "iec_municipality_name": "KZN433 - Greater Kokstad",
+      "iec_province_id": 4,
+      "district_code": "DC43"
+    },
+    {
+      "municipality_code": "KZN434",
+      "municipality_name": "Ubuhlebezwe Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4036",
+      "iec_municipality_name": "KZN434 - uBuhlebezwe",
+      "iec_province_id": 4,
+      "district_code": "DC43"
+    },
+    {
+      "municipality_code": "KZN212",
+      "municipality_name": "Umdoni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4403",
+      "iec_municipality_name": "KZN212 - uMdoni",
+      "iec_province_id": 4,
+      "district_code": "DC21"
+    },
+    {
+      "municipality_code": "KZN213",
+      "municipality_name": "Umzumbe Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4404",
+      "iec_municipality_name": "KZN213 - uMzumbe",
+      "iec_province_id": 4,
+      "district_code": "DC21"
+    },
+    {
+      "municipality_code": "KZN214",
+      "municipality_name": "UMuziwabantu Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4405",
+      "iec_municipality_name": "KZN214 - uMuziwabantu",
+      "iec_province_id": 4,
+      "district_code": "DC21"
+    },
+    {
+      "municipality_code": "KZN216",
+      "municipality_name": "Ray Nkonyeni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4407",
+      "iec_municipality_name": "KZN216 - Ray Nkonyeni",
+      "iec_province_id": 4,
+      "district_code": "DC21"
+    },
+    {
+      "municipality_code": "KZN221",
+      "municipality_name": "uMshwathi Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4409",
+      "iec_municipality_name": "KZN221 - uMshwathi",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN222",
+      "municipality_name": "uMngeni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4410",
+      "iec_municipality_name": "KZN222 - uMngeni",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN223",
+      "municipality_name": "Mpofana Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4411",
+      "iec_municipality_name": "KZN223 - Mpofana",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN224",
+      "municipality_name": "Impendle Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4412",
+      "iec_municipality_name": "KZN224 - iMpendle",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN225",
+      "municipality_name": "The Msunduzi Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4413",
+      "iec_municipality_name": "KZN225 - Msunduzi",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN226",
+      "municipality_name": "Mkhambathini Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4414",
+      "iec_municipality_name": "KZN226 - Mkhambathini",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN227",
+      "municipality_name": "Richmond Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4415",
+      "iec_municipality_name": "KZN227 - Richmond",
+      "iec_province_id": 4,
+      "district_code": "DC22"
+    },
+    {
+      "municipality_code": "KZN235",
+      "municipality_name": "Okhahlamba Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4421",
+      "iec_municipality_name": "KZN235 - Okhahlamba",
+      "iec_province_id": 4,
+      "district_code": "DC23"
+    },
+    {
+      "municipality_code": "KZN241",
+      "municipality_name": "Endumeni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4426",
+      "iec_municipality_name": "KZN241 - eNdumeni",
+      "iec_province_id": 4,
+      "district_code": "DC24"
+    },
+    {
+      "municipality_code": "KZN242",
+      "municipality_name": "Nqutu Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4427",
+      "iec_municipality_name": "KZN242 - Nqutu",
+      "iec_province_id": 4,
+      "district_code": "DC24"
+    },
+    {
+      "municipality_code": "KZN244",
+      "municipality_name": "Msinga Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4429",
+      "iec_municipality_name": "KZN244 - uMsinga",
+      "iec_province_id": 4,
+      "district_code": "DC24"
+    },
+    {
+      "municipality_code": "KZN245",
+      "municipality_name": "Umvoti Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4430",
+      "iec_municipality_name": "KZN245 - uMvoti",
+      "iec_province_id": 4,
+      "district_code": "DC24"
+    },
+    {
+      "municipality_code": "KZN252",
+      "municipality_name": "Newcastle Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4432",
+      "iec_municipality_name": "KZN252 - Newcastle",
+      "iec_province_id": 4,
+      "district_code": "DC25"
+    },
+    {
+      "municipality_code": "KZN253",
+      "municipality_name": "Emadlangeni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4433",
+      "iec_municipality_name": "KZN253 - eMadlangeni",
+      "iec_province_id": 4,
+      "district_code": "DC25"
+    },
+    {
+      "municipality_code": "KZN254",
+      "municipality_name": "Dannhauser Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4434",
+      "iec_municipality_name": "KZN254 - Dannhauser",
+      "iec_province_id": 4,
+      "district_code": "DC25"
+    },
+    {
+      "municipality_code": "KZN261",
+      "municipality_name": "eDumbe Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4436",
+      "iec_municipality_name": "KZN261 - eDumbe",
+      "iec_province_id": 4,
+      "district_code": "DC26"
+    },
+    {
+      "municipality_code": "KZN262",
+      "municipality_name": "UPhongolo Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4437",
+      "iec_municipality_name": "KZN262 - uPhongolo",
+      "iec_province_id": 4,
+      "district_code": "DC26"
+    },
+    {
+      "municipality_code": "KZN263",
+      "municipality_name": "Abaqulusi Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4438",
+      "iec_municipality_name": "KZN263 - AbaQulusi",
+      "iec_province_id": 4,
+      "district_code": "DC26"
+    },
+    {
+      "municipality_code": "KZN265",
+      "municipality_name": "Nongoma Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4439",
+      "iec_municipality_name": "KZN265 - Nongoma",
+      "iec_province_id": 4,
+      "district_code": "DC26"
+    },
+    {
+      "municipality_code": "KZN266",
+      "municipality_name": "Ulundi Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4440",
+      "iec_municipality_name": "KZN266 - Ulundi",
+      "iec_province_id": 4,
+      "district_code": "DC26"
+    },
+    {
+      "municipality_code": "KZN271",
+      "municipality_name": "Umhlabuyalingana Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4442",
+      "iec_municipality_name": "KZN271 - uMhlabuyalingana",
+      "iec_province_id": 4,
+      "district_code": "DC27"
+    },
+    {
+      "municipality_code": "KZN272",
+      "municipality_name": "Jozini Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4443",
+      "iec_municipality_name": "KZN272 - Jozini",
+      "iec_province_id": 4,
+      "district_code": "DC27"
+    },
+    {
+      "municipality_code": "KZN275",
+      "municipality_name": "Mtubatuba Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4446",
+      "iec_municipality_name": "KZN275 - Mtubatuba",
+      "iec_province_id": 4,
+      "district_code": "DC27"
+    },
+    {
+      "municipality_code": "KZN281",
+      "municipality_name": "Mfolozi Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4449",
+      "iec_municipality_name": "KZN281 - uMfolozi",
+      "iec_province_id": 4,
+      "district_code": "DC28"
+    },
+    {
+      "municipality_code": "KZN282",
+      "municipality_name": "uMhlathuze Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4450",
+      "iec_municipality_name": "KZN282 - uMhlathuze",
+      "iec_province_id": 4,
+      "district_code": "DC28"
+    },
+    {
+      "municipality_code": "KZN284",
+      "municipality_name": "uMlalazi Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4452",
+      "iec_municipality_name": "KZN284 - uMlalazi",
+      "iec_province_id": 4,
+      "district_code": "DC28"
+    },
+    {
+      "municipality_code": "KZN285",
+      "municipality_name": "Mthonjaneni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4453",
+      "iec_municipality_name": "KZN285 - Mthonjaneni",
+      "iec_province_id": 4,
+      "district_code": "DC28"
+    },
+    {
+      "municipality_code": "KZN286",
+      "municipality_name": "Nkandla Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4454",
+      "iec_municipality_name": "KZN286 - Nkandla",
+      "iec_province_id": 4,
+      "district_code": "DC28"
+    },
+    {
+      "municipality_code": "KZN291",
+      "municipality_name": "Mandeni Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4456",
+      "iec_municipality_name": "KZN291 - Mandeni",
+      "iec_province_id": 4,
+      "district_code": "DC29"
+    },
+    {
+      "municipality_code": "KZN292",
+      "municipality_name": "KwaDukuza Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4457",
+      "iec_municipality_name": "KZN292 - KwaDukuza",
+      "iec_province_id": 4,
+      "district_code": "DC29"
+    },
+    {
+      "municipality_code": "KZN293",
+      "municipality_name": "Ndwedwe Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4458",
+      "iec_municipality_name": "KZN293 - Ndwedwe",
+      "iec_province_id": 4,
+      "district_code": "DC29"
+    },
+    {
+      "municipality_code": "KZN294",
+      "municipality_name": "Maphumulo Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4459",
+      "iec_municipality_name": "KZN294 - Maphumulo",
+      "iec_province_id": 4,
+      "district_code": "DC29"
+    },
+    {
+      "municipality_code": "KZN237",
+      "municipality_name": "Inkosi Langalibalele Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4461",
+      "iec_municipality_name": "KZN237 - iNkosi Langalibalele",
+      "iec_province_id": 4,
+      "district_code": "DC23"
+    },
+    {
+      "municipality_code": "KZN238",
+      "municipality_name": "Alfred Duma Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4462",
+      "iec_municipality_name": "KZN238 - Alfred Duma",
+      "iec_province_id": 4,
+      "district_code": "DC23"
+    },
+    {
+      "municipality_code": "KZN276",
+      "municipality_name": "Big Five Hlabisa Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4463",
+      "iec_municipality_name": "KZN276 - Big Five Hlabisa",
+      "iec_province_id": 4,
+      "district_code": "DC27"
+    },
+    {
+      "municipality_code": "KZN436",
+      "municipality_name": "Dr Nkosazana Dlamini Zuma Sub-Region",
+      "province_code": "KZN",
+      "iec_municipality_id": "4464",
+      "iec_municipality_name": "KZN436 - Dr. Nkosazana Dlamini Zuma",
+      "iec_province_id": 4,
+      "district_code": "DC43"
+    },
+    {
+      "municipality_code": "LIM471",
+      "municipality_name": "Ephraim Mogale Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "5020",
+      "iec_municipality_name": "LIM471 - Ephraim Mogale",
+      "iec_province_id": 7,
+      "district_code": "DC47"
+    },
+    {
+      "municipality_code": "LIM472",
+      "municipality_name": "Elias Motsoaledi Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "5021",
+      "iec_municipality_name": "LIM472 - Elias Motsoaledi",
+      "iec_province_id": 7,
+      "district_code": "DC47"
+    },
+    {
+      "municipality_code": "LIM473",
+      "municipality_name": "Makhuduthamaga Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7023",
+      "iec_municipality_name": "LIM473 - Makhuduthamaga",
+      "iec_province_id": 7,
+      "district_code": "DC47"
+    },
+    {
+      "municipality_code": "LIM335",
+      "municipality_name": "Maruleng Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7028",
+      "iec_municipality_name": "LIM335 - Maruleng",
+      "iec_province_id": 7,
+      "district_code": "DC33"
+    },
+    {
+      "municipality_code": "LIM331",
+      "municipality_name": "Greater Giyani Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7702",
+      "iec_municipality_name": "LIM331 - Greater Giyani",
+      "iec_province_id": 7,
+      "district_code": "DC33"
+    },
+    {
+      "municipality_code": "LIM332",
+      "municipality_name": "Greater Letaba Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7703",
+      "iec_municipality_name": "LIM332 - Greater Letaba",
+      "iec_province_id": 7,
+      "district_code": "DC33"
+    },
+    {
+      "municipality_code": "LIM333",
+      "municipality_name": "Greater Tzaneen Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7704",
+      "iec_municipality_name": "LIM333 - Greater Tzaneen",
+      "iec_province_id": 7,
+      "district_code": "DC33"
+    },
+    {
+      "municipality_code": "LIM334",
+      "municipality_name": "Ba-Phalaborwa Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7705",
+      "iec_municipality_name": "LIM334 - Ba-Phalaborwa",
+      "iec_province_id": 7,
+      "district_code": "DC33"
+    },
+    {
+      "municipality_code": "LIM341",
+      "municipality_name": "Musina Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7707",
+      "iec_municipality_name": "LIM341 - Musina",
+      "iec_province_id": 7,
+      "district_code": "DC34"
+    },
+    {
+      "municipality_code": "LIM343",
+      "municipality_name": "Thulamela Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7709",
+      "iec_municipality_name": "LIM343 - Thulamela",
+      "iec_province_id": 7,
+      "district_code": "DC34"
+    },
+    {
+      "municipality_code": "LIM344",
+      "municipality_name": "Makhado Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7710",
+      "iec_municipality_name": "LIM344 - Makhado",
+      "iec_province_id": 7,
+      "district_code": "DC34"
+    },
+    {
+      "municipality_code": "LIM351",
+      "municipality_name": "Blouberg Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7712",
+      "iec_municipality_name": "LIM351 - Blouberg",
+      "iec_province_id": 7,
+      "district_code": "DC35"
+    },
+    {
+      "municipality_code": "LIM353",
+      "municipality_name": "Molemole Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7714",
+      "iec_municipality_name": "LIM353 - Molemole",
+      "iec_province_id": 7,
+      "district_code": "DC35"
+    },
+    {
+      "municipality_code": "LIM354",
+      "municipality_name": "Polokwane Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7715",
+      "iec_municipality_name": "LIM354 - Polokwane",
+      "iec_province_id": 7,
+      "district_code": "DC35"
+    },
+    {
+      "municipality_code": "LIM355",
+      "municipality_name": "Lepele-Nkumpi Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7716",
+      "iec_municipality_name": "LIM355 - Lepele-Nkumpi",
+      "iec_province_id": 7,
+      "district_code": "DC35"
+    },
+    {
+      "municipality_code": "LIM361",
+      "municipality_name": "Thabazimbi Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7718",
+      "iec_municipality_name": "LIM361 - Thabazimbi",
+      "iec_province_id": 7,
+      "district_code": "DC36"
+    },
+    {
+      "municipality_code": "LIM362",
+      "municipality_name": "Lephalale Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7719",
+      "iec_municipality_name": "LIM362 - Lephalale",
+      "iec_province_id": 7,
+      "district_code": "DC36"
+    },
+    {
+      "municipality_code": "LIM366",
+      "municipality_name": "Bela-Bela Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7722",
+      "iec_municipality_name": "LIM366 - Bela-Bela",
+      "iec_province_id": 7,
+      "district_code": "DC36"
+    },
+    {
+      "municipality_code": "LIM367",
+      "municipality_name": "Mogalakwena Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7723",
+      "iec_municipality_name": "LIM367 - Mogalakwena",
+      "iec_province_id": 7,
+      "district_code": "DC36"
+    },
+    {
+      "municipality_code": "LIM368",
+      "municipality_name": "Modimolle-Mookgophong Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7724",
+      "iec_municipality_name": "LIM368 - Modimolle-Mookgophong",
+      "iec_province_id": 7,
+      "district_code": "DC36"
+    },
+    {
+      "municipality_code": "LIM476",
+      "municipality_name": "Fetakgomo Tubatse Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7725",
+      "iec_municipality_name": "LIM476 - Fetakgomo Tubatse",
+      "iec_province_id": 7,
+      "district_code": "DC47"
+    },
+    {
+      "municipality_code": "LIM345",
+      "municipality_name": "Collins Chabane Sub-Region",
+      "province_code": "NC",
+      "iec_municipality_id": "7726",
+      "iec_municipality_name": "LIM345 - Collins Chabane",
+      "iec_province_id": 7,
+      "district_code": "DC34"
+    },
+    {
+      "municipality_code": "MP301",
+      "municipality_name": "Chief Albert Luthuli Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5502",
+      "iec_municipality_name": "MP301 - Chief Albert Luthuli",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP302",
+      "municipality_name": "Msukaligwa Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5503",
+      "iec_municipality_name": "MP302 - Msukaligwa",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP303",
+      "municipality_name": "Mkhondo Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5504",
+      "iec_municipality_name": "MP303 - Mkhondo",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP304",
+      "municipality_name": "Dr Pixley Ka Isaka Seme Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5505",
+      "iec_municipality_name": "MP304 - Dr Pixley Ka Isaka Seme",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP305",
+      "municipality_name": "Lekwa Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5506",
+      "iec_municipality_name": "MP305 - Lekwa",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP306",
+      "municipality_name": "Dipaleseng Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5507",
+      "iec_municipality_name": "MP306 - Dipaleseng",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP307",
+      "municipality_name": "Govan Mbeki Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5508",
+      "iec_municipality_name": "MP307 - Govan Mbeki",
+      "iec_province_id": 5,
+      "district_code": "DC30"
+    },
+    {
+      "municipality_code": "MP311",
+      "municipality_name": "Victor Khanye Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5510",
+      "iec_municipality_name": "MP311 - Victor Khanye",
+      "iec_province_id": 5,
+      "district_code": "DC31"
+    },
+    {
+      "municipality_code": "MP312",
+      "municipality_name": "Emalahleni Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5511",
+      "iec_municipality_name": "MP312 - Emalahleni",
+      "iec_province_id": 5,
+      "district_code": "DC31"
+    },
+    {
+      "municipality_code": "MP313",
+      "municipality_name": "Steve Tshwete Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5512",
+      "iec_municipality_name": "MP313 - Steve Tshwete",
+      "iec_province_id": 5,
+      "district_code": "DC31"
+    },
+    {
+      "municipality_code": "MP314",
+      "municipality_name": "Emakhazeni Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5513",
+      "iec_municipality_name": "MP314 - Emakhazeni",
+      "iec_province_id": 5,
+      "district_code": "DC31"
+    },
+    {
+      "municipality_code": "MP315",
+      "municipality_name": "Thembisile Hani Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5514",
+      "iec_municipality_name": "MP315 - Thembisile Hani",
+      "iec_province_id": 5,
+      "district_code": "DC31"
+    },
+    {
+      "municipality_code": "MP316",
+      "municipality_name": "Dr JS Moroka Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5515",
+      "iec_municipality_name": "MP316 - Dr JS Moroka",
+      "iec_province_id": 5,
+      "district_code": "DC31"
+    },
+    {
+      "municipality_code": "MP321",
+      "municipality_name": "Thaba Chweu Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5517",
+      "iec_municipality_name": "MP321 - Thaba Chweu",
+      "iec_province_id": 5,
+      "district_code": "DC32"
+    },
+    {
+      "municipality_code": "MP324",
+      "municipality_name": "Nkomazi Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5520",
+      "iec_municipality_name": "MP324 - Nkomazi",
+      "iec_province_id": 5,
+      "district_code": "DC32"
+    },
+    {
+      "municipality_code": "MP326",
+      "municipality_name": "City of Mbombela Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "5524",
+      "iec_municipality_name": "MP326 - City of Mbombela",
+      "iec_province_id": 5,
+      "district_code": "DC32"
+    },
+    {
+      "municipality_code": "MP325",
+      "municipality_name": "Bushbuckridge Sub-Region",
+      "province_code": "LP",
+      "iec_municipality_id": "7027",
+      "iec_municipality_name": "MP325 - Bushbuckridge",
+      "iec_province_id": 5,
+      "district_code": "DC32"
+    },
+    {
+      "municipality_code": "NW371",
+      "municipality_name": "Moretele Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8802",
+      "iec_municipality_name": "NW371 - Moretele",
+      "iec_province_id": 8,
+      "district_code": "DC37"
+    },
+    {
+      "municipality_code": "NW372",
+      "municipality_name": "Sub-Region of Madibeng",
+      "province_code": "NW",
+      "iec_municipality_id": "8803",
+      "iec_municipality_name": "NW372 - Madibeng",
+      "iec_province_id": 8,
+      "district_code": "DC37"
+    },
+    {
+      "municipality_code": "NW373",
+      "municipality_name": "Rustenburg Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8804",
+      "iec_municipality_name": "NW373 - Rustenburg",
+      "iec_province_id": 8,
+      "district_code": "DC37"
+    },
+    {
+      "municipality_code": "NW374",
+      "municipality_name": "Kgetlengrivier Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8805",
+      "iec_municipality_name": "NW374 - Kgetlengrivier",
+      "iec_province_id": 8,
+      "district_code": "DC37"
+    },
+    {
+      "municipality_code": "NW375",
+      "municipality_name": "Moses Kotane Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8806",
+      "iec_municipality_name": "NW375 - Moses Kotane",
+      "iec_province_id": 8,
+      "district_code": "DC37"
+    },
+    {
+      "municipality_code": "NW381",
+      "municipality_name": "Ratlou Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8808",
+      "iec_municipality_name": "NW381 - Ratlou",
+      "iec_province_id": 8,
+      "district_code": "DC38"
+    },
+    {
+      "municipality_code": "NW382",
+      "municipality_name": "Tswaing Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8809",
+      "iec_municipality_name": "NW382 - Tswaing",
+      "iec_province_id": 8,
+      "district_code": "DC38"
+    },
+    {
+      "municipality_code": "NW383",
+      "municipality_name": "Mafikeng Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8810",
+      "iec_municipality_name": "NW383 - Mafikeng",
+      "iec_province_id": 8,
+      "district_code": "DC38"
+    },
+    {
+      "municipality_code": "NW384",
+      "municipality_name": "Ditsobotla Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8811",
+      "iec_municipality_name": "NW384 - Ditsobotla",
+      "iec_province_id": 8,
+      "district_code": "DC38"
+    },
+    {
+      "municipality_code": "NW385",
+      "municipality_name": "Ramotshere Moiloa Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8812",
+      "iec_municipality_name": "NW385 - Ramotshere Moiloa",
+      "iec_province_id": 8,
+      "district_code": "DC38"
+    },
+    {
+      "municipality_code": "NW392",
+      "municipality_name": "Naledi Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8815",
+      "iec_municipality_name": "NW392 - Naledi",
+      "iec_province_id": 8,
+      "district_code": "DC39"
+    },
+    {
+      "municipality_code": "NW393",
+      "municipality_name": "Mamusa Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8816",
+      "iec_municipality_name": "NW393 - Mamusa",
+      "iec_province_id": 8,
+      "district_code": "DC39"
+    },
+    {
+      "municipality_code": "NW394",
+      "municipality_name": "Greater Taung Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8817",
+      "iec_municipality_name": "NW394 - Greater Taung",
+      "iec_province_id": 8,
+      "district_code": "DC39"
+    },
+    {
+      "municipality_code": "NW396",
+      "municipality_name": "Lekwa-Teemane Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8819",
+      "iec_municipality_name": "NW396 - Lekwa-Teemane",
+      "iec_province_id": 8,
+      "district_code": "DC39"
+    },
+    {
+      "municipality_code": "NW403",
+      "municipality_name": "City of Matlosana Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8823",
+      "iec_municipality_name": "NW403 - Matlosana",
+      "iec_province_id": 8,
+      "district_code": "DC40"
+    },
+    {
+      "municipality_code": "NW404",
+      "municipality_name": "Maquassi Hills Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8824",
+      "iec_municipality_name": "NW404 - Maquassi Hills",
+      "iec_province_id": 8,
+      "district_code": "DC40"
+    },
+    {
+      "municipality_code": "NW397",
+      "municipality_name": "Kagisano/Molopo Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8825",
+      "iec_municipality_name": "NW397 - Kagisano-Molopo",
+      "iec_province_id": 8,
+      "district_code": "DC39"
+    },
+    {
+      "municipality_code": "NW405",
+      "municipality_name": "JB Marks Sub-Region",
+      "province_code": "NW",
+      "iec_municipality_id": "8826",
+      "iec_municipality_name": "NW405 - JB Marks",
+      "iec_province_id": 8,
+      "district_code": "DC40"
+    },
+    {
+      "municipality_code": "NC452",
+      "municipality_name": "Ga-Segonyana Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6012",
+      "iec_municipality_name": "NC452 - GA-SEGONYANA",
+      "iec_province_id": 6,
+      "district_code": "DC45"
+    },
+    {
+      "municipality_code": "NC453",
+      "municipality_name": "Gamagara Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6013",
+      "iec_municipality_name": "NC453 - GAMAGARA",
+      "iec_province_id": 6,
+      "district_code": "DC45"
+    },
+    {
+      "municipality_code": "NC451",
+      "municipality_name": "Joe Morolong Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6015",
+      "iec_municipality_name": "NC451 - Joe Morolong",
+      "iec_province_id": 6,
+      "district_code": "DC45"
+    },
+    {
+      "municipality_code": "NC094",
+      "municipality_name": "Phokwane Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6045",
+      "iec_municipality_name": "NC094 - Phokwane",
+      "iec_province_id": 6,
+      "district_code": "DC9"
+    },
+    {
+      "municipality_code": "NC091",
+      "municipality_name": "Sol Plaatje Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6046",
+      "iec_municipality_name": "NC091 - Sol Plaatje",
+      "iec_province_id": 6,
+      "district_code": "DC9"
+    },
+    {
+      "municipality_code": "NC092",
+      "municipality_name": "Dikgatlong Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6047",
+      "iec_municipality_name": "NC092 - Dikgatlong",
+      "iec_province_id": 6,
+      "district_code": "DC9"
+    },
+    {
+      "municipality_code": "NC093",
+      "municipality_name": "Magareng Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6048",
+      "iec_municipality_name": "NC093 - Magareng",
+      "iec_province_id": 6,
+      "district_code": "DC9"
+    },
+    {
+      "municipality_code": "NC061",
+      "municipality_name": "Richtersveld Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6602",
+      "iec_municipality_name": "NC061 - RICHTERSVELD",
+      "iec_province_id": 6,
+      "district_code": "DC6"
+    },
+    {
+      "municipality_code": "NC062",
+      "municipality_name": "Nama Khoi Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6603",
+      "iec_municipality_name": "NC062 - NAMA KHOI",
+      "iec_province_id": 6,
+      "district_code": "DC6"
+    },
+    {
+      "municipality_code": "NC064",
+      "municipality_name": "Kamiesberg Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6604",
+      "iec_municipality_name": "NC064 - KAMIESBERG",
+      "iec_province_id": 6,
+      "district_code": "DC6"
+    },
+    {
+      "municipality_code": "NC065",
+      "municipality_name": "Hantam Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6605",
+      "iec_municipality_name": "NC065 - HANTAM",
+      "iec_province_id": 6,
+      "district_code": "DC6"
+    },
+    {
+      "municipality_code": "NC066",
+      "municipality_name": "Karoo Hoogland Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6606",
+      "iec_municipality_name": "NC066 - KAROO HOOGLAND",
+      "iec_province_id": 6,
+      "district_code": "DC6"
+    },
+    {
+      "municipality_code": "NC067",
+      "municipality_name": "Kh├â┬ói-Ma Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6607",
+      "iec_municipality_name": "NC067 - KHâI-MA",
+      "iec_province_id": 6,
+      "district_code": "DC6"
+    },
+    {
+      "municipality_code": "NC071",
+      "municipality_name": "Ubuntu Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6610",
+      "iec_municipality_name": "NC071 - UBUNTU",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC072",
+      "municipality_name": "Umsobomvu Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6611",
+      "iec_municipality_name": "NC072 - UMSOBOMVU",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC073",
+      "municipality_name": "Emthanjeni Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6612",
+      "iec_municipality_name": "NC073 - EMTHANJENI",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC074",
+      "municipality_name": "Kareeberg Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6613",
+      "iec_municipality_name": "NC074 - KAREEBERG",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC075",
+      "municipality_name": "Renosterberg Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6614",
+      "iec_municipality_name": "NC075 - RENOSTERBERG",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC076",
+      "municipality_name": "Thembelihle Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6615",
+      "iec_municipality_name": "NC076 - THEMBELIHLE",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC077",
+      "municipality_name": "Siyathemba Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6616",
+      "iec_municipality_name": "NC077 - SIYATHEMBA",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC078",
+      "municipality_name": "Siyancuma Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6617",
+      "iec_municipality_name": "NC078 - SIYANCUMA",
+      "iec_province_id": 6,
+      "district_code": "DC7"
+    },
+    {
+      "municipality_code": "NC082",
+      "municipality_name": "Kai !Garib Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6621",
+      "iec_municipality_name": "NC082 - KAI !GARIB",
+      "iec_province_id": 6,
+      "district_code": "DC8"
+    },
+    {
+      "municipality_code": "NC084",
+      "municipality_name": "!Kheis Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6623",
+      "iec_municipality_name": "NC084 - !KHEIS",
+      "iec_province_id": 6,
+      "district_code": "DC8"
+    },
+    {
+      "municipality_code": "NC085",
+      "municipality_name": "Tsantsabane Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6624",
+      "iec_municipality_name": "NC085 - TSANTSABANE",
+      "iec_province_id": 6,
+      "district_code": "DC8"
+    },
+    {
+      "municipality_code": "NC086",
+      "municipality_name": "Kgatelopele Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6625",
+      "iec_municipality_name": "NC086 - KGATELOPELE",
+      "iec_province_id": 6,
+      "district_code": "DC8"
+    },
+    {
+      "municipality_code": "NC087",
+      "municipality_name": "Dawid Kruiper Sub-Region",
+      "province_code": "MP",
+      "iec_municipality_id": "6627",
+      "iec_municipality_name": "NC087 - Dawid Kruiper",
+      "iec_province_id": 6,
+      "district_code": "DC8"
+    },
+    {
+      "municipality_code": "CPT",
+      "municipality_name": "City of Cape Town Metropolitan Municipality",
+      "province_code": "WC",
+      "iec_municipality_id": "9006",
+      "iec_municipality_name": "CPT - City of Cape Town",
+      "iec_province_id": 9,
+      "district_code": "CPT"
+    },
+    {
+      "municipality_code": "WC011",
+      "municipality_name": "Matzikama Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9902",
+      "iec_municipality_name": "WC011 - Matzikama",
+      "iec_province_id": 9,
+      "district_code": "DC1"
+    },
+    {
+      "municipality_code": "WC012",
+      "municipality_name": "Cederberg Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9903",
+      "iec_municipality_name": "WC012 - Cederberg",
+      "iec_province_id": 9,
+      "district_code": "DC1"
+    },
+    {
+      "municipality_code": "WC013",
+      "municipality_name": "Bergrivier Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9904",
+      "iec_municipality_name": "WC013 - Bergrivier",
+      "iec_province_id": 9,
+      "district_code": "DC1"
+    },
+    {
+      "municipality_code": "WC014",
+      "municipality_name": "Saldanha Bay Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9905",
+      "iec_municipality_name": "WC014 - Saldanha Bay",
+      "iec_province_id": 9,
+      "district_code": "DC1"
+    },
+    {
+      "municipality_code": "WC015",
+      "municipality_name": "Swartland Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9906",
+      "iec_municipality_name": "WC015 - Swartland",
+      "iec_province_id": 9,
+      "district_code": "DC1"
+    },
+    {
+      "municipality_code": "WC022",
+      "municipality_name": "Witzenberg Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9909",
+      "iec_municipality_name": "WC022 - Witzenberg",
+      "iec_province_id": 9,
+      "district_code": "DC2"
+    },
+    {
+      "municipality_code": "WC023",
+      "municipality_name": "Drakenstein Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9910",
+      "iec_municipality_name": "WC023 - Drakenstein",
+      "iec_province_id": 9,
+      "district_code": "DC2"
+    },
+    {
+      "municipality_code": "WC024",
+      "municipality_name": "Stellenbosch Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9911",
+      "iec_municipality_name": "WC024 - Stellenbosch",
+      "iec_province_id": 9,
+      "district_code": "DC2"
+    },
+    {
+      "municipality_code": "WC025",
+      "municipality_name": "Breede Valley Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9912",
+      "iec_municipality_name": "WC025 - Breede Valley",
+      "iec_province_id": 9,
+      "district_code": "DC2"
+    },
+    {
+      "municipality_code": "WC026",
+      "municipality_name": "Langeberg Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9913",
+      "iec_municipality_name": "WC026 - Langeberg",
+      "iec_province_id": 9,
+      "district_code": "DC2"
+    },
+    {
+      "municipality_code": "WC031",
+      "municipality_name": "Theewaterskloof Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9916",
+      "iec_municipality_name": "WC031 - Theewaterskloof",
+      "iec_province_id": 9,
+      "district_code": "DC3"
+    },
+    {
+      "municipality_code": "WC032",
+      "municipality_name": "Overstrand Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9917",
+      "iec_municipality_name": "WC032 - Overstrand",
+      "iec_province_id": 9,
+      "district_code": "DC3"
+    },
+    {
+      "municipality_code": "WC033",
+      "municipality_name": "Cape Agulhas Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9918",
+      "iec_municipality_name": "WC033 - Cape Agulhas",
+      "iec_province_id": 9,
+      "district_code": "DC3"
+    },
+    {
+      "municipality_code": "WC034",
+      "municipality_name": "Swellendam Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9919",
+      "iec_municipality_name": "WC034 - Swellendam",
+      "iec_province_id": 9,
+      "district_code": "DC3"
+    },
+    {
+      "municipality_code": "WC041",
+      "municipality_name": "Kannaland Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9922",
+      "iec_municipality_name": "WC041 - Kannaland",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC042",
+      "municipality_name": "Hessequa Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9923",
+      "iec_municipality_name": "WC042 - Hessequa",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC043",
+      "municipality_name": "Mossel Bay Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9924",
+      "iec_municipality_name": "WC043 - Mossel Bay",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC044",
+      "municipality_name": "George Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9925",
+      "iec_municipality_name": "WC044 - George",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC045",
+      "municipality_name": "Oudtshoorn Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9926",
+      "iec_municipality_name": "WC045 - Oudtshoorn",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC047",
+      "municipality_name": "Bitou Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9927",
+      "iec_municipality_name": "WC047 - Bitou",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC048",
+      "municipality_name": "Knysna Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9928",
+      "iec_municipality_name": "WC048 - Knysna",
+      "iec_province_id": 9,
+      "district_code": "DC4"
+    },
+    {
+      "municipality_code": "WC051",
+      "municipality_name": "Laingsburg Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9931",
+      "iec_municipality_name": "WC051 - Laingsburg",
+      "iec_province_id": 9,
+      "district_code": "DC5"
+    },
+    {
+      "municipality_code": "WC052",
+      "municipality_name": "Prince Albert Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9932",
+      "iec_municipality_name": "WC052 - Prince Albert",
+      "iec_province_id": 9,
+      "district_code": "DC5"
+    },
+    {
+      "municipality_code": "WC053",
+      "municipality_name": "Beaufort West Sub-Region",
+      "province_code": "WC",
+      "iec_municipality_id": "9933",
+      "iec_municipality_name": "WC053 - Beaufort West",
+      "iec_province_id": 9,
+      "district_code": "DC5"
+    }
+  ],
+  "unmatched": []
+}

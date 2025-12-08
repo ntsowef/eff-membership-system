@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   TextField,
   Button,
   Alert,
@@ -13,9 +11,10 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
-  Person,
   CreditCard,
   Download,
   Share,
@@ -25,6 +24,8 @@ import {
   FlipToFront,
   Autorenew,
   Warning,
+  Fullscreen,
+  Close,
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import cardFrontImage from '../../assets/images/Eff_first.png';
 import cardBackImage from '../../assets/images/Eff_second.png';
+import { showWarning, showError, showSuccess } from '../../utils/sweetAlert';
 
 interface MemberCardData {
   member_id: string;
@@ -82,10 +84,46 @@ const getProvinceCode = (provinceName: string | null | undefined): string => {
 
 const MemberCardDisplay: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Below 600px
   const [idNumber, setIdNumber] = useState('');
   const [memberData, setMemberData] = useState<MemberCardData | null>(null);
   const [showCard, setShowCard] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isLandscapeMode, setIsLandscapeMode] = useState(false);
+
+  // Handle body scroll lock when in landscape mode
+  useEffect(() => {
+    if (isLandscapeMode) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
+  }, [isLandscapeMode]);
+
+  // Toggle landscape mode (mobile only)
+  const handleToggleLandscapeMode = () => {
+    if (isMobile) {
+      setIsLandscapeMode(!isLandscapeMode);
+    }
+  };
+
+  // Exit landscape mode
+  const handleExitLandscapeMode = () => {
+    setIsLandscapeMode(false);
+  };
 
   // Helper function to check if renewal button should be shown
   const shouldShowRenewalButton = (data: MemberCardData): boolean => {
@@ -169,13 +207,13 @@ const MemberCardDisplay: React.FC = () => {
     const trimmedId = idNumber.trim();
 
     if (!trimmedId) {
-      alert('Please enter your ID Number');
+      showWarning('Please enter your ID Number', 'ID Required');
       return;
     }
 
     // Validate ID number is exactly 13 digits
     if (!/^\d{13}$/.test(trimmedId)) {
-      alert('ID Number must be exactly 13 digits');
+      showWarning('ID Number must be exactly 13 digits', 'Invalid ID');
       return;
     }
 
@@ -266,7 +304,7 @@ const MemberCardDisplay: React.FC = () => {
       document.body.removeChild(tempContainer);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      showError('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -287,7 +325,7 @@ const MemberCardDisplay: React.FC = () => {
         await navigator.clipboard.writeText(
           `My Digital Membership Card\n${memberData.first_name} ${memberData.last_name}\nMember ID: ${memberData.membership_number}`
         );
-        alert('Card information copied to clipboard!');
+        showSuccess('Card information copied to clipboard!', 'Copied');
       }
     } catch (error) {
       console.error('Error sharing card:', error);
@@ -365,6 +403,7 @@ const MemberCardDisplay: React.FC = () => {
     setMemberData(null);
     setShowCard(false);
     setIsFlipped(false);
+    setIsLandscapeMode(false);
   };
 
   const handleFlipCard = () => {
@@ -580,6 +619,23 @@ const MemberCardDisplay: React.FC = () => {
                   <Print />
                 </IconButton>
               </Tooltip>
+              {/* Fullscreen Landscape Mode - Mobile Only */}
+              {isMobile && (
+                <Tooltip title="View Fullscreen (Landscape)">
+                  <IconButton
+                    onClick={handleToggleLandscapeMode}
+                    sx={{
+                      color: '#DC143C',
+                      bgcolor: 'rgba(220, 20, 60, 0.1)',
+                      '&:hover': {
+                        bgcolor: 'rgba(220, 20, 60, 0.2)',
+                      },
+                    }}
+                  >
+                    <Fullscreen />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Tooltip title="View Another Card">
                 <IconButton
                   onClick={handleReset}
@@ -817,95 +873,277 @@ const MemberCardDisplay: React.FC = () => {
             </Box>
           </Box>
 
-          {/* Member Details */}
-          <Card sx={{ mb: 4 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Person color="primary" />
-                Member Information
-              </Typography>
 
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Full Name
+        </Paper>
+      )}
+
+      {/* Mobile Landscape Fullscreen Overlay */}
+      {isLandscapeMode && isMobile && showCard && memberData && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            bgcolor: 'rgba(0, 0, 0, 0.95)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Close Button */}
+          <IconButton
+            onClick={handleExitLandscapeMode}
+            sx={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              color: 'white',
+              bgcolor: 'rgba(255, 255, 255, 0.15)',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.25)',
+              },
+              zIndex: 10000,
+            }}
+          >
+            <Close />
+          </IconButton>
+
+          {/* Flip Instruction */}
+          <Typography
+            variant="body2"
+            sx={{
+              position: 'absolute',
+              top: 20,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontSize: '0.85rem',
+              zIndex: 10000,
+            }}
+          >
+            Tap card to flip • {isFlipped ? 'Back Side' : 'Front Side'}
+          </Typography>
+
+          {/* Card Container - Rotated 90 degrees for landscape */}
+          <Box
+            sx={{
+              perspective: '1000px',
+              width: '90vh', // Use viewport height as width for landscape
+              maxWidth: '550px',
+              transform: 'rotate(90deg)', // Rotate card to landscape
+              transformOrigin: 'center center',
+            }}
+            onClick={handleFlipCard}
+          >
+            <Box
+              sx={{
+                position: 'relative',
+                width: '100%',
+                paddingTop: '63.04%', // Maintain aspect ratio
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              }}
+            >
+              {/* Front Side - Landscape */}
+              <Paper
+                className="card-side-front-landscape"
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  p: 3,
+                  backgroundImage: `url(${cardFrontImage})`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  color: 'white',
+                  borderRadius: 3,
+                  boxShadow: '0 8px 32px rgba(220, 20, 60, 0.4)',
+                  backfaceVisibility: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                }}
+              >
+                {/* Top Left: Expiry Date */}
+                <Box sx={{ position: 'absolute', top: 16, left: 16 }}>
+                  <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.85rem' }}>
+                    {new Date(memberData.expiry_date || memberData.card_data?.expiry_date).toLocaleDateString('en-ZA', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit'
+                    })}
                   </Typography>
-                  <Typography variant="body1" fontWeight="medium">
+                </Box>
+
+                {/* Top Right: Province Code */}
+                <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    sx={{
+                      fontSize: '1.5rem',
+                      letterSpacing: '0.1em',
+                      opacity: 0.95
+                    }}
+                  >
+                    {memberData.province_code || getProvinceCode(memberData.province_name)}
+                  </Typography>
+                </Box>
+
+                {/* Member Name */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '155px',
+                    left: '10px',
+                    right: '10px',
+                    textAlign: 'center'
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase'
+                    }}
+                  >
                     {memberData.first_name} {memberData.last_name}
                   </Typography>
-                </Grid>
+                </Box>
 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Membership Number
+                {/* ID Number */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '202px',
+                    left: '10px',
+                    right: '10px',
+                    textAlign: 'center'
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: '1rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    {memberData.id_number}
                   </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`}
-                  </Typography>
-                </Grid>
+                </Box>
 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Province
+                {/* Sub-region and Ward */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '253px',
+                    left: '10px',
+                    right: '10px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    {memberData.municipality_name}
                   </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {memberData.province_name || 'Not Available'}
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    |
                   </Typography>
-                </Grid>
+                  <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                    {memberData.ward_code}
+                  </Typography>
+                </Box>
+              </Paper>
 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Municipality
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {memberData.municipality_name || 'Not Available'}
-                  </Typography>
-                </Grid>
+              {/* Back Side - Landscape */}
+              <Paper
+                className="card-side-back-landscape"
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  p: 2.5,
+                  backgroundImage: `url(${cardBackImage})`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  color: 'white',
+                  borderRadius: 3,
+                  boxShadow: '0 8px 32px rgba(220, 20, 60, 0.4)',
+                  backfaceVisibility: 'hidden',
+                  transform: 'rotateY(180deg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                {/* Back side with background image */}
+              </Paper>
+            </Box>
+          </Box>
 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Ward Code
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {memberData.ward_code || 'Not Available'}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Voting Station
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {memberData.voting_station_name}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Membership Type
-                  </Typography>
-                  <Chip label={memberData.membership_type || 'Standard'} color="primary" size="small" />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Chip
-                    label={memberData.membership_status || (new Date() <= new Date(memberData.expiry_date || memberData.card_data?.expiry_date) ? 'Active' : 'Expired')}
-                    color={
-                      memberData.membership_status === 'Active' ||
-                      (!memberData.membership_status && new Date() <= new Date(memberData.expiry_date || memberData.card_data?.expiry_date))
-                        ? 'success'
-                        : 'error'
-                    }
-                    size="small"
-                  />
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Paper>
+          {/* Flip Button at Bottom */}
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 24,
+              display: 'flex',
+              gap: 2,
+            }}
+          >
+            <Button
+              variant="contained"
+              startIcon={isFlipped ? <FlipToFront /> : <FlipToBack />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFlipCard();
+              }}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)',
+                },
+                fontWeight: 600,
+              }}
+            >
+              {isFlipped ? 'View Front' : 'View Back'}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Close />}
+              onClick={handleExitLandscapeMode}
+              sx={{
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                '&:hover': {
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+                fontWeight: 600,
+              }}
+            >
+              Exit Fullscreen
+            </Button>
+          </Box>
+        </Box>
       )}
     </Box>
   );

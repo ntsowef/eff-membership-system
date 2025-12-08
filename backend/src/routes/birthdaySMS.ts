@@ -190,16 +190,16 @@ router.get('/history', async (req: Request, res: Response): Promise<void> => {
 
     // Get total count
     const countResult = await executeQuery(`
-      SELECT COUNT(*) as total FROM birthday_messages_sent
+      SELECT COUNT(*) as total FROM birthday_sms_history
     `);
     const countData = Array.isArray(countResult) ? countResult : countResult[0] || [];
     const total = countData[0]?.total || 0;
 
     // Get history records
     const historyResult = await executeQuery(`
-      SELECT * FROM birthday_messages_sent
-      ORDER BY sent_at DESC, created_at DESC
-      LIMIT $1 OFFSET $2
+      SELECT * FROM birthday_sms_history 
+      ORDER BY sent_at DESC, scheduled_date DESC
+      LIMIT ? OFFSET ?
     `, [limit, offset]);
 
     const history = Array.isArray(historyResult) ? historyResult : historyResult[0] || [];
@@ -232,20 +232,20 @@ router.get('/history', async (req: Request, res: Response): Promise<void> => {
 router.get('/queue-status', async (req: Request, res: Response): Promise<void> => {
   try {
     const statusResult = await executeQuery(`
-      SELECT
+      SELECT 
         status,
         COUNT(*) as count,
-        MIN(scheduled_at) as earliest_date,
-        MAX(scheduled_at) as latest_date
-      FROM sms_queue
+        MIN(scheduled_for) as earliest_date,
+        MAX(scheduled_for) as latest_date
+      FROM birthday_sms_queue 
       GROUP BY status
-      ORDER BY
-        CASE status
-          WHEN 'Pending' THEN 1
-          WHEN 'Processing' THEN 2
-          WHEN 'Completed' THEN 3
-          WHEN 'Failed' THEN 4
-          WHEN 'Cancelled' THEN 5
+      ORDER BY 
+        CASE status 
+          WHEN 'queued' THEN 1 
+          WHEN 'processing' THEN 2 
+          WHEN 'completed' THEN 3 
+          WHEN 'failed' THEN 4 
+          WHEN 'cancelled' THEN 5 
         END
     `);
 
@@ -253,8 +253,8 @@ router.get('/queue-status', async (req: Request, res: Response): Promise<void> =
 
     // Get recent queue items
     const recentResult = await executeQuery(`
-      SELECT * FROM sms_queue
-      ORDER BY created_at DESC
+      SELECT * FROM birthday_sms_queue 
+      ORDER BY queued_at DESC 
       LIMIT 10
     `);
 

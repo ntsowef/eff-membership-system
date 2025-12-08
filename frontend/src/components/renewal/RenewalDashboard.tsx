@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface RenewalDashboardData {
   renewal_statistics: {
@@ -73,7 +74,7 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
     queryKey: ['renewal-dashboard', refreshKey],
     queryFn: async () => {
       const response = await api.get('/membership-renewal/dashboard');
-      console.log('Renewal Dashboard API Response:', response.data);
+      devLog('Renewal Dashboard API Response:', response.data);
       
       if (response.data && response.data.data && response.data.data.renewal_dashboard) {
         return response.data.data.renewal_dashboard as RenewalDashboardData;

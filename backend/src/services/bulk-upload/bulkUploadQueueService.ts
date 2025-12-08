@@ -20,6 +20,7 @@ export interface BulkUploadJobData {
   uploadedBy: string;
   userId: string;
   userRole?: string;
+  userEmail?: string; // Optional: User email for sending attendance register PDFs
   fileId?: number; // Optional: ID from uploaded_files table for status sync
 }
 

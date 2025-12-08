@@ -15,6 +15,7 @@ import {
   ExitToApp as LogoutIcon
 } from '@mui/icons-material';
 import { useSessionManagement } from '../../hooks/useSessionManagement';
+import { devLog } from '../../utils/logger';
 
 interface SessionWarningDialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
     isProcessingActivityRef.current = true;
 
     try {
-      console.log('🎯 User activity detected - auto-extending session');
+      devLog('🎯 User activity detected - auto-extending session');
 
       // Extend session immediately
       const success = await extendSession();
@@ -56,7 +57,7 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
         if (onClose) {
           onClose();
         }
-        console.log('✅ Session auto-extended and dialog dismissed');
+        devLog('✅ Session auto-extended and dialog dismissed');
       }
     } catch (error) {
       console.error('❌ Failed to auto-extend session:', error);
@@ -120,7 +121,7 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
     // Add listeners when dialog opens
     addEventListeners();
 
-    console.log('🔍 Activity detection enabled for session warning dialog');
+    devLog('🔍 Activity detection enabled for session warning dialog');
 
     // Cleanup function
     return () => {
@@ -135,7 +136,7 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
       // Reset processing flag
       isProcessingActivityRef.current = false;
 
-      console.log('🔍 Activity detection disabled for session warning dialog');
+      devLog('🔍 Activity detection disabled for session warning dialog');
     };
   }, [open, debouncedActivityHandler]);
 

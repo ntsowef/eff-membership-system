@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Pool, PoolClient } from 'pg';
 import { config } from './config';
+import { isVerboseLogging } from '../utils/logger';
 
 // =====================================================================================
 // HYBRID DATABASE SERVICE - Combines Prisma ORM with Raw SQL capabilities
@@ -54,22 +55,22 @@ export const initializeDatabase = async (): Promise<void> => {
 
       // Test Prisma connection
       await prisma.$connect();
-      console.log('✅ Prisma ORM connected successfully');
+      if (isVerboseLogging()) console.log('✅ Prisma ORM connected successfully');
     } catch (prismaError: any) {
       console.warn('⚠️  Prisma client initialization failed, continuing with raw SQL only:', prismaError.message);
       prisma = null;
     }
-    
+
     // Initialize PostgreSQL pool for raw SQL
     pool = new Pool(dbConfig);
-    
+
     // Test raw SQL connection
     const client = await pool.connect();
     await client.query('SELECT NOW()');
     client.release();
-    
-    console.log('✅ PostgreSQL raw SQL pool initialized successfully');
-    console.log(`📊 Connected to PostgreSQL database: ${dbConfig.database}`);
+
+    if (isVerboseLogging()) console.log('✅ PostgreSQL raw SQL pool initialized successfully');
+    if (isVerboseLogging()) console.log(`📊 Connected to PostgreSQL database: ${dbConfig.database}`);
     
   } catch (error) {
     console.error('❌ Failed to initialize hybrid database system:', error);
@@ -90,7 +91,7 @@ export const isPrismaAvailable = (): boolean => {
   return prisma !== null;
 };
 
-// Get the raw PostgreSQL pool instance (for direct pool operations)
+// Get PostgreSQL pool instance for direct access
 export const getPool = (): Pool => {
   if (!pool) {
     throw new Error('Database pool not initialized. Call initializeDatabase() first.');
@@ -294,13 +295,13 @@ export const closeDatabaseConnections = async (): Promise<void> => {
     if (prisma) {
       await prisma.$disconnect();
       prisma = null;
-      console.log('🔒 Prisma client disconnected');
+      if (isVerboseLogging()) console.log('🔒 Prisma client disconnected');
     }
-    
+
     if (pool) {
       await pool.end();
       pool = null;
-      console.log('🔒 PostgreSQL connection pool closed');
+      if (isVerboseLogging()) console.log('🔒 PostgreSQL connection pool closed');
     }
   } catch (error) {
     console.error('❌ Error closing database connections:', error);
@@ -309,13 +310,13 @@ export const closeDatabaseConnections = async (): Promise<void> => {
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('🛑 Received SIGINT, closing database connections...');
+  if (isVerboseLogging()) console.log('🛑 Received SIGINT, closing database connections...');
   await closeDatabaseConnections();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('🛑 Received SIGTERM, closing database connections...');
+  if (isVerboseLogging()) console.log('🛑 Received SIGTERM, closing database connections...');
   await closeDatabaseConnections();
   process.exit(0);
 });

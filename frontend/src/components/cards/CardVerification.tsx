@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { showWarning, showInfo } from '../../utils/sweetAlert';
 
 interface VerificationResult {
   valid: boolean;
@@ -54,7 +55,7 @@ const CardVerification: React.FC = () => {
 
   const handleVerifyCard = () => {
     if (!cardData.trim()) {
-      alert('Please enter card data to verify');
+      showWarning('Please enter card data to verify', 'No Data');
       return;
     }
 
@@ -63,13 +64,13 @@ const CardVerification: React.FC = () => {
       JSON.parse(cardData);
       verifyCardMutation.mutate({ card_data: cardData });
     } catch (error) {
-      alert('Invalid card data format. Please enter valid JSON data from QR code.');
+      showWarning('Invalid card data format. Please enter valid JSON data from QR code.', 'Invalid Format');
     }
   };
 
   const handleScanQRCode = () => {
     // In a real implementation, this would open camera for QR scanning
-    alert('QR Code scanning would be implemented using device camera. For now, please paste the QR code data manually.');
+    showInfo('QR Code scanning would be implemented using device camera. For now, please paste the QR code data manually.', 'Coming Soon');
   };
 
   const getVerificationIcon = (valid: boolean) => {

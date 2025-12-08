@@ -157,6 +157,7 @@ export interface MemberFilters {
   has_email?: boolean;
   has_cell_number?: boolean;
   search?: string;
+  membership_status?: string; // 'all' | 'active' | 'expired' - controls expiry filtering
 }
 
 // Member model class
@@ -170,9 +171,25 @@ export class MemberModel {
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<MemberDetails[]> {
     try {
-      // Filter by active members only (not expired OR in grace period)
-      let whereClause = 'WHERE expiry_date >= CURRENT_DATE - INTERVAL \'90 days\'';
+      // Handle membership_status filter for expiry filtering
+      // - 'all': show all members regardless of expiry
+      // - 'active': show only members with membership_status_id = 1
+      // - 'expired': show only expired/inactive members
+      // - undefined/empty: default behavior (90-day grace period filter)
+      let whereClause = 'WHERE 1=1';
       const params: any[] = [];
+
+      if (!filters.membership_status || filters.membership_status === '') {
+        // Default behavior: filter by active members only (not expired OR in grace period)
+        whereClause += ` AND expiry_date >= CURRENT_DATE - INTERVAL '90 days'`;
+      } else if (filters.membership_status === 'active') {
+        // Active/Good Standing members only
+        whereClause += ` AND membership_status_id = 1`;
+      } else if (filters.membership_status === 'expired') {
+        // Expired/Inactive members only
+        whereClause += ` AND membership_status_id IN (2, 3, 4)`;
+      }
+      // 'all' - no additional expiry filter needed
 
       // Apply filters (using column names without alias since we're querying a view)
       if (filters.voting_district_code) {
@@ -266,9 +283,9 @@ export class MemberModel {
       const allowedSortColumns = ['firstname', 'surname', 'age', 'id_number', 'member_id', 'date_joined', 'created_at'];
       const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : 'member_id';
 
-      // Use members_with_voting_districts view which has voting_district_code
-      // Fall back to vw_enhanced_member_search if voting_district_code is not needed
-      const viewName = filters.voting_district_code ? 'members_with_voting_districts' : 'vw_enhanced_member_search';
+      // Use vw_enhanced_member_search which has voting_district_code and uses members_consolidated
+      // (members_with_voting_districts view uses empty members table)
+      const viewName = 'vw_enhanced_member_search';
       const limitIndex = params.length + 1;
       const offsetIndex = params.length + 2;
       const query = `
@@ -288,9 +305,25 @@ export class MemberModel {
   // Get total count of members with filters
   static async getMembersCount(filters: MemberFilters = {}): Promise<number> {
     try {
-      // Filter by active members only (not expired OR in grace period)
-      let whereClause = 'WHERE expiry_date >= CURRENT_DATE - INTERVAL \'90 days\'';
+      // Handle membership_status filter for expiry filtering
+      // - 'all': show all members regardless of expiry
+      // - 'active': show only members with membership_status_id = 1
+      // - 'expired': show only expired/inactive members
+      // - undefined/empty: default behavior (90-day grace period filter)
+      let whereClause = 'WHERE 1=1';
       const params: any[] = [];
+
+      if (!filters.membership_status || filters.membership_status === '') {
+        // Default behavior: filter by active members only (not expired OR in grace period)
+        whereClause += ` AND expiry_date >= CURRENT_DATE - INTERVAL '90 days'`;
+      } else if (filters.membership_status === 'active') {
+        // Active/Good Standing members only
+        whereClause += ` AND membership_status_id = 1`;
+      } else if (filters.membership_status === 'expired') {
+        // Expired/Inactive members only
+        whereClause += ` AND membership_status_id IN (2, 3, 4)`;
+      }
+      // 'all' - no additional expiry filter needed
 
       // Apply same filters as getAllMembers
       if (filters.voting_district_code) {
@@ -380,8 +413,9 @@ export class MemberModel {
         params.push(searchTerm, searchTerm, searchTerm);
       }
 
-      // Use members_with_voting_districts view if voting_district_code filter is present
-      const viewName = filters.voting_district_code ? 'members_with_voting_districts' : 'vw_enhanced_member_search';
+      // Use vw_enhanced_member_search which has voting_district_code and uses members_consolidated
+      // (members_with_voting_districts view uses empty members table)
+      const viewName = 'vw_enhanced_member_search';
       const query = `SELECT COUNT(*) as count FROM ${viewName} ${whereClause}`;
       const result = await executeQuerySingle<{ count: number }>(query, params);
       return result?.count || 0;

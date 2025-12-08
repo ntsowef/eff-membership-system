@@ -105,6 +105,7 @@ export interface IECVerificationResult {
   province_code?: string;
   district_code?: string;
   municipality_code?: string;
+  municipality?: string;  // IEC municipality name (e.g., "JHB - City of Johannesburg")
   ward_code?: string;
   voting_district_code?: string;
   voting_station_name?: string;
@@ -120,6 +121,11 @@ export interface VerifiedRecord extends BulkUploadRecord {
   iec_ward?: string;
   iec_vd_code?: string;
   iec_voting_station?: string;
+  iec_municipality?: string;  // IEC municipality name (e.g., "WC015 - Swartland")
+  iec_province_code?: string;
+  iec_district_code?: string;
+  iec_municipality_code?: string;
+  iec_voter_status?: string;
   iec_verification_date: Date;
   iec_error?: string;
 }

@@ -39,6 +39,7 @@ import ProvinceSelectionDialog from './ProvinceSelectionDialog';
 import HierarchicalGeographicSelector from './HierarchicalGeographicSelector';
 import HierarchicalMemberLookupDialog from './HierarchicalMemberLookupDialog';
 import MemberLookupDialog from './MemberLookupDialog';
+import { devLog } from '../../utils/logger';
 
 interface Member {
   member_id: number;
@@ -348,7 +349,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       };
     }
 
-    console.log('🚀 Submitting user data:', userData);
+    devLog('🚀 Submitting user data:', userData);
     onCreateUser(userData);
     handleClose();
   };

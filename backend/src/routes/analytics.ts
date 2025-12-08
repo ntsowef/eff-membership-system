@@ -1,11 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AnalyticsModel, ReportFilters } from '../models/analytics';
+import { AnalyticsOptimizedModel } from '../models/analyticsOptimized';
 import { authenticate, requirePermission, requireAdminLevel, applyGeographicFilter } from '../middleware/auth';
 import { ValidationError, asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { logAudit } from '../middleware/auditLogger';
 import { AuditAction, EntityType } from '../models/auditLogs';
 import { cacheMiddleware, CacheConfigs } from '../middleware/cacheMiddleware';
 import { PDFExportService } from '../services/pdfExportService';
+import { HtmlPdfService } from '../services/htmlPdfService';
 import Joi from 'joi';
 import * as XLSX from 'xlsx';
 import PDFDocument from 'pdfkit';
@@ -90,7 +92,8 @@ router.get('/dashboard',
       filters.municipal_code = geographicContext.municipal_code;
     }
 
-    const dashboardStats = await AnalyticsModel.getDashboardStats(filters);
+    // Use optimized model for faster dashboard stats
+    const dashboardStats = await AnalyticsOptimizedModel.getDashboardStats(filters);
 
     // Skip audit logging for now (no authentication)
     // await logAudit(
@@ -149,8 +152,7 @@ router.get('/membership',
       filters.municipal_code = geographicContext.municipal_code;
     }
 
-    // Use optimized model with materialized views for better performance
-    const { AnalyticsOptimizedModel } = await import('../models/analyticsOptimized');
+    // Use optimized model with materialized views for faster performance
     const membershipAnalytics = await AnalyticsOptimizedModel.getMembershipAnalytics(filters);
 
     // Log audit trail (skip if no user - development mode)
@@ -198,10 +200,10 @@ router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), asyn
       delete (filters as any).municipality_code;
     }
 
-    // Get all analytics data
+    // Get all analytics data using optimized models
     const [membershipAnalytics, dashboardStats] = await Promise.all([
-      AnalyticsModel.getMembershipAnalytics(filters),
-      AnalyticsModel.getDashboardStats(filters)
+      AnalyticsOptimizedModel.getMembershipAnalytics(filters),
+      AnalyticsOptimizedModel.getDashboardStats(filters)
     ]);
 
     // Helper functions for BI calculations
@@ -239,7 +241,7 @@ router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), asyn
     // Generate business intelligence insights
     const businessIntelligence = {
       membershipInsights: {
-        growthTrend: calculateGrowthTrend(membershipAnalytics.membership_growth),
+        growthTrend: calculateGrowthTrend((membershipAnalytics as any).membership_growth || []),
         churnRisk: calculateChurnRisk(membershipAnalytics),
         engagementScore: calculateEngagementScore(dashboardStats),
         demographicShifts: [
@@ -272,7 +274,8 @@ router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), asyn
       predictiveAnalytics: {
         membershipForecast: (() => {
           const forecast: any[] = [];
-          const lastMonth = membershipAnalytics.membership_growth[membershipAnalytics.membership_growth.length - 1];
+          const membershipGrowth = (membershipAnalytics as any).membership_growth || [];
+          const lastMonth = membershipGrowth[membershipGrowth.length - 1];
           const avgGrowth = 500;
 
           for (let i = 1; i <= 6; i++) {
@@ -434,7 +437,7 @@ router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), asyn
       ],
       realTimeMetrics: {
         activeUsers: dashboardStats.active_members || 0,
-        newRegistrations: membershipAnalytics.membership_growth[membershipAnalytics.membership_growth.length - 1]?.new_members || 0,
+        newRegistrations: ((membershipAnalytics as any).membership_growth || [])[(membershipAnalytics as any).membership_growth?.length - 1]?.new_members || 0,
         engagementRate: calculateEngagementScore(dashboardStats),
         systemHealth: 98.5,
         lastUpdated: new Date().toISOString()
@@ -604,7 +607,7 @@ router.get('/export/membership/excel', authenticate, requirePermission('reports.
       delete (filters as any).municipality_code;
     }
 
-    const membershipAnalytics = await AnalyticsModel.getMembershipAnalytics(filters);
+    const membershipAnalytics = await AnalyticsOptimizedModel.getMembershipAnalytics(filters);
 
     // Create workbook
     const workbook = XLSX.utils.book_new();
@@ -700,7 +703,7 @@ router.get('/export/membership/pdf', authenticate, requirePermission('reports.ex
       delete (filters as any).municipality_code;
     }
 
-    const membershipAnalytics = await AnalyticsModel.getMembershipAnalytics(filters);
+    const membershipAnalytics = await AnalyticsOptimizedModel.getMembershipAnalytics(filters);
 
     // Create PDF document
     const doc = new PDFDocument();
@@ -789,10 +792,10 @@ router.get('/comprehensive', cacheMiddleware({
       delete (filters as any).municipality_code;
     }
 
-    // Get all analytics data
+    // Get all analytics data - using optimized models
     const [dashboardStats, membershipAnalytics, meetingAnalytics, leadershipAnalytics] = await Promise.all([
-      AnalyticsModel.getDashboardStats(filters),
-      AnalyticsModel.getMembershipAnalytics(filters),
+      AnalyticsOptimizedModel.getDashboardStats(filters),
+      AnalyticsOptimizedModel.getMembershipAnalytics(filters),
       AnalyticsModel.getMeetingAnalytics(filters),
       AnalyticsModel.getLeadershipAnalytics(filters)
     ]);
@@ -845,10 +848,10 @@ router.get('/export/comprehensive/pdf', authenticate, requirePermission('reports
       delete (filters as any).municipality_code;
     }
 
-    // Get comprehensive analytics data
+    // Get comprehensive analytics data - using optimized models
     const [dashboardStats, membershipAnalytics, meetingAnalytics, leadershipAnalytics] = await Promise.all([
-      AnalyticsModel.getDashboardStats(filters),
-      AnalyticsModel.getMembershipAnalytics(filters),
+      AnalyticsOptimizedModel.getDashboardStats(filters),
+      AnalyticsOptimizedModel.getMembershipAnalytics(filters),
       AnalyticsModel.getMeetingAnalytics(filters),
       AnalyticsModel.getLeadershipAnalytics(filters)
     ]);
@@ -862,17 +865,15 @@ router.get('/export/comprehensive/pdf', authenticate, requirePermission('reports
       filters: filters
     };
 
-    // Generate PDF using PDFExportService
-    const pdfBuffer = await PDFExportService.exportComprehensiveAnalyticsToPDF(comprehensiveData, {
+    // Generate PDF using HTML-based PDF Service for better visual output
+    const pdfBuffer = await HtmlPdfService.generateComprehensiveAnalyticsPDF(comprehensiveData, {
       title: 'Comprehensive Analytics Report',
       subtitle: `Generated on ${new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       })}`,
-      orientation: 'landscape', // Force landscape orientation
-      includeCharts: true,
-      includeDetails: true,
+      orientation: 'landscape',
       reportScope: filters.hierarchy_level ? `${filters.hierarchy_level} Level` : 'National Level'
     });
 

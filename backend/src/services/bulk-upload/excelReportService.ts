@@ -1,4 +1,6 @@
 import ExcelJS from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   BulkUploadRecord,
   InvalidIdRecord,
@@ -8,6 +10,33 @@ import {
   ValidationResult,
   DatabaseOperationsBatchResult
 } from './types';
+import { getPrisma } from '../prismaService';
+import { HtmlPdfService } from '../htmlPdfService';
+import { ViewsService } from '../viewsService';
+import { executeQuerySingle } from '../../config/database';
+import { EmailService } from '../emailService';
+
+const prisma = getPrisma();
+
+/**
+ * Ward compliance data for summary sheet
+ */
+interface WardComplianceData {
+  ward_code: string;
+  existing_members: number;
+  new_members: number;
+  total_registered: number;
+  is_compliant: boolean;
+}
+
+/**
+ * Generated attendance register info
+ */
+interface GeneratedAttendanceRegister {
+  ward_code: string;
+  file_path: string;
+  member_count: number;
+}
 
 /**
  * Excel Report Service
@@ -35,6 +64,8 @@ export class ExcelReportService {
    * @param validationResult - Pre-validation results
    * @param iecResults - IEC verification results
    * @param dbResult - Database operation results
+   * @param userEmail - Optional: User email for sending attendance register PDFs
+   * @param userName - Optional: User name for email personalization
    * @returns Path to generated report
    */
   static async generateReport(
@@ -42,7 +73,9 @@ export class ExcelReportService {
     originalData: BulkUploadRecord[],
     validationResult: ValidationResult,
     iecResults: Map<string, IECVerificationResult>,
-    dbResult: DatabaseOperationsBatchResult
+    dbResult: DatabaseOperationsBatchResult,
+    userEmail?: string,
+    userName?: string
   ): Promise<string> {
     console.log(`\n📊 EXCEL REPORT: Generating report...`);
 
@@ -73,8 +106,15 @@ export class ExcelReportService {
 	      `   📊 Ward/IEC Stats: ${registeredInWard.length} in same ward, ${registeredDifferentWard.length} in different ward, ${notRegistered.length} not registered, ${deceased.length} deceased`
 	    );
 
-	    // Sheet 1: Summary (now includes IEC ward verification & deceased stats)
-	    this.createSummarySheet(
+	    // Calculate ward compliance data
+	    const wardComplianceData = await this.calculateWardCompliance(
+	      originalData,
+	      dbResult.successful_operations,
+	      iecResults
+	    );
+
+	    // Sheet 1: Summary (now includes IEC ward verification & deceased stats + ward compliance)
+	    await this.createSummarySheet(
 	      workbook,
 	      validationResult,
 	      dbResult,
@@ -82,7 +122,8 @@ export class ExcelReportService {
 	      registeredInWard.length,
 	      registeredDifferentWard.length,
 	      notRegistered.length,
-	      deceased.length
+	      deceased.length,
+	      wardComplianceData
 	    );
 
 	    // Sheet 2: All Uploaded Rows (with IEC status and existing member info)
@@ -119,13 +160,32 @@ export class ExcelReportService {
     await workbook.xlsx.writeFile(outputPath);
     console.log(`   ✅ Report saved to: ${outputPath}`);
 
+    // Generate attendance registers for compliant wards (200+ registered voters)
+    const compliantWards = wardComplianceData.filter(w => w.is_compliant);
+    if (compliantWards.length > 0) {
+      const reportDir = path.dirname(outputPath);
+      const generatedRegisters = await this.generateAttendanceRegistersForCompliantWards(
+        compliantWards,
+        reportDir,
+        userEmail,
+        userName
+      );
+
+      if (generatedRegisters.length > 0) {
+        console.log(`\n📋 ATTENDANCE REGISTERS: Generated ${generatedRegisters.length} attendance register(s):`);
+        generatedRegisters.forEach(reg => {
+          console.log(`   📄 Ward ${reg.ward_code}: ${reg.file_path} (${reg.member_count} members)`);
+        });
+      }
+    }
+
     return outputPath;
   }
 
 	  /**
-	   * Create Summary sheet with validation, processing, and IEC verification statistics
+	   * Create Summary sheet with validation, processing, IEC verification, and ward compliance statistics
 	   */
-	  private static createSummarySheet(
+	  private static async createSummarySheet(
 	    workbook: ExcelJS.Workbook,
 	    validationResult: ValidationResult,
 	    dbResult: DatabaseOperationsBatchResult,
@@ -133,8 +193,9 @@ export class ExcelReportService {
 	    registeredInWardCount?: number,
 	    registeredDifferentWardCount?: number,
 	    notRegisteredCount?: number,
-	    deceasedCount?: number
-	  ): void {
+	    deceasedCount?: number,
+	    wardComplianceData?: WardComplianceData[]
+	  ): Promise<void> {
     const sheet = workbook.addWorksheet('Summary');
 
     // Title
@@ -216,9 +277,80 @@ export class ExcelReportService {
 	      });
 	    }
 
+    // Ward Compliance Summary Section
+    if (wardComplianceData && wardComplianceData.length > 0) {
+      row += 2;
+      sheet.getCell(`A${row}`).value = 'WARD COMPLIANCE SUMMARY (200+ Registered Voters Target)';
+      sheet.getCell(`A${row}`).font = { bold: true, size: 12 };
+      sheet.mergeCells(`A${row}:E${row}`);
+      row++;
+
+      // Add note about registered voters only
+      sheet.getCell(`A${row}`).value = 'Note: Only members registered to vote are counted (excludes voter_registration_status_id = 2)';
+      sheet.getCell(`A${row}`).font = { italic: true, size: 10, color: { argb: 'FF666666' } };
+      sheet.mergeCells(`A${row}:E${row}`);
+      row += 2;
+
+      // Ward compliance table headers
+      const complianceHeaders = ['Ward Code', 'Existing Members', 'New Members', 'Total Registered', 'Compliance Status'];
+      complianceHeaders.forEach((header, idx) => {
+        const col = String.fromCharCode(65 + idx); // A, B, C, D, E
+        sheet.getCell(`${col}${row}`).value = header;
+        sheet.getCell(`${col}${row}`).font = { bold: true };
+        sheet.getCell(`${col}${row}`).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4472C4' }
+        };
+        sheet.getCell(`${col}${row}`).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      });
+      row++;
+
+      // Ward compliance data rows
+      wardComplianceData.forEach((ward) => {
+        sheet.getCell(`A${row}`).value = ward.ward_code;
+        sheet.getCell(`B${row}`).value = ward.existing_members;
+        sheet.getCell(`C${row}`).value = ward.new_members;
+        sheet.getCell(`D${row}`).value = ward.total_registered;
+
+        // Compliance status with color coding
+        const statusCell = sheet.getCell(`E${row}`);
+        if (ward.is_compliant) {
+          statusCell.value = '✅ Ward has achieved the 200+ member target and is ready for BPA/BGA';
+          statusCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFC6EFCE' } // Light green
+          };
+          statusCell.font = { color: { argb: 'FF006100' } }; // Dark green text
+        } else {
+          statusCell.value = `❌ Needs ${200 - ward.total_registered} more registered voters`;
+          statusCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFC7CE' } // Light red
+          };
+          statusCell.font = { color: { argb: 'FF9C0006' } }; // Dark red text
+        }
+        row++;
+      });
+
+      // Summary row
+      row++;
+      const compliantWards = wardComplianceData.filter(w => w.is_compliant).length;
+      const totalWards = wardComplianceData.length;
+      sheet.getCell(`A${row}`).value = 'Summary:';
+      sheet.getCell(`A${row}`).font = { bold: true };
+      sheet.getCell(`B${row}`).value = `${compliantWards} of ${totalWards} wards have achieved 200+ registered voters`;
+      sheet.mergeCells(`B${row}:E${row}`);
+    }
+
     // Column widths
     sheet.getColumn(1).width = 30;
     sheet.getColumn(2).width = 20;
+    sheet.getColumn(3).width = 15;
+    sheet.getColumn(4).width = 18;
+    sheet.getColumn(5).width = 55;
 
     // Styling - add borders to data rows
     sheet.eachRow((row, rowNumber) => {
@@ -233,6 +365,228 @@ export class ExcelReportService {
         });
       }
     });
+  }
+
+  /**
+   * Calculate ward compliance data for the summary sheet
+   * Counts existing members in database + new members from upload
+   * Only counts members who are registered to vote (excludes voter_registration_status_id = 2)
+   */
+  private static async calculateWardCompliance(
+    originalData: BulkUploadRecord[],
+    successfulOperations: any[],
+    iecResults: Map<string, IECVerificationResult>
+  ): Promise<WardComplianceData[]> {
+    console.log(`\n📊 WARD COMPLIANCE: Calculating ward compliance data...`);
+
+    // Get unique ward codes from the upload file
+    const wardCodes = new Set<string>();
+    originalData.forEach(record => {
+      // Ward field can be 'Ward', 'Ward Code', or 'ward_code' depending on the upload file format
+      const wardCode = record.Ward || record['Ward Code'] || record['ward_code'];
+      if (wardCode) {
+        wardCodes.add(String(wardCode).trim());
+      }
+    });
+
+    console.log(`   📋 Found ${wardCodes.size} unique wards in upload file`);
+
+    const complianceData: WardComplianceData[] = [];
+
+    for (const wardCode of wardCodes) {
+      try {
+        // Query existing members in database for this ward (excluding not registered voters)
+        // voter_registration_id = 2 means "Not Registered to Vote"
+        const existingCount = await prisma.members_consolidated.count({
+          where: {
+            ward_code: wardCode,
+            voter_registration_id: {
+              not: 2 // Exclude "Not Registered to Vote"
+            }
+          }
+        });
+
+        // Count new members from this upload for this ward (only registered voters)
+        // A member is registered if their IEC result shows is_registered = true
+        let newRegisteredCount = 0;
+        successfulOperations.forEach(op => {
+          // Ward field can be 'Ward', 'Ward Code', or 'ward_code' depending on the upload file format
+          const recordWardCode = op.record?.Ward || op.record?.['Ward Code'] || op.record?.['ward_code'];
+          if (String(recordWardCode).trim() === wardCode) {
+            const idNumber = op.record?.['ID Number'] || op.record?.['id_number'];
+            const iecResult = iecResults.get(idNumber);
+            // Only count if IEC says they're registered
+            if (iecResult?.is_registered) {
+              newRegisteredCount++;
+            }
+          }
+        });
+
+        const totalRegistered = existingCount + newRegisteredCount;
+        const isCompliant = totalRegistered >= 200;
+
+        complianceData.push({
+          ward_code: wardCode,
+          existing_members: existingCount,
+          new_members: newRegisteredCount,
+          total_registered: totalRegistered,
+          is_compliant: isCompliant
+        });
+
+        console.log(`   📊 Ward ${wardCode}: ${existingCount} existing + ${newRegisteredCount} new = ${totalRegistered} total (${isCompliant ? '✅ Compliant' : '❌ Not compliant'})`);
+      } catch (error: any) {
+        console.error(`   ❌ Error calculating compliance for ward ${wardCode}:`, error.message);
+      }
+    }
+
+    // Sort by ward code
+    complianceData.sort((a, b) => a.ward_code.localeCompare(b.ward_code));
+
+    const compliantCount = complianceData.filter(w => w.is_compliant).length;
+    console.log(`   ✅ Ward compliance calculation complete: ${compliantCount}/${complianceData.length} wards compliant`);
+
+    return complianceData;
+  }
+
+  /**
+   * Generate PDF attendance registers for wards with 200+ registered voters
+   * Only includes members who are registered to vote (excludes voter_registration_status_id = 2)
+   * Optionally sends the generated PDFs via email to the user
+   */
+  private static async generateAttendanceRegistersForCompliantWards(
+    compliantWards: WardComplianceData[],
+    outputDir: string,
+    userEmail?: string,
+    userName?: string
+  ): Promise<GeneratedAttendanceRegister[]> {
+    console.log(`\n📋 ATTENDANCE REGISTERS: Generating for ${compliantWards.length} compliant ward(s)...`);
+
+    const generatedRegisters: GeneratedAttendanceRegister[] = [];
+    const emailService = new EmailService();
+
+    for (const ward of compliantWards) {
+      try {
+        console.log(`   🔄 Generating attendance register for ward ${ward.ward_code}...`);
+
+        // Get ward information
+        const wardInfoQuery = `
+          SELECT DISTINCT
+            ward_code,
+            ward_name,
+            ward_number,
+            municipality_code,
+            municipality_name,
+            district_code,
+            district_name,
+            province_code,
+            province_name
+          FROM vw_member_details
+          WHERE ward_code = $1
+        `;
+        const wardInfo = await executeQuerySingle(wardInfoQuery, [ward.ward_code]);
+
+        if (!wardInfo) {
+          console.log(`   ⚠️ Ward info not found for ${ward.ward_code}, skipping...`);
+          continue;
+        }
+
+        // Get members for this ward using ViewsService
+        // include_all_members=true to get all members regardless of expiry date
+        const filters = {
+          ward_code: ward.ward_code,
+          include_all_members: true,
+          limit: '10000' // Get all members
+        };
+        const result = await ViewsService.getMembersWithVotingDistricts(filters);
+        const allMembers = result.members || [];
+
+        // Filter to only registered voters
+        // voter_registration_id: 1 = Registered, 2 = Not Registered
+        // Exclude members with voter_registration_id = 2 (Not Registered to Vote)
+        const registeredMembers = allMembers.filter((member: any) => {
+          // voter_registration_id = 2 means "Not Registered to Vote" - exclude these
+          const isRegisteredVoter = member.voter_registration_id !== 2;
+          return isRegisteredVoter;
+        });
+
+        console.log(`   📊 Ward ${ward.ward_code}: ${registeredMembers.length} registered voters (filtered from ${allMembers.length} total)`);
+
+        if (registeredMembers.length === 0) {
+          console.log(`   ⚠️ No registered voters found for ward ${ward.ward_code}, skipping...`);
+          continue;
+        }
+
+        // Generate the PDF document using HtmlPdfService
+        const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, registeredMembers);
+
+        // Save the file
+        const timestamp = new Date().toISOString().split('T')[0];
+        const municipalityName = (wardInfo.municipality_name || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_');
+        const wardNumber = wardInfo.ward_number || ward.ward_code;
+        const filename = `ATTENDANCE_REGISTER_WARD_${wardNumber}_${municipalityName}_${timestamp}.pdf`;
+        const filePath = path.join(outputDir, filename);
+
+        fs.writeFileSync(filePath, pdfBuffer);
+
+        generatedRegisters.push({
+          ward_code: ward.ward_code,
+          file_path: filePath,
+          member_count: registeredMembers.length
+        });
+
+        console.log(`   ✅ Generated: ${filename} (${registeredMembers.length} members)`);
+
+        // Send email with PDF attachment if user email is provided
+        if (userEmail) {
+          try {
+            const displayName = userName || userEmail;
+            const emailSubject = `Ward ${wardNumber} Attendance Register - ${wardInfo.municipality_name}`;
+            const emailHtml = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #00843D;">Ward Attendance Register</h2>
+                <p>Dear ${displayName},</p>
+                <p>Please find attached the attendance register for:</p>
+                <ul>
+                  <li><strong>Ward:</strong> ${wardNumber}</li>
+                  <li><strong>Municipality:</strong> ${wardInfo.municipality_name}</li>
+                  <li><strong>Province:</strong> ${wardInfo.province_name}</li>
+                  <li><strong>Registered Voters:</strong> ${registeredMembers.length}</li>
+                </ul>
+                <p>This document was automatically generated from the bulk upload process.</p>
+                <p>Best regards,<br>EFF Membership System</p>
+              </div>
+            `;
+            const emailText = `Ward Attendance Register\n\nDear ${displayName},\n\nPlease find attached the attendance register for Ward ${wardNumber} - ${wardInfo.municipality_name} (${registeredMembers.length} registered voters).\n\nBest regards,\nEFF Membership System`;
+
+            const emailSent = await emailService.sendEmail({
+              to: userEmail,
+              subject: emailSubject,
+              html: emailHtml,
+              text: emailText,
+              attachments: [
+                {
+                  filename: filename,
+                  content: pdfBuffer,
+                  contentType: 'application/pdf'
+                }
+              ]
+            });
+
+            if (emailSent) {
+              console.log(`   📧 Email sent to ${userEmail} with ${filename}`);
+            } else {
+              console.warn(`   ⚠️ Failed to send email to ${userEmail}`);
+            }
+          } catch (emailError: any) {
+            console.error(`   ❌ Error sending email for ward ${ward.ward_code}:`, emailError.message);
+          }
+        }
+      } catch (error: any) {
+        console.error(`   ❌ Error generating attendance register for ward ${ward.ward_code}:`, error.message);
+      }
+    }
+
+    return generatedRegisters;
   }
 
   /**
@@ -968,6 +1322,7 @@ export class ExcelReportService {
       'Ward Mismatch',
       'Assigned VD Code',
       'IEC VD Code (Actual)',
+      'IEC Municipality Name (Actual)',
       'Province Code',
       'Province Name',
       'Municipality Code',
@@ -998,6 +1353,9 @@ export class ExcelReportService {
       const iecWardCode = iecResult?.ward_code ? String(iecResult.ward_code).trim() : '';
       const fullName = `${record.Firstname || record['First Name'] || ''} ${record.Surname || record['Last Name'] || ''}`.trim();
 
+      // Debug: Log IEC result to see what fields are populated
+      console.log(`   📋 Different Ward - ID: ${record['ID Number']}, IEC Municipality: "${iecResult?.municipality || 'UNDEFINED'}"`);
+
       // Ward mismatch description
       const wardMismatch = `File: ${fileWardCode} ≠ IEC: ${iecWardCode}`;
 
@@ -1010,6 +1368,7 @@ export class ExcelReportService {
         wardMismatch,
         '22222222', // Special VD code for different ward
         iecResult?.voting_district_code || 'N/A', // Actual IEC VD code
+        iecResult?.municipality || 'N/A', // IEC Municipality Name (Actual)
         iecResult?.province_code || record['Province Code'] || 'N/A',
         record.Province || 'N/A',
         iecResult?.municipality_code || record['Municipality Code'] || 'N/A',
@@ -1036,8 +1395,10 @@ export class ExcelReportService {
     sheet.columns.forEach((column, idx) => {
       if (idx === 2) {
         column.width = 25; // Wider for Full Name
-      } else if (idx === 5 || idx === 18) {
+      } else if (idx === 5 || idx === 19) {
         column.width = 30; // Wider for Ward Mismatch and Note
+      } else if (idx === 8) {
+        column.width = 30; // Wider for IEC Municipality Name (Actual)
       } else {
         column.width = 18;
       }

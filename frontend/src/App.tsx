@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -25,6 +24,7 @@ import { setupGlobalErrorHandlers } from './hooks/useErrorHandler';
 import { setupErrorInterceptor } from './utils/errorInterceptor';
 import { setupEnhancedInterceptors } from './services/apiInterceptors';
 import { healthMonitorService } from './services/healthMonitorService';
+import { devLog } from './utils/logger';
 // import WebSocketProvider from './components/providers/WebSocketProvider'; // Removed WebSocket
 
 // Setup maintenance interceptor
@@ -60,7 +60,7 @@ const AppContent: React.FC = () => {
 
   // Initialize health monitoring
   useEffect(() => {
-    console.log('🏥 Initializing health monitoring service');
+    devLog('🏥 Initializing health monitoring service');
 
     // Subscribe to health status changes
     const unsubscribe = healthMonitorService.subscribe((status) => {

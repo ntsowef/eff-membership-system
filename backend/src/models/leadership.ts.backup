@@ -1,0 +1,1254 @@
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { createDatabaseError } from '../middleware/errorHandler';
+
+// Leadership interfaces
+export interface LeadershipStructure {
+  id: number;
+  structure_name: string;
+  structure_code: string;
+  hierarchy_level: 'National' | 'Province' | 'Municipality' | 'Ward';
+  total_positions: number;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadershipPosition {
+  id: number;
+  position_name: string;
+  position_code: string;
+  hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
+  description?: string;
+  responsibilities?: string;
+  requirements?: string;
+  term_duration_months: number;
+  max_consecutive_terms: number;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // New War Council Structure fields
+  structure_id?: number;
+  province_specific?: boolean;
+  province_code?: string;
+  is_unique_position?: boolean;
+  // Status fields
+  current_appointments?: number;
+  position_status?: 'Vacant' | 'Filled';
+  current_holders?: string;
+}
+
+export interface LeadershipAppointment {
+  id: number;
+  position_id: number;
+  member_id: number;
+  hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
+  entity_id: number;
+  appointment_type: 'Elected' | 'Appointed' | 'Acting' | 'Interim';
+  start_date: string;
+  end_date?: string;
+  appointment_status: 'Active' | 'Inactive' | 'Completed' | 'Terminated';
+  appointed_by: number;
+  appointment_notes?: string;
+  termination_reason?: string;
+  terminated_by?: number;
+  terminated_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadershipElection {
+  id: number;
+  election_name: string;
+  position_id: number;
+  hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
+  entity_id: number;
+  election_date: string;
+  nomination_start_date: string;
+  nomination_end_date: string;
+  voting_start_datetime: string;
+  voting_end_datetime: string;
+  election_status: 'Planned' | 'Nominations Open' | 'Nominations Closed' | 'Voting Open' | 'Voting Closed' | 'Completed' | 'Cancelled';
+  total_eligible_voters: number;
+  total_votes_cast: number;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ElectionCandidate {
+  id: number;
+  election_id: number;
+  member_id: number;
+  nomination_date: string;
+  nomination_statement?: string;
+  candidate_status: 'Nominated' | 'Approved' | 'Rejected' | 'Withdrawn';
+  votes_received: number;
+  is_winner: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ElectionVote {
+  id: number;
+  election_id: number;
+  candidate_id: number;
+  voter_member_id: number;
+  vote_datetime: string;
+  created_at: string;
+}
+
+export interface LeadershipAppointmentDetails extends LeadershipAppointment {
+  position_name: string;
+  position_code: string;
+  member_name: string;
+  member_number: string;
+  appointed_by_name: string;
+  terminated_by_name?: string;
+  entity_name?: string;
+}
+
+export interface ElectionDetails extends LeadershipElection {
+  position_name: string;
+  position_code: string;
+  created_by_name: string;
+  candidates_count: number;
+  winner_name?: string;
+  entity_name?: string;
+}
+
+export interface CreateAppointmentData {
+  position_id: number;
+  member_id: number;
+  hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
+  entity_id: number;
+  appointment_type: 'Elected' | 'Appointed' | 'Acting' | 'Interim';
+  start_date: string;
+  end_date?: string;
+  appointed_by: number;
+  appointment_notes?: string;
+}
+
+export interface BulkAppointmentData {
+  appointments: CreateAppointmentData[];
+  batch_notes?: string;
+  appointed_by: number;
+}
+
+// War Council Structure specific interfaces
+export interface WarCouncilPosition extends LeadershipPosition {
+  structure_id: number;
+  province_specific: boolean;
+  province_code?: string;
+  province_name?: string;
+  is_unique_position: boolean;
+}
+
+export interface WarCouncilAppointment extends LeadershipAppointment {
+  position_name: string;
+  position_code: string;
+  province_code?: string;
+  province_name?: string;
+  is_province_specific: boolean;
+}
+
+export interface WarCouncilStructureView {
+  position_id: number;
+  position_name: string;
+  position_code: string;
+  description?: string;
+  responsibilities?: string;
+  requirements?: string;
+  order_index: number;
+  province_specific: boolean;
+  province_code?: string;
+  province_name?: string;
+  appointment_id?: number;
+  member_id?: number;
+  member_name?: string;
+  membership_number?: string;
+  appointment_type?: string;
+  start_date?: string;
+  end_date?: string;
+  appointment_status?: string;
+  position_status: 'Vacant' | 'Filled';
+}
+
+export interface BulkAppointmentResult {
+  total_processed: number;
+  successful_appointments: number;
+  failed_appointments: number;
+  errors: Array<{
+    index: number;
+    member_id: number;
+    position_id: number;
+    error: string;
+  }>;
+  appointment_ids: number[];
+}
+
+export interface AppointmentTemplate {
+  id: number;
+  template_name: string;
+  hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
+  position_mappings: Array<{
+    position_code: string;
+    position_name: string;
+    is_required: boolean;
+    appointment_type: 'Elected' | 'Appointed' | 'Acting' | 'Interim';
+    term_duration_months: number;
+  }>;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateElectionData {
+  election_name: string;
+  position_id: number;
+  hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
+  entity_id: number;
+  election_date: string;
+  nomination_start_date: string;
+  nomination_end_date: string;
+  voting_start_datetime: string;
+  voting_end_datetime: string;
+  created_by: number;
+}
+
+export interface UpdateAppointmentData {
+  appointment_status?: 'Active' | 'Inactive' | 'Completed' | 'Terminated';
+  end_date?: string;
+  appointment_notes?: string;
+  termination_reason?: string;
+  terminated_by?: number;
+}
+
+export interface LeadershipFilters {
+  hierarchy_level?: string;
+  entity_id?: number;
+  position_id?: number;
+  member_id?: number;
+  appointment_status?: string;
+  appointment_type?: string;
+  is_active?: boolean;
+  start_date_from?: string;
+  start_date_to?: string;
+}
+
+export interface ElectionFilters {
+  hierarchy_level?: string;
+  entity_id?: number;
+  position_id?: number;
+  election_status?: string;
+  election_date_from?: string;
+  election_date_to?: string;
+  created_by?: number;
+}
+
+// Leadership Model
+export class LeadershipModel {
+  // Get all leadership structures
+  static async getLeadershipStructures(): Promise<LeadershipStructure[]> {
+    try {
+      const query = `
+        SELECT * FROM leadership_structures
+        WHERE is_active = TRUE
+        ORDER BY
+          CASE hierarchy_level
+            WHEN 'National' THEN 1
+            WHEN 'Province' THEN 2
+            WHEN 'Municipality' THEN 3
+            WHEN 'Ward' THEN 4
+          END
+      `;
+      return await executeQuery(query, []);
+    } catch (error) {
+      throw createDatabaseError('Failed to get leadership structures', error);
+    }
+  }
+
+  // Get leadership structure by code
+  static async getLeadershipStructureByCode(code: string): Promise<LeadershipStructure | null> {
+    try {
+      const query = 'SELECT * FROM leadership_structures WHERE structure_code = ? AND is_active = TRUE';
+      return await executeQuerySingle<LeadershipStructure>(query, [code]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get leadership structure', error);
+    }
+  }
+
+  // Get leadership structure analytics
+  static async getLeadershipStructureAnalytics(): Promise<any[]> {
+    try {
+      const query = `
+        SELECT
+          ls.structure_name,
+          ls.structure_code,
+          ls.hierarchy_level,
+          ls.total_positions,
+          COUNT(lp.id) as defined_positions,
+          COUNT(la.id) as filled_positions,
+          (ls.total_positions - COUNT(la.id)) as vacant_positions,
+          ROUND((COUNT(la.id) * 100.0 / ls.total_positions), 2) as fill_rate_percentage
+        FROM leadership_structures ls
+        LEFT JOIN leadership_positions lp ON ls.hierarchy_level = lp.hierarchy_level AND lp.is_active = TRUE
+        LEFT JOIN leadership_appointments la ON lp.id = la.position_id AND la.appointment_status = 'Active'
+        WHERE ls.is_active = TRUE
+        GROUP BY ls.id, ls.structure_name, ls.structure_code, ls.hierarchy_level, ls.total_positions
+        ORDER BY
+          CASE ls.hierarchy_level
+            WHEN 'National' THEN 1
+            WHEN 'Province' THEN 2
+            WHEN 'Municipality' THEN 3
+            WHEN 'Ward' THEN 4
+          END
+      `;
+      return await executeQuery(query, []);
+    } catch (error) {
+      throw createDatabaseError('Failed to get leadership structure analytics', error);
+    }
+  }
+
+  // Get all leadership positions with status information
+  static async getPositions(hierarchyLevel?: string, entityId?: number): Promise<LeadershipPosition[]> {
+    try {
+      let query = `
+        SELECT
+          lp.*,
+          COUNT(la.id) as current_appointments,
+          CASE
+            WHEN COUNT(la.id) > 0 THEN 'Filled'
+            ELSE 'Vacant'
+          END as position_status,
+          STRING_AGG(
+            TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')),
+            ', '
+          ) as current_holders
+        FROM leadership_positions lp
+        LEFT JOIN leadership_appointments la ON lp.id = la.position_id
+          AND la.appointment_status = 'Active'
+        LEFT JOIN vw_member_details m ON la.member_id = m.member_id
+        WHERE lp.is_active = TRUE
+      `;
+      const params: any[] = [];
+
+      if (hierarchyLevel) {
+        query += ' AND lp.hierarchy_level = ?';
+        params.push(hierarchyLevel);
+      }
+
+      // Filter positions by entity_id if specified
+      if (entityId) {
+        query += ' AND lp.entity_id = ?';
+        params.push(entityId);
+      }
+
+      query += ' GROUP BY lp.id ORDER BY lp.hierarchy_level, lp.position_order';
+
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to get leadership positions', error);
+    }
+  }
+
+  // Get position by ID
+  static async getPositionById(id: number): Promise<LeadershipPosition | null> {
+    try {
+      const query = 'SELECT * FROM leadership_positions WHERE id = ? AND is_active = TRUE';
+      return await executeQuerySingle<LeadershipPosition>(query, [id]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get leadership position', error);
+    }
+  }
+
+  // Get current appointments with details
+  static async getCurrentAppointments(
+    limit: number = 20,
+    offset: number = 0,
+    filters: LeadershipFilters = {}
+  ): Promise<LeadershipAppointmentDetails[]> {
+    try {
+      let whereClause = "WHERE la.appointment_status = 'Active'";
+      const params: any[] = [];
+
+      if (filters.hierarchy_level) {
+        whereClause += ' AND la.hierarchy_level = ?';
+        params.push(filters.hierarchy_level);
+      }
+
+      if (filters.entity_id) {
+        whereClause += ' AND la.entity_id = ?';
+        params.push(filters.entity_id);
+      }
+
+      if (filters.position_id) {
+        whereClause += ' AND la.position_id = ?';
+        params.push(filters.position_id);
+      }
+
+      if (filters.member_id) {
+        whereClause += ' AND la.member_id = ?';
+        params.push(filters.member_id);
+      }
+
+      if (filters.appointment_type) {
+        whereClause += ' AND la.appointment_type = ?';
+        params.push(filters.appointment_type);
+      }
+
+      const query = `
+        SELECT
+          la.*,
+          lp.position_name,
+          lp.position_code,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          CASE
+            WHEN la.hierarchy_level = 'National' THEN 'National Level'
+            WHEN la.hierarchy_level = 'Province' THEN p.province_name
+            WHEN la.hierarchy_level = 'District' THEN d.district_name
+            WHEN la.hierarchy_level = 'Municipality' THEN mun.municipality_name
+            WHEN la.hierarchy_level = 'Ward' THEN CONCAT('Ward ', w.ward_number)
+            ELSE 'Unknown'
+          END as entity_name,
+          -- Formatted location label per level
+          CASE
+            WHEN la.hierarchy_level = 'Province' THEN p.province_name
+            WHEN la.hierarchy_level = 'Municipality' THEN CONCAT(p_from_mun.province_name, ' - ', mun.municipality_name)
+            WHEN la.hierarchy_level = 'Ward' THEN CONCAT(p_from_ward.province_name, ' - ', mun_from_ward.municipality_name, ' - Ward ', w.ward_number)
+            ELSE 'National Level'
+          END as entity_location,
+          -- Optional granular fields for UI
+          p.province_name AS province_name_province,
+          p_from_mun.province_name AS province_name_municipality,
+          p_from_ward.province_name AS province_name_ward,
+          mun.municipality_name AS municipality_name_municipality,
+          mun_from_ward.municipality_name AS municipality_name_ward,
+          w.ward_number AS ward_number
+        FROM leadership_appointments la
+        LEFT JOIN leadership_positions lp ON la.position_id = lp.id
+        LEFT JOIN members m ON la.member_id = m.member_id
+        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
+        LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
+        LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
+        -- Additional joins to build formatted location for Municipality and Ward
+        -- For municipalities: join through districts to get province
+        LEFT JOIN districts d_from_mun ON mun.district_code = d_from_mun.district_code
+        LEFT JOIN provinces p_from_mun ON d_from_mun.province_code = p_from_mun.province_code
+        -- For wards: join through municipalities and districts to get province
+        LEFT JOIN municipalities mun_from_ward ON w.municipality_code = mun_from_ward.municipality_code
+        LEFT JOIN districts d_from_ward ON mun_from_ward.district_code = d_from_ward.district_code
+        LEFT JOIN provinces p_from_ward ON d_from_ward.province_code = p_from_ward.province_code
+        ${whereClause}
+        ORDER BY la.hierarchy_level, lp.position_order, la.start_date DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      params.push(limit, offset);
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to get current appointments', error);
+    }
+  }
+
+  // Get appointment history
+  static async getAppointmentHistory(
+    limit: number = 20,
+    offset: number = 0,
+    filters: LeadershipFilters = {}
+  ): Promise<LeadershipAppointmentDetails[]> {
+    try {
+      let whereClause = 'WHERE 1=1';
+      const params: any[] = [];
+
+      if (filters.hierarchy_level) {
+        whereClause += ' AND la.hierarchy_level = ?';
+        params.push(filters.hierarchy_level);
+      }
+
+      if (filters.entity_id) {
+        whereClause += ' AND la.entity_id = ?';
+        params.push(filters.entity_id);
+      }
+
+      if (filters.position_id) {
+        whereClause += ' AND la.position_id = ?';
+        params.push(filters.position_id);
+      }
+
+      if (filters.member_id) {
+        whereClause += ' AND la.member_id = ?';
+        params.push(filters.member_id);
+      }
+
+      if (filters.appointment_status) {
+        whereClause += ' AND la.appointment_status = ?';
+        params.push(filters.appointment_status);
+      }
+
+      if (filters.appointment_type) {
+        whereClause += ' AND la.appointment_type = ?';
+        params.push(filters.appointment_type);
+      }
+
+      if (filters.start_date_from) {
+        whereClause += ' AND la.start_date >= ?';
+        params.push(filters.start_date_from);
+      }
+
+      if (filters.start_date_to) {
+        whereClause += ' AND la.start_date <= ?';
+        params.push(filters.start_date_to);
+      }
+
+      const query = `
+        SELECT 
+          la.*,
+          lp.position_name,
+          lp.position_code,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name,
+          CASE
+            WHEN la.hierarchy_level = 'National' THEN 'National Level'
+            WHEN la.hierarchy_level = 'Province' THEN p.province_name
+            WHEN la.hierarchy_level = 'District' THEN d.district_name
+            WHEN la.hierarchy_level = 'Municipality' THEN mun.municipality_name
+            WHEN la.hierarchy_level = 'Ward' THEN CONCAT('Ward ', w.ward_number)
+            ELSE 'Unknown'
+          END as entity_name
+        FROM leadership_appointments la
+        LEFT JOIN leadership_positions lp ON la.position_id = lp.id
+        LEFT JOIN members m ON la.member_id = m.member_id
+        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
+        LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
+        LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
+        LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
+        ${whereClause}
+        ORDER BY la.start_date DESC, la.created_at DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      params.push(limit, offset);
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to get appointment history', error);
+    }
+  }
+
+  // Create new appointment
+  static async createAppointment(appointmentData: CreateAppointmentData): Promise<number> {
+    try {
+      const query = `
+        INSERT INTO leadership_appointments (
+          position_id, member_id, hierarchy_level, entity_id, appointment_type,
+          start_date, end_date, appointed_by, appointment_notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id
+      `;
+
+      const params = [
+        appointmentData.position_id,
+        appointmentData.member_id,
+        appointmentData.hierarchy_level,
+        appointmentData.entity_id,
+        appointmentData.appointment_type,
+        appointmentData.start_date,
+        appointmentData.end_date || null,
+        appointmentData.appointed_by,
+        appointmentData.appointment_notes || null
+      ];
+
+      const result = await executeQuery(query, params);
+      return result[0]?.id || result[0]?.insertId || 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to create appointment', error);
+    }
+  }
+
+  // Update appointment
+  static async updateAppointment(id: number, updateData: UpdateAppointmentData): Promise<boolean> {
+    try {
+      const fields: string[] = [];
+      const params: any[] = [];
+
+      if (updateData.appointment_status !== undefined) {
+        fields.push('appointment_status = ?');
+        params.push(updateData.appointment_status);
+
+        if (updateData.appointment_status === 'Terminated') {
+          fields.push('terminated_at = CURRENT_TIMESTAMP');
+        }
+      }
+
+      if (updateData.end_date !== undefined) {
+        fields.push('end_date = ?');
+        params.push(updateData.end_date);
+      }
+
+      if (updateData.appointment_notes !== undefined) {
+        fields.push('appointment_notes = ?');
+        params.push(updateData.appointment_notes);
+      }
+
+      if (updateData.termination_reason !== undefined) {
+        fields.push('termination_reason = ?');
+        params.push(updateData.termination_reason);
+      }
+
+      if (updateData.terminated_by !== undefined) {
+        fields.push('terminated_by = ?');
+        params.push(updateData.terminated_by);
+      }
+
+      if (fields.length === 0) {
+        return false;
+      }
+
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(id);
+
+      const query = `UPDATE leadership_appointments SET ${fields.join(', ')} WHERE id = ?`;
+      const result = await executeQuery(query, params);
+
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to update appointment', error);
+    }
+  }
+
+  // Delete appointment (hard delete - use with caution)
+  static async deleteAppointment(id: number): Promise<boolean> {
+    try {
+      const query = `DELETE FROM leadership_appointments WHERE id = ?`;
+      const result = await executeQuery(query, [id]);
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to delete appointment', error);
+    }
+  }
+
+  // Get appointment by ID
+  static async getAppointmentById(id: number): Promise<LeadershipAppointmentDetails | null> {
+    try {
+      const query = `
+        SELECT 
+          la.*,
+          lp.position_name,
+          lp.position_code,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name
+        FROM leadership_appointments la
+        LEFT JOIN leadership_positions lp ON la.position_id = lp.id
+        LEFT JOIN members m ON la.member_id = m.member_id
+        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
+        LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
+        WHERE la.id = ?
+      `;
+
+      return await executeQuerySingle<LeadershipAppointmentDetails>(query, [id]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get appointment', error);
+    }
+  }
+
+  // Get appointments count
+  static async getAppointmentsCount(filters: LeadershipFilters = {}): Promise<number> {
+    try {
+      let whereClause = 'WHERE 1=1';
+      const params: any[] = [];
+
+      if (filters.hierarchy_level) {
+        whereClause += ' AND hierarchy_level = ?';
+        params.push(filters.hierarchy_level);
+      }
+
+      if (filters.entity_id) {
+        whereClause += ' AND entity_id = ?';
+        params.push(filters.entity_id);
+      }
+
+      if (filters.position_id) {
+        whereClause += ' AND position_id = ?';
+        params.push(filters.position_id);
+      }
+
+      if (filters.member_id) {
+        whereClause += ' AND member_id = ?';
+        params.push(filters.member_id);
+      }
+
+      if (filters.appointment_status) {
+        whereClause += ' AND appointment_status = ?';
+        params.push(filters.appointment_status);
+      }
+
+      const query = `SELECT COUNT(*) as count FROM leadership_appointments ${whereClause}`;
+      const result = await executeQuerySingle<{ count: number }>(query, params);
+
+      return result?.count || 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to get appointments count', error);
+    }
+  }
+
+  // Get member's leadership history
+  static async getMemberLeadershipHistory(memberId: number): Promise<LeadershipAppointmentDetails[]> {
+    try {
+      const query = `
+        SELECT
+          la.*,
+          lp.position_name,
+          lp.position_code,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
+          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name,
+          CASE
+            WHEN la.hierarchy_level = 'National' THEN 'National Level'
+            WHEN la.hierarchy_level = 'Province' THEN p.province_name
+            WHEN la.hierarchy_level = 'Municipality' THEN mun.municipality_name
+            WHEN la.hierarchy_level = 'Ward' THEN CONCAT('Ward ', w.ward_number)
+            ELSE 'Unknown'
+          END as entity_name
+        FROM leadership_appointments la
+        LEFT JOIN leadership_positions lp ON la.position_id = lp.id
+        LEFT JOIN members m ON la.member_id = m.member_id
+        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
+        LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
+        LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
+        WHERE la.member_id = ?
+        ORDER BY la.start_date DESC
+      `;
+
+      return await executeQuery(query, [memberId]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get member leadership history', error);
+    }
+  }
+
+  // Check if position is vacant
+  static async isPositionVacant(positionId: number, hierarchyLevel: string, entityId: number): Promise<boolean> {
+    try {
+      const query = `
+        SELECT COUNT(*) as count
+        FROM leadership_appointments
+        WHERE position_id = ?
+        AND hierarchy_level = ?
+        AND entity_id = ?
+        AND appointment_status = 'Active'
+      `;
+
+      const result = await executeQuerySingle<{ count: number }>(query, [positionId, hierarchyLevel, entityId]);
+      return Number(result?.count || 0) === 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to check position vacancy', error);
+    }
+  }
+
+  // Get leadership structure for an entity
+  static async getLeadershipStructure(hierarchyLevel: string, entityId: number): Promise<any[]> {
+    try {
+      const query = `
+        SELECT
+          lp.id as position_id,
+          lp.position_name,
+          lp.position_code,
+          lp.position_order,
+          la.id as appointment_id,
+          la.member_id,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
+          la.appointment_type,
+          la.start_date,
+          la.end_date,
+          la.appointment_status
+        FROM leadership_positions lp
+        LEFT JOIN leadership_appointments la ON lp.id = la.position_id
+          AND la.hierarchy_level = ?
+          AND la.entity_id = ?
+          AND la.appointment_status = 'Active'
+        LEFT JOIN members m ON la.member_id = m.member_id
+        WHERE lp.hierarchy_level = ? AND lp.is_active = TRUE
+        ORDER BY lp.position_order
+      `;
+
+      return await executeQuery(query, [hierarchyLevel, entityId, hierarchyLevel]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get leadership structure', error);
+    }
+  }
+
+  // ==================== ELECTION MANAGEMENT METHODS ====================
+
+  // Create new election
+  static async createElection(electionData: CreateElectionData): Promise<number> {
+    try {
+      const query = `
+        INSERT INTO leadership_elections (
+          election_name, position_id, hierarchy_level, entity_id, election_date,
+          nomination_start_date, nomination_end_date, voting_start_datetime, voting_end_datetime,
+          election_status, total_eligible_voters, total_votes_cast, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', 0, 0, ?)
+      `;
+
+      const params = [
+        electionData.election_name,
+        electionData.position_id,
+        electionData.hierarchy_level,
+        electionData.entity_id,
+        electionData.election_date,
+        electionData.nomination_start_date,
+        electionData.nomination_end_date,
+        electionData.voting_start_datetime,
+        electionData.voting_end_datetime,
+        electionData.created_by
+      ];
+
+      const result = await executeQuery(query, params);
+      return result.insertId;
+    } catch (error) {
+      throw createDatabaseError('Failed to create election', error);
+    }
+  }
+
+  // Get all elections with filters
+  static async getElections(filters: ElectionFilters = {}): Promise<ElectionDetails[]> {
+    try {
+      let query = `
+        SELECT
+          le.*,
+          lp.position_name,
+          lp.position_code,
+          CONCAT(creator.firstname, ' ', creator.surname) as created_by_name,
+          COUNT(ec.id) as candidates_count,
+          CONCAT(winner.firstname, ' ', winner.surname) as winner_name,
+          CASE
+            WHEN le.hierarchy_level = 'National' THEN 'National Level'
+            WHEN le.hierarchy_level = 'Province' THEN p.province_name
+            WHEN le.hierarchy_level = 'Municipality' THEN mun.municipality_name
+            WHEN le.hierarchy_level = 'Ward' THEN CONCAT('Ward ', w.ward_number)
+            ELSE 'Unknown'
+          END as entity_name
+        FROM leadership_elections le
+        LEFT JOIN leadership_election_candidates lec ON le.election_id = lec.election_id
+        LEFT JOIN leadership_positions lp ON lec.position_id = lp.id
+        LEFT JOIN members creator ON le.created_by = creator.member_id
+        LEFT JOIN election_candidates ec ON le.id = ec.election_id
+        LEFT JOIN election_candidates winner_ec ON le.id = winner_ec.election_id AND winner_ec.is_winner = TRUE
+        LEFT JOIN members winner ON winner_ec.member_id = winner.member_id
+        LEFT JOIN provinces p ON le.entity_id = p.province_id AND le.hierarchy_level = 'Province'
+        LEFT JOIN municipalities mun ON le.entity_id = mun.municipality_id AND le.hierarchy_level = 'Municipality'
+        LEFT JOIN wards w ON le.entity_id = w.ward_id AND le.hierarchy_level = 'Ward'
+      `;
+
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (filters.hierarchy_level) {
+        conditions.push('le.hierarchy_level = ?');
+        params.push(filters.hierarchy_level);
+      }
+
+      if (filters.entity_id) {
+        conditions.push('le.entity_id = ?');
+        params.push(filters.entity_id);
+      }
+
+      if (filters.position_id) {
+        conditions.push('le.position_id = ?');
+        params.push(filters.position_id);
+      }
+
+      if (filters.election_status) {
+        conditions.push('le.election_status = ?');
+        params.push(filters.election_status);
+      }
+
+      if (filters.election_date_from) {
+        conditions.push('le.election_date >= ?');
+        params.push(filters.election_date_from);
+      }
+
+      if (filters.election_date_to) {
+        conditions.push('le.election_date <= ?');
+        params.push(filters.election_date_to);
+      }
+
+      if (filters.created_by) {
+        conditions.push('le.created_by = ?');
+        params.push(filters.created_by);
+      }
+
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+
+      query += ' GROUP BY le.id ORDER BY le.election_date DESC';
+
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to get elections', error);
+    }
+  }
+
+  // Get election by ID
+  static async getElectionById(electionId: number): Promise<ElectionDetails | null> {
+    try {
+      const elections = await this.getElections({});
+      return elections.find(e => e.id === electionId) || null;
+    } catch (error) {
+      throw createDatabaseError('Failed to get election by ID', error);
+    }
+  }
+
+  // Update election status
+  static async updateElectionStatus(electionId: number, status: string): Promise<boolean> {
+    try {
+      const query = `
+        UPDATE leadership_elections
+        SET election_status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `;
+
+      const result = await executeQuery(query, [status, electionId]);
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to update election status', error);
+    }
+  }
+
+  // Add candidate to election
+  static async addCandidate(electionId: number, memberId: number, nominationStatement?: string): Promise<number> {
+    try {
+      const query = `
+        INSERT INTO election_candidates (
+          election_id, member_id, nomination_date, nomination_statement,
+          candidate_status, votes_received, is_winner
+        ) VALUES (?, ?, CURRENT_DATE, ?, 'Nominated', 0, FALSE)
+      `;
+
+      const result = await executeQuery(query, [electionId, memberId, nominationStatement || null]);
+      return result.insertId;
+    } catch (error) {
+      throw createDatabaseError('Failed to add candidate', error);
+    }
+  }
+
+  // Get election candidates
+  static async getElectionCandidates(electionId: number): Promise<any[]> {
+    try {
+      const query = `
+        SELECT
+          ec.*,
+          m.firstname || ' ' || m.surname as candidate_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
+          m.email,
+          m.cell_number as phone_number
+        FROM election_candidates ec
+        LEFT JOIN members m ON ec.member_id = m.member_id
+        WHERE ec.election_id = ?
+        ORDER BY ec.nomination_date ASC
+      `;
+
+      return await executeQuery(query, [electionId]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get election candidates', error);
+    }
+  }
+
+  // Cast vote
+  static async castVote(electionId: number, candidateId: number, voterMemberId: number): Promise<number> {
+    try {
+      // Check if voter has already voted
+      const existingVote = await executeQuerySingle(
+        'SELECT id FROM election_votes WHERE election_id = ? AND voter_member_id = ?',
+        [electionId, voterMemberId]
+      );
+
+      if (existingVote) {
+        throw new Error('Voter has already cast a vote in this election');
+      }
+
+      // Cast the vote
+      const voteQuery = `
+        INSERT INTO election_votes (election_id, candidate_id, voter_member_id, vote_datetime)
+        VALUES (?, ?, ?, NOW())
+      `;
+
+      const voteResult = await executeQuery(voteQuery, [electionId, candidateId, voterMemberId]);
+
+      // Update candidate vote count
+      await executeQuery(
+        'UPDATE election_candidates SET votes_received = votes_received + 1 WHERE id = ?',
+        [candidateId]
+      );
+
+      // Update total votes cast in election
+      await executeQuery(
+        'UPDATE leadership_elections SET total_votes_cast = total_votes_cast + 1 WHERE id = ?',
+        [electionId]
+      );
+
+      return voteResult.insertId;
+    } catch (error) {
+      throw createDatabaseError('Failed to cast vote', error);
+    }
+  }
+
+  // Get election results
+  static async getElectionResults(electionId: number): Promise<any[]> {
+    try {
+      const query = `
+        SELECT
+          ec.*,
+          m.firstname || ' ' || m.surname as candidate_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
+          ROUND((ec.votes_received * 100.0 / NULLIF(le.total_votes_cast, 0)), 2) as vote_percentage
+        FROM election_candidates ec
+        LEFT JOIN members m ON ec.member_id = m.member_id
+        LEFT JOIN leadership_elections le ON ec.election_id = le.id
+        WHERE ec.election_id = ?
+        ORDER BY ec.votes_received DESC, ec.nomination_date ASC
+      `;
+
+      return await executeQuery(query, [electionId]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get election results', error);
+    }
+  }
+
+  // Finalize election and declare winner
+  static async finalizeElection(electionId: number): Promise<boolean> {
+    try {
+      // Get the candidate with the most votes
+      const results = await this.getElectionResults(electionId);
+
+      if (results.length === 0) {
+        throw new Error('No candidates found for this election');
+      }
+
+      const winner = results[0];
+
+      // Mark the winner
+      await executeQuery(
+        'UPDATE election_candidates SET is_winner = TRUE WHERE id = ?',
+        [winner.id]
+      );
+
+      // Update election status to completed
+      await this.updateElectionStatus(electionId, 'Completed');
+
+      // Create leadership appointment for the winner
+      const election = await this.getElectionById(electionId);
+      if (election) {
+        const appointmentData: CreateAppointmentData = {
+          position_id: election.position_id,
+          member_id: winner.member_id,
+          hierarchy_level: election.hierarchy_level,
+          entity_id: election.entity_id,
+          appointment_type: 'Elected',
+          start_date: new Date().toISOString().split('T')[0],
+          appointed_by: election.created_by,
+          appointment_notes: `Elected through election: ${election.election_name}`
+        };
+
+        await this.createAppointment(appointmentData);
+      }
+
+      return true;
+    } catch (error) {
+      throw createDatabaseError('Failed to finalize election', error);
+    }
+  }
+
+  // Get eligible voters for an election
+  static async getEligibleVoters(hierarchyLevel: string, entityId: number): Promise<any[]> {
+    try {
+      let query = `
+        SELECT
+          m.member_id,
+          m.firstname || ' ' || m.surname as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
+          m.email,
+          m.cell_number as phone_number
+        FROM members m
+        WHERE m.member_id IS NOT NULL
+      `;
+
+      const params: any[] = [];
+
+      // Add hierarchy-specific filters
+      if (hierarchyLevel !== 'National') {
+        if (hierarchyLevel === 'Province') {
+          query += ' AND EXISTS (SELECT 1 FROM provinces p WHERE p.province_id = ? AND p.province_code = SUBSTRING(m.ward_code, 1, 3))';
+          params.push(entityId);
+        } else if (hierarchyLevel === 'Municipality') {
+          query += ' AND EXISTS (SELECT 1 FROM municipalities mun WHERE mun.municipality_id = ? AND mun.municipality_code = SUBSTRING(m.ward_code, 1, 6))';
+          params.push(entityId);
+        } else if (hierarchyLevel === 'Ward') {
+          query += ' AND EXISTS (SELECT 1 FROM wards w WHERE w.ward_id = ? AND w.ward_code = m.ward_code)';
+          params.push(entityId);
+        }
+      }
+
+      query += ' ORDER BY m.firstname, m.surname';
+
+      return await executeQuery(query, params);
+    } catch (error) {
+      throw createDatabaseError('Failed to get eligible voters', error);
+    }
+  }
+
+  // ==================== WAR COUNCIL STRUCTURE METHODS ====================
+
+  // Get War Council Structure positions
+  static async getWarCouncilPositions(): Promise<WarCouncilPosition[]> {
+    try {
+      const query = `
+        SELECT
+          lp.*,
+          ls.structure_name,
+          CASE
+            WHEN lp.province_code = 'EC' THEN 'Eastern Cape'
+            WHEN lp.province_code = 'FS' THEN 'Free State'
+            WHEN lp.province_code = 'GP' THEN 'Gauteng'
+            WHEN lp.province_code = 'KZN' THEN 'KwaZulu-Natal'
+            WHEN lp.province_code = 'LP' THEN 'Limpopo'
+            WHEN lp.province_code = 'MP' THEN 'Mpumalanga'
+            WHEN lp.province_code = 'NC' THEN 'Northern Cape'
+            WHEN lp.province_code = 'NW' THEN 'North West'
+            WHEN lp.province_code = 'WC' THEN 'Western Cape'
+            ELSE NULL
+          END as province_name
+        FROM leadership_positions lp
+        WHERE lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+          AND lp.is_active = TRUE
+        ORDER BY lp.position_order
+      `;
+      return await executeQuery(query, []);
+    } catch (error) {
+      throw createDatabaseError('Failed to get War Council positions', error);
+    }
+  }
+
+  // Get complete War Council Structure with appointments
+  static async getWarCouncilStructure(): Promise<WarCouncilStructureView[]> {
+    try {
+      // Use the view we created which handles all the complex joins and province mapping
+      const query = `
+        SELECT * FROM vw_war_council_structure
+        ORDER BY order_index
+      `;
+      return await executeQuery(query, []);
+    } catch (error) {
+      throw createDatabaseError('Failed to get War Council structure', error);
+    }
+  }
+
+  // Check if a War Council position is vacant
+  static async isWarCouncilPositionVacant(positionId: number): Promise<boolean> {
+    try {
+      const query = `
+        SELECT COUNT(*) as count
+        FROM leadership_appointments la
+        JOIN leadership_positions lp ON la.position_id = lp.id
+        WHERE lp.id = ?
+          AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+          AND la.appointment_status = 'Active'
+          AND la.hierarchy_level = 'National'
+          AND la.entity_id = 1
+      `;
+      const result = await executeQuerySingle(query, [positionId]);
+      return Number(result.count) === 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to check War Council position vacancy', error);
+    }
+  }
+
+  // Validate War Council appointment (unique position constraint)
+  static async validateWarCouncilAppointment(positionId: number, memberId: number): Promise<{
+    isValid: boolean;
+    errors: string[];
+  }> {
+    try {
+      const errors: string[] = [];
+
+      // Check if position exists and is War Council position
+      const positionQuery = `
+        SELECT lp.*, ls.structure_code,
+          CASE
+            WHEN lp.province_code = 'EC' THEN 'Eastern Cape'
+            WHEN lp.province_code = 'FS' THEN 'Free State'
+            WHEN lp.province_code = 'GP' THEN 'Gauteng'
+            WHEN lp.province_code = 'KZN' THEN 'KwaZulu-Natal'
+            WHEN lp.province_code = 'LP' THEN 'Limpopo'
+            WHEN lp.province_code = 'MP' THEN 'Mpumalanga'
+            WHEN lp.province_code = 'NC' THEN 'Northern Cape'
+            WHEN lp.province_code = 'NW' THEN 'North West'
+            WHEN lp.province_code = 'WC' THEN 'Western Cape'
+            ELSE NULL
+          END as province_name
+        FROM leadership_positions lp
+        WHERE lp.id = ? AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+      `;
+      const position = await executeQuerySingle(positionQuery, [positionId]);
+
+      if (!position) {
+        errors.push('Invalid War Council position');
+        return { isValid: false, errors };
+      }
+
+      // Check if position is already filled
+      const isVacant = await this.isWarCouncilPositionVacant(positionId);
+      if (!isVacant) {
+        errors.push(`Position ${position.position_name} is already filled`);
+      }
+
+      // For province-specific positions (CCT Deployees), check member's province
+      // For now, we'll skip province validation since we don't have proper province mapping
+      // This can be enhanced later when the province structure is properly set up
+      if (position.province_code && position.position_code?.startsWith('CCT-')) {
+        // TODO: Add proper province validation when province structure is available
+        // For now, we'll allow appointments but log a warning
+        console.log(`Warning: Province validation skipped for CCT position ${position.position_name}`);
+      }
+
+      // Check if member is already in War Council
+      const existingAppointmentQuery = `
+        SELECT lp.position_name
+        FROM leadership_appointments la
+        JOIN leadership_positions lp ON la.position_id = lp.id
+        WHERE la.member_id = ?
+          AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+          AND la.appointment_status = 'Active'
+          AND la.hierarchy_level = 'National'
+          AND la.entity_id = 1
+      `;
+      const existingAppointment = await executeQuerySingle(existingAppointmentQuery, [memberId]);
+
+      if (existingAppointment) {
+        errors.push(`Member is already appointed as ${existingAppointment.position_name} in War Council`);
+      }
+
+      return {
+        isValid: errors.length === 0,
+        errors
+      };
+    } catch (error) {
+      throw createDatabaseError('Failed to validate War Council appointment', error);
+    }
+  }
+}

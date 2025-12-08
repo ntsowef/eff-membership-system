@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../store';
 import { api as _api } from '../lib/api';
+import { devLog } from '../utils/logger';
 
 interface SessionStatus {
   isValid: boolean;
@@ -101,7 +102,7 @@ export const useSessionManagement = () => {
 
     // Auto logout if session is invalid
     if (!status.isValid) {
-      console.log('🔒 Session expired due to inactivity, logging out...');
+      devLog('🔒 Session expired due to inactivity, logging out...');
       localStorage.removeItem('sessionExpiration');
       logout();
       return;
@@ -128,7 +129,7 @@ export const useSessionManagement = () => {
         canExtend: true
       });
 
-      console.log('🔄 Session extended by 10 minutes');
+      devLog('🔄 Session extended by 10 minutes');
 
       // Dispatch custom event to notify all hook instances to re-check immediately
       window.dispatchEvent(new CustomEvent('sessionExtended'));
@@ -177,7 +178,7 @@ export const useSessionManagement = () => {
 
     // Listen for session extension events from other hook instances
     const handleSessionExtended = () => {
-      console.log('🔔 Session extension event received, re-checking status immediately');
+      devLog('🔔 Session extension event received, re-checking status immediately');
       checkSessionStatus();
     };
 

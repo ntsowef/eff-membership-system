@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { geographicApi } from '../../services/api';
+import { devLog } from '../../utils/logger';
 
 interface Province {
   province_code: string;
@@ -56,7 +57,7 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
     queryKey: ['provinces'],
     queryFn: async () => {
       const result = await geographicApi.getProvinces();
-      console.log('Provinces API response:', result);
+      devLog('Provinces API response:', result);
       return result;
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -67,7 +68,7 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
     queryKey: ['municipalities', selectedProvince?.province_code],
     queryFn: async () => {
       const result = await geographicApi.getMunicipalities(selectedProvince!.province_code);
-      console.log('Municipalities API response:', result);
+      devLog('Municipalities API response:', result);
       return result;
     },
     enabled: !!selectedProvince,
@@ -79,7 +80,7 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
     queryKey: ['wards', selectedMunicipality?.municipality_code],
     queryFn: async () => {
       const result = await geographicApi.getWards(selectedMunicipality!.municipality_code);
-      console.log('Wards API response:', result);
+      devLog('Wards API response:', result);
       return result;
     },
     enabled: !!selectedMunicipality && adminLevel === 'Ward',

@@ -48,6 +48,7 @@ import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
 import { apiGet } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface Application {
   application_id: number;
@@ -92,20 +93,20 @@ const ApplicationsListPage: React.FC = () => {
       try {
         // Fetch with a high limit to get all applications (or implement proper pagination later)
         const response = await apiGet('/membership-applications?limit=5000');
-        console.log('✅ Applications API response:', response);
+        devLog('✅ Applications API response:', response);
 
         // Handle the actual API response structure
         const apps = (response as any).data?.applications || (response as any).applications || [];
         const total = (response as any).data?.pagination?.total_count || (response as any).data?.total || (response as any).total || apps.length;
 
-        console.log(`📊 Found ${apps.length} applications out of ${total} total`);
+        devLog(`📊 Found ${apps.length} applications out of ${total} total`);
 
         return {
           applications: apps,
           total: total
         };
       } catch (error) {
-        console.warn('❌ Failed to fetch applications:', error);
+        devLog('❌ Failed to fetch applications:', error);
         // Always return a valid data structure, never undefined
         return {
           applications: [],
@@ -136,12 +137,12 @@ const ApplicationsListPage: React.FC = () => {
       }))
     : [];
 
-  console.log(`📊 Transformed ${realApplications.length} real applications`);
+  devLog(`📊 Transformed ${realApplications.length} real applications`);
 
   // Use only real applications (no mock data needed)
   const allApplications = realApplications;
 
-  console.log(`📊 Total applications: ${allApplications.length}`);
+  devLog(`📊 Total applications: ${allApplications.length}`);
 
   // Filter applications based on current tab
   const filteredApplications = allApplications.filter(app => {
@@ -186,12 +187,12 @@ const ApplicationsListPage: React.FC = () => {
   };
 
   const handleApprove = () => {
-    console.log('Approve application:', selectedApplication);
+    devLog('Approve application:', selectedApplication);
     handleActionClose();
   };
 
   const handleReject = () => {
-    console.log('Reject application:', selectedApplication);
+    devLog('Reject application:', selectedApplication);
     handleActionClose();
   };
 
@@ -235,7 +236,7 @@ const ApplicationsListPage: React.FC = () => {
             </ActionButton>
             <ActionButton
               icon={Download}
-              onClick={() => console.log('Export applications')}
+              onClick={() => devLog('Export applications')}
               variant="outlined"
               color="secondary"
             >

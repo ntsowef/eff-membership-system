@@ -22,6 +22,7 @@ import { Person } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
+import { devLog } from '../../utils/logger';
 
 const { LeadershipAPI } = LeadershipService;
 // type MemberFilters = LeadershipService.MemberFilters;
@@ -51,7 +52,7 @@ const MemberSelectorDebug: React.FC = () => {
   // Console logging
   React.useEffect(() => {
     if (open) {
-      console.log('🐛 Debug Modal Data:', {
+      devLog('🐛 Debug Modal Data:', {
         isLoading,
         error: error?.message,
         membersData,

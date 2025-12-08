@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface MonthlySummaryData {
   monthly_metrics: {
@@ -121,15 +122,15 @@ const MonthlySummaryReport: React.FC = () => {
             report_format: reportFormat
           } 
         });
-        console.log('Monthly Summary API Response:', response.data);
-        
+        devLog('Monthly Summary API Response:', response.data);
+
         if (response.data && response.data.data && response.data.data.monthly_summary) {
           return response.data.data.monthly_summary as MonthlySummaryData;
         }
-        
+
         throw new Error('Invalid monthly summary data structure');
       } catch (error) {
-        console.log('Monthly summary endpoint not available, using fallback...');
+        devLog('Monthly summary endpoint not available, using fallback...');
         
         // Fallback: Create mock monthly summary data
         const mockData: MonthlySummaryData = {

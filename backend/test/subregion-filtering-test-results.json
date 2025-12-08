@@ -1,0 +1,114 @@
+{
+  "login": {
+    "success": true,
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ODU3MSwiZW1haWwiOiJuYXRpb25hbC5hZG1pbkBlZmYub3JnLnphIiwicm9sZV9uYW1lIjoiTmF0aW9uYWwgQWRtaW5pc3RyYXRvciIsImFkbWluX2xldmVsIjoibmF0aW9uYWwiLCJwcm92aW5jZV9jb2RlIjpudWxsLCJkaXN0cmljdF9jb2RlIjpudWxsLCJtdW5pY2lwYWxfY29kZSI6bnVsbCwid2FyZF9jb2RlIjpudWxsLCJpYXQiOjE3NjExMDQ3NDEsImV4cCI6MTc2MTE5MTE0MX0.zuDLbDDSx4IRns77Hq6qQ3fIlCS3w22Lstrb3ZtNDvQ"
+  },
+  "tests": [
+    {
+      "test": "Get Positions - BUF - East London",
+      "status": "PASS",
+      "entity_id": 570,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - CPT - Zone 1",
+      "status": "PASS",
+      "entity_id": 560,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - EKU - Central",
+      "status": "PASS",
+      "entity_id": 542,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - ETH - Central",
+      "status": "PASS",
+      "entity_id": 585,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - JHB - A",
+      "status": "PASS",
+      "entity_id": 547,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - MAN - Bloemfontein",
+      "status": "PASS",
+      "entity_id": 581,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - NMA - Champion Galela",
+      "status": "PASS",
+      "entity_id": 574,
+      "position_count": 18
+    },
+    {
+      "test": "Get Positions - TSH - 1",
+      "status": "PASS",
+      "entity_id": 554,
+      "position_count": 18
+    },
+    {
+      "test": "Get Appointments - BUF - East London",
+      "status": "PASS",
+      "entity_id": 570,
+      "appointment_count": 0
+    },
+    {
+      "test": "Get Appointments - CPT - Zone 1",
+      "status": "PASS",
+      "entity_id": 560,
+      "appointment_count": 0
+    },
+    {
+      "test": "Get Appointments - EKU - Central",
+      "status": "PASS",
+      "entity_id": 542,
+      "appointment_count": 0
+    },
+    {
+      "test": "Get Structure - BUF - East London",
+      "status": "PASS",
+      "entity_id": 570,
+      "structure_count": 4793
+    },
+    {
+      "test": "Get Structure - CPT - Zone 1",
+      "status": "PASS",
+      "entity_id": 560,
+      "structure_count": 4793
+    },
+    {
+      "test": "Get Municipalities - GP",
+      "status": "PASS",
+      "province_code": "GP",
+      "municipality_count": 9,
+      "metro_subregion_count": 0
+    },
+    {
+      "test": "Get Municipalities - WC",
+      "status": "PASS",
+      "province_code": "WC",
+      "municipality_count": 25,
+      "metro_subregion_count": 0
+    },
+    {
+      "test": "Get Municipalities - EC",
+      "status": "PASS",
+      "province_code": "EC",
+      "municipality_count": 33,
+      "metro_subregion_count": 0
+    },
+    {
+      "test": "Get Municipalities - KZN",
+      "status": "PASS",
+      "province_code": "KZN",
+      "municipality_count": 44,
+      "metro_subregion_count": 0
+    }
+  ]
+}

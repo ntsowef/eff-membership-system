@@ -1,0 +1,1 @@
+{"success":false,"error":{"code":"AUTHENTICATION_ERROR","message":"Email and password are required","timestamp":"2025-10-22T05:03:40.227Z","path":"/api/v1/auth/login","method":"POST"}}

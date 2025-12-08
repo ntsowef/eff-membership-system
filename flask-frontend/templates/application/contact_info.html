@@ -1,0 +1,661 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Information - EFF Membership Application{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Membership Application</h4>
+            </div>
+            <div class="card-body">
+                <!-- Stepper -->
+                <div class="stepper mb-4">
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Personal Info</div>
+                    </div>
+                    <div class="step active">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Contact Info</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Declaration</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Payment</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Review</div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-4">Step 2: Contact Information</h5>
+                
+                <form method="POST" action="{{ url_for('contact_info') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row g-3">
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email Address</label>
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), 
+                                         placeholder="your.email@example.com") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">{{ form.email.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Cell Number -->
+                        <div class="col-md-6">
+                            <label for="cell_number" class="form-label">Cell Phone Number</label>
+                            {{ form.cell_number(class="form-control" + (" is-invalid" if form.cell_number.errors else ""), 
+                                               placeholder="+27123456789") }}
+                            {% if form.cell_number.errors %}
+                                <div class="invalid-feedback">{{ form.cell_number.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Alternative Number -->
+                        <div class="col-md-6">
+                            <label for="alternative_number" class="form-label">Alternative Phone Number</label>
+                            {{ form.alternative_number(class="form-control" + (" is-invalid" if form.alternative_number.errors else ""), 
+                                                      placeholder="+27123456789") }}
+                            {% if form.alternative_number.errors %}
+                                <div class="invalid-feedback">{{ form.alternative_number.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Residential Address -->
+                        <div class="col-md-12">
+                            <label for="residential_address" class="form-label">Residential Address</label>
+                            {{ form.residential_address(class="form-control" + (" is-invalid" if form.residential_address.errors else ""), 
+                                                       placeholder="Enter your full residential address", rows=3) }}
+                            {% if form.residential_address.errors %}
+                                <div class="invalid-feedback">{{ form.residential_address.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Postal Address -->
+                        <div class="col-md-12">
+                            <label for="postal_address" class="form-label">Postal Address</label>
+                            {{ form.postal_address(class="form-control" + (" is-invalid" if form.postal_address.errors else ""), 
+                                                   placeholder="Enter your postal address (if different from residential)", rows=2) }}
+                            {% if form.postal_address.errors %}
+                                <div class="invalid-feedback">{{ form.postal_address.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-12">
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-muted mb-0">Geographic Information</h6>
+                                <div id="voter-status-badge" class="badge bg-secondary" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i> Checking voter registration...
+                                </div>
+                            </div>
+                            <div id="iec-info-alert" class="alert alert-info" style="display: none;">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="iec-info-message"></span>
+                            </div>
+                        </div>
+
+                        <!-- Province -->
+                        <div class="col-md-6">
+                            <label for="province_code" class="form-label">
+                                Province
+                                <span id="province-source-icon" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success" title="From IEC voter registration"></i>
+                                </span>
+                            </label>
+                            <select class="form-select" id="province_code" name="province_code">
+                                <option value="">Select Province</option>
+                            </select>
+                        </div>
+
+                        <!-- District -->
+                        <div class="col-md-6">
+                            <label for="district_code" class="form-label">
+                                District
+                                <span id="district-source-icon" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success" title="From IEC voter registration"></i>
+                                </span>
+                            </label>
+                            <select class="form-select" id="district_code" name="district_code">
+                                <option value="">Select District</option>
+                            </select>
+                        </div>
+
+                        <!-- Municipality -->
+                        <div class="col-md-6">
+                            <label for="municipal_code" class="form-label">
+                                Municipality
+                                <span id="municipality-source-icon" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success" title="From IEC voter registration"></i>
+                                </span>
+                            </label>
+                            <select class="form-select" id="municipal_code" name="municipal_code">
+                                <option value="">Select Municipality</option>
+                            </select>
+                        </div>
+
+                        <!-- Sub-Region (for Metro municipalities only) -->
+                        <div class="col-md-6" id="subregion-container" style="display: none;">
+                            <label for="subregion_code" class="form-label">
+                                Sub-Region
+                                <span id="subregion-source-icon" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success" title="From IEC voter registration"></i>
+                                </span>
+                            </label>
+                            <select class="form-select" id="subregion_code" name="subregion_code">
+                                <option value="">Select Sub-Region</option>
+                            </select>
+                            <small class="form-text text-muted">For metropolitan municipalities</small>
+                        </div>
+
+                        <!-- Ward -->
+                        <div class="col-md-6">
+                            <label for="ward_code" class="form-label required">
+                                Ward
+                                <span id="ward-source-icon" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success" title="From IEC voter registration"></i>
+                                </span>
+                            </label>
+                            <select class="form-select" id="ward_code" name="ward_code" required>
+                                <option value="">Select Ward</option>
+                            </select>
+                            {% if form.ward_code.errors %}
+                                <div class="invalid-feedback">{{ form.ward_code.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Voting District -->
+                        <div class="col-md-6">
+                            <label for="voting_district_code" class="form-label">
+                                Voting District (Optional)
+                                <span id="vd-source-icon" class="text-muted" style="display: none;">
+                                    <i class="fas fa-check-circle text-success" title="From IEC voter registration"></i>
+                                </span>
+                            </label>
+                            <select class="form-select" id="voting_district_code" name="voting_district_code">
+                                <option value="">Select Voting District</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('personal_info') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let isIECDataLoaded = false;
+        let iecVoterData = null;
+
+        // Function to show IEC source icons
+        function showIECSourceIcons() {
+            $('#province-source-icon, #district-source-icon, #municipality-source-icon, #ward-source-icon, #vd-source-icon').show();
+        }
+
+        // Function to hide IEC source icons
+        function hideIECSourceIcons() {
+            $('#province-source-icon, #district-source-icon, #municipality-source-icon, #ward-source-icon, #vd-source-icon').hide();
+        }
+
+        // Function to populate geographic data from IEC
+        function populateFromIEC(voterData) {
+            isIECDataLoaded = true;
+            iecVoterData = voterData;
+
+            // Show success message
+            $('#voter-status-badge')
+                .removeClass('bg-secondary bg-danger')
+                .addClass('bg-success')
+                .html('<i class="fas fa-check-circle"></i> Voter Registered')
+                .show();
+
+            $('#iec-info-alert').show();
+            $('#iec-info-message').html(
+                `<strong>Voter Registration Found!</strong> Your geographic information has been automatically populated from the IEC voter registration database. ` +
+                `Voting Station: <strong>${voterData.voting_station_name || 'N/A'}</strong>. ` +
+                `You can modify these fields if needed.`
+            );
+
+            showIECSourceIcons();
+
+            // Log IEC data for debugging
+            console.log('✅ IEC Voter Data:', {
+                province_id: voterData.province_id,
+                province: voterData.province,
+                municipality_id: voterData.municipality_id,
+                municipality: voterData.municipality,
+                ward_id: voterData.ward_id,
+                vd_number: voterData.vd_number,
+                voting_station: voterData.voting_station_name
+            });
+
+            // Enable cascading dropdowns for manual adjustment
+            // The IEC data will be used to pre-select matching options
+            initializeCascadingDropdowns();
+        }
+
+        // Function to initialize cascading dropdowns (manual selection)
+        function initializeCascadingDropdowns() {
+            console.log('🔄 Initializing cascading dropdowns...');
+
+            // Load provinces
+            $.get('/api/geographic/provinces', function(data) {
+                console.log('📍 Provinces loaded:', data.data ? data.data.length : 0);
+
+                if (data.success && data.data) {
+                    const select = $('#province_code');
+                    select.empty().append('<option value="">Select Province</option>');
+                    data.data.forEach(function(item) {
+                        select.append(`<option value="${item.province_code}">${item.province_name}</option>`);
+                    });
+                    console.log('✅ Province dropdown populated with', data.data.length, 'options');
+
+                    // If IEC data exists, try to pre-select province by name
+                    if (iecVoterData && iecVoterData.province) {
+                        console.log('🔍 Attempting to pre-select province:', iecVoterData.province);
+
+                        // Try to find matching province by name
+                        const matchingOption = select.find('option').filter(function() {
+                            return $(this).text().toLowerCase().trim() === iecVoterData.province.toLowerCase().trim();
+                        });
+
+                        if (matchingOption.length > 0) {
+                            console.log('✅ Province matched:', matchingOption.text());
+                            select.val(matchingOption.val()).trigger('change');
+                        } else {
+                            console.log('⚠️ No matching province found for:', iecVoterData.province);
+                            console.log('Available provinces:', select.find('option').map(function() { return $(this).text(); }).get());
+                        }
+                    }
+                }
+            }).fail(function(error) {
+                console.error('❌ Failed to load provinces:', error);
+            });
+        }
+
+        // Check voter registration status using IEC data from session
+        function checkVoterRegistration() {
+            // Get IEC verification data from session (set during personal info submission)
+            const iecData = {{ session.get("iec_verification", {}) | tojson | safe }};
+
+            console.log('🔍 IEC verification data from session:', iecData);
+
+            // Check if we have IEC data and voter is registered
+            if (iecData && Object.keys(iecData).length > 0 && iecData.is_registered) {
+                // Voter is registered, populate from IEC data
+                console.log('✅ Voter is registered to vote (from session)');
+                populateFromIEC(iecData);
+            } else if (iecData && Object.keys(iecData).length > 0 && !iecData.is_registered) {
+                // Voter not registered, show manual selection
+                console.log('⚠️ Voter is not registered to vote (from session)');
+
+                $('#voter-status-badge')
+                    .removeClass('bg-secondary bg-success')
+                    .addClass('bg-warning')
+                    .html('<i class="fas fa-info-circle"></i> Not Registered to Vote')
+                    .show();
+
+                $('#iec-info-alert')
+                    .removeClass('alert-info')
+                    .addClass('alert-warning')
+                    .show();
+
+                // Show voter status message from IEC
+                const statusMessage = iecData.voter_status || 'Voter registration not found';
+                $('#iec-info-message').html(
+                    `<strong>Voter Registration Status:</strong> ${statusMessage}<br>` +
+                    `Please select your geographic information manually using the dropdowns below. ` +
+                    `You can register to vote at any IEC office.`
+                );
+
+                hideIECSourceIcons();
+                initializeCascadingDropdowns();
+            } else {
+                // No IEC data available, show manual selection
+                console.warn('⚠️ No IEC verification data found in session. Showing manual selection.');
+
+                $('#voter-status-badge')
+                    .removeClass('bg-secondary bg-success')
+                    .addClass('bg-warning')
+                    .html('<i class="fas fa-exclamation-triangle"></i> Manual Selection Required')
+                    .show();
+
+                $('#iec-info-alert')
+                    .removeClass('alert-info')
+                    .addClass('alert-warning')
+                    .show();
+                $('#iec-info-message').html(
+                    `<strong>Voter Registration Not Verified.</strong> Please select your geographic information manually using the dropdowns below.`
+                );
+
+                hideIECSourceIcons();
+                initializeCascadingDropdowns();
+            }
+        }
+
+        // Load districts when province changes
+        $('#province_code').change(function() {
+            const provinceCode = $(this).val();
+            console.log('🔄 Province changed:', provinceCode);
+
+            // Clear dependent dropdowns
+            $('#district_code').empty().append('<option value="">Select District</option>');
+            $('#municipal_code').empty().append('<option value="">Select Municipality</option>');
+            $('#ward_code').empty().append('<option value="">Select Ward</option>');
+            $('#voting_district_code').empty().append('<option value="">Select Voting District</option>');
+
+            if (provinceCode) {
+                $.get(`/api/geographic/districts?province=${provinceCode}`, function(data) {
+                    console.log('📍 Districts loaded:', data.data ? data.data.length : 0);
+
+                    if (data.success && data.data) {
+                        data.data.forEach(function(item) {
+                            $('#district_code').append(`<option value="${item.district_code}">${item.district_name}</option>`);
+                        });
+                        console.log('✅ District dropdown populated with', data.data.length, 'options');
+
+                        // If IEC data exists, try to pre-select district
+                        if (iecVoterData && iecVoterData.municipality) {
+                            console.log('🔍 IEC data available, auto-selecting first district');
+                            // Trigger change to load municipalities
+                            if ($('#district_code option').length > 1) {
+                                $('#district_code').val($('#district_code option:eq(1)').val()).trigger('change');
+                            }
+                        }
+                    }
+                }).fail(function(error) {
+                    console.error('❌ Failed to load districts:', error);
+                });
+            }
+        });
+
+        // Load municipalities when district changes
+        $('#district_code').change(function() {
+            const districtCode = $(this).val();
+            console.log('🔄 District changed:', districtCode);
+
+            // Clear dependent dropdowns
+            $('#municipal_code').empty().append('<option value="">Select Municipality</option>');
+            $('#ward_code').empty().append('<option value="">Select Ward</option>');
+            $('#voting_district_code').empty().append('<option value="">Select Voting District</option>');
+
+            if (districtCode) {
+                $.get(`/api/geographic/municipalities?district=${districtCode}`, function(data) {
+                    console.log('📍 Municipalities loaded:', data.data ? data.data.length : 0);
+
+                    if (data.success && data.data) {
+                        data.data.forEach(function(item) {
+                            $('#municipal_code').append(`<option value="${item.municipality_code}">${item.municipality_name}</option>`);
+                        });
+                        console.log('✅ Municipality dropdown populated with', data.data.length, 'options');
+
+                        // If IEC data exists, try to pre-select municipality by name
+                        if (iecVoterData && iecVoterData.municipality) {
+                            console.log('🔍 Attempting to match municipality:', iecVoterData.municipality);
+
+                            const matchingOption = $('#municipal_code option').filter(function() {
+                                const optionText = $(this).text().toLowerCase().trim();
+                                const iecMunicipality = iecVoterData.municipality.toLowerCase().trim();
+                                return optionText === iecMunicipality || optionText.includes(iecMunicipality);
+                            });
+
+                            if (matchingOption.length > 0) {
+                                console.log('✅ Municipality matched:', matchingOption.text());
+                                $('#municipal_code').val(matchingOption.val()).trigger('change');
+                            } else {
+                                console.log('⚠️ No matching municipality found for:', iecVoterData.municipality);
+                                console.log('Available municipalities:', $('#municipal_code option').map(function() { return $(this).text(); }).get());
+                            }
+                        }
+                    }
+                }).fail(function(error) {
+                    console.error('❌ Failed to load municipalities:', error);
+                });
+            }
+        });
+
+        // Load sub-regions or wards when municipality changes
+        $('#municipal_code').change(function() {
+            const municipalCode = $(this).val();
+            console.log('🔄 Municipality changed:', municipalCode);
+
+            // Clear dependent dropdowns
+            $('#subregion_code').empty().append('<option value="">Select Sub-Region</option>');
+            $('#ward_code').empty().append('<option value="">Select Ward</option>');
+            $('#voting_district_code').empty().append('<option value="">Select Voting District</option>');
+            $('#subregion-container').hide();
+
+            if (municipalCode) {
+                // Use the new endpoint to check if municipality is metro and get appropriate sub-regions
+                $.get(`/api/geographic/municipality-subregions?municipality_code=${municipalCode}`, function(response) {
+                    console.log('📍 Municipality sub-regions response:', response);
+
+                    if (response.success && response.data) {
+                        const data = response.data;
+                        const isMetro = data.is_metro;
+                        const subregions = data.subregions;
+
+                        console.log(`🏙️ Municipality type: ${data.municipality_type}, Is Metro: ${isMetro}`);
+
+                        if (isMetro && subregions && subregions.length > 0) {
+                            // For metro municipalities, show sub-region dropdown with wards
+                            console.log('🏙️ Metro municipality detected - showing sub-regions (wards)');
+                            $('#subregion-container').show();
+
+                            subregions.forEach(function(item) {
+                                const displayText = item.ward_name || 'Ward ' + item.ward_number;
+                                $('#subregion_code').append(`<option value="${item.ward_code}">${displayText}</option>`);
+                            });
+                            console.log('✅ Sub-region dropdown populated with', subregions.length, 'wards');
+                        } else if (!isMetro && subregions && subregions.length > 0) {
+                            // For regular districts, show sub-regions (local municipalities)
+                            console.log('🏘️ Regular district - showing sub-regions (local municipalities)');
+                            $('#subregion-container').show();
+
+                            subregions.forEach(function(item) {
+                                $('#subregion_code').append(`<option value="${item.municipality_code}">${item.municipality_name}</option>`);
+                            });
+                            console.log('✅ Sub-region dropdown populated with', subregions.length, 'local municipalities');
+                        } else {
+                            // No sub-regions, load wards directly
+                            console.log('📍 No sub-regions found, loading wards directly');
+                            loadWardsForMunicipality(municipalCode);
+                        }
+                    }
+                }).fail(function(error) {
+                    console.error('❌ Failed to load municipality sub-regions:', error);
+                    // Fallback to loading wards directly
+                    loadWardsForMunicipality(municipalCode);
+                });
+            }
+        });
+
+        // Function to load wards for a municipality
+        function loadWardsForMunicipality(municipalCode) {
+            $.get(`/api/geographic/wards?municipality=${municipalCode}`, function(data) {
+                console.log('📍 Wards loaded:', data.data ? data.data.length : 0);
+
+                if (data.success && data.data) {
+                    data.data.forEach(function(item) {
+                        const displayText = item.ward_name || 'Ward ' + item.ward_number;
+                        $('#ward_code').append(`<option value="${item.ward_code}">${displayText}</option>`);
+                    });
+                    console.log('✅ Ward dropdown populated with', data.data.length, 'options');
+
+                    // If IEC data exists, try to pre-select ward by ward_code
+                    if (iecVoterData && iecVoterData.ward_code) {
+                        console.log('🔍 Attempting to match ward code:', iecVoterData.ward_code);
+
+                        // Try to match by exact ward_code
+                        const matchingOption = $('#ward_code option').filter(function() {
+                            return $(this).val() === iecVoterData.ward_code;
+                        });
+
+                        if (matchingOption.length > 0) {
+                            console.log('✅ Ward matched by code:', matchingOption.text());
+                            $('#ward_code').val(matchingOption.val()).trigger('change');
+                        } else {
+                            console.log('⚠️ No matching ward found for ward code:', iecVoterData.ward_code);
+                            console.log('Available ward codes:', $('#ward_code option').map(function() { return $(this).val(); }).get());
+
+                            // Fallback: Try to match by ward_id/ward_number
+                            if (iecVoterData.ward_id) {
+                                console.log('🔍 Fallback: Attempting to match by ward ID:', iecVoterData.ward_id);
+                                const fallbackOption = $('#ward_code option').filter(function() {
+                                    const optionText = $(this).text().toLowerCase();
+                                    const wardNumber = iecVoterData.ward_id.toString();
+                                    return optionText.includes('ward ' + wardNumber) ||
+                                           optionText.includes('ward ' + wardNumber.padStart(2, '0')) ||
+                                           optionText === wardNumber;
+                                });
+
+                                if (fallbackOption.length > 0) {
+                                    console.log('✅ Ward matched by ID (fallback):', fallbackOption.text());
+                                    $('#ward_code').val(fallbackOption.val()).trigger('change');
+                                }
+                            }
+                        }
+                    }
+                }
+            }).fail(function(error) {
+                console.error('❌ Failed to load wards:', error);
+            });
+        }
+
+        // Load wards when sub-region changes
+        $('#subregion_code').change(function() {
+            const subregionCode = $(this).val();
+            console.log('🔄 Sub-region changed:', subregionCode);
+
+            // Clear dependent dropdowns
+            $('#ward_code').empty().append('<option value="">Select Ward</option>');
+            $('#voting_district_code').empty().append('<option value="">Select Voting District</option>');
+
+            if (subregionCode) {
+                // Check if the parent municipality is metro or regular
+                const municipalCode = $('#municipal_code').val();
+
+                // Get municipality info to determine type
+                $.get(`/api/geographic/municipality-subregions?municipality_code=${municipalCode}`, function(response) {
+                    if (response.success && response.data) {
+                        const isMetro = response.data.is_metro;
+
+                        if (isMetro) {
+                            // For metros, subregion_code IS the ward_code
+                            // So we just need to set the ward dropdown with this value
+                            console.log('🏙️ Metro: Sub-region is the ward, setting ward_code');
+                            $('#ward_code').val(subregionCode);
+
+                            // Load voting districts for this ward
+                            loadVotingDistrictsForWard(subregionCode);
+                        } else {
+                            // For regular districts, subregion is a local municipality
+                            // Load wards for this local municipality
+                            console.log('🏘️ Regular: Loading wards for local municipality');
+                            loadWardsForMunicipality(subregionCode);
+                        }
+                    }
+                });
+            }
+        });
+
+        // Function to load voting districts for a ward
+        function loadVotingDistrictsForWard(wardCode) {
+            $.get(`/api/geographic/voting-districts?ward_code=${wardCode}`, function(data) {
+                console.log('📍 Voting districts response:', data);
+
+                if (data.success && data.data) {
+                    // Handle nested data structure (data.data.data)
+                    const votingDistricts = data.data.data || data.data;
+                    console.log('📍 Voting districts loaded:', votingDistricts.length);
+
+                    votingDistricts.forEach(function(item) {
+                        const displayText = item.voting_district_name || item.voting_district_code;
+                        $('#voting_district_code').append(`<option value="${item.voting_district_code}">${displayText}</option>`);
+                    });
+                    console.log('✅ Voting district dropdown populated with', votingDistricts.length, 'options');
+                }
+            }).fail(function(error) {
+                console.error('❌ Failed to load voting districts:', error);
+            });
+        }
+
+        // Load voting districts when ward changes
+        $('#ward_code').change(function() {
+            const wardCode = $(this).val();
+            console.log('🔄 Ward changed:', wardCode);
+
+            // Clear voting district dropdown
+            $('#voting_district_code').empty().append('<option value="">Select Voting District</option>');
+
+            if (wardCode) {
+                $.get(`/api/geographic/voting-districts?ward_code=${wardCode}`, function(data) {
+                    console.log('📍 Voting districts response:', data);
+
+                    if (data.success && data.data) {
+                        // Handle nested data structure (data.data.data)
+                        const votingDistricts = data.data.data || data.data;
+                        console.log('📍 Voting districts loaded:', votingDistricts.length);
+
+                        votingDistricts.forEach(function(item) {
+                            const displayText = item.voting_district_name || item.voting_district_code;
+                            $('#voting_district_code').append(`<option value="${item.voting_district_code}">${displayText}</option>`);
+                        });
+                        console.log('✅ Voting district dropdown populated with', votingDistricts.length, 'options');
+
+                        // If IEC data exists, try to pre-select voting district by VD number
+                        if (iecVoterData && iecVoterData.vd_number) {
+                            console.log('🔍 Attempting to match voting district number:', iecVoterData.vd_number);
+
+                            const matchingOption = $('#voting_district_code option').filter(function() {
+                                const optionValue = $(this).val();
+                                const optionText = $(this).text().toLowerCase();
+                                const vdNumber = iecVoterData.vd_number.toString();
+
+                                // Try to match by VD code or VD number in text
+                                return optionValue.includes(vdNumber) || optionText.includes(vdNumber);
+                            });
+
+                            if (matchingOption.length > 0) {
+                                console.log('✅ Voting district matched:', matchingOption.text());
+                                $('#voting_district_code').val(matchingOption.val());
+                            } else {
+                                console.log('⚠️ No matching voting district found for VD number:', iecVoterData.vd_number);
+                                console.log('Available voting districts:', $('#voting_district_code option').map(function() { return $(this).text(); }).get());
+                            }
+                        }
+                    }
+                }).fail(function(error) {
+                    console.error('❌ Failed to load voting districts:', error);
+                });
+            }
+        });
+
+        // Initialize: Check voter registration first
+        checkVoterRegistration();
+    });
+</script>
+{% endblock %}
+

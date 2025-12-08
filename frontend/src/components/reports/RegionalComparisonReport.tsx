@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface RegionOption {
   code: string;
@@ -126,15 +127,15 @@ const RegionalComparisonReport: React.FC = () => {
             comparison_type: comparisonType
           } 
         });
-        console.log('Regional Comparison API Response:', response.data);
-        
+        devLog('Regional Comparison API Response:', response.data);
+
         if (response.data && response.data.data && response.data.data.regional_comparison) {
           return response.data.data.regional_comparison as RegionalComparisonData;
         }
-        
+
         throw new Error('Invalid regional comparison data structure');
       } catch (error) {
-        console.log('Regional comparison endpoint not available, using fallback...');
+        devLog('Regional comparison endpoint not available, using fallback...');
         
         // Fallback: Create mock comparison data
         const mockData: RegionalComparisonData = {

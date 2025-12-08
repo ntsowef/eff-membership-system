@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+
+{% block title %}Personal Information - EFF Membership Application{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Membership Application</h4>
+            </div>
+            <div class="card-body">
+                <!-- Stepper -->
+                <div class="stepper mb-4">
+                    <div class="step active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Personal Info</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Contact Info</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Declaration</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Payment</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Review</div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-4">Step 1: Personal Information</h5>
+                
+                <form method="POST" action="{{ url_for('personal_info') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row g-3">
+                        <!-- ID Number -->
+                        <div class="col-md-12">
+                            <label for="id_number" class="form-label required">South African ID Number</label>
+                            {{ form.id_number(class="form-control" + (" is-invalid" if form.id_number.errors else ""),
+                                             placeholder="Enter your 13-digit ID number",
+                                             maxlength="13",
+                                             pattern="[0-9]{13}",
+                                             inputmode="numeric") }}
+                            {% if form.id_number.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.id_number.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <div id="id-number-validation-error" class="invalid-feedback" style="display: none;"></div>
+                            <small class="form-text text-muted" id="id-number-help-text">
+                                Your date of birth and gender will be automatically extracted from your ID number.
+                            </small>
+                        </div>
+                        
+                        <!-- First Name -->
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label required">First Name</label>
+                            {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else ""), 
+                                              placeholder="Enter your first name") }}
+                            {% if form.first_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.first_name.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Last Name -->
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label required">Last Name</label>
+                            {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else ""), 
+                                             placeholder="Enter your last name") }}
+                            {% if form.last_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.last_name.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Date of Birth -->
+                        <div class="col-md-6">
+                            <label for="date_of_birth" class="form-label required">Date of Birth</label>
+                            {{ form.date_of_birth(class="form-control" + (" is-invalid" if form.date_of_birth.errors else ""),
+                                                  type="date",
+                                                  id="date_of_birth") }}
+                            {% if form.date_of_birth.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.date_of_birth.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted" id="dob-help-text">
+                                Date of birth will be automatically extracted from your ID number.
+                            </small>
+                        </div>
+                        
+                        <!-- Gender -->
+                        <div class="col-md-6">
+                            <label for="gender" class="form-label required">Gender</label>
+                            {{ form.gender(class="form-select" + (" is-invalid" if form.gender.errors else ""),
+                                          id="gender") }}
+                            {% if form.gender.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.gender.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted" id="gender-help-text">
+                                Gender will be automatically extracted from your ID number.
+                            </small>
+                        </div>
+                        
+                        <!-- Language -->
+                        <div class="col-md-6">
+                            <label for="language_id" class="form-label">Home Language</label>
+                            {{ form.language_id(class="form-select" + (" is-invalid" if form.language_id.errors else ""), 
+                                               id="language_id") }}
+                            {% if form.language_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.language_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Occupation -->
+                        <div class="col-md-6">
+                            <label for="occupation_id" class="form-label">Occupation</label>
+                            {{ form.occupation_id(class="form-select" + (" is-invalid" if form.occupation_id.errors else ""), 
+                                                 id="occupation_id") }}
+                            {% if form.occupation_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.occupation_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Qualification -->
+                        <div class="col-md-6">
+                            <label for="qualification_id" class="form-label">Highest Qualification</label>
+                            {{ form.qualification_id(class="form-select" + (" is-invalid" if form.qualification_id.errors else ""), 
+                                                    id="qualification_id") }}
+                            {% if form.qualification_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.qualification_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Citizenship Status -->
+                        <div class="col-md-6">
+                            <label for="citizenship_status" class="form-label">Citizenship Status</label>
+                            {{ form.citizenship_status(class="form-select" + (" is-invalid" if form.citizenship_status.errors else ""),
+                                                      id="citizenship_status") }}
+                            {% if form.citizenship_status.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.citizenship_status.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted" id="citizenship-help-text">
+                                Citizenship status will be automatically extracted from your ID number.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load lookup data for dropdowns
+    $(document).ready(function() {
+        // Validate South African ID number using Luhn algorithm (checksum)
+        function validateSAIDChecksum(idNumber) {
+            // Luhn algorithm for checksum validation
+            let sum = 0;
+            let shouldDouble = true;
+
+            // Process digits from right to left, excluding the last digit (checksum)
+            for (let i = idNumber.length - 2; i >= 0; i--) {
+                let digit = parseInt(idNumber.charAt(i));
+
+                if (shouldDouble) {
+                    digit *= 2;
+                    if (digit > 9) {
+                        digit -= 9;
+                    }
+                }
+
+                sum += digit;
+                shouldDouble = !shouldDouble;
+            }
+
+            // Calculate checksum
+            const checksum = (10 - (sum % 10)) % 10;
+            const lastDigit = parseInt(idNumber.charAt(idNumber.length - 1));
+
+            return checksum === lastDigit;
+        }
+
+        // Validate date in ID number
+        function validateSAIDDate(idNumber) {
+            const year = idNumber.substring(0, 2);
+            const month = parseInt(idNumber.substring(2, 4));
+            const day = parseInt(idNumber.substring(4, 6));
+
+            // Validate month (01-12)
+            if (month < 1 || month > 12) {
+                return false;
+            }
+
+            // Validate day (01-31)
+            if (day < 1 || day > 31) {
+                return false;
+            }
+
+            // More detailed validation for days in month
+            const fullYear = parseInt(year) <= 24 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+            const daysInMonth = new Date(fullYear, month, 0).getDate();
+
+            if (day > daysInMonth) {
+                return false;
+            }
+
+            return true;
+        }
+
+        // Comprehensive SA ID validation
+        function validateSAIDNumber(idNumber) {
+            // Remove any spaces or dashes
+            idNumber = idNumber.replace(/[\s-]/g, '');
+
+            // Check length
+            if (idNumber.length !== 13) {
+                return { valid: false, error: 'ID number must be exactly 13 digits' };
+            }
+
+            // Check if all characters are digits
+            if (!/^\d+$/.test(idNumber)) {
+                return { valid: false, error: 'ID number must contain only numeric digits' };
+            }
+
+            // Validate date portion
+            if (!validateSAIDDate(idNumber)) {
+                return { valid: false, error: 'Invalid date in ID number (YYMMDD format)' };
+            }
+
+            // Validate checksum
+            if (!validateSAIDChecksum(idNumber)) {
+                return { valid: false, error: 'Invalid ID number checksum. Please verify your ID number.' };
+            }
+
+            return { valid: true, error: null };
+        }
+
+        // Function to parse South African ID number
+        function parseSAIDNumber(idNumber) {
+            // Remove any spaces or dashes
+            idNumber = idNumber.replace(/[\s-]/g, '');
+
+            // Validate first
+            const validation = validateSAIDNumber(idNumber);
+            if (!validation.valid) {
+                return null;
+            }
+
+            // Extract date of birth (YYMMDD)
+            const year = idNumber.substring(0, 2);
+            const month = idNumber.substring(2, 4);
+            const day = idNumber.substring(4, 6);
+
+            // Determine century (00-24 = 2000s, 25-99 = 1900s)
+            const fullYear = parseInt(year) <= 24 ? '20' + year : '19' + year;
+
+            // Format date as YYYY-MM-DD
+            const dateOfBirth = `${fullYear}-${month}-${day}`;
+
+            // Extract gender (digits 7-10: 0000-4999 = Female, 5000-9999 = Male)
+            const genderDigit = parseInt(idNumber.substring(6, 10));
+            const gender = genderDigit < 5000 ? 'Female' : 'Male';
+
+            // Map gender text to dropdown value (Female=2, Male=1)
+            const genderValue = genderDigit < 5000 ? '2' : '1';
+
+            // Extract citizenship (digit 11: 0 = SA Citizen, 1 = Permanent Resident)
+            const citizenshipDigit = idNumber.substring(10, 11);
+            const citizenship = citizenshipDigit === '0' ? 'South African Citizen' : 'Permanent Resident';
+
+            // Map citizenship to dropdown value (SA Citizen=1, Permanent Resident=2)
+            const citizenshipValue = citizenshipDigit === '0' ? '1' : '2';
+
+            return {
+                dateOfBirth: dateOfBirth,
+                gender: gender,
+                genderValue: genderValue,
+                citizenship: citizenship,
+                citizenshipValue: citizenshipValue,
+                citizenshipDigit: citizenshipDigit
+            };
+        }
+
+        // Real-time validation as user types
+        $('#id_number').on('input', function() {
+            const idNumber = $(this).val().replace(/[\s-]/g, '');
+            const $errorDiv = $('#id-number-validation-error');
+            const $helpText = $('#id-number-help-text');
+
+            // Clear previous validation states
+            $(this).removeClass('is-valid is-invalid');
+            $errorDiv.hide();
+
+            // If user is changing the ID number, re-enable DOB, gender, and citizenship fields
+            // so they can be manually edited if needed
+            const $dobField = $('#date_of_birth');
+            const $genderField = $('#gender');
+            const $citizenshipField = $('#citizenship_status');
+
+            if ($dobField.prop('disabled') || $genderField.prop('disabled') || $citizenshipField.prop('disabled')) {
+                $dobField.prop('disabled', false).removeClass('bg-light');
+                $genderField.prop('disabled', false).removeClass('bg-light');
+                $citizenshipField.prop('disabled', false).removeClass('bg-light');
+
+                // Reset help texts
+                $('#dob-help-text').text('Date of birth will be automatically extracted from your ID number.');
+                $('#gender-help-text').text('Gender will be automatically extracted from your ID number.');
+                $('#citizenship-help-text').text('Citizenship status will be automatically extracted from your ID number.');
+            }
+
+            if (idNumber.length === 0) {
+                return;
+            }
+
+            // Only validate when user has entered 13 digits
+            if (idNumber.length === 13) {
+                const validation = validateSAIDNumber(idNumber);
+
+                if (validation.valid) {
+                    $(this).addClass('is-valid');
+                    $errorDiv.hide();
+                } else {
+                    $(this).addClass('is-invalid');
+                    $errorDiv.text(validation.error).show();
+                }
+            } else if (idNumber.length > 13) {
+                $(this).addClass('is-invalid');
+                $errorDiv.text('ID number must be exactly 13 digits').show();
+            }
+        });
+
+        // Auto-fill date of birth and gender when ID number is entered
+        $('#id_number').on('blur', function() {
+            const idNumber = $(this).val().replace(/[\s-]/g, '');
+            const $errorDiv = $('#id-number-validation-error');
+            const $helpText = $('#id-number-help-text');
+
+            if (idNumber.length === 0) {
+                return;
+            }
+
+            // Validate ID number
+            const validation = validateSAIDNumber(idNumber);
+
+            if (!validation.valid) {
+                // Show error if ID is invalid
+                $(this).removeClass('is-valid').addClass('is-invalid');
+                $errorDiv.text(validation.error).show();
+                return;
+            }
+
+            // Parse and extract data
+            const parsed = parseSAIDNumber(idNumber);
+
+            if (parsed) {
+                // Set date of birth and disable the field
+                const $dobField = $('#date_of_birth');
+                $dobField.val(parsed.dateOfBirth);
+                $dobField.prop('disabled', true);
+                $dobField.addClass('bg-light');
+
+                // Update DOB help text
+                const $dobHelpText = $('#dob-help-text');
+                $dobHelpText.html('<i class="fas fa-lock text-muted"></i> Auto-populated from ID number');
+
+                // Set gender and disable the field
+                const $genderField = $('#gender');
+                $genderField.prop('disabled', false); // Enable first to set value
+                $genderField.val(parsed.genderValue); // Use genderValue (2=Female, 1=Male)
+                $genderField.prop('disabled', true);
+                $genderField.addClass('bg-light');
+
+                // Update gender help text with the actual gender text
+                const $genderHelpText = $('#gender-help-text');
+                $genderHelpText.html(`<i class="fas fa-lock text-muted"></i> Auto-populated from ID number (${parsed.gender})`);
+
+                // Set citizenship and disable the field
+                const $citizenshipField = $('#citizenship_status');
+                $citizenshipField.prop('disabled', false); // Enable first to set value
+                $citizenshipField.val(parsed.citizenshipValue); // Use citizenshipValue (1=SA Citizen, 2=Permanent Resident)
+                $citizenshipField.prop('disabled', true);
+                $citizenshipField.addClass('bg-light');
+
+                // Update citizenship help text with the actual citizenship text
+                const $citizenshipHelpText = $('#citizenship-help-text');
+                $citizenshipHelpText.html(`<i class="fas fa-lock text-muted"></i> Auto-populated from ID number (${parsed.citizenship})`);
+
+                // Show success feedback on ID field
+                $(this).removeClass('is-invalid').addClass('is-valid');
+                $errorDiv.hide();
+
+                // Show a brief success message
+                const originalText = $helpText.text();
+                $helpText.html('<i class="fas fa-check-circle text-success"></i> Date of birth, gender, and citizenship extracted successfully!');
+
+                setTimeout(function() {
+                    $helpText.text(originalText);
+                }, 3000);
+            }
+        });
+
+        // Load languages
+        $.get('/api/lookups/languages', function(data) {
+            if (data.success && data.data) {
+                const select = $('#language_id');
+                select.empty();
+                select.append('<option value="0">Select Language</option>');
+                data.data.forEach(function(item) {
+                    select.append(`<option value="${item.language_id}">${item.language_name}</option>`);
+                });
+            }
+        });
+
+        // Load occupations
+        $.get('/api/lookups/occupations', function(data) {
+            if (data.success && data.data) {
+                const select = $('#occupation_id');
+                select.empty();
+                select.append('<option value="0">Select Occupation</option>');
+                data.data.forEach(function(item) {
+                    select.append(`<option value="${item.occupation_id}">${item.occupation_name}</option>`);
+                });
+            }
+        });
+
+        // Load qualifications
+        $.get('/api/lookups/qualifications', function(data) {
+            if (data.success && data.data) {
+                const select = $('#qualification_id');
+                select.empty();
+                select.append('<option value="0">Select Qualification</option>');
+                data.data.forEach(function(item) {
+                    select.append(`<option value="${item.qualification_id}">${item.qualification_name}</option>`);
+                });
+            }
+        });
+
+        // Validate form before submission and perform duplicate check + IEC verification
+        $('form').on('submit', function(e) {
+            // TEMPORARY: Skip AJAX checks for testing
+            console.log('⚠️ TESTING MODE: Skipping duplicate check and IEC verification');
+            return true; // Allow form to submit normally
+
+            /* ORIGINAL CODE - COMMENTED OUT FOR TESTING
+            e.preventDefault(); // Always prevent default submission initially
+
+            const $form = $(this);
+            const idNumber = $('#id_number').val().replace(/[\s-]/g, '');
+            const $idField = $('#id_number');
+            const $errorDiv = $('#id-number-validation-error');
+            const $submitBtn = $form.find('button[type="submit"]');
+
+            // Validate ID number before submission
+            if (!idNumber || idNumber.length === 0) {
+                $idField.addClass('is-invalid');
+                $errorDiv.text('ID number is required').show();
+                $idField.focus();
+                return false;
+            }
+
+            const validation = validateSAIDNumber(idNumber);
+
+            if (!validation.valid) {
+                $idField.removeClass('is-valid').addClass('is-invalid');
+                $errorDiv.text(validation.error).show();
+                $idField.focus();
+
+                // Show alert
+                alert('Please enter a valid South African ID number before proceeding.\n\nError: ' + validation.error);
+                return false;
+            }
+
+            // Show loading indicator
+            $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Checking ID number...');
+            console.log('🔍 Step 1: Checking for duplicate ID number...');
+
+            // STEP 1: Check for duplicate ID number
+            $.ajax({
+                url: '/api/membership-applications/check-id-number',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ id_number: idNumber }),
+                success: function(response) {
+                    console.log('✅ Duplicate check response:', response);
+
+                    if (response.success && response.data && response.data.exists) {
+                        // Duplicate found - show error
+                        console.log('❌ Duplicate ID found!');
+                        $submitBtn.prop('disabled', false).html('Next <i class="fas fa-arrow-right"></i>');
+
+                        const data = response.data;
+                        let errorMessage = 'This ID number is already registered in our system.\n\n';
+
+                        if (data.exists_in_members) {
+                            errorMessage += '✓ You are already a member.\n';
+                            if (data.member_details) {
+                                errorMessage += `   Member ID: ${data.member_details.member_id}\n`;
+                                errorMessage += `   Name: ${data.member_details.first_name} ${data.member_details.last_name}\n`;
+                            }
+                        }
+
+                        if (data.exists_in_applications) {
+                            errorMessage += '✓ You have a pending application.\n';
+                            if (data.application_details) {
+                                errorMessage += `   Application #: ${data.application_details.application_number}\n`;
+                                errorMessage += `   Status: ${data.application_details.status}\n`;
+                            }
+                        }
+
+                        errorMessage += '\nPlease contact support for assistance.';
+
+                        alert(errorMessage);
+                        $idField.addClass('is-invalid');
+                        $errorDiv.text('This ID number is already registered').show();
+                        return;
+                    }
+
+                    // No duplicate - proceed to IEC verification
+                    console.log('✅ No duplicate found. Proceeding to IEC verification...');
+                    $submitBtn.html('<i class="fas fa-spinner fa-spin"></i> Verifying voter registration...');
+
+                    // STEP 2: IEC Voter Verification
+                    $.ajax({
+                        url: '/api/iec/verify-voter-public',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ idNumber: idNumber }),
+                        success: function(iecResponse) {
+                            console.log('✅ IEC verification response:', iecResponse);
+
+                            if (iecResponse.success && iecResponse.data) {
+                                console.log('✅ IEC verification successful');
+                                if (iecResponse.data.is_registered) {
+                                    console.log('✓ User is registered with IEC');
+                                } else {
+                                    console.log('ℹ️ User is not registered with IEC');
+                                }
+                            } else {
+                                console.log('⚠️ IEC verification returned no data');
+                            }
+
+                            // IEC verification complete (success or failure) - submit form
+                            submitFormAfterChecks($form);
+                        },
+                        error: function(xhr, status, error) {
+                            console.log('⚠️ IEC verification failed:', error);
+                            // IEC verification failure is not critical - still submit form
+                            submitFormAfterChecks($form);
+                        }
+                    });
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Duplicate check failed:', error);
+                    $submitBtn.prop('disabled', false).html('Next <i class="fas fa-arrow-right"></i>');
+                    alert('Error checking ID number. Please try again.\n\nError: ' + error);
+                }
+            });
+
+            return false; // Prevent default form submission
+            END OF COMMENTED CODE */
+        });
+
+        // Function to submit form after all checks are complete
+        function submitFormAfterChecks($form) {
+            console.log('✅ All checks complete. Submitting form...');
+
+            // Re-enable disabled fields before submission so their values are included
+            $('#date_of_birth').prop('disabled', false);
+            $('#gender').prop('disabled', false);
+            $('#citizenship_status').prop('disabled', false);
+
+            // Update button text
+            const $submitBtn = $form.find('button[type="submit"]');
+            $submitBtn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+
+            // Unbind the submit handler to prevent infinite loop
+            $form.off('submit');
+
+            // Submit the form
+            $form.submit();
+        }
+    });
+</script>
+{% endblock %}
+

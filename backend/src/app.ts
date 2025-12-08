@@ -7,7 +7,8 @@ import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import 'express-async-errors';
 
-import { config, validateConfig, logConfig } from './config/config';
+import { config, validateConfig, logConfig, isProduction } from './config/config';
+import { isVerboseLogging } from './utils/logger';
 import { initializeDatabase } from './config/database-hybrid';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { redisService } from './services/redisService';
@@ -172,9 +173,9 @@ if (config.server.env !== 'development') {
   });
 
   app.use(limiter);
-  console.log('✅ Rate limiting enabled');
+  if (isVerboseLogging()) console.log('✅ Rate limiting enabled');
 } else {
-  console.log('⚠️  Rate limiting disabled for development');
+  if (isVerboseLogging()) console.log('⚠️  Rate limiting disabled for development');
 }
 
 // Compression middleware
@@ -200,8 +201,8 @@ app.use(healthCheckMiddleware);
 // Request queuing for high load (applied globally)
 app.use(requestQueueMiddleware);
 
-// Logging middleware
-if (config.server.env !== 'test') {
+// Logging middleware - only enable Morgan in development or when verbose logging is on
+if (config.server.env !== 'test' && (config.server.env === 'development' || isVerboseLogging())) {
   app.use(morgan('combined'));
 }
 
@@ -216,6 +217,9 @@ app.use(maintenanceModeMiddleware({
     '/api/v1/health'
   ]
 }));
+
+// Prometheus metrics endpoint (outside API prefix for standard scraping)
+app.use('/metrics', metricsRoutes);
 
 // API routes
 const apiPrefix = `${config.server.apiPrefix}/${config.server.apiVersion}`;
@@ -293,9 +297,6 @@ app.use(`${apiPrefix}/self-data-management`, selfDataManagementRoutes);
 app.use(`${apiPrefix}/internal`, internalRoutes); // Internal API for Python scripts
 app.use(`${apiPrefix}/bulk-upload`, bulkUploadRoutes); // New bulk upload API
 
-// Prometheus metrics endpoint (outside API prefix for standard scraping)
-app.use('/metrics', metricsRoutes);
-
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
   res.json({
@@ -342,6 +343,18 @@ app.get(`${apiPrefix}`, (_req: Request, res: Response) => {
   });
 });
 
+// Legacy/deprecated endpoints - return empty data to prevent 404 errors from cached client code
+// These endpoints no longer exist but some browser caches may still request them
+app.get('/api/dashboard/map-contacts', (_req: Request, res: Response) => {
+  res.json({ success: true, data: [], message: 'Deprecated endpoint - no data available' });
+});
+app.get('/api/dashboard/stats', (_req: Request, res: Response) => {
+  res.json({ success: true, data: {}, message: 'Deprecated endpoint - no data available' });
+});
+app.get('/api/dashboard/ward-stats', (_req: Request, res: Response) => {
+  res.json({ success: true, data: [], message: 'Deprecated endpoint - no data available' });
+});
+
 // 404 handler for undefined routes
 app.use(notFoundHandler);
 
@@ -350,126 +363,125 @@ app.use(errorHandler);
 
 // Start server function
 const startServer = async (): Promise<void> => {
+  const verbose = isVerboseLogging();
+
   try {
-    console.log('DEBUG: Starting server initialization...');
+    if (verbose) console.log('DEBUG: Starting server initialization...');
 
     // Initialize database connection
-    console.log('DEBUG: Initializing database...');
+    if (verbose) console.log('DEBUG: Initializing database...');
     await initializeDatabase();
-    console.log('DEBUG: Database initialized successfully');
+    if (verbose) console.log('DEBUG: Database initialized successfully');
 
     // Create database views for voting districts (temporarily disabled)
     // try {
     //   await ViewsService.createMembersVotingDistrictViews();
-    //   console.log('✅ Members voting district views created successfully');
+    //   if (verbose) console.log('✅ Members voting district views created successfully');
     // } catch (error) {
     //   console.warn('⚠️  Failed to create voting district views:', error);
     // }
 
     // Initialize Redis connection
-    console.log('DEBUG: Connecting to Redis...');
+    if (verbose) console.log('DEBUG: Connecting to Redis...');
     try {
       await redisService.connect();
-      console.log('✅ Redis connected successfully');
+      if (verbose) console.log('✅ Redis connected successfully');
     } catch (error) {
       console.warn('⚠️  Redis connection failed, using fallback cache:', error);
     }
 
     // Initialize cache service
-    console.log('DEBUG: Initializing cache service...');
+    if (verbose) console.log('DEBUG: Initializing cache service...');
     await cacheService.connect();
-    console.log('DEBUG: Cache service initialized');
+    if (verbose) console.log('DEBUG: Cache service initialized');
 
     // Initialize queue service (after database is ready)
-    console.log('DEBUG: Initializing queue service...');
+    if (verbose) console.log('DEBUG: Initializing queue service...');
     QueueService.initialize();
-    console.log('✅ Queue service initialized');
+    if (verbose) console.log('✅ Queue service initialized');
 
     // Ensure upload directories exist
-    console.log('DEBUG: Ensuring upload directories exist...');
+    if (verbose) console.log('DEBUG: Ensuring upload directories exist...');
     await FileStorageService.ensureUploadDirectories();
-    console.log('✅ Upload directories ensured');
+    if (verbose) console.log('✅ Upload directories ensured');
 
     // Start upload queue workers
-    console.log('DEBUG: Starting upload queue workers...');
+    if (verbose) console.log('DEBUG: Starting upload queue workers...');
     startAllQueueWorkers();
-    console.log('✅ Upload queue workers started');
+    if (verbose) console.log('✅ Upload queue workers started');
 
     // Start performance monitoring
-    console.log('DEBUG: Starting performance monitoring...');
+    if (verbose) console.log('DEBUG: Starting performance monitoring...');
     performanceMonitor.startMonitoring(30000); // Monitor every 30 seconds
-    console.log('✅ Performance monitoring started');
+    if (verbose) console.log('✅ Performance monitoring started');
 
     // Create HTTP server
-    console.log('DEBUG: Creating HTTP server...');
+    if (verbose) console.log('DEBUG: Creating HTTP server...');
     const server = createServer(app);
-
-    // Set server timeout to 5 minutes for large file operations (PDF generation, etc.)
-    server.timeout = 300000; // 5 minutes in milliseconds
-    server.keepAliveTimeout = 310000; // Slightly longer than timeout
-    server.headersTimeout = 320000; // Slightly longer than keepAliveTimeout
-
-    console.log('DEBUG: HTTP server created with 5-minute timeout');
+    if (verbose) console.log('DEBUG: HTTP server created');
 
     // Initialize WebSocket service
-    console.log('DEBUG: Initializing WebSocket service...');
+    if (verbose) console.log('DEBUG: Initializing WebSocket service...');
     WebSocketService.initialize(server);
-    console.log('DEBUG: WebSocket service initialized');
+    if (verbose) console.log('DEBUG: WebSocket service initialized');
 
     // Start file watcher service
-    console.log('DEBUG: Starting file watcher service...');
+    if (verbose) console.log('DEBUG: Starting file watcher service...');
     const fileWatcher = FileWatcherService.getInstance();
     await fileWatcher.start();
-    console.log('DEBUG: File watcher service started');
+    if (verbose) console.log('DEBUG: File watcher service started');
 
     // Start queue processing - ✅ MIGRATED TO PRISMA
-    console.log('DEBUG: Starting queue processing...');
+    if (verbose) console.log('DEBUG: Starting queue processing...');
     const queueManager = FileProcessingQueueManager.getInstance();
     await queueManager.startProcessing();
-    console.log('DEBUG: Queue processing started');
+    if (verbose) console.log('DEBUG: Queue processing started');
 
     // Initialize bulk upload queue worker
-    console.log('DEBUG: Initializing bulk upload queue worker...');
+    if (verbose) console.log('DEBUG: Initializing bulk upload queue worker...');
     initializeBulkUploadWorker();
-    console.log('DEBUG: Bulk upload queue worker initialized');
+    if (verbose) console.log('DEBUG: Bulk upload queue worker initialized');
 
     // Start bulk upload file monitor
-    console.log('DEBUG: Starting bulk upload file monitor...');
+    if (verbose) console.log('DEBUG: Starting bulk upload file monitor...');
     const bulkUploadMonitor = BulkUploadFileMonitor.getInstance();
     await bulkUploadMonitor.start();
-    console.log('DEBUG: Bulk upload file monitor started');
+    if (verbose) console.log('DEBUG: Bulk upload file monitor started');
 
     // Start HTTP server
     server.listen(config.server.port, () => {
+      // Always show startup messages (essential for knowing the server is running)
       console.log('🚀 Server started successfully!');
       console.log(`📍 Server running on port ${config.server.port}`);
       console.log(`🌐 API available at: http://localhost:${config.server.port}${apiPrefix}`);
-      console.log(`📊 Health check: http://localhost:${config.server.port}${apiPrefix}/health`);
-      console.log(`🔌 WebSocket service: ${WebSocketService.isInitialized() ? 'Initialized' : 'Failed'}`);
-      console.log(`📁 File watcher: ${fileWatcher.isActive() ? 'Active' : 'Inactive'}`);
-      // TEMPORARILY DISABLED - queueManager corrupted
-      // console.log(`🔄 Queue processor: ${queueManager.isCurrentlyProcessing() ? 'Processing' : 'Ready'}`);
-      console.log(`⚡ Cache Service: ${cacheService.isAvailable() ? 'Connected' : 'Disconnected'}`);
+
+      // Show additional startup info only in verbose mode
+      if (verbose) {
+        console.log(`📊 Health check: http://localhost:${config.server.port}${apiPrefix}/health`);
+        console.log(`🔌 WebSocket service: ${WebSocketService.isInitialized() ? 'Initialized' : 'Failed'}`);
+        console.log(`📁 File watcher: ${fileWatcher.isActive() ? 'Active' : 'Inactive'}`);
+        console.log(`⚡ Cache Service: ${cacheService.isAvailable() ? 'Connected' : 'Disconnected'}`);
+      }
 
       // Start SMS provider monitoring
       SMSProviderMonitoringService.startMonitoring();
-      console.log(`📱 SMS Provider Monitoring: Active`);
+      if (verbose) console.log(`📱 SMS Provider Monitoring: Active`);
 
       // Start scheduled maintenance checker (every 1 minute)
       setInterval(scheduledMaintenanceChecker, 60000);
-      console.log(`🔧 Scheduled Maintenance Checker: Active`);
+      if (verbose) console.log(`🔧 Scheduled Maintenance Checker: Active`);
 
       // Start meeting status update job (every 5 minutes)
       MeetingStatusJob.start();
-      console.log(`📅 Meeting Status Update Job: Active`);
+      if (verbose) console.log(`📅 Meeting Status Update Job: Active`);
 
       // Start membership status update job (daily at midnight)
       MembershipStatusJob.start();
-      console.log(`👥 Membership Status Update Job: Active (daily at midnight)`);
+      if (verbose) console.log(`👥 Membership Status Update Job: Active (daily at midnight)`);
 
       // Start ward audit materialized view refresh job (every 15 minutes)
       scheduleWardAuditViewRefresh();
-      console.log(`🔄 Ward Audit Materialized View Refresh: Active (every 15 minutes)`);
+      if (verbose) console.log(`🔄 Ward Audit Materialized View Refresh: Active (every 15 minutes)`);
 
       // Start file cleanup job (daily at 2 AM)
       const scheduleFileCleanup = () => {
@@ -482,10 +494,10 @@ const startServer = async (): Promise<void> => {
         const timeUntilNextRun = nextRun.getTime() - now.getTime();
 
         setTimeout(async () => {
-          console.log('🧹 Running scheduled file cleanup...');
+          if (verbose) console.log('🧹 Running scheduled file cleanup...');
           try {
             const result = await FileStorageService.cleanupOldFiles();
-            console.log(`✅ File cleanup complete: ${result.deletedCount} files deleted, ${result.freedSpaceMB}MB freed`);
+            if (verbose) console.log(`✅ File cleanup complete: ${result.deletedCount} files deleted, ${result.freedSpaceMB}MB freed`);
           } catch (error) {
             console.error('❌ File cleanup failed:', error);
           }
@@ -493,7 +505,7 @@ const startServer = async (): Promise<void> => {
         }, timeUntilNextRun);
       };
       scheduleFileCleanup();
-      console.log(`🧹 File Cleanup Job: Active (daily at 2 AM)`);
+      if (verbose) console.log(`🧹 File Cleanup Job: Active (daily at 2 AM)`);
 
       // Start queue cleanup job (daily at 3 AM)
       const scheduleQueueCleanup = () => {
@@ -506,10 +518,10 @@ const startServer = async (): Promise<void> => {
         const timeUntilNextRun = nextRun.getTime() - now.getTime();
 
         setTimeout(async () => {
-          console.log('🧹 Running scheduled queue cleanup...');
+          if (verbose) console.log('🧹 Running scheduled queue cleanup...');
           try {
             await cleanupOldJobs(7 * 24 * 60 * 60 * 1000); // 7 days
-            console.log('✅ Queue cleanup complete');
+            if (verbose) console.log('✅ Queue cleanup complete');
           } catch (error) {
             console.error('❌ Queue cleanup failed:', error);
           }
@@ -517,14 +529,15 @@ const startServer = async (): Promise<void> => {
         }, timeUntilNextRun);
       };
       scheduleQueueCleanup();
-      console.log(`🧹 Queue Cleanup Job: Active (daily at 3 AM)`);
+      if (verbose) console.log(`🧹 Queue Cleanup Job: Active (daily at 3 AM)`);
 
-      // Log configuration
-      logConfig();
+      // Log configuration (only in verbose mode)
+      if (verbose) logConfig();
     });
 
     // Graceful shutdown handling
     const gracefulShutdown = async (signal: string) => {
+      // Always log shutdown (important for process management)
       console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
 
       // Stop performance monitoring
@@ -540,10 +553,10 @@ const startServer = async (): Promise<void> => {
       MembershipStatusJob.stop();
 
       // Close queue connections
-      console.log('🔄 Closing queue connections...');
+      if (verbose) console.log('🔄 Closing queue connections...');
       const { closeQueues } = await import('./services/uploadQueueService');
       await closeQueues();
-      console.log('✅ Queue connections closed');
+      if (verbose) console.log('✅ Queue connections closed');
 
       // WebSocket service removed
 

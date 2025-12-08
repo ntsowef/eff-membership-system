@@ -1,0 +1,336 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import Joi from 'joi';
+import { executeQuery, executeQuerySingle } from '../config/database';
+import { validate } from '../middleware/validation';
+import { sendSuccess } from '../utils/responseHelpers';
+import { NotFoundError } from '../middleware/errorHandler';
+
+const router = Router();
+
+/**
+ * External Renewal Endpoint
+ * Allows external systems to renew memberships and update status from inactive to active
+ * Returns complete membership data by member ID
+ */
+
+// Validation schema for external renewal
+const externalRenewalSchema = Joi.object({
+  id_number: Joi.string().length(13).pattern(/^\d{13}$/).required()
+    .description('The member South African ID number (13 digits)'),
+  renewal_period_months: Joi.number().integer().min(1).max(60).default(24)
+    .description('Number of months to extend membership'),
+  payment_reference: Joi.string().max(100).optional()
+    .description('External payment reference'),
+  payment_method: Joi.string().valid('online', 'bank_transfer', 'cash', 'cheque', 'eft', 'external_system').default('external_system')
+    .description('Payment method used'),
+  amount_paid: Joi.number().min(0).optional()
+    .description('Amount paid for renewal'),
+  notes: Joi.string().max(500).optional()
+    .description('Additional notes about the renewal'),
+  external_system_id: Joi.string().max(100).optional()
+    .description('Identifier from the external system')
+});
+
+/**
+ * POST /api/external-renewal/renew
+ * Renew membership and update status from inactive to active
+ * Returns complete membership data
+ */
+router.post('/renew',
+  validate({ body: externalRenewalSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+    const {
+      id_number,
+      renewal_period_months = 24,
+      payment_reference,
+      payment_method = 'external_system',
+      amount_paid,
+      notes,
+      external_system_id
+    } = req.body;
+
+    // Step 1: Check if member exists by ID number
+    const memberQuery = `
+      SELECT
+        m.member_id,
+        m.id_number,
+        m.firstname,
+        m.surname,
+        m.middle_name,
+        m.date_of_birth,
+        m.gender_id,
+        m.race_id,
+        m.citizenship_id,
+        m.language_id,
+        m.email,
+        m.cell_number,
+        m.landline_number,
+        m.residential_address,
+        m.postal_address,
+        m.ward_code,
+        m.occupation_id,
+        m.qualification_id,
+        m.voter_status_id,
+        m.membership_type,
+        m.created_at as member_created_at,
+        m.updated_at as member_updated_at
+      FROM members_consolidated m
+      WHERE m.id_number = $1
+    `;
+
+    const member = await executeQuerySingle(memberQuery, [id_number]);
+
+    if (!member) {
+      throw new NotFoundError(`Member with ID number ${id_number} not found`);
+    }
+
+    const member_id = member.member_id;
+
+    // Step 2: Get current membership data from members table (consolidated schema)
+    const membershipDataQuery = `
+      SELECT
+        member_id,
+        membership_number,
+        date_joined,
+        last_payment_date,
+        expiry_date,
+        subscription_type_id,
+        membership_amount,
+        membership_status_id,
+        payment_method,
+        payment_reference,
+        payment_status
+      FROM members_consolidated
+      WHERE member_id = $1
+    `;
+
+    const membershipData = await executeQuerySingle(membershipDataQuery, [member_id]);
+
+    // Step 3: Calculate new expiry date
+    const currentDate = new Date();
+    let newExpiryDate: Date;
+
+    if (membershipData && membershipData.expiry_date) {
+      const existingExpiry = new Date(membershipData.expiry_date);
+      // If membership is still active, extend from expiry date
+      // If expired, extend from today
+      const baseDate = existingExpiry > currentDate ? existingExpiry : currentDate;
+      newExpiryDate = new Date(baseDate);
+      newExpiryDate.setMonth(newExpiryDate.getMonth() + renewal_period_months);
+    } else {
+      // No existing expiry, start from today
+      newExpiryDate = new Date(currentDate);
+      newExpiryDate.setMonth(newExpiryDate.getMonth() + renewal_period_months);
+    }
+
+    // Step 4: Get Active/Good Standing status ID
+    const activeStatusQuery = `
+      SELECT status_id
+      FROM membership_statuses
+      WHERE status_name IN ('Active', 'Good Standing') OR status_code = 'ACT'
+      LIMIT 1
+    `;
+    const activeStatus = await executeQuerySingle(activeStatusQuery, []);
+    const activeStatusId = activeStatus?.status_id || 1; // Default to 1 if not found
+
+    // Step 5: Update member with renewal information (consolidated schema)
+    const updateMemberQuery = `
+      UPDATE members
+      SET
+        last_payment_date = $1,
+        expiry_date = $2,
+        membership_status_id = $3,
+        payment_method = $4,
+        payment_reference = $5,
+        payment_status = 'Completed',
+        membership_amount = $6,
+        date_joined = COALESCE(date_joined, $7),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE member_id = $8
+      RETURNING member_id, membership_number
+    `;
+
+    const updateResult = await executeQuery(updateMemberQuery, [
+      currentDate.toISOString().split('T')[0],
+      newExpiryDate.toISOString().split('T')[0],
+      activeStatusId,
+      payment_method,
+      payment_reference || external_system_id || null,
+      amount_paid || membershipData?.membership_amount || 10.00,
+      currentDate.toISOString().split('T')[0], // date_joined if not set
+      member_id
+    ]);
+
+    // Generate membership number if not exists
+    let membershipNumber = membershipData?.membership_number;
+    if (!membershipNumber && updateResult && updateResult.length > 0) {
+      const year = new Date().getFullYear();
+      membershipNumber = `EFF${year}${member_id.toString().padStart(6, '0')}`;
+      await executeQuery(
+        'UPDATE members_consolidated SET membership_number = $1 WHERE member_id = $2',
+        [membershipNumber, member_id]
+      );
+    }
+
+    // Step 6: Log the renewal activity
+    const logQuery = `
+      INSERT INTO membership_status_history (
+        member_id,
+        old_status_id,
+        new_status_id,
+        change_reason,
+        changed_by,
+        change_date
+      ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+    `;
+
+    await executeQuery(logQuery, [
+      member_id,
+      membershipData?.membership_status_id || null,
+      activeStatusId,
+      notes || `External renewal via API - ${renewal_period_months} months`,
+      0 // System user
+    ]).catch(() => {
+      // Ignore if table doesn't exist
+    });
+
+    // Step 7: Retrieve complete membership data with all details (consolidated schema)
+    const completeMembershipQuery = `
+      SELECT
+        m.member_id,
+        m.id_number,
+        m.firstname,
+        m.surname,
+        m.middle_name,
+        CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
+        m.date_of_birth,
+        EXTRACT(YEAR FROM AGE(CURRENT_DATE, m.date_of_birth))::INTEGER as age,
+        m.email,
+        m.cell_number,
+        m.landline_number,
+        m.residential_address,
+        m.postal_address,
+        m.ward_code,
+        m.membership_type,
+        m.created_at as member_created_at,
+        m.updated_at as member_updated_at,
+
+        -- Gender info
+        g.gender_name,
+
+        -- Race info
+        r.race_name,
+
+        -- Citizenship info
+        c.citizenship_name,
+
+        -- Language info
+        l.language_name,
+
+        -- Occupation info
+        o.occupation_name,
+        oc.category_name as occupation_category,
+
+        -- Qualification info
+        q.qualification_name,
+        q.level_order as qualification_level,
+
+        -- Voter status
+        vs.status_name as voter_status_name,
+
+        -- Geographic info
+        w.ward_number,
+        w.ward_name,
+        mu.municipality_name,
+        d.district_name,
+        p.province_name,
+
+        -- Membership info (from consolidated members table)
+        m.member_id as membership_id,
+        m.membership_number,
+        m.date_joined,
+        m.last_payment_date,
+        m.expiry_date,
+        m.subscription_type_id,
+        m.membership_amount,
+        m.membership_status_id as status_id,
+        m.payment_method,
+        m.payment_reference,
+        m.payment_status,
+        m.created_at as membership_created_at,
+        m.updated_at as membership_updated_at,
+
+        -- Membership status info
+        mst.status_name as membership_status_name,
+        mst.status_code as membership_status_code,
+        mst.is_active as membership_is_active,
+        mst.allows_voting,
+        mst.allows_leadership,
+
+        -- Subscription type info
+        st.subscription_name,
+        st.subscription_code,
+        st.duration_months,
+
+        -- Calculated fields
+        CASE
+          WHEN m.expiry_date IS NULL THEN NULL
+          ELSE (m.expiry_date - CURRENT_DATE)
+        END as days_until_expiry,
+        CASE
+          WHEN m.expiry_date IS NULL THEN FALSE
+          WHEN m.expiry_date < CURRENT_DATE THEN TRUE
+          ELSE FALSE
+        END as is_expired
+
+      FROM members_consolidated m
+      LEFT JOIN genders g ON m.gender_id = g.gender_id
+      LEFT JOIN races r ON m.race_id = r.race_id
+      LEFT JOIN citizenships c ON m.citizenship_id = c.citizenship_id
+      LEFT JOIN languages l ON m.language_id = l.language_id
+      LEFT JOIN occupations o ON m.occupation_id = o.occupation_id
+      LEFT JOIN occupation_categories oc ON o.category_id = oc.category_id
+      LEFT JOIN qualifications q ON m.qualification_id = q.qualification_id
+      LEFT JOIN voter_statuses vs ON m.voter_status_id = vs.status_id
+      LEFT JOIN wards w ON m.ward_code = w.ward_code
+      LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+      LEFT JOIN districts d ON mu.district_code = d.district_code
+      LEFT JOIN provinces p ON d.province_code = p.province_code
+      LEFT JOIN membership_statuses mst ON m.membership_status_id = mst.status_id
+      LEFT JOIN subscription_types st ON m.subscription_type_id = st.subscription_type_id
+      WHERE m.member_id = $1
+      LIMIT 1
+    `;
+
+    const completeMembership = await executeQuerySingle(completeMembershipQuery, [member_id]);
+
+    if (!completeMembership) {
+      throw new NotFoundError(`Unable to retrieve updated membership data for member ID ${member_id}`);
+    }
+
+    // Step 8: Return success response with complete membership data
+    sendSuccess(res, {
+      success: true,
+      message: 'Membership renewed successfully',
+      renewal_details: {
+        id_number,
+        member_id,
+        previous_expiry_date: membershipData?.expiry_date || null,
+        new_expiry_date: newExpiryDate.toISOString().split('T')[0],
+        renewal_period_months,
+        payment_reference: payment_reference || external_system_id,
+        payment_method,
+        amount_paid: amount_paid || completeMembership.membership_amount,
+        renewed_at: currentDate.toISOString()
+      },
+      membership: completeMembership
+    }, 'Membership renewed and status updated to active', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+export default router;
+

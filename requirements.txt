@@ -1,0 +1,27 @@
+# Core dependencies for flexible_membership_ingestionV2.py
+
+# Data processing
+pandas>=2.0.0
+
+# Excel file support (required by pandas for .xlsx files)
+openpyxl>=3.0.0
+
+# PostgreSQL database adapter
+psycopg2-binary>=2.9.0
+
+# Date parsing utilities
+python-dateutil>=2.8.0
+
+# Standard library modules (no installation needed):
+# - os
+# - re
+# - glob
+# - datetime
+# - logging
+# - pathlib
+# - typing
+# - traceback
+# - shutil
+# - io
+# - math
+

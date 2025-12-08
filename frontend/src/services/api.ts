@@ -17,8 +17,7 @@ import type {
   AllLookupsResponse,
 } from '../types/api';
 
-// Get API base URL from environment variable or use proxy path for development
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
 // Create axios instance with default config
 export const api = axios.create({
@@ -98,13 +97,10 @@ export const apiPatch = async <T = any>(endpoint: string, data?: any): Promise<A
   return response.data;
 };
 
-export const apiDelete = async <T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
-  const response = await api.delete(endpoint, { data });
+export const apiDelete = async <T = any>(endpoint: string): Promise<ApiResponse<T>> => {
+  const response = await api.delete(endpoint);
   return response.data;
 };
-
-// Export axios instance for direct use when needed
-export { api };
 
 // Geographic API functions
 export const geographicApi = {
@@ -119,7 +115,7 @@ export const geographicApi = {
   getMunicipalities: (districtCode?: string) =>
     apiGet('/geographic/municipalities', districtCode ? { district: districtCode } : {}),
 
-// Get single municipality by code
+  // Get single municipality by code
   getMunicipalityByCode: (municipalityCode: string) =>
     apiGet(`/geographic/municipalities/${municipalityCode}`),
 
@@ -168,23 +164,15 @@ export const membersApi = {
   getMemberStatistics: () => apiGet('/members/statistics'),
   exportMembers: (format: string, filters?: any) =>
     apiGet('/members/export', { format, ...filters }),
-exportWardAudit: async (wardCode: string, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf'): Promise<Blob> => {
-    const response = await api.get(`/members/ward/${wardCode}/audit-export`, {
-      params: { format },
-      responseType: 'blob',
-      timeout: 60000
-    });
-    return response.data;
-  },
-  // Sub-region (municipality) members
-  getSubregionMembers: (municipalityCode: string, filters?: any) =>
-    apiGet(`/members/subregion/${municipalityCode}`, filters),
-  exportSubregionMembers: async (municipalityCode: string, filters?: any): Promise<Blob> => {
-    const response = await api.get(`/members/subregion/${municipalityCode}/download`, {
-      params: filters,
-      responseType: 'blob',
-      timeout: 60000
-    });
+  exportWardAudit: async (wardCode: string, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf') => {
+    // Use the configured api instance which has auth interceptor
+    const response = await api.get(
+      `/members/ward/${wardCode}/audit-export`,
+      {
+        params: { format },
+        responseType: 'blob',
+      }
+    );
     return response.data;
   },
 };
@@ -197,10 +185,11 @@ export const applicationsApi = {
   createApplication: (data: any) => apiPost('/membership-applications', data),
   updateApplication: (id: string, data: any) => apiPut(`/membership-applications/${id}`, data),
   deleteApplication: (id: string) => apiDelete(`/membership-applications/${id}`),
-  submitApplication: (id: string) => apiPost(`/membership-applications/${id}/submit`, {}),
+
+  // Submit application (Draft -> Submitted)
+  submitApplication: (id: string) => apiPost(`/membership-applications/${id}/submit`),
 
   // Review actions
-  submitApplication: (id: string) => apiPost(`/membership-applications/${id}/submit`),
   reviewApplication: (id: string, reviewData: any) => apiPost(`/membership-applications/${id}/review`, reviewData),
   setUnderReview: (id: string) => apiPost(`/membership-applications/${id}/under-review`),
   bulkReview: (data: any) => apiPost('/membership-applications/bulk/review', data),
@@ -270,7 +259,7 @@ export const authApi = {
   refreshToken: () => apiPost('/auth/refresh'),
   forgotPassword: (email: string) => apiPost('/auth/forgot-password', { email }),
   resetPassword: (token: string, password: string) =>
-    apiPost('/auth/reset-password', { token, password }),
+    apiPost('/auth/reset-password', { token, newPassword: password }),
   verifyEmail: (token: string) => apiPost('/auth/verify-email', { token }),
 };
 
@@ -291,24 +280,37 @@ export const viewsApi = {
     apiGet('/views/members-with-voting-districts', filters),
   getVotingDistrictSummary: (filters?: any) =>
     apiGet('/views/voting-district-summary', filters),
-exportMembersWithVotingDistricts: async (filters: any, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf'): Promise<{
-    blob: Blob;
-    emailSentTo?: string;
-    emailStatus?: 'sending' | 'failed' | 'no-email';
-    emailError?: string;
-  }> => {
-    const response = await api.get('/views/members-with-voting-districts/export', {
-      params: { ...filters, format },
-      responseType: 'blob',
-      timeout: 60000
-    });
+  exportMembersWithVotingDistricts: async (filters?: any, format: string = 'excel') => {
+    // Use the configured api instance which has auth interceptor
+    const params = new URLSearchParams({ format, ...filters }).toString();
+    const response = await api.get(
+      `/views/members-with-voting-districts/export?${params}`,
+      {
+        responseType: 'blob',
+      }
+    );
+
+    // Check for JSON error response (will come as blob but is actually JSON)
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('application/json')) {
+      // This is an error response, parse it
+      const text = await response.data.text();
+      const errorData = JSON.parse(text);
+      throw { response: { status: 403, data: errorData } };
+    }
+
+    // Extract email info from headers if present
+    const emailSentTo = response.headers['x-email-sent-to'];
+    const emailStatus = response.headers['x-email-status'];
+    const emailError = response.headers['x-email-error'];
+
     return {
       blob: response.data,
-      emailSentTo: response.headers['x-email-sent-to'],
-      emailStatus: response.headers['x-email-status'],
-      emailError: response.headers['x-email-error']
+      emailSentTo,
+      emailStatus,
+      emailError
     };
-  }
+  },
 };
 
 // Analytics API functions
@@ -534,16 +536,11 @@ export const systemApi = {
   getSystemInfo: () => apiGet('/system/info'),
   getSystemOverview: () => apiGet('/system/overview'),
   getSystemLogs: (filters?: any) => apiGet('/system/logs', filters),
-getLogDetail: (source: string, id: string | number) => apiGet(`/system/logs/${source}/${id}`),
+  getLogDetail: (source: string, logId: string | number) => apiGet(`/system/logs/${source}/${logId}`),
+  exportLogsCSV: () => `${API_BASE_URL}/system/logs/export/csv`,
   getSettings: () => apiGet('/system/settings'),
   getSetting: (key: string) => apiGet(`/system/settings/${key}`),
   updateSetting: (key: string, value: any) => apiPut(`/system/settings/${key}`, { value }),
-
-  // Export operations
-  exportLogsCSV: (filters?: any) => {
-    const params = new URLSearchParams(filters || {}).toString();
-    return `${API_BASE_URL}/system/logs/export/csv${params ? `?${params}` : ''}`;
-  },
 
   // Backup operations
   createBackup: () => apiPost('/system/backups'),
@@ -569,7 +566,6 @@ export const memberApplicationBulkUploadApi = {
           'Content-Type': 'multipart/form-data',
           ...(token && { Authorization: `Bearer ${token}` }),
         },
-        timeout: 120000, // 2 minutes timeout for file uploads
       }
     );
     return response.data;
@@ -605,6 +601,44 @@ export const memberApplicationBulkUploadApi = {
   // Cancel upload
   cancelUpload: (uploadUuid: string) =>
     apiPost(`/member-application-bulk-upload/cancel/${uploadUuid}`, {}),
+
+  // Upload file with IEC verification
+  uploadFileWithIEC: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.post(
+      `${API_BASE_URL}/member-application-bulk-upload/upload-with-iec`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
+
+  // Get IEC verification status
+  getIECStatus: (uploadUuid: string) =>
+    apiGet(`/member-application-bulk-upload/iec-status/${uploadUuid}`),
+
+  // Download IEC verification report
+  downloadIECReport: async (uploadUuid: string) => {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const response = await axios.get(
+      `${API_BASE_URL}/member-application-bulk-upload/download-report/${uploadUuid}`,
+      {
+        responseType: 'blob',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+    return response.data;
+  },
 };
 
 export default api;

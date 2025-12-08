@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { requirePermission } from '../middleware/auth';
 import { iecApiService } from '../services/iecApiService';
-import { IECRateLimitService } from '../services/iecRateLimitService';
 import { createSuccessResponse, createErrorResponse } from '../utils/responseHelpers';
 import { validateRequest } from '../middleware/validation';
 import Joi from 'joi';
@@ -34,7 +33,7 @@ const votingDistrictSchema = Joi.object({
 router.get('/status', authenticate, async (req, res) => {
   try {
     const status = await iecApiService.getApiStatus();
-
+    
     res.json(createSuccessResponse(status, 'IEC API status retrieved successfully'));
   } catch (error) {
     console.error('Error getting IEC API status:', error);
@@ -43,36 +42,11 @@ router.get('/status', authenticate, async (req, res) => {
 });
 
 /**
- * @route POST /api/v1/iec/verify-voter-public
- * @desc Verify voter details by ID number (public endpoint for membership application)
- * @access Public (no authentication required)
- */
-router.post('/verify-voter-public',
-  validateRequest(verifyVoterSchema),
-  async (req, res) => {
-    try {
-      const { idNumber } = req.body;
-
-      const voterDetails = await iecApiService.verifyVoter(idNumber);
-
-      if (voterDetails) {
-        res.json(createSuccessResponse(voterDetails, 'Voter verified successfully'));
-      } else {
-        res.status(404).json(createErrorResponse('Voter not found in IEC database', 'VOTER_NOT_FOUND'));
-      }
-    } catch (error) {
-      console.error('Error verifying voter:', error);
-      res.status(500).json(createErrorResponse('Failed to verify voter', 'IEC_VERIFICATION_ERROR'));
-    }
-  }
-);
-
-/**
  * @route POST /api/v1/iec/verify-voter
  * @desc Verify voter details by ID number
  * @access Private (requires membership.verify permission)
  */
-router.post('/verify-voter',
+router.post('/verify-voter', 
   authenticate, 
   requirePermission('membership.verify'),
   validateRequest(verifyVoterSchema),
@@ -249,66 +223,70 @@ router.post('/bulk-verify',
 );
 
 /**
- * @route GET /api/v1/iec/rate-limit/status
- * @desc Get current IEC API rate limit status
- * @access Public (used by Python processor)
+ * @route POST /api/v1/iec/verify-voter-public
+ * @desc Verify voter details by ID number - Public endpoint for membership applications
+ * @access Public (no authentication required)
+ *
+ * This endpoint is specifically designed for the public membership application form.
+ * It allows potential members to verify their voter registration status during
+ * the application process without requiring authentication.
+ *
+ * Rate limiting is applied to prevent abuse.
  */
-router.get('/rate-limit/status', async (req, res) => {
-  try {
-    const status = await IECRateLimitService.getStatus();
-    res.json(createSuccessResponse(status, 'Rate limit status retrieved successfully'));
-  } catch (error) {
-    console.error('Error getting rate limit status:', error);
-    res.status(500).json(createErrorResponse('Failed to get rate limit status', 'RATE_LIMIT_ERROR'));
-  }
-});
-
-/**
- * @route POST /api/v1/iec/rate-limit/increment
- * @desc Increment IEC API rate limit counter and check status
- * @access Public (used by Python processor)
- */
-router.post('/rate-limit/increment', async (req, res) => {
-  try {
-    const status = await IECRateLimitService.incrementAndCheck();
-
-    if (status.is_limited) {
-      // Rate limit exceeded
-      return res.status(429).json({
-        success: false,
-        error: {
-          code: 'IEC_RATE_LIMIT_EXCEEDED',
-          message: `IEC API rate limit exceeded (${status.current_count}/${status.max_limit}). Resets in ${IECRateLimitService.formatResetTime(status.reset_time)}.`,
-          current_count: status.current_count,
-          max_limit: status.max_limit,
-          reset_time: status.reset_time,
-          remaining: status.remaining
-        }
-      });
-    }
-
-    res.json(createSuccessResponse(status, 'Rate limit checked successfully'));
-  } catch (error) {
-    console.error('Error checking rate limit:', error);
-    res.status(500).json(createErrorResponse('Failed to check rate limit', 'RATE_LIMIT_ERROR'));
-  }
-});
-
-/**
- * @route POST /api/v1/iec/rate-limit/reset
- * @desc Reset IEC API rate limit counter (for testing)
- * @access Private (requires authentication and admin permission)
- */
-router.post('/rate-limit/reset',
-  authenticate,
-  requirePermission('system.admin'),
+router.post('/verify-voter-public',
+  validateRequest(verifyVoterSchema),
   async (req, res) => {
     try {
-      await IECRateLimitService.reset();
-      res.json(createSuccessResponse({}, 'Rate limit counter reset successfully'));
-    } catch (error) {
-      console.error('Error resetting rate limit:', error);
-      res.status(500).json(createErrorResponse('Failed to reset rate limit', 'RATE_LIMIT_ERROR'));
+      const { idNumber } = req.body;
+
+      console.log(`🔍 [Public IEC] Verifying voter registration for ID: ${idNumber.substring(0, 6)}******`);
+
+      const voterDetails = await iecApiService.verifyVoter(idNumber);
+
+      if (voterDetails) {
+        // Return comprehensive voter details for form auto-population
+        const response = {
+          is_registered: voterDetails.is_registered,
+          voter_status: voterDetails.voter_status,
+          // Geographic information for auto-population
+          province_code: voterDetails.province_code,
+          province_name: voterDetails.province,
+          district_code: voterDetails.district_code,
+          municipality_code: voterDetails.municipality_code,
+          municipality_name: voterDetails.municipality,
+          ward_code: voterDetails.ward_code,
+          ward_id: voterDetails.ward_id,
+          voting_district_code: voterDetails.voting_district_code,
+          voting_district_name: voterDetails.voting_district,
+          // Voting station details
+          voting_station_name: voterDetails.voting_station_name,
+          voting_station_address: voterDetails.voting_station_address,
+          // Location details
+          town: voterDetails.town,
+          suburb: voterDetails.suburb,
+          street: voterDetails.street
+        };
+
+        console.log(`✅ [Public IEC] Voter verification complete. Registered: ${voterDetails.is_registered}`);
+        res.json(createSuccessResponse(response, 'Voter verification completed'));
+      } else {
+        // Return not registered status (but not an error)
+        console.log(`ℹ️ [Public IEC] Voter not found in IEC database`);
+        res.json(createSuccessResponse({
+          is_registered: false,
+          voter_status: 'Not Registered'
+        }, 'ID verification completed - voter not registered'));
+      }
+    } catch (error: any) {
+      console.error('Error in public voter verification:', error);
+
+      // Don't expose internal error details to public
+      // Return a safe response that allows the application to continue
+      res.json(createSuccessResponse({
+        is_registered: false,
+        voter_status: 'Verification Unavailable',
+        verification_error: true
+      }, 'Unable to verify voter registration at this time. Please continue with your application.'));
     }
   }
 );

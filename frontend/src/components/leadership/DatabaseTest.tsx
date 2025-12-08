@@ -6,6 +6,7 @@ import { Box, Typography, Alert, Button, Card, CardContent, CircularProgress } f
 import { CheckCircle, Storage } from '@mui/icons-material';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
+import { devLog } from '../../utils/logger';
 
 const { LeadershipAPI } = LeadershipService;
 
@@ -19,8 +20,8 @@ const DatabaseTest: React.FC = () => {
     setResults(null);
     
     try {
-      console.log('Testing leadership appointments API...');
-      
+      devLog('Testing leadership appointments API...');
+
       const appointments = await LeadershipAPI.getCurrentAppointments({ limit: 5 } as any);
       
       setResults({
@@ -57,8 +58,8 @@ const DatabaseTest: React.FC = () => {
     setResults(null);
     
     try {
-      console.log('Testing leadership positions API...');
-      
+      devLog('Testing leadership positions API...');
+
       const positions = await LeadershipAPI.getPositions();
       
       setResults({
@@ -95,8 +96,8 @@ const DatabaseTest: React.FC = () => {
     setResults(null);
     
     try {
-      console.log('Testing organizational structures API...');
-      
+      devLog('Testing organizational structures API...');
+
       const structures = await LeadershipAPI.getOrganizationalStructures();
       
       setResults({

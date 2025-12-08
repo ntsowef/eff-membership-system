@@ -83,6 +83,9 @@ const GeographicSearchPage = () => {
       return searchApi.lookup(lookupType, { search: searchInput, limit: 10 });
     },
     enabled: searchInput.length >= 2,
+    staleTime: 30 * 1000, // Keep suggestions fresh for 30 seconds
+    gcTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
     select: (data) => {
       const results = data?.data?.results || [];
       return results.map((item: any) => ({
@@ -92,7 +95,7 @@ const GeographicSearchPage = () => {
           : searchType === 'voting_stations'
           ? `${item.name} (${item.station_code})`
           : searchType === 'wards'
-          ? `${item.name} (${item.ward_number})`
+          ? `${item.name} (${item.ward_code})` // ward_name already contains "Ward X", show ward_code for clarity
           : `${item.name} (${item.municipality_code || item.code})`, // subregions
       }));
     },
@@ -108,10 +111,21 @@ const GeographicSearchPage = () => {
       limit: rowsPerPage
     }),
     enabled: !!(filters.voting_district_code || filters.voting_station_id || filters.ward_code || filters.municipal_code),
+    staleTime: 60 * 1000, // Keep data fresh for 1 minute
+    gcTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    placeholderData: (previousData) => previousData, // Keep previous data while loading new
   });
 
   const members = membersData?.data?.members || [];
-  const pagination = membersData?.data?.pagination || { total: 0, page: 1, limit: 20, totalPages: 0 };
+  const rawPagination = membersData?.data?.pagination || { total: 0, page: 1, limit: 20, totalPages: 0 };
+  // Ensure pagination values are numbers (backend may return strings)
+  const pagination = {
+    total: Number(rawPagination.total) || 0,
+    page: Number(rawPagination.page) || 1,
+    limit: Number(rawPagination.limit) || 20,
+    totalPages: Number(rawPagination.totalPages) || 0
+  };
 
   const applyGeoSearch = (selection: any) => {
     if (!selection) return;
@@ -179,38 +193,42 @@ const GeographicSearchPage = () => {
       const timestamp = new Date().toISOString().split('T')[0];
       let filename = '';
 
-      // For subregions, use the dedicated subregion export endpoint
-      if (searchType === 'subregions' && filters.municipal_code) {
-        blob = await membersApi.exportSubregionMembers(filters.municipal_code, {
-          search: '', // Don't pass searchInput as it contains the municipality label, not a member search term
-          membership_status: membershipStatus
-        });
-        filename = `SubRegion_${filters.municipal_code}_Members_${timestamp}.xlsx`;
-      } else {
-        // For other search types, use the existing views export
-        const response = await viewsApi.exportMembersWithVotingDistricts(filters, format);
-        blob = response.blob;
-        emailSentTo = response.emailSentTo;
-        emailStatus = response.emailStatus;
-        emailError = response.emailError;
+      // Use the views export endpoint for all search types
+      const exportFilters = {
+        ...filters,
+        membership_status: membershipStatus
+      };
+      const response = await viewsApi.exportMembersWithVotingDistricts(exportFilters, format);
+      blob = response.blob;
+      emailSentTo = response.emailSentTo;
+      emailStatus = response.emailStatus;
+      emailError = response.emailError;
 
-        if (filters.ward_code) {
-          filename = format === 'both'
-            ? `Ward_${filters.ward_code}_Complete_Export_${timestamp}.zip`
-            : format === 'excel'
-            ? `Ward_${filters.ward_code}_All_Members_${timestamp}.xlsx`
-            : format === 'pdf'
-            ? `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.pdf`
-            : `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.docx`;
-        } else {
-          filename = format === 'both'
-            ? `Geographic_Search_Complete_Export_${timestamp}.zip`
-            : format === 'excel'
-            ? `Geographic_Search_All_Members_${timestamp}.xlsx`
-            : format === 'pdf'
-            ? `Geographic_Search_Attendance_Register_${timestamp}.pdf`
-            : `Geographic_Search_Export_${timestamp}.docx`;
-        }
+      // Determine filename based on search type and filters
+      if (searchType === 'subregions' && filters.municipal_code) {
+        filename = format === 'both'
+          ? `SubRegion_${filters.municipal_code}_Complete_Export_${timestamp}.zip`
+          : format === 'excel'
+          ? `SubRegion_${filters.municipal_code}_Members_${timestamp}.xlsx`
+          : format === 'pdf'
+          ? `SubRegion_${filters.municipal_code}_Attendance_Register_${timestamp}.pdf`
+          : `SubRegion_${filters.municipal_code}_Export_${timestamp}.docx`;
+      } else if (filters.ward_code) {
+        filename = format === 'both'
+          ? `Ward_${filters.ward_code}_Complete_Export_${timestamp}.zip`
+          : format === 'excel'
+          ? `Ward_${filters.ward_code}_All_Members_${timestamp}.xlsx`
+          : format === 'pdf'
+          ? `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.pdf`
+          : `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.docx`;
+      } else {
+        filename = format === 'both'
+          ? `Geographic_Search_Complete_Export_${timestamp}.zip`
+          : format === 'excel'
+          ? `Geographic_Search_All_Members_${timestamp}.xlsx`
+          : format === 'pdf'
+          ? `Geographic_Search_Attendance_Register_${timestamp}.pdf`
+          : `Geographic_Search_Export_${timestamp}.docx`;
       }
 
       downloadBlob(blob, filename);

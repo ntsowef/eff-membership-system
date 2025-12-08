@@ -14,6 +14,246 @@ export const SPECIAL_VD_CODES: Record<string, string> = {
 };
 
 /**
+ * Language name variations mapping
+ * Maps common variations to official database language names
+ * Handles: simplified names, uppercase, common misspellings
+ */
+const LANGUAGE_VARIATIONS: Record<string, string> = {
+  // Setswana variations
+  'tswana': 'setswana',
+  'setswana': 'setswana',
+  'botswana': 'setswana',
+
+  // isiZulu variations
+  'zulu': 'isizulu',
+  'isizulu': 'isizulu',
+
+  // isiXhosa variations
+  'xhosa': 'isixhosa',
+  'isixhosa': 'isixhosa',
+
+  // isiNdebele variations
+  'ndebele': 'isindebele',
+  'isindebele': 'isindebele',
+
+  // Sesotho variations
+  'sotho': 'sesotho',
+  'sesotho': 'sesotho',
+  'south sotho': 'sesotho',
+  'southern sotho': 'sesotho',
+
+  // Sepedi variations (Northern Sotho)
+  'pedi': 'sepedi',
+  'sepedi': 'sepedi',
+  'north sotho': 'sepedi',
+  'northern sotho': 'sepedi',
+
+  // siSwati variations
+  'swati': 'siswati',
+  'siswati': 'siswati',
+  'swazi': 'siswati',
+
+  // Tshivenda variations
+  'venda': 'tshivenda',
+  'tshivenda': 'tshivenda',
+
+  // Xitsonga variations
+  'tsonga': 'xitsonga',
+  'xitsonga': 'xitsonga',
+  'shangaan': 'xitsonga',
+
+  // English and Afrikaans
+  'english': 'english',
+  'eng': 'english',
+  'afrikaans': 'afrikaans',
+  'afr': 'afrikaans',
+
+  // Other
+  'other': 'other',
+  'unknown': 'other',
+  'n/a': 'other'
+};
+
+/**
+ * Gender variations mapping
+ * Maps common variations to official database gender names
+ */
+const GENDER_VARIATIONS: Record<string, string> = {
+  // Male variations
+  'm': 'male',
+  'male': 'male',
+  'man': 'male',
+  'boy': 'male',
+  'mr': 'male',
+
+  // Female variations
+  'f': 'female',
+  'female': 'female',
+  'woman': 'female',
+  'girl': 'female',
+  'mrs': 'female',
+  'ms': 'female',
+  'miss': 'female',
+
+  // Other
+  'other': 'other',
+  'o': 'other',
+  'x': 'other',
+  'non-binary': 'other',
+  'nonbinary': 'other',
+
+  // Prefer not to say
+  'prefer not to say': 'prefer not to say',
+  'not specified': 'prefer not to say',
+  'unknown': 'prefer not to say',
+  'n/a': 'prefer not to say'
+};
+
+/**
+ * Race variations mapping
+ * Maps common variations to official database race names
+ */
+const RACE_VARIATIONS: Record<string, string> = {
+  // African variations
+  'african': 'african',
+  'black': 'african',
+  'black african': 'african',
+  'a': 'african',
+
+  // Coloured variations
+  'coloured': 'coloured',
+  'colored': 'coloured',
+  'c': 'coloured',
+  'cape coloured': 'coloured',
+
+  // Indian variations
+  'indian': 'indian',
+  'asian': 'indian',
+  'i': 'indian',
+  'south asian': 'indian',
+
+  // White variations
+  'white': 'white',
+  'w': 'white',
+  'caucasian': 'white',
+  'european': 'white',
+
+  // Other
+  'other': 'other',
+  'o': 'other',
+  'mixed': 'other',
+
+  // Prefer not to say
+  'prefer not to say': 'prefer not to say',
+  'not specified': 'prefer not to say',
+  'unknown': 'prefer not to say',
+  'n/a': 'prefer not to say'
+};
+
+/**
+ * Citizenship variations mapping
+ */
+const CITIZENSHIP_VARIATIONS: Record<string, string> = {
+  // South African Citizen
+  'south african citizen': 'south african citizen',
+  'south african': 'south african citizen',
+  'sa citizen': 'south african citizen',
+  'sa': 'south african citizen',
+  'citizen': 'south african citizen',
+  'rsa': 'south african citizen',
+
+  // Permanent Resident
+  'permanent resident': 'permanent resident',
+  'pr': 'permanent resident',
+  'permanent': 'permanent resident',
+
+  // Temporary Resident
+  'temporary resident': 'temporary resident',
+  'temp resident': 'temporary resident',
+  'temporary': 'temporary resident',
+
+  // Refugee
+  'refugee': 'refugee',
+  'asylum': 'refugee',
+  'asylum seeker': 'refugee',
+
+  // Other
+  'other': 'other',
+  'foreign': 'other',
+  'foreigner': 'other',
+  'n/a': 'other'
+};
+
+/**
+ * Occupation variations mapping
+ * Maps common variations to normalized occupation names
+ */
+const OCCUPATION_VARIATIONS: Record<string, string> = {
+  // Unemployed variations
+  'unemployed': 'unemployed',
+  'not employed': 'unemployed',
+  'none': 'unemployed',
+  'n/a': 'unemployed',
+  'jobless': 'unemployed',
+
+  // Student variations
+  'student': 'student',
+  'learner': 'student',
+  'scholar': 'student',
+  'pupil': 'student',
+
+  // Self-employed variations
+  'self employed': 'self-employed',
+  'self-employed': 'self-employed',
+  'business owner': 'self-employed',
+  'entrepreneur': 'self-employed',
+
+  // Pensioner variations
+  'pensioner': 'pensioner',
+  'retired': 'pensioner',
+  'retiree': 'pensioner'
+};
+
+/**
+ * Qualification variations mapping
+ */
+const QUALIFICATION_VARIATIONS: Record<string, string> = {
+  // No formal education
+  'none': 'no formal education',
+  'no formal education': 'no formal education',
+  'no education': 'no formal education',
+  'n/a': 'no formal education',
+
+  // Primary
+  'primary': 'primary school',
+  'primary school': 'primary school',
+  'grade 7': 'primary school',
+
+  // Secondary
+  'secondary': 'secondary school',
+  'secondary school': 'secondary school',
+  'high school': 'secondary school',
+  'matric': 'matric',
+  'grade 12': 'matric',
+
+  // Tertiary
+  'diploma': 'diploma',
+  'certificate': 'certificate',
+  'degree': 'degree',
+  'bachelor': 'degree',
+  'bachelors': 'degree',
+  "bachelor's": 'degree',
+  'honours': 'honours',
+  'honors': 'honours',
+  'master': 'masters',
+  'masters': 'masters',
+  "master's": 'masters',
+  'doctorate': 'doctorate',
+  'phd': 'doctorate',
+  'dr': 'doctorate'
+};
+
+/**
  * Geographic codes result from ward lookup
  */
 export interface GeographicCodes {
@@ -66,6 +306,8 @@ export class LookupService {
       this.loadLookupTable('qualifications', 'qualification_id', 'qualification_name'),
       this.loadLookupTable('voter_statuses', 'status_id', 'status_name'),
       this.loadLookupTable('subscription_types', 'subscription_type_id', 'subscription_name'),
+      // Load voter registration statuses (migration 011)
+      this.loadVoterRegistrationStatuses(),
       // Load geographic mappings (matching Python implementation)
       this.loadGeographicMappings()
     ]);
@@ -335,15 +577,113 @@ export class LookupService {
   }
 
   /**
+   * Load voter registration statuses lookup table
+   * Migration 011: voter_registration_statuses table
+   */
+  private async loadVoterRegistrationStatuses(): Promise<void> {
+    try {
+      const query = `SELECT registration_status_id, status_name FROM voter_registration_statuses`;
+      const result = await this.pool.query(query);
+
+      const tableCache = new Map<string, number>();
+      for (const row of result.rows) {
+        const name = String(row.status_name).trim().toLowerCase();
+        const id = row.registration_status_id;
+        tableCache.set(name, id);
+      }
+
+      this.cache.set('voter_registration_statuses', tableCache);
+      console.log(`[LookupService] Loaded ${tableCache.size} entries for voter_registration_statuses`);
+    } catch (error: any) {
+      console.error(`[LookupService] Error loading voter_registration_statuses:`, error.message);
+      // Initialize empty cache to prevent errors
+      this.cache.set('voter_registration_statuses', new Map());
+    }
+  }
+
+  /**
+   * Determine voter registration status based on VD code
+   *
+   * Business Logic (all VD codes are 8 digits):
+   * - '22222222', '33333333': Registered to vote, but not in that ward → Registered (1)
+   * - '99999999': NOT registered to vote → Not Registered (2)
+   * - '00000000': NOT registered to vote → Not Registered (2)
+   * - Empty/NULL VD code: Unknown (3)
+   * - Any other valid VD code: Registered (1)
+   *
+   * @param vdCode - Voting District code from IEC verification
+   * @returns Object with voter_registration_id and is_registered_voter
+   */
+  getVoterRegistrationStatus(vdCode: string | number | null | undefined): { voterRegistrationId: number; isRegisteredVoter: boolean | null } {
+    // VD codes for non-registered voters (8 digits to match SPECIAL_VD_CODES)
+    const NOT_REGISTERED_CODES = new Set(['99999999', '00000000']);
+
+    // Handle null, undefined, empty values
+    if (vdCode === null || vdCode === undefined) {
+      // Unknown - no VD code available
+      return { voterRegistrationId: 3, isRegisteredVoter: null };
+    }
+
+    // Convert to string first to safely use trim()
+    const vdCodeStr = String(vdCode).trim();
+
+    if (vdCodeStr === '') {
+      // Unknown - empty VD code
+      return { voterRegistrationId: 3, isRegisteredVoter: null };
+    }
+
+    if (NOT_REGISTERED_CODES.has(vdCodeStr)) {
+      // Not Registered to vote
+      return { voterRegistrationId: 2, isRegisteredVoter: false };
+    }
+
+    // All other codes (including 22222222, 33333333) are registered voters
+    // 22222222 and 33333333 are registered but not in that ward
+    return { voterRegistrationId: 1, isRegisteredVoter: true };
+  }
+
+  /**
+   * Normalize a value using a variation mapping
+   * @param value - The input value to normalize
+   * @param variationMap - The mapping of variations to canonical values
+   * @returns The normalized value or the original lowercase value if not found
+   */
+  private normalizeWithVariations(value: string, variationMap: Record<string, string>): string {
+    const valueLower = value.trim().toLowerCase();
+
+    // First try direct match in variation map
+    if (variationMap[valueLower]) {
+      return variationMap[valueLower];
+    }
+
+    // Try partial matching - check if any key is contained in the value
+    for (const [key, canonical] of Object.entries(variationMap)) {
+      if (valueLower.includes(key) || key.includes(valueLower)) {
+        return canonical;
+      }
+    }
+
+    return valueLower;
+  }
+
+  /**
    * Lookup ID from cache with default value
+   * Uses fuzzy matching and variation mappings for intelligent lookups
    * Matches Python implementation: lookup_id(table, value, default)
    */
-  lookupId(tableName: string, value: string | null | undefined, defaultValue: number = 1): number {
-    if (!value || value === 'N/A' || value === 'n/a' || value.trim() === '') {
+  lookupId(tableName: string, value: string | number | null | undefined, defaultValue: number = 1): number {
+    // Handle null, undefined, empty values
+    if (value === null || value === undefined) {
       return defaultValue;
     }
 
-    const valueLower = String(value).trim().toLowerCase();
+    // Convert to string first to safely use trim()
+    const valueStr = String(value);
+
+    if (valueStr === '' || valueStr === 'N/A' || valueStr === 'n/a' || valueStr.trim() === '') {
+      return defaultValue;
+    }
+
     const tableCache = this.cache.get(tableName);
 
     if (!tableCache) {
@@ -351,23 +691,54 @@ export class LookupService {
       return defaultValue;
     }
 
-    const id = tableCache.get(valueLower);
+    const valueLower = valueStr.trim().toLowerCase();
+
+    // Try direct match first
+    let id = tableCache.get(valueLower);
     if (id !== undefined) {
       return id;
     }
 
-    // Try partial matching for common variations
-    if (tableName === 'citizenships') {
-      // "South Africa" -> "South African Citizen"
-      if (valueLower.includes('south africa') || valueLower.includes('sa citizen')) {
-        return tableCache.get('south african citizen') || defaultValue;
+    // Apply table-specific variation mapping
+    let normalizedValue = valueLower;
+
+    switch (tableName) {
+      case 'languages':
+        normalizedValue = this.normalizeWithVariations(valueLower, LANGUAGE_VARIATIONS);
+        break;
+      case 'genders':
+        normalizedValue = this.normalizeWithVariations(valueLower, GENDER_VARIATIONS);
+        break;
+      case 'races':
+        normalizedValue = this.normalizeWithVariations(valueLower, RACE_VARIATIONS);
+        break;
+      case 'citizenships':
+        normalizedValue = this.normalizeWithVariations(valueLower, CITIZENSHIP_VARIATIONS);
+        break;
+      case 'occupations':
+        normalizedValue = this.normalizeWithVariations(valueLower, OCCUPATION_VARIATIONS);
+        break;
+      case 'qualifications':
+        normalizedValue = this.normalizeWithVariations(valueLower, QUALIFICATION_VARIATIONS);
+        break;
+    }
+
+    // Try lookup with normalized value
+    if (normalizedValue !== valueLower) {
+      id = tableCache.get(normalizedValue);
+      if (id !== undefined) {
+        // Log successful fuzzy match for debugging
+        console.log(`[LookupService] Fuzzy match: "${value}" → "${normalizedValue}" in ${tableName}`);
+        return id;
       }
     }
 
-    if (tableName === 'races') {
-      // "BLACK" -> "African"
-      if (valueLower === 'black') {
-        return tableCache.get('african') || defaultValue;
+    // Try partial matching against cache keys as last resort
+    for (const [cacheKey, cacheId] of tableCache.entries()) {
+      // Check if cache key contains the value or vice versa
+      if (cacheKey.includes(valueLower) || valueLower.includes(cacheKey)) {
+        console.log(`[LookupService] Partial match: "${value}" ≈ "${cacheKey}" in ${tableName}`);
+        return cacheId;
       }
     }
 
@@ -379,12 +750,20 @@ export class LookupService {
    * Normalize voter status values to match database values
    * Matches Python implementation: normalize_voter_status()
    */
-  normalizeVoterStatus(value: string | null | undefined): string {
-    if (!value || value === 'N/A' || value === 'n/a' || value.trim() === '') {
+  normalizeVoterStatus(value: string | number | null | undefined): string {
+    // Handle null, undefined, empty values
+    if (value === null || value === undefined) {
       return 'Registered'; // Default
     }
 
-    const valueLower = String(value).trim().toLowerCase();
+    // Convert to string first to safely use trim()
+    const valueStr = String(value);
+
+    if (valueStr === '' || valueStr === 'N/A' || valueStr === 'n/a' || valueStr.trim() === '') {
+      return 'Registered'; // Default
+    }
+
+    const valueLower = valueStr.trim().toLowerCase();
 
     // Map common variations to database values
     if (valueLower.includes('registered in ward') || valueLower.includes('registered')) {

@@ -5,6 +5,7 @@ import React from 'react';
 import { Box, Typography, Alert, Button } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useUI } from '../../store';
+import { devLog } from '../../utils/logger';
 
 // Import only what we need from leadershipApi (no Member interface)
 import * as LeadershipService from '../../services/leadershipApi';
@@ -32,7 +33,7 @@ const SimpleTest: React.FC = () => {
         limit: 10
       };
 
-      console.log('Import test successful:', {
+      devLog('Import test successful:', {
         LeadershipAPI: typeof LeadershipAPI,
         MemberFilters: typeof testFilters
       });

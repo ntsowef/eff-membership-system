@@ -15,6 +15,7 @@ import { geographicApi } from '../../services/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
 import { Business } from '@mui/icons-material';
+import { devLog, devWarn } from '../../utils/logger';
 
 interface Municipality {
   municipality_code: string;
@@ -72,7 +73,7 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
 
       // Use the geographic API to get municipalities by province
       const result = await geographicApi.getMunicipalities(provinceCode);
-      console.log('MunicipalityFilter - API response for province', provinceCode, ':', result);
+      devLog('MunicipalityFilter - API response for province', provinceCode, ':', result);
       return result || [];
     },
     enabled: !!getProvinceForFetch(),
@@ -85,7 +86,7 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
     if (municipalityContext.isMunicipalityAdmin) {
       return false;
     }
-    
+
     // Provincial Admin and National Admin should see the filter
     return true;
   };
@@ -112,7 +113,7 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
       municipalitiesArray = (municipalities as any).municipalities;
     }
     else {
-      console.warn('Unexpected municipalities data format:', municipalities);
+      devWarn('Unexpected municipalities data format:', municipalities);
       return [];
     }
 

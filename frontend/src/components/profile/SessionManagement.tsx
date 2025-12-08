@@ -35,6 +35,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiDelete, apiPost } from '../../lib/api';
 import { formatDistanceToNow } from 'date-fns';
+import { showDangerConfirm } from '../../utils/sweetAlert';
 
 interface Session {
   session_id: string;
@@ -107,8 +108,13 @@ const SessionManagement: React.FC = () => {
     },
   });
 
-  const handleTerminateSession = (sessionId: string) => {
-    if (window.confirm('Are you sure you want to terminate this session?')) {
+  const handleTerminateSession = async (sessionId: string) => {
+    const confirmed = await showDangerConfirm(
+      'This will immediately end this session and log out the user on that device.',
+      'Terminate Session?',
+      'Yes, terminate'
+    );
+    if (confirmed) {
       terminateSessionMutation.mutate(sessionId);
     }
   };

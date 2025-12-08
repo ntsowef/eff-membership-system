@@ -128,13 +128,23 @@ const PerformanceDashboard: React.FC = () => {
     );
   }
 
-  const formatNumber = (num: number) => {
+  // Provide default values for optional dashboard properties
+  const membershipGrowth = dashboardData.membershipGrowth ?? { current: 0, previous: 0, percentage: 0 };
+  const geographicDistribution = dashboardData.geographicDistribution ?? { provinces: 0, regions: 0, subRegions: 0, wards: 0, votingDistricts: 0 };
+  const systemPerformance = dashboardData.systemPerformance ?? { responseTime: 0, uptime: 0, activeUsers: 0, dataQuality: 0 };
+  const demographics = dashboardData.demographics ?? { ageGroups: [], genderDistribution: [] };
+  const membershipTrends = dashboardData.membershipTrends ?? [];
+  const topPerformingAreas = dashboardData.topPerformingAreas ?? [];
+
+  const formatNumber = (num: number | undefined | null) => {
+    if (num === undefined || num === null) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
   };
 
-  const formatPercentage = (num: number) => {
+  const formatPercentage = (num: number | undefined | null) => {
+    if (num === undefined || num === null) return '+0.0%';
     return `${num >= 0 ? '+' : ''}${num.toFixed(1)}%`;
   };
 
@@ -179,17 +189,17 @@ const PerformanceDashboard: React.FC = () => {
                     {formatNumber(dashboardData.totalMembers)}
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                    {dashboardData.membershipGrowth.percentage >= 0 ? (
+                    {(membershipGrowth.percentage ?? 0) >= 0 ? (
                       <TrendingUp color="success" fontSize="small" />
                     ) : (
                       <TrendingDown color="error" fontSize="small" />
                     )}
                     <Typography
                       variant="body2"
-                      color={dashboardData.membershipGrowth.percentage >= 0 ? 'success.main' : 'error.main'}
+                      color={(membershipGrowth.percentage ?? 0) >= 0 ? 'success.main' : 'error.main'}
                       sx={{ ml: 0.5 }}
                     >
-                      {formatPercentage(dashboardData.membershipGrowth.percentage)}
+                      {formatPercentage(membershipGrowth.percentage)}
                     </Typography>
                   </Box>
                 </Box>
@@ -208,7 +218,7 @@ const PerformanceDashboard: React.FC = () => {
                     Geographic Coverage
                   </Typography>
                   <Typography variant="h4">
-                    {dashboardData.geographicDistribution.provinces}
+                    {geographicDistribution.provinces ?? 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Provinces covered
@@ -229,7 +239,7 @@ const PerformanceDashboard: React.FC = () => {
                     System Performance
                   </Typography>
                   <Typography variant="h4">
-                    {dashboardData.systemPerformance.uptime.toFixed(1)}%
+                    {(systemPerformance.uptime ?? 0).toFixed(1)}%
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Uptime
@@ -250,11 +260,11 @@ const PerformanceDashboard: React.FC = () => {
                     Data Quality
                   </Typography>
                   <Typography variant="h4">
-                    {dashboardData.systemPerformance.dataQuality.toFixed(0)}%
+                    {(systemPerformance.dataQuality ?? 0).toFixed(0)}%
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={dashboardData.systemPerformance.dataQuality}
+                    value={systemPerformance.dataQuality ?? 0}
                     sx={{ mt: 1, height: 6, borderRadius: 3 }}
                   />
                 </Box>
@@ -275,7 +285,7 @@ const PerformanceDashboard: React.FC = () => {
                 Membership Growth Trend
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={dashboardData.membershipTrends}>
+                <AreaChart data={membershipTrends}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -313,7 +323,7 @@ const PerformanceDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={dashboardData.demographics.ageGroups}
+                    data={demographics.ageGroups ?? []}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -322,7 +332,7 @@ const PerformanceDashboard: React.FC = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {dashboardData.demographics.ageGroups.map((_entry: any, index: number) => (
+                    {(demographics.ageGroups ?? []).map((_entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -344,7 +354,7 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={6}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" color="primary">
-                      {dashboardData.geographicDistribution.provinces}
+                      {geographicDistribution.provinces ?? 0}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Provinces
@@ -354,7 +364,7 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={6}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" color="primary">
-                      {dashboardData.geographicDistribution.regions}
+                      {geographicDistribution.regions ?? 0}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Regions
@@ -364,7 +374,7 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={6}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" color="primary">
-                      {dashboardData.geographicDistribution.subRegions}
+                      {geographicDistribution.subRegions ?? 0}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Sub-Regions
@@ -374,7 +384,7 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={6}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" color="primary">
-                      {formatNumber(dashboardData.geographicDistribution.votingDistricts)}
+                      {formatNumber(geographicDistribution.votingDistricts)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Voting Districts
@@ -394,14 +404,14 @@ const PerformanceDashboard: React.FC = () => {
                 Top Performing Areas
               </Typography>
               <Box sx={{ mt: 2 }}>
-                {dashboardData.topPerformingAreas.map((area: any, index: number) => (
+                {topPerformingAreas.map((area: any, index: number) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Typography variant="body1" fontWeight="medium">
                         {area.name}
                       </Typography>
                       <Chip
-                        label={`+${area.growthRate}%`}
+                        label={`+${area.growthRate ?? 0}%`}
                         color="success"
                         size="small"
                         variant="outlined"
@@ -417,7 +427,7 @@ const PerformanceDashboard: React.FC = () => {
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={(area.memberCount / dashboardData.totalMembers) * 100}
+                      value={(dashboardData.totalMembers ?? 0) > 0 ? ((area.memberCount ?? 0) / (dashboardData.totalMembers ?? 1)) * 100 : 0}
                       sx={{ height: 6, borderRadius: 3 }}
                     />
                   </Box>
@@ -438,14 +448,14 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={12} sm={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="success.main">
-                      {dashboardData.systemPerformance.responseTime}ms
+                      {systemPerformance.responseTime ?? 0}ms
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Avg Response Time
                     </Typography>
                     <LinearProgress
                       variant="determinate"
-                      value={Math.max(0, 100 - (dashboardData.systemPerformance.responseTime / 10))}
+                      value={Math.max(0, 100 - ((systemPerformance.responseTime ?? 0) / 10))}
                       color="success"
                       sx={{ mt: 1, height: 4, borderRadius: 2 }}
                     />
@@ -454,14 +464,14 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={12} sm={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="success.main">
-                      {dashboardData.systemPerformance.uptime}%
+                      {systemPerformance.uptime ?? 0}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       System Uptime
                     </Typography>
                     <LinearProgress
                       variant="determinate"
-                      value={dashboardData.systemPerformance.uptime}
+                      value={systemPerformance.uptime ?? 0}
                       color="success"
                       sx={{ mt: 1, height: 4, borderRadius: 2 }}
                     />
@@ -470,14 +480,14 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={12} sm={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="primary">
-                      {formatNumber(dashboardData.systemPerformance.activeUsers)}
+                      {formatNumber(systemPerformance.activeUsers)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Active Users
                     </Typography>
                     <LinearProgress
                       variant="determinate"
-                      value={(dashboardData.systemPerformance.activeUsers / dashboardData.totalMembers) * 100}
+                      value={(dashboardData.totalMembers ?? 0) > 0 ? ((systemPerformance.activeUsers ?? 0) / (dashboardData.totalMembers ?? 1)) * 100 : 0}
                       sx={{ mt: 1, height: 4, borderRadius: 2 }}
                     />
                   </Box>
@@ -485,14 +495,14 @@ const PerformanceDashboard: React.FC = () => {
                 <Grid item xs={12} sm={6} md={3}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="warning.main">
-                      {dashboardData.systemPerformance.dataQuality}%
+                      {systemPerformance.dataQuality ?? 0}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Data Quality Score
                     </Typography>
                     <LinearProgress
                       variant="determinate"
-                      value={dashboardData.systemPerformance.dataQuality}
+                      value={systemPerformance.dataQuality ?? 0}
                       color="warning"
                       sx={{ mt: 1, height: 4, borderRadius: 2 }}
                     />

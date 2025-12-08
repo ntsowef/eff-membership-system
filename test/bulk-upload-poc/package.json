@@ -1,0 +1,35 @@
+{
+  "name": "bulk-upload-poc",
+  "version": "1.0.0",
+  "description": "Proof of Concept: Bulk Upload Processor in Node.js/TypeScript",
+  "type": "module",
+  "main": "test-bulk-upload-processor.ts",
+  "scripts": {
+    "generate-sample": "ts-node --esm generate-sample-data.ts",
+    "test": "ts-node --esm test-bulk-upload-processor.ts sample-data/test-members.xlsx",
+    "test:small": "ts-node --esm generate-sample-data.ts 20 && ts-node --esm test-bulk-upload-processor.ts sample-data/test-members.xlsx",
+    "test:medium": "ts-node --esm generate-sample-data.ts 100 && ts-node --esm test-bulk-upload-processor.ts sample-data/test-members.xlsx",
+    "test:large": "ts-node --esm generate-sample-data.ts 500 && ts-node --esm test-bulk-upload-processor.ts sample-data/test-members.xlsx"
+  },
+  "keywords": [
+    "bulk-upload",
+    "excel",
+    "typescript",
+    "poc"
+  ],
+  "author": "EFF Membership System",
+  "license": "ISC",
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
+    "pg": "^8.11.3",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/pg": "^8.10.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
+

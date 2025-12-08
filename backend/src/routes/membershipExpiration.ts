@@ -6,7 +6,6 @@ import { MembershipExpirationModel } from '../models/membershipExpiration';
 import { SMSService } from '../services/smsService';
 import { PDFExportService } from '../services/pdfExportService';
 import { authenticate, requirePermission, applyGeographicFilter, logProvinceAccess } from '../middleware/auth';
-import { CacheInvalidationHooks } from '../services/cacheInvalidationService';
 
 const router = Router();
 
@@ -171,23 +170,7 @@ router.post('/bulk-renewal',
       renewal_period_months,
       send_confirmation_sms
     });
-
-    // Invalidate caches for all successfully renewed members
-    if (renewalResult.successful_renewals > 0) {
-      console.log(`🔄 Invalidating caches for ${renewalResult.successful_renewals} renewed members...`);
-      try {
-        // Invalidate cache for each successfully renewed member
-        const cacheInvalidationPromises = member_ids.map(memberId =>
-          CacheInvalidationHooks.onMemberChange('update', parseInt(memberId))
-        );
-
-        await Promise.all(cacheInvalidationPromises);
-        console.log(`✅ Cache invalidation completed for bulk renewal`);
-      } catch (cacheError) {
-        console.error('⚠️ Cache invalidation error (non-critical):', cacheError);
-      }
-    }
-
+    
     sendSuccess(res, {
       renewal_result: renewalResult,
       summary: {

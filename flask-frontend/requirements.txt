@@ -1,0 +1,26 @@
+# Flask Core
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Forms and Validation
+Flask-WTF==1.2.1
+WTForms==3.1.1
+
+# HTTP Requests
+requests==2.31.0
+
+# CSRF Protection (included with Flask-WTF)
+# Session Management
+Flask-Session==0.5.0
+Flask-SQLAlchemy==3.1.1
+psycopg2-binary==2.9.9
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# File Upload Handling
+# (included with Flask)
+
+# Development Tools (optional)
+python-dateutil==2.8.2
+

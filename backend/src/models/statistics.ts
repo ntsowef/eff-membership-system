@@ -283,20 +283,27 @@ export class StatisticsModel {
       `;
       const qualificationData = await executeQuery<{ qualification_name: string; count: number; percentage: number }>(qualificationQuery, [...params, ...params]);
 
-      // Process gender data
-      const genderBreakdown = {
-        male: genderData.find(g => g.gender_name === 'Male')?.count || 0,
-        female: genderData.find(g => g.gender_name === 'Female')?.count || 0,
-        other: genderData.find(g => g.gender_name === 'Other')?.count || 0,
-        total: genderData.reduce((sum, g) => sum + g.count, 0)
+      // Helper to ensure count is a number (database might return string)
+      const toNumber = (val: any): number => {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') return parseInt(val, 10) || 0;
+        return 0;
       };
 
-      // Process age data - calculate percentages from counts
-      const totalAgeMembers = ageData.reduce((sum, item) => sum + item.member_count, 0);
+      // Process gender data - ensure all counts are numbers
+      const genderBreakdown = {
+        male: toNumber(genderData.find(g => g.gender_name === 'Male')?.count),
+        female: toNumber(genderData.find(g => g.gender_name === 'Female')?.count),
+        other: toNumber(genderData.find(g => g.gender_name === 'Other')?.count),
+        total: genderData.reduce((sum, g) => sum + toNumber(g.count), 0)
+      };
+
+      // Process age data - calculate percentages from counts (ensure counts are numbers)
+      const totalAgeMembers = ageData.reduce((sum, item) => sum + toNumber(item.member_count), 0);
       const ageBreakdown = ageData.map(item => ({
         age_group: item.age_group,
-        member_count: item.member_count,
-        percentage: totalAgeMembers > 0 ? parseFloat(((item.member_count / totalAgeMembers) * 100).toFixed(2)) : 0
+        member_count: toNumber(item.member_count),
+        percentage: totalAgeMembers > 0 ? parseFloat(((toNumber(item.member_count) / totalAgeMembers) * 100).toFixed(2)) : 0
       }));
 
       return {

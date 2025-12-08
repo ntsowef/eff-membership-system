@@ -1,0 +1,239 @@
+{
+  "timestamp": "2025-10-22T04:16:33.212Z",
+  "summary": {
+    "total_tests": 66,
+    "passed": 66,
+    "failed": 0,
+    "success_rate": "100.0%"
+  },
+  "test_breakdown": {
+    "authentication": {
+      "passed": 1,
+      "failed": 0
+    },
+    "getPositions": {
+      "passed": 8,
+      "failed": 0
+    },
+    "getMembers": {
+      "passed": 1,
+      "failed": 0
+    },
+    "createAppointments": {
+      "passed": 24,
+      "failed": 0
+    },
+    "verifyAppointments": {
+      "passed": 8,
+      "failed": 0
+    },
+    "deleteAppointments": {
+      "passed": 24,
+      "failed": 0
+    }
+  },
+  "appointments_created": [
+    {
+      "appointment_id": 171,
+      "position_name": "BUF - East London Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "BUF - East London"
+    },
+    {
+      "appointment_id": 172,
+      "position_name": "BUF - East London Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "BUF - East London"
+    },
+    {
+      "appointment_id": 173,
+      "position_name": "BUF - East London Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "BUF - East London"
+    },
+    {
+      "appointment_id": 174,
+      "position_name": "CPT - Zone 1 Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "CPT - Zone 1"
+    },
+    {
+      "appointment_id": 175,
+      "position_name": "CPT - Zone 1 Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "CPT - Zone 1"
+    },
+    {
+      "appointment_id": 176,
+      "position_name": "CPT - Zone 1 Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "CPT - Zone 1"
+    },
+    {
+      "appointment_id": 177,
+      "position_name": "EKU - Central Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "EKU - Central"
+    },
+    {
+      "appointment_id": 178,
+      "position_name": "EKU - Central Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "EKU - Central"
+    },
+    {
+      "appointment_id": 179,
+      "position_name": "EKU - Central Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "EKU - Central"
+    },
+    {
+      "appointment_id": 180,
+      "position_name": "ETH - Central Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "ETH - Central"
+    },
+    {
+      "appointment_id": 181,
+      "position_name": "ETH - Central Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "ETH - Central"
+    },
+    {
+      "appointment_id": 182,
+      "position_name": "ETH - Central Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "ETH - Central"
+    },
+    {
+      "appointment_id": 183,
+      "position_name": "JHB - A Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "JHB - A"
+    },
+    {
+      "appointment_id": 184,
+      "position_name": "JHB - A Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "JHB - A"
+    },
+    {
+      "appointment_id": 185,
+      "position_name": "JHB - A Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "JHB - A"
+    },
+    {
+      "appointment_id": 186,
+      "position_name": "MAN - Bloemfontein Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "MAN - Bloemfontein"
+    },
+    {
+      "appointment_id": 187,
+      "position_name": "MAN - Bloemfontein Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "MAN - Bloemfontein"
+    },
+    {
+      "appointment_id": 188,
+      "position_name": "MAN - Bloemfontein Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "MAN - Bloemfontein"
+    },
+    {
+      "appointment_id": 189,
+      "position_name": "NMA - Champion Galela Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "NMA - Champion Galela"
+    },
+    {
+      "appointment_id": 190,
+      "position_name": "NMA - Champion Galela Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "NMA - Champion Galela"
+    },
+    {
+      "appointment_id": 191,
+      "position_name": "NMA - Champion Galela Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "NMA - Champion Galela"
+    },
+    {
+      "appointment_id": 192,
+      "position_name": "TSH - 1 Sub-Region Chairperson",
+      "member_name": "Malekhota Koroloso",
+      "sub_region": "TSH - 1"
+    },
+    {
+      "appointment_id": 193,
+      "position_name": "TSH - 1 Sub-Region Secretary",
+      "member_name": "RETHABILE LUTHI",
+      "sub_region": "TSH - 1"
+    },
+    {
+      "appointment_id": 194,
+      "position_name": "TSH - 1 Sub-Region Treasurer",
+      "member_name": "Nongathini Hollarans",
+      "sub_region": "TSH - 1"
+    }
+  ],
+  "sub_regions_tested": [
+    {
+      "municipality_id": 570,
+      "name": "BUF - East London",
+      "code": "BUF001",
+      "metro": "Buffalo City",
+      "province": "EC"
+    },
+    {
+      "municipality_id": 560,
+      "name": "CPT - Zone 1",
+      "code": "CPT001",
+      "metro": "Cape Town",
+      "province": "WC"
+    },
+    {
+      "municipality_id": 542,
+      "name": "EKU - Central",
+      "code": "EKU001",
+      "metro": "Ekurhuleni",
+      "province": "GP"
+    },
+    {
+      "municipality_id": 585,
+      "name": "ETH - Central",
+      "code": "ETH001",
+      "metro": "eThekwini",
+      "province": "KZN"
+    },
+    {
+      "municipality_id": 547,
+      "name": "JHB - A",
+      "code": "JHB001",
+      "metro": "Johannesburg",
+      "province": "GP"
+    },
+    {
+      "municipality_id": 581,
+      "name": "MAN - Bloemfontein",
+      "code": "MAN001",
+      "metro": "Mangaung",
+      "province": "FS"
+    },
+    {
+      "municipality_id": 574,
+      "name": "NMA - Champion Galela",
+      "code": "NMA001",
+      "metro": "Nelson Mandela Bay",
+      "province": "EC"
+    },
+    {
+      "municipality_id": 554,
+      "name": "TSH - 1",
+      "code": "TSH001",
+      "metro": "Tshwane",
+      "province": "GP"
+    }
+  ]
+}

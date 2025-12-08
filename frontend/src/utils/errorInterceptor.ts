@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { devLog } from './logger';
 
 // Define types inline to avoid import issues with Vite
 interface AxiosError {
@@ -142,7 +143,7 @@ class ErrorInterceptor {
     this.requestInterceptorId = axios.interceptors.request.use(
       (config) => {
         if (this.options.enableLogging && config.url && !this.shouldExcludeRequest(config.url)) {
-          console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+          devLog(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
         }
         return config;
       },
@@ -158,10 +159,10 @@ class ErrorInterceptor {
     this.responseInterceptorId = (axios.interceptors.response.use as any)(
       (response: AxiosResponse) => {
         // Log successful responses in development
-        if (this.options.enableLogging && process.env.NODE_ENV === 'development') {
+        if (this.options.enableLogging && import.meta.env.DEV) {
           const url = response.config.url;
           if (url && !this.shouldExcludeRequest(url)) {
-            console.log(`✅ API Success: ${response.status} ${response.config.method?.toUpperCase()} ${url}`);
+            devLog(`✅ API Success: ${response.status} ${response.config.method?.toUpperCase()} ${url}`);
           }
         }
         return response;

@@ -5,6 +5,7 @@ import React from 'react';
 import { Box, Typography, Alert, Button, Card, CardContent } from '@mui/material';
 import { CheckCircle, Error, Refresh } from '@mui/icons-material';
 import { useUI } from '../../store';
+import { devLog } from '../../utils/logger';
 
 // Use namespace import to avoid any named import conflicts
 import LeadershipApiModule from '../../services/leadershipApi';
@@ -20,13 +21,13 @@ const FinalTest: React.FC = () => {
           type: 'success',
           message: '✅ SUCCESS! LeadershipAPI imported without errors using default import.'
         });
-        
-        console.log('✅ Import test successful:', {
+
+        devLog('✅ Import test successful:', {
           LeadershipAPI: typeof LeadershipApiModule,
           hasGetPositions: typeof LeadershipApiModule.getPositions,
           hasGetMembers: typeof LeadershipApiModule.getMembers
         });
-        
+
         return true;
       } else {
         throw new (Error as any)('LeadershipAPI not properly imported');

@@ -2,6 +2,7 @@
 // Provides comprehensive API integration for leadership management
 
 import { api } from '../lib/api';
+import { devLog, devWarn } from '../utils/logger';
 
 // =====================================================
 // TypeScript Interfaces
@@ -325,7 +326,7 @@ export class LeadershipAPI {
       const response = await api.get('/members', { params: filters });
 
       // Debug logging
-      console.log('🔍 LeadershipAPI.getMembers response:', {
+      devLog('🔍 LeadershipAPI.getMembers response:', {
         status: response.status,
         data: response.data,
         dataType: typeof response.data,
@@ -340,7 +341,7 @@ export class LeadershipAPI {
       } else if (Array.isArray(response.data)) {
         members = response.data;
       } else {
-        console.warn('⚠️ Unexpected response structure:', response.data);
+        devWarn('⚠️ Unexpected response structure:', response.data);
         members = [];
       }
 
@@ -365,7 +366,7 @@ export class LeadershipAPI {
         gender_name: member.gender_name || member.gender || 'Unknown'
       }));
 
-      console.log('🔍 Normalized members:', {
+      devLog('🔍 Normalized members:', {
         count: normalizedMembers.length,
         firstMember: normalizedMembers[0],
         pagination: response.data.pagination

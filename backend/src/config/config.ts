@@ -264,7 +264,13 @@ export const isTest = (): boolean => {
 };
 
 // Log configuration (without sensitive data)
+// Only logs if LOG_LEVEL is 'info' or 'debug'
 export const logConfig = (): void => {
+  const logLevel = (process.env.LOG_LEVEL || 'info').toLowerCase();
+  if (logLevel !== 'info' && logLevel !== 'debug') {
+    return; // Skip logging in error/warn mode
+  }
+
   console.log('🔧 Server Configuration:');
   console.log(`  Environment: ${config.server.env}`);
   console.log(`  Port: ${config.server.port}`);

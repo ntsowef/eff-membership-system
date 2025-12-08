@@ -38,6 +38,7 @@ import { UserManagementAPI } from '../../lib/userManagementApi';
 import PublicHeader from '../../components/layout/PublicHeader';
 import OTPVerificationForm from '../../components/auth/OTPVerificationForm';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 // Validation schema
 const loginSchema = yup.object({
@@ -150,7 +151,7 @@ const LoginPage: React.FC = () => {
 
           // Use React Router navigation (client-side, no page reload)
           // This preserves the Zustand store state and axios interceptors
-          console.log('✅ Login successful, redirecting to:', from);
+          devLog('✅ Login successful, redirecting to:', from);
           navigate(from, { replace: true });
         }
       }
@@ -223,7 +224,7 @@ const LoginPage: React.FC = () => {
         }
 
         const from = (location.state as any)?.from?.pathname || defaultDashboard;
-        console.log('✅ OTP verified, redirecting to:', from);
+        devLog('✅ OTP verified, redirecting to:', from);
         navigate(from, { replace: true });
       }
     } catch (error: any) {

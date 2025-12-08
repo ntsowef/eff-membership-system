@@ -294,8 +294,14 @@ export class DatabaseOperationsService {
     const paymentReference = null; // Not available in current data
     const paymentStatus = 'Pending'; // Default
 
-    // Build INSERT query with all 35 fields
-    // Matches Python: INSERT INTO members_consolidated (35 fields) VALUES %s
+    // Voter registration tracking (migration 011)
+    const voterRegStatus = this.lookupService.getVoterRegistrationStatus(votingDistrictCode);
+    const voterRegistrationId = voterRegStatus.voterRegistrationId;
+    const isRegisteredVoter = voterRegStatus.isRegisteredVoter;
+    const lastVoterVerificationDate = new Date(); // Current timestamp when processing
+
+    // Build INSERT query with all 38 fields (35 original + 3 voter registration tracking)
+    // Matches Python: INSERT INTO members_consolidated (38 fields) VALUES %s
     const query = `
       INSERT INTO members_consolidated (
         id_number, firstname, surname, date_of_birth, age, gender_id, race_id,
@@ -305,17 +311,19 @@ export class DatabaseOperationsService {
         province_name, province_code, district_name, district_code,
         municipality_name, municipality_code,
         date_joined, last_payment_date, expiry_date, subscription_type_id,
-        membership_amount, membership_status_id, payment_method, payment_reference, payment_status
+        membership_amount, membership_status_id, payment_method, payment_reference, payment_status,
+        voter_registration_id, is_registered_voter, last_voter_verification_date
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::VARCHAR, $11::VARCHAR, $12::VARCHAR,
         $13, $14, $15::VARCHAR, $16, $17, $18, $19, $20,
         $21, $22::VARCHAR, $23, $24::VARCHAR, $25, $26::VARCHAR,
-        $27, $28, $29, $30, $31, $32, $33, $34, $35
+        $27, $28, $29, $30, $31, $32, $33, $34, $35,
+        $36, $37, $38
       )
       RETURNING member_id
     `;
 
-    // Build params array matching the 35 fields
+    // Build params array matching the 38 fields
     const params = [
       record['ID Number'],                    // $1: id_number
       firstname,                              // $2: firstname
@@ -351,7 +359,11 @@ export class DatabaseOperationsService {
       membershipStatusId,                     // $32: membership_status_id
       paymentMethod,                          // $33: payment_method
       paymentReference,                       // $34: payment_reference
-      paymentStatus                           // $35: payment_status
+      paymentStatus,                          // $35: payment_status
+      // Voter registration tracking fields (migration 011)
+      voterRegistrationId,                    // $36: voter_registration_id
+      isRegisteredVoter,                      // $37: is_registered_voter
+      lastVoterVerificationDate               // $38: last_voter_verification_date
     ];
 
     // Log the values being inserted for debugging
@@ -363,6 +375,7 @@ export class DatabaseOperationsService {
     console.log(`        Municipality: ${municipalityCode} (${municipalityName})`);
     console.log(`        Gender: ${genderId}, Race: ${raceId}, Citizenship: ${citizenshipId}`);
     console.log(`        Voter Status: ${voterStatusId}, IEC Registered: ${iecResult.is_registered}`);
+    console.log(`        Voter Registration: id=${voterRegistrationId}, isRegistered=${isRegisteredVoter}`);
 
     const result = await client.query(query, params);
     return result.rows[0].member_id;
@@ -423,8 +436,15 @@ export class DatabaseOperationsService {
     const subscriptionTypeId = this.lookupService.getSubscriptionTypeId(record.Subscription);
     const membershipAmount = this.parseAmount(record['Memebership Amount'] || record['Membership Amount']);
 
+    // Voter registration tracking (migration 011)
+    const voterRegStatus = this.lookupService.getVoterRegistrationStatus(votingDistrictCode);
+    const voterRegistrationId = voterRegStatus.voterRegistrationId;
+    const isRegisteredVoter = voterRegStatus.isRegisteredVoter;
+    const lastVoterVerificationDate = new Date(); // Current timestamp when processing
+
     // Build UPDATE query with COALESCE pattern
     // Only updates non-null values, preserving existing data
+    // Includes 3 voter registration tracking fields (migration 011)
     const query = `
       UPDATE members_consolidated
       SET
@@ -453,8 +473,11 @@ export class DatabaseOperationsService {
         expiry_date = COALESCE($23, expiry_date),
         subscription_type_id = COALESCE($24, subscription_type_id),
         membership_amount = COALESCE($25, membership_amount),
+        voter_registration_id = COALESCE($26, voter_registration_id),
+        is_registered_voter = COALESCE($27, is_registered_voter),
+        last_voter_verification_date = COALESCE($28, last_voter_verification_date),
         updated_at = NOW()
-      WHERE member_id = $26
+      WHERE member_id = $29
     `;
 
     const params = [
@@ -483,7 +506,11 @@ export class DatabaseOperationsService {
       expiryDate,                   // $23
       subscriptionTypeId,           // $24
       membershipAmount,             // $25
-      record.existing_member_id     // $26
+      // Voter registration tracking fields (migration 011)
+      voterRegistrationId,          // $26
+      isRegisteredVoter,            // $27
+      lastVoterVerificationDate,    // $28
+      record.existing_member_id     // $29
     ];
 
     const result = await client.query(query, params);

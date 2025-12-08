@@ -5,6 +5,7 @@ import React from 'react';
 import { Box, Typography, Alert, Button } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useUI } from '../../store';
+import { devLog } from '../../utils/logger';
 
 // Test imports
 import * as LeadershipService from '../../services/leadershipApi';
@@ -159,7 +160,7 @@ const ImportTest: React.FC = () => {
       });
     }
 
-    console.log('Import Test Results:', results);
+    devLog('Import Test Results:', results);
     return results;
   };
 

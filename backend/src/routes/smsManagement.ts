@@ -308,7 +308,7 @@ router.get('/dashboard/stats', authenticate, requireSMSPermission(), async (req:
     `);
 
     const recentCampaignsResult = await executeQuery(`
-      SELECT campaign_id, campaign_name, status, created_at, messages_sent, messages_delivered
+      SELECT id, name, status, created_at, messages_sent, messages_delivered
       FROM sms_campaigns
       ORDER BY created_at DESC
       LIMIT 5

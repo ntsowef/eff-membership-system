@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Information - EFF Membership Application{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Membership Application</h4>
+            </div>
+            <div class="card-body">
+                <!-- Stepper -->
+                <div class="stepper mb-4">
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Personal Info</div>
+                    </div>
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Contact Info</div>
+                    </div>
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Declaration</div>
+                    </div>
+                    <div class="step active">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Payment</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Review</div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-4">Step 4: Payment Information</h5>
+                
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Membership Fee:</strong> R10.00
+                    <br>
+                    <small>You can complete payment now or later. Your application will be processed once payment is verified.</small>
+                </div>
+                
+                <form method="POST" action="{{ url_for('payment_info') }}" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row g-3">
+                        <!-- Payment Method -->
+                        <div class="col-md-12">
+                            <label for="payment_method" class="form-label">Payment Method</label>
+                            {{ form.payment_method(class="form-select" + (" is-invalid" if form.payment_method.errors else "")) }}
+                            {% if form.payment_method.errors %}
+                                <div class="invalid-feedback">{{ form.payment_method.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Payment Amount -->
+                        <div class="col-md-6">
+                            <label for="payment_amount" class="form-label">Payment Amount (ZAR)</label>
+                            {{ form.payment_amount(class="form-control" + (" is-invalid" if form.payment_amount.errors else ""), 
+                                                  value="10.00", step="0.01") }}
+                            {% if form.payment_amount.errors %}
+                                <div class="invalid-feedback">{{ form.payment_amount.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Payment Reference -->
+                        <div class="col-md-6">
+                            <label for="payment_reference" class="form-label">Payment Reference</label>
+                            {{ form.payment_reference(class="form-control" + (" is-invalid" if form.payment_reference.errors else ""), 
+                                                     placeholder="Transaction reference or receipt number") }}
+                            {% if form.payment_reference.errors %}
+                                <div class="invalid-feedback">{{ form.payment_reference.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Receipt Upload (for cash payments) -->
+                        <div class="col-md-12" id="receipt-upload-section" style="display: none;">
+                            <label for="receipt_file" class="form-label">Upload Receipt (Optional)</label>
+                            {{ form.receipt_file(class="form-control") }}
+                            <small class="form-text text-muted">
+                                Upload a photo or scan of your payment receipt (JPG, PNG, or PDF)
+                            </small>
+                        </div>
+                        
+                        <!-- Payment Notes -->
+                        <div class="col-md-12">
+                            <label for="payment_notes" class="form-label">Payment Notes (Optional)</label>
+                            {{ form.payment_notes(class="form-control", rows=3, 
+                                                 placeholder="Any additional information about your payment") }}
+                        </div>
+                        
+                        <!-- Payment Instructions -->
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Payment Instructions</h6>
+                                    <div id="payment-instructions">
+                                        <p class="mb-0 text-muted">Select a payment method to see instructions.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('party_declaration') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        const paymentInstructions = {
+            'Cash': `
+                <h6>Cash Payment Instructions:</h6>
+                <ol>
+                    <li>Visit your nearest EFF office</li>
+                    <li>Make payment of R10.00 to the cashier</li>
+                    <li>Request a receipt with a reference number</li>
+                    <li>Upload the receipt or enter the reference number above</li>
+                </ol>
+            `,
+            'Bank Transfer': `
+                <h6>Bank Transfer Instructions:</h6>
+                <p><strong>Bank:</strong> First National Bank (FNB)</p>
+                <p><strong>Account Name:</strong> Economic Freedom Fighters</p>
+                <p><strong>Account Number:</strong> 1234567890</p>
+                <p><strong>Branch Code:</strong> 250655</p>
+                <p><strong>Reference:</strong> Use your ID number as reference</p>
+            `,
+            'EFT': `
+                <h6>EFT Payment Instructions:</h6>
+                <p><strong>Bank:</strong> First National Bank (FNB)</p>
+                <p><strong>Account Name:</strong> Economic Freedom Fighters</p>
+                <p><strong>Account Number:</strong> 1234567890</p>
+                <p><strong>Branch Code:</strong> 250655</p>
+                <p><strong>Reference:</strong> Use your ID number as reference</p>
+            `,
+            'Credit Card': `
+                <h6>Credit Card Payment:</h6>
+                <p>You will be redirected to our secure payment gateway to complete your card payment.</p>
+            `,
+            'Debit Card': `
+                <h6>Debit Card Payment:</h6>
+                <p>You will be redirected to our secure payment gateway to complete your card payment.</p>
+            `,
+            'Mobile Payment': `
+                <h6>Mobile Payment Instructions:</h6>
+                <p>Mobile payment options will be available after submission.</p>
+            `
+        };
+        
+        $('#payment_method').change(function() {
+            const method = $(this).val();
+            const instructionsDiv = $('#payment-instructions');
+            
+            if (method && paymentInstructions[method]) {
+                instructionsDiv.html(paymentInstructions[method]);
+            } else {
+                instructionsDiv.html('<p class="mb-0 text-muted">Select a payment method to see instructions.</p>');
+            }
+            
+            // Show receipt upload for cash payments
+            if (method === 'Cash') {
+                $('#receipt-upload-section').show();
+            } else {
+                $('#receipt-upload-section').hide();
+            }
+        });
+        
+        // Trigger change event if payment method is already selected
+        if ($('#payment_method').val()) {
+            $('#payment_method').trigger('change');
+        }
+    });
+</script>
+{% endblock %}
+

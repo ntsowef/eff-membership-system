@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { showSuccess, showWarning } from '../../utils/sweetAlert';
 
 interface BulkGenerationResult {
   successful_generations: number;
@@ -88,7 +89,7 @@ const BulkCardGenerator: React.FC = () => {
       return response.data.data;
     },
     onSuccess: (result) => {
-      alert(`Bulk download prepared: ${result.download_info.filename} with ${result.download_info.total_cards} cards`);
+      showSuccess(`Bulk download prepared: ${result.download_info.filename} with ${result.download_info.total_cards} cards`, 'Download Ready');
     }
   });
 
@@ -109,9 +110,9 @@ const BulkCardGenerator: React.FC = () => {
 
   const handleBulkGenerate = () => {
     const validMemberIds = memberIds.filter(id => id.trim() !== '');
-    
+
     if (validMemberIds.length === 0) {
-      alert('Please add at least one member ID');
+      showWarning('Please add at least one member ID', 'No Members Selected');
       return;
     }
 
@@ -125,9 +126,9 @@ const BulkCardGenerator: React.FC = () => {
 
   const handleBulkDownload = () => {
     const validMemberIds = memberIds.filter(id => id.trim() !== '');
-    
+
     if (validMemberIds.length === 0) {
-      alert('Please add at least one member ID');
+      showWarning('Please add at least one member ID', 'No Members Selected');
       return;
     }
 

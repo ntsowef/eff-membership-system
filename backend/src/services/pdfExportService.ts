@@ -445,7 +445,18 @@ export class PDFExportService {
   }
 
   private static addDemographicsExecutiveSummary(doc: PDFKit.PDFDocument, demographics: any): void {
-    const totalMembers = demographics.gender.total;
+    // Get gender stats with defensive null checks
+    const male = demographics.gender?.male ?? 0;
+    const female = demographics.gender?.female ?? 0;
+    const other = demographics.gender?.other ?? 0;
+
+    // Calculate total from gender data OR use provided total (ensure it's a number)
+    let totalMembers = demographics.gender?.total ?? (male + female + other);
+
+    // Ensure totalMembers is a proper number (fix "0369439" string concatenation issue)
+    if (typeof totalMembers === 'string') {
+      totalMembers = parseInt(totalMembers, 10) || 0;
+    }
 
     doc.fontSize(16)
        .font('Helvetica-Bold')
@@ -453,13 +464,30 @@ export class PDFExportService {
 
     doc.moveDown(0.5);
 
+    // Helper for safe percentage calculation
+    const safePercentage = (value: number, total: number) => total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+
     doc.fontSize(12)
        .font('Helvetica')
        .text('Total Members: ' + totalMembers.toLocaleString(), { continued: false });
 
-    doc.text('Gender Distribution: ' + (demographics.gender.male.toLocaleString()) + ' Male (' + (((demographics.gender.male / totalMembers) * 100).toFixed(1)) + '%), ' + (demographics.gender.female.toLocaleString()) + ' Female (' + ((demographics.gender.female / totalMembers) * 100).toFixed(1) + '%)');
+    // Gender distribution
+    doc.text('Gender Distribution: ' + male.toLocaleString() + ' Male (' + safePercentage(male, totalMembers) + '%), ' + female.toLocaleString() + ' Female (' + safePercentage(female, totalMembers) + '%)');
 
-    doc.text('Age Distribution: Largest group is ' + (demographics.age_groups.age_36_60 > demographics.age_groups.age_18_35 ? '36-60 years' : '18-35 years') + ' with ' + Math.max(demographics.age_groups.age_36_60, demographics.age_groups.age_18_35).toLocaleString() + ' members');
+    // Age distribution - handle array format from getDemographicBreakdown
+    if (Array.isArray(demographics.age_groups) && demographics.age_groups.length > 0) {
+      // Find the largest age group from the array
+      const largestGroup = demographics.age_groups.reduce((max: any, item: any) =>
+        (item.member_count > (max?.member_count ?? 0)) ? item : max, demographics.age_groups[0]);
+      doc.text('Age Distribution: Largest group is ' + largestGroup.age_group + ' with ' + (largestGroup.member_count ?? 0).toLocaleString() + ' members');
+    } else if (demographics.age_groups && typeof demographics.age_groups === 'object') {
+      // Handle old object format for backwards compatibility
+      const age18_35 = demographics.age_groups.age_18_35 ?? 0;
+      const age36_60 = demographics.age_groups.age_36_60 ?? 0;
+      const largestAgeGroup = age36_60 > age18_35 ? '36-60 years' : '18-35 years';
+      const largestCount = Math.max(age36_60, age18_35);
+      doc.text('Age Distribution: Largest group is ' + largestAgeGroup + ' with ' + largestCount.toLocaleString() + ' members');
+    }
 
     if (demographics.race && demographics.race.length > 0) {
       const topRace = demographics.race[0];
@@ -475,21 +503,31 @@ export class PDFExportService {
   }
 
   private static addGenderBreakdown(doc: PDFKit.PDFDocument, gender: any): void {
+    if (!gender) {
+      console.warn('⚠️ Gender data is null/undefined, skipping gender breakdown');
+      return;
+    }
+
     doc.fontSize(14)
        .font('Helvetica-Bold')
        .text('Gender Distribution', { underline: true });
 
     doc.moveDown(0.5);
 
-    const total = gender.total;
+    const male = gender.male ?? 0;
+    const female = gender.female ?? 0;
+    const other = gender.other ?? 0;
+    const total = gender.total ?? (male + female + other);
 
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text('Male: ' + (gender.male.toLocaleString()) + ' (' + ((gender.male / total) * 100).toFixed(1) + '%)');
-    doc.text('Female: ' + (gender.female.toLocaleString()) + ' (' + ((gender.female / total) * 100).toFixed(1) + '%)');
-    if (gender.other > 0) {
-      doc.text('Other: ' + (gender.other.toLocaleString()) + ' (' + ((gender.other / total) * 100).toFixed(1) + '%)');
+    const safePercentage = (value: number, tot: number) => tot > 0 ? ((value / tot) * 100).toFixed(1) : '0.0';
+
+    doc.text('Male: ' + male.toLocaleString() + ' (' + safePercentage(male, total) + '%)');
+    doc.text('Female: ' + female.toLocaleString() + ' (' + safePercentage(female, total) + '%)');
+    if (other > 0) {
+      doc.text('Other: ' + other.toLocaleString() + ' (' + safePercentage(other, total) + '%)');
     }
     doc.text('Total: ' + total.toLocaleString());
 
@@ -497,22 +535,46 @@ export class PDFExportService {
   }
 
   private static addAgeGroupBreakdown(doc: PDFKit.PDFDocument, ageGroups: any): void {
+    if (!ageGroups) {
+      console.warn('⚠️ Age groups data is null/undefined, skipping age group breakdown');
+      return;
+    }
+
     doc.fontSize(14)
        .font('Helvetica-Bold')
        .text('Age Group Distribution', { underline: true });
 
     doc.moveDown(0.5);
 
-    const total = ageGroups.total;
-
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text('Under 18: ' + (ageGroups.under_18.toLocaleString()) + ' (' + ((ageGroups.under_18 / total) * 100).toFixed(1) + '%)');
-    doc.text('18-35 years: ' + (ageGroups.age_18_35.toLocaleString()) + ' (' + ((ageGroups.age_18_35 / total) * 100).toFixed(1) + '%)');
-    doc.text('36-60 years: ' + (ageGroups.age_36_60.toLocaleString()) + ' (' + ((ageGroups.age_36_60 / total) * 100).toFixed(1) + '%)');
-    doc.text('Over 60: ' + (ageGroups.over_60.toLocaleString()) + ' (' + ((ageGroups.over_60 / total) * 100).toFixed(1) + '%)');
-    doc.text('Total: ' + total.toLocaleString());
+    const safePercentage = (value: number, tot: number) => tot > 0 ? ((value / tot) * 100).toFixed(1) : '0.0';
+
+    // Handle array format from getDemographicBreakdown (7 buckets: Under 18, 18-24, 25-34, 35-44, 45-54, 55-64, 65+)
+    if (Array.isArray(ageGroups)) {
+      const total = ageGroups.reduce((sum: number, item: any) => sum + (item.member_count ?? 0), 0);
+
+      ageGroups.forEach((item: any) => {
+        const count = item.member_count ?? 0;
+        doc.text(item.age_group + ': ' + count.toLocaleString() + ' (' + safePercentage(count, total) + '%)');
+      });
+
+      doc.text('Total: ' + total.toLocaleString());
+    } else {
+      // Handle old object format for backwards compatibility (4 buckets)
+      const under18 = ageGroups.under_18 ?? ageGroups.under18 ?? 0;
+      const age18_35 = ageGroups.age_18_35 ?? ageGroups['18_35'] ?? ageGroups.age18_35 ?? 0;
+      const age36_60 = ageGroups.age_36_60 ?? ageGroups['36_60'] ?? ageGroups.age36_60 ?? 0;
+      const over60 = ageGroups.over_60 ?? ageGroups.over60 ?? 0;
+      const total = ageGroups.total ?? (under18 + age18_35 + age36_60 + over60);
+
+      doc.text('Under 18: ' + under18.toLocaleString() + ' (' + safePercentage(under18, total) + '%)');
+      doc.text('18-35 years: ' + age18_35.toLocaleString() + ' (' + safePercentage(age18_35, total) + '%)');
+      doc.text('36-60 years: ' + age36_60.toLocaleString() + ' (' + safePercentage(age36_60, total) + '%)');
+      doc.text('Over 60: ' + over60.toLocaleString() + ' (' + safePercentage(over60, total) + '%)');
+      doc.text('Total: ' + total.toLocaleString());
+    }
 
     doc.moveDown(1);
   }
@@ -601,6 +663,11 @@ export class PDFExportService {
 
   // Enhanced methods with charts
   private static addGenderBreakdownWithChart(doc: PDFKit.PDFDocument, gender: any, chartBuffer: Buffer): void {
+    if (!gender) {
+      console.warn('⚠️ Gender data is null/undefined, skipping gender breakdown');
+      return;
+    }
+
     doc.addPage();
 
     doc.fontSize(16)
@@ -613,8 +680,11 @@ export class PDFExportService {
     doc.image(chartBuffer, 50, doc.y, { width: 500, height: 300 });
     doc.moveDown(18); // Move down to account for chart height
 
-    // Add text breakdown
-    const total = gender.total;
+    // Add text breakdown with defensive null checks
+    const male = gender.male ?? 0;
+    const female = gender.female ?? 0;
+    const other = gender.other ?? 0;
+    const total = gender.total ?? (male + female + other);
 
     doc.fontSize(12)
        .font('Helvetica-Bold')
@@ -625,10 +695,12 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text('Male: ' + (gender.male.toLocaleString()) + ' (' + ((gender.male / total) * 100).toFixed(1) + '%)');
-    doc.text('Female: ' + (gender.female.toLocaleString()) + ' (' + ((gender.female / total) * 100).toFixed(1) + '%)');
-    if (gender.other > 0) {
-      doc.text('Other: ' + (gender.other.toLocaleString()) + ' (' + ((gender.other / total) * 100).toFixed(1) + '%)');
+    const safePercentage = (value: number, tot: number) => tot > 0 ? ((value / tot) * 100).toFixed(1) : '0.0';
+
+    doc.text('Male: ' + male.toLocaleString() + ' (' + safePercentage(male, total) + '%)');
+    doc.text('Female: ' + female.toLocaleString() + ' (' + safePercentage(female, total) + '%)');
+    if (other > 0) {
+      doc.text('Other: ' + other.toLocaleString() + ' (' + safePercentage(other, total) + '%)');
     }
     doc.text('Total: ' + total.toLocaleString());
 
@@ -636,6 +708,11 @@ export class PDFExportService {
   }
 
   private static addAgeGroupBreakdownWithChart(doc: PDFKit.PDFDocument, ageGroups: any, chartBuffer: Buffer): void {
+    if (!ageGroups) {
+      console.warn('⚠️ Age groups data is null/undefined, skipping age group breakdown');
+      return;
+    }
+
     doc.addPage();
 
     doc.fontSize(16)
@@ -648,9 +725,6 @@ export class PDFExportService {
     doc.image(chartBuffer, 50, doc.y, { width: 500, height: 300 });
     doc.moveDown(18); // Move down to account for chart height
 
-    // Add text breakdown
-    const total = ageGroups.total;
-
     doc.fontSize(12)
        .font('Helvetica-Bold')
        .text('Detailed Breakdown:', { underline: true });
@@ -660,11 +734,32 @@ export class PDFExportService {
     doc.fontSize(11)
        .font('Helvetica');
 
-    doc.text('Under 18: ' + (ageGroups.under_18.toLocaleString()) + ' (' + ((ageGroups.under_18 / total) * 100).toFixed(1) + '%)');
-    doc.text('18-35 years: ' + (ageGroups.age_18_35.toLocaleString()) + ' (' + ((ageGroups.age_18_35 / total) * 100).toFixed(1) + '%)');
-    doc.text('36-60 years: ' + (ageGroups.age_36_60.toLocaleString()) + ' (' + ((ageGroups.age_36_60 / total) * 100).toFixed(1) + '%)');
-    doc.text('Over 60: ' + (ageGroups.over_60.toLocaleString()) + ' (' + ((ageGroups.over_60 / total) * 100).toFixed(1) + '%)');
-    doc.text('Total: ' + total.toLocaleString());
+    const safePercentage = (value: number, tot: number) => tot > 0 ? ((value / tot) * 100).toFixed(1) : '0.0';
+
+    // Handle array format from getDemographicBreakdown (7 buckets: Under 18, 18-24, 25-34, 35-44, 45-54, 55-64, 65+)
+    if (Array.isArray(ageGroups)) {
+      const total = ageGroups.reduce((sum: number, item: any) => sum + (item.member_count ?? 0), 0);
+
+      ageGroups.forEach((item: any) => {
+        const count = item.member_count ?? 0;
+        doc.text(item.age_group + ': ' + count.toLocaleString() + ' (' + safePercentage(count, total) + '%)');
+      });
+
+      doc.text('Total: ' + total.toLocaleString());
+    } else {
+      // Handle old object format for backwards compatibility (4 buckets)
+      const under18 = ageGroups.under_18 ?? ageGroups.under18 ?? 0;
+      const age18_35 = ageGroups.age_18_35 ?? ageGroups['18_35'] ?? ageGroups.age18_35 ?? 0;
+      const age36_60 = ageGroups.age_36_60 ?? ageGroups['36_60'] ?? ageGroups.age36_60 ?? 0;
+      const over60 = ageGroups.over_60 ?? ageGroups.over60 ?? 0;
+      const total = ageGroups.total ?? (under18 + age18_35 + age36_60 + over60);
+
+      doc.text('Under 18: ' + under18.toLocaleString() + ' (' + safePercentage(under18, total) + '%)');
+      doc.text('18-35 years: ' + age18_35.toLocaleString() + ' (' + safePercentage(age18_35, total) + '%)');
+      doc.text('36-60 years: ' + age36_60.toLocaleString() + ' (' + safePercentage(age36_60, total) + '%)');
+      doc.text('Over 60: ' + over60.toLocaleString() + ' (' + safePercentage(over60, total) + '%)');
+      doc.text('Total: ' + total.toLocaleString());
+    }
 
     doc.moveDown(1);
   }
@@ -2641,30 +2736,35 @@ export class PDFExportService {
     let currentX = startX;
     let currentY = doc.y;
 
-    // Summary cards data
+    // Summary cards data - safely handle null values
+    const totalMembers = analyticsData.membership?.total_members ?? 0;
+    const activeMembers = analyticsData.membership?.active_members ?? 0;
+    const totalMeetings = analyticsData.meetings?.total_meetings ?? 0;
+    const totalPositions = analyticsData.leadership?.total_positions ?? 0;
+
     const summaryCards = [
       {
         title: 'Total Members',
-        value: analyticsData.membership?.total_members.toLocaleString() || '0',
-        color : '#4caf50',
+        value: totalMembers.toLocaleString(),
+        color: '#4caf50',
         icon: '👥'
       },
       {
         title: 'Active Members',
-        value: analyticsData.membership?.active_members.toLocaleString() || '0',
-        color : '#2196f3',
+        value: activeMembers.toLocaleString(),
+        color: '#2196f3',
         icon: '✅'
       },
       {
         title: 'Total Meetings',
-        value: analyticsData.meetings?.total_meetings.toLocaleString() || '0',
-        color : '#ff9800',
+        value: totalMeetings.toLocaleString(),
+        color: '#ff9800',
         icon: '📅'
       },
       {
         title: 'Leadership Positions',
-        value: analyticsData.leadership?.total_positions.toLocaleString() || '0',
-        color : '#9c27b0',
+        value: totalPositions.toLocaleString(),
+        color: '#9c27b0',
         icon: '👑'
       }
     ];
@@ -2710,13 +2810,23 @@ export class PDFExportService {
 
     doc.moveDown(1);
 
-    // Membership statistics table
+    // Membership statistics table - safely handle null values
+    const totalMembers = membershipData?.total_members ?? 0;
+    const activeMembers = membershipData?.active_members ?? 0;
+    const inactiveMembers = membershipData?.inactive_members ?? 0;
+    const pendingMembers = membershipData?.pending_members ?? 0;
+
+    const safePercentage = (value: number, total: number) => {
+      if (total === 0) return '0.0%';
+      return ((value / total) * 100).toFixed(1) + '%';
+    };
+
     const tableData = [
       ['Metric', 'Count', 'Percentage'],
-      ['Total Members', membershipData.total_members?.toLocaleString() || '0', '100%'],
-      ['Active Members', membershipData.active_members.toLocaleString() || '0',((membershipData.active_members / membershipData.total_members) * 100).toFixed(1) + '%'],
-      ['Inactive Members', membershipData.inactive_members.toLocaleString() || '0',((membershipData.inactive_members / membershipData.total_members) * 100).toFixed(1) + '%'],
-      ['Pending Members', membershipData.pending_members.toLocaleString() || '0',((membershipData.pending_members / membershipData.total_members) * 100).toFixed(1) + '%']
+      ['Total Members', totalMembers.toLocaleString(), '100%'],
+      ['Active Members', activeMembers.toLocaleString(), safePercentage(activeMembers, totalMembers)],
+      ['Inactive Members', inactiveMembers.toLocaleString(), safePercentage(inactiveMembers, totalMembers)],
+      ['Pending Members', pendingMembers.toLocaleString(), safePercentage(pendingMembers, totalMembers)]
     ];
 
     const membershipColumns = [
@@ -2740,8 +2850,9 @@ export class PDFExportService {
       const genderTableData = [
         ['Gender', 'Count', 'Percentage'],
         ...membershipData.gender_distribution.map((item: any) => [
-          item.gender,
-          item.member_count?.toLocaleString() || '0',item.percentage.toFixed(1) || '0%'
+          item.gender || 'Unknown',
+          (item.member_count ?? 0).toLocaleString(),
+          (item.percentage ?? 0).toFixed(1) + '%'
         ])
       ];
 
@@ -2783,11 +2894,12 @@ export class PDFExportService {
       const districtTableData = [
         ['Rank', 'District', 'Province', 'Members', 'Performance', 'Growth'],
         ...geographicData.top_performing_districts.slice(0, 5).map((district: any, index: number) => [
-          '#' + index + 1,
+          '#' + (index + 1),
           district.district_name || 'N/A',
           district.province_name || 'N/A',
-          district.member_count?.toLocaleString() || '0',district.performance_score.toFixed(1) || '0%',
-           + district.growth_rate || '0%'
+          (district.member_count ?? 0).toLocaleString(),
+          (district.performance_score ?? 0).toFixed(1) + '%',
+          (district.growth_rate ?? 0) + '%'
         ])
       ];
 
@@ -2818,9 +2930,10 @@ export class PDFExportService {
         ...geographicData.worst_performing_municipalities.slice(0, 5).map((municipality: any) => [
           municipality.municipality_name || 'N/A',
           municipality.district_name || 'N/A',
-          municipality.member_count?.toLocaleString() || '0',
-          municipality.target_count.toLocaleString() || '1000',
-          municipality.performance_gap.toLocaleString() || '0',municipality.compliance_rate || '0%'
+          (municipality.member_count ?? 0).toLocaleString(),
+          (municipality.target_count ?? 1000).toLocaleString(),
+          (municipality.performance_gap ?? 0).toLocaleString(),
+          (municipality.compliance_rate ?? 0) + '%'
         ])
       ];
 
@@ -2854,14 +2967,14 @@ export class PDFExportService {
 
     doc.moveDown(1);
 
-    // Meeting statistics
+    // Meeting statistics - safely handle null values
     const meetingStats = [
       ['Metric', 'Count'],
-      ['Total Meetings', meetingData.total_meetings?.toLocaleString() || '0'],
-      ['Completed Meetings', meetingData.completed_meetings.toLocaleString() || '0'],
-      ['Cancelled Meetings', meetingData.cancelled_meetings.toLocaleString() || '0'],
-      ['Upcoming Meetings', meetingData.upcoming_meetings.toLocaleString() || '0'],
-      ['Average Attendance',meetingData.average_attendance.toFixed(1) || '0%']
+      ['Total Meetings', (meetingData?.total_meetings ?? 0).toLocaleString()],
+      ['Completed Meetings', (meetingData?.completed_meetings ?? 0).toLocaleString()],
+      ['Cancelled Meetings', (meetingData?.cancelled_meetings ?? 0).toLocaleString()],
+      ['Upcoming Meetings', (meetingData?.upcoming_meetings ?? 0).toLocaleString()],
+      ['Average Attendance', (meetingData?.average_attendance ?? 0).toFixed(1) + '%']
     ];
 
     const meetingColumns = [
@@ -2889,13 +3002,13 @@ export class PDFExportService {
 
     doc.moveDown(1);
 
-    // Leadership statistics
+    // Leadership statistics - safely handle null values
     const leadershipStats = [
       ['Metric', 'Count'],
-      ['Total Positions', leadershipData.total_positions?.toLocaleString() || '0'],
-      ['Filled Positions', leadershipData.filled_positions.toLocaleString() || '0'],
-      ['Vacant Positions', leadershipData.vacant_positions.toLocaleString() || '0'],
-      ['Average Tenure',leadershipData.average_tenure.toFixed(1) || '0 months']
+      ['Total Positions', (leadershipData?.total_positions ?? 0).toLocaleString()],
+      ['Filled Positions', (leadershipData?.filled_positions ?? 0).toLocaleString()],
+      ['Vacant Positions', (leadershipData?.vacant_positions ?? 0).toLocaleString()],
+      ['Average Tenure', (leadershipData?.average_tenure ?? 0).toFixed(1) + ' months']
     ];
 
     const leadershipColumns = [
@@ -2923,13 +3036,13 @@ export class PDFExportService {
 
     doc.moveDown(1);
 
-    // Dashboard key metrics
+    // Dashboard key metrics - safely handle null values
     const dashboardStats = [
       ['Metric', 'Value'],
-      ['Total Members', dashboardData.total_members?.toLocaleString() || '0'],
-      ['New Members (This Month)', dashboardData.new_members_this_month.toLocaleString() || '0'],
-      ['Active Wards', dashboardData.active_wards.toLocaleString() || '0'],
-      ['Upcoming Meetings', dashboardData.upcoming_meetings.toLocaleString() || '0']
+      ['Total Members', (dashboardData?.total_members ?? 0).toLocaleString()],
+      ['New Members (This Month)', (dashboardData?.new_members_this_month ?? 0).toLocaleString()],
+      ['Active Wards', (dashboardData?.active_wards ?? 0).toLocaleString()],
+      ['Upcoming Meetings', (dashboardData?.upcoming_meetings ?? 0).toLocaleString()]
     ];
 
     const dashboardColumns = [

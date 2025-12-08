@@ -47,6 +47,7 @@ import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../lib/analyticsApi';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
 import ProvinceContextBanner from '../common/ProvinceContextBanner';
+import { devLog } from '../../utils/logger';
 
 // Enhanced interfaces for BI
 interface BusinessIntelligenceData {
@@ -585,7 +586,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<Download />}
-            onClick={() => console.log('Export BI report')}
+            onClick={() => devLog('Export BI report')}
           >
             Export Report
           </Button>
@@ -1207,7 +1208,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
                     <Button
                       variant="contained"
                       fullWidth
-                      onClick={() => console.log('Implement recommendation:', rec.id)}
+                      onClick={() => devLog('Implement recommendation:', rec.id)}
                     >
                       Implement Strategy
                     </Button>

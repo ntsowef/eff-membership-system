@@ -3,23 +3,10 @@ import { HierarchicalMeetingService } from '../services/hierarchicalMeetingServi
 import { MeetingModel, CreateMeetingData } from '../models/meetings';
 import { MeetingNotificationService } from '../services/meetingNotificationService';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
-import { authenticate } from '../middleware/auth';
 import Joi from 'joi';
 
 const router = Router();
 import { executeQuerySingle } from '../config/database';
-
-// Debug endpoint to check req.user
-router.get('/debug-user', authenticate, (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      user: req.user,
-      user_id: req.user?.id,
-      headers: req.headers.authorization
-    }
-  });
-});
 
 // Helper: map UI hierarchy to entity_type used in appointments
 const mapHierarchyToEntityType = (level: string): 'National' | 'Province' | 'Region' | 'Municipality' | 'Ward' => {
@@ -39,15 +26,15 @@ async function resolveEntityIdFromCodes(hierarchyLevel: string, province_code?: 
   const entity_type = mapHierarchyToEntityType(hierarchyLevel);
   try {
     if (entity_type === 'Province' && province_code) {
-      const row = await executeQuerySingle<any>("SELECT province_id FROM provinces WHERE province_code = $1", [province_code]);
+      const row = await executeQuerySingle<any>("SELECT province_id FROM provinces WHERE province_code = ?", [province_code]);
       return { entity_id: row?.province_id, entity_type };
     }
     if (entity_type === 'Municipality' && municipality_code) {
-      const row = await executeQuerySingle<any>("SELECT municipality_id FROM municipalities WHERE municipality_code = $1", [municipality_code]);
+      const row = await executeQuerySingle<any>("SELECT municipality_id FROM municipalities WHERE municipality_code = ?", [municipality_code]);
       return { entity_id: row?.municipality_id, entity_type };
     }
     if (entity_type === 'Ward' && ward_code) {
-      const row = await executeQuerySingle<any>("SELECT id FROM wards WHERE ward_code = $1", [ward_code]);
+      const row = await executeQuerySingle<any>("SELECT id FROM wards WHERE ward_code = ?", [ward_code]);
       return { entity_id: row?.id, entity_type };
     }
   } catch (_err) {
@@ -68,7 +55,7 @@ const createHierarchicalMeetingSchema = Joi.object({
   province_code: Joi.string().allow('').optional(),
   municipality_code: Joi.string().allow('').optional(),
   ward_code: Joi.string().allow('').optional(),
-  meeting_date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+  meeting_date: Joi.date().iso().required(),
   meeting_time: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).required(),
   end_time: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).allow('').optional(),
   duration_minutes: Joi.number().integer().positive().optional(),
@@ -97,7 +84,7 @@ const invitationPreviewSchema = Joi.object({
 /**
  * Get hierarchical meeting types - Updated
  */
-router.get('/meeting-types', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/meeting-types', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const hierarchyLevel = req.query.hierarchy_level as string;
     const meetingTypes = await HierarchicalMeetingService.getMeetingTypes(hierarchyLevel);
@@ -119,7 +106,7 @@ router.get('/meeting-types', authenticate, async (req: Request, res: Response, n
 /**
  * Get organizational roles
  */
-router.get('/organizational-roles', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/organizational-roles', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const hierarchyLevel = req.query.hierarchy_level as string;
     const roles = await HierarchicalMeetingService.getOrganizationalRoles(hierarchyLevel);
@@ -141,7 +128,7 @@ router.get('/organizational-roles', authenticate, async (req: Request, res: Resp
 /**
  * Preview automatic invitations for a meeting type
  */
-router.post('/invitation-preview', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/invitation-preview', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = invitationPreviewSchema.validate(req.body);
     if (error) {
@@ -173,7 +160,7 @@ router.post('/invitation-preview', authenticate, async (req: Request, res: Respo
     let memberDetails = [];
 
     if (memberIds.length > 0) {
-      const placeholders = memberIds.map((_, i) => `$${i + 1}`).join(',');
+      const placeholders = memberIds.map(() => '?').join(',');
       const query = `
         SELECT
           m.member_id,
@@ -181,8 +168,8 @@ router.post('/invitation-preview', authenticate, async (req: Request, res: Respo
           COALESCE(m.surname, '') as last_name,
           COALESCE(m.email, '') as email,
           COALESCE(m.cell_number, '') as phone_number,
-          CONCAT('MEM', LPAD(CAST(m.member_id AS TEXT), 6, '0')) as membership_number
-        FROM members_consolidated m
+          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number
+        FROM members m
         WHERE m.member_id IN (${placeholders})
         ORDER BY m.surname, m.firstname
       `;
@@ -236,17 +223,15 @@ router.post('/invitation-preview', authenticate, async (req: Request, res: Respo
 /**
  * Create hierarchical meeting with automatic invitations
  */
-router.post('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = createHierarchicalMeetingSchema.validate(req.body);
-
     if (error) {
       throw new ValidationError(error.details[0].message);
     }
 
     // Validate meeting type exists and is active
     const meetingType = await MeetingModel.getMeetingTypeById(value.meeting_type_id);
-
     if (!meetingType) {
       throw new ValidationError('Meeting type not found');
     }
@@ -258,8 +243,8 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
     }
 
     // Map hierarchy_level to database values
-    // Frontend/API uses: National, Provincial, Regional, Municipal, Ward
-    // Database meetings table uses: National, Province, Region, Municipality, Ward, Branch
+    // Frontend uses: 'Provincial', 'Municipal', 'Regional'
+    // Database expects: 'Province', 'Municipality', 'Region'
     const hierarchyLevelMap: Record<string, string> = {
       'National': 'National',
       'Provincial': 'Province',
@@ -268,6 +253,7 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       'Ward': 'Ward',
       'Branch': 'Branch'
     };
+
     const dbHierarchyLevel = hierarchyLevelMap[value.hierarchy_level] || value.hierarchy_level;
 
     // Create meeting data
@@ -290,7 +276,7 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       quorum_required: value.quorum_required || 0,
       meeting_chair_id: value.meeting_chair_id,
       meeting_secretary_id: value.meeting_secretary_id,
-      created_by: req.user?.id || 1, // Get from authenticated user
+      created_by: 1, // TODO: Get from authenticated user
       auto_send_invitations: value.auto_send_invitations || false
     };
 
@@ -364,10 +350,6 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[HIERARCHICAL-MEETINGS] ERROR in POST /');
-    console.error('[HIERARCHICAL-MEETINGS] Error:', error);
-    console.error('[HIERARCHICAL-MEETINGS] Error message:', error instanceof Error ? error.message : 'Unknown');
-    console.error('[HIERARCHICAL-MEETINGS] Error stack:', error instanceof Error ? error.stack : 'No stack');
     next(error);
   }
 });
@@ -375,7 +357,7 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
 /**
  * Get members with roles for a specific hierarchy level and entity
  */
-router.get('/members-with-roles', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/members-with-roles', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const hierarchyLevel = req.query.hierarchy_level as string;
     const entityId = req.query.entity_id ? parseInt(req.query.entity_id as string) : undefined;
@@ -413,7 +395,7 @@ router.get('/members-with-roles', authenticate, async (req: Request, res: Respon
 /**
  * Send invitations for an existing meeting
  */
-router.post('/:meetingId/send-invitations', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:meetingId/send-invitations', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
     if (isNaN(meetingId)) {
@@ -492,7 +474,7 @@ router.post('/:meetingId/send-invitations', authenticate, async (req: Request, r
 /**
  * Send meeting reminders
  */
-router.post('/:meetingId/send-reminders', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:meetingId/send-reminders', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
 
@@ -521,7 +503,7 @@ router.post('/:meetingId/send-reminders', authenticate, async (req: Request, res
  * Get meeting statistics
  * NOTE: This route MUST be before /:meetingId to avoid matching "statistics" as a meetingId
  */
-router.get('/statistics', authenticate, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/statistics', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const statistics = await HierarchicalMeetingService.getMeetingStatistics();
 
@@ -540,7 +522,7 @@ router.get('/statistics', authenticate, async (_req: Request, res: Response, nex
 /**
  * Get a single hierarchical meeting by ID
  */
-router.get('/:meetingId', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
 
@@ -569,7 +551,7 @@ router.get('/:meetingId', authenticate, async (req: Request, res: Response, next
 /**
  * Get invitation statistics for a meeting
  */
-router.get('/:meetingId/invitation-stats', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:meetingId/invitation-stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
 
@@ -593,7 +575,7 @@ router.get('/:meetingId/invitation-stats', authenticate, async (req: Request, re
 /**
  * Send actual notifications (email/SMS) for meeting invitations
  */
-router.post('/:meetingId/send-notifications', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:meetingId/send-notifications', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
 
@@ -622,7 +604,7 @@ router.post('/:meetingId/send-notifications', authenticate, async (req: Request,
 /**
  * Get hierarchical meetings with filtering and pagination
  */
-router.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       hierarchy_level,
@@ -665,7 +647,7 @@ router.get('/', authenticate, async (req: Request, res: Response, next: NextFunc
 /**
  * Update a hierarchical meeting
  */
-router.put('/:meetingId', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
     if (isNaN(meetingId)) {
@@ -751,7 +733,7 @@ router.put('/:meetingId', authenticate, async (req: Request, res: Response, next
 /**
  * Delete a hierarchical meeting
  */
-router.delete('/:meetingId', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
     if (isNaN(meetingId)) {

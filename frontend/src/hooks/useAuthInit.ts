@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '../store';
 import { UserManagementAPI } from '../lib/userManagementApi';
+import { devLog } from '../utils/logger';
 
 /**
  * Hook to initialize authentication state on app startup
@@ -27,7 +28,7 @@ export const useAuthInit = () => {
         
         if (now > expirationTime) {
           // Token expired, logout user
-          console.log('Token expired, logging out user');
+          devLog('Token expired, logging out user');
           logout();
           return;
         }
@@ -108,7 +109,7 @@ export const useAuthInit = () => {
       const sessionExpiration = Date.now() + (10 * 60 * 1000); // 10 minutes
       localStorage.setItem('sessionExpiration', sessionExpiration.toString());
 
-      console.log('🕐 10-minute session timeout activated');
+      devLog('🕐 10-minute session timeout activated');
     }
   }, [isAuthenticated]);
 };

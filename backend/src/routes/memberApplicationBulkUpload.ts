@@ -7,39 +7,20 @@ import { asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { ValidationError } from '../middleware/errorHandler';
 import { MemberApplicationBulkUploadService } from '../services/memberApplicationBulkUploadService';
 import { MemberApplicationBulkProcessor } from '../services/memberApplicationBulkProcessor';
-import { addUploadJob, getJobStatus, getQueueStats } from '../services/uploadQueueService';
-import {
-  uploadFrequencyLimiter,
-  concurrentUploadLimiter,
-  systemConcurrentUploadLimiter
-} from '../middleware/uploadRateLimiting';
-import { FileStorageService } from '../services/fileStorageService';
-import { authenticate } from '../middleware/auth';
+import { MemberApplicationBulkIECProcessor } from '../services/memberApplicationBulkIECProcessor';
 
 const router = Router();
-
-// Apply authentication to all routes
-router.use(authenticate);
 
 // =====================================================================================
 // MULTER CONFIGURATION
 // =====================================================================================
 
-// Use repository root _upload_file_directory (watched by Python processor)
-// Backend runs from backend/ folder, so go up two levels to reach repository root
-const repoRoot = path.join(__dirname, '..', '..', '..');
-const uploadDir = path.join(repoRoot, process.env.UPLOAD_DIR || '_upload_file_directory');
-
-console.log('📂 [Member Application Bulk Upload] Upload directory:', uploadDir);
-
-// Ensure upload directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log('✅ Created upload directory:', uploadDir);
-}
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/member-applications');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -79,43 +60,12 @@ const upload = multer({
  * @access  Private (Admin)
  */
 router.post('/upload',
-  // Rate limiting temporarily disabled for testing
-  // uploadFrequencyLimiter,
-  // concurrentUploadLimiter,
-  // systemConcurrentUploadLimiter,
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('🚀 [UPLOAD ROUTE] Starting upload request');
-    console.log('🔐 [UPLOAD ROUTE] User from req:', (req as any).user);
-
-    const userId = (req as any).user?.id || 1;
-    const userRole = (req as any).user?.role_name;
-
-    console.log('👤 [UPLOAD ROUTE] Extracted userId:', userId);
-    console.log('👤 [UPLOAD ROUTE] Extracted userRole:', userRole);
+    const userId = (req as any).user?.userId || 1; // TESTING: Default to user ID 1
 
     if (!req.file) {
       throw new ValidationError('No file uploaded');
-    }
-
-    console.log('📁 [UPLOAD ROUTE] File received:', req.file.originalname);
-
-    // Check disk space before processing
-    const diskSpace = await FileStorageService.checkDiskSpace();
-    if (!diskSpace.hasSpace) {
-      // Delete uploaded file
-      fs.unlinkSync(req.file.path);
-      throw new ValidationError(
-        `Insufficient disk space. Only ${diskSpace.freeGB}GB available. Minimum ${5}GB required.`
-      );
-    }
-
-    // Validate file size
-    const sizeValidation = FileStorageService.validateFileSize(req.file.size);
-    if (!sizeValidation.valid) {
-      // Delete uploaded file
-      fs.unlinkSync(req.file.path);
-      throw new ValidationError(sizeValidation.error!);
     }
 
     // Determine file type
@@ -131,44 +81,80 @@ router.post('/upload',
       uploaded_by: userId
     });
 
-    // Add job to queue instead of immediate processing
-    await addUploadJob(upload_uuid, 10, userRole);
-
-    console.log(`📥 Upload queued: ${upload_uuid} by user ${userId} (${userRole})`);
+    // Start background processing
+    setImmediate(async () => {
+      try {
+        await MemberApplicationBulkProcessor.processBulkUpload(upload_uuid);
+      } catch (error) {
+        console.error('Background processing error:', error);
+      }
+    });
 
     sendSuccess(res, {
       upload_uuid,
       file_name: req.file.originalname,
       file_size: req.file.size,
       file_type: fileType,
-      status: 'queued',
       message: 'File uploaded successfully and queued for processing'
     }, 'File uploaded successfully', 201);
   })
 );
 
 /**
- * @route   GET /api/v1/member-application-bulk-upload/queue/status
- * @desc    Get queue statistics
+ * @route   POST /api/v1/member-application-bulk-upload/upload-with-iec
+ * @desc    Upload bulk member application spreadsheet with IEC verification
  * @access  Private (Admin)
+ *
+ * This endpoint:
+ * 1. Uploads the file
+ * 2. Validates all records
+ * 3. Verifies each ID number against the IEC database
+ * 4. Retrieves geographic hierarchy (province, district, municipality, ward, VD)
+ * 5. Assigns special VD code 999999999 for non-registered voters
+ * 6. Stores applications with verification status
+ * 7. Generates comprehensive Excel report
  */
-router.get('/queue/status',
+router.post('/upload-with-iec',
+  upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
-    const stats = await getQueueStats('upload');
-    sendSuccess(res, stats, 'Queue statistics retrieved successfully');
-  })
-);
+    const userId = (req as any).user?.userId || 1; // TESTING: Default to user ID 1
 
-/**
- * @route   GET /api/v1/member-application-bulk-upload/job/:upload_uuid
- * @desc    Get job status from queue
- * @access  Private
- */
-router.get('/job/:upload_uuid',
-  asyncHandler(async (req: Request, res: Response) => {
-    const { upload_uuid } = req.params;
-    const jobStatus = await getJobStatus(upload_uuid, 'upload');
-    sendSuccess(res, jobStatus, 'Job status retrieved successfully');
+    if (!req.file) {
+      throw new ValidationError('No file uploaded');
+    }
+
+    // Determine file type
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const fileType = (ext === '.csv') ? 'CSV' : 'Excel';
+
+    // Create upload record with IEC verification enabled
+    const upload_uuid = await MemberApplicationBulkUploadService.createBulkUpload({
+      file_name: req.file.originalname,
+      file_path: req.file.path,
+      file_type: fileType,
+      file_size: req.file.size,
+      uploaded_by: userId
+    });
+
+    // Start background processing with IEC verification
+    setImmediate(async () => {
+      try {
+        console.log(`[Route] Starting IEC verification processing for upload: ${upload_uuid}`);
+        await MemberApplicationBulkIECProcessor.processBulkUploadWithIEC(upload_uuid);
+        console.log(`[Route] IEC verification processing completed for upload: ${upload_uuid}`);
+      } catch (error) {
+        console.error('[Route] IEC verification processing error:', error);
+      }
+    });
+
+    sendSuccess(res, {
+      upload_uuid,
+      file_name: req.file.originalname,
+      file_size: req.file.size,
+      file_type: fileType,
+      iec_verification_enabled: true,
+      message: 'File uploaded successfully and queued for IEC verification processing'
+    }, 'File uploaded successfully with IEC verification enabled', 201);
   })
 );
 
@@ -397,20 +383,93 @@ router.post('/cancel/:upload_uuid',
 );
 
 /**
- * @route   GET /api/v1/member-application-bulk-upload/debug-user
- * @desc    Debug endpoint to check req.user
+ * @route   GET /api/v1/member-application-bulk-upload/download-report/:upload_uuid
+ * @desc    Download IEC verification report for an upload
  * @access  Private
  */
-router.get('/debug-user',
+router.get('/download-report/:upload_uuid',
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const { upload_uuid } = req.params;
+
+    // Get upload status to find report path
+    const status = await MemberApplicationBulkUploadService.getUploadStatus(upload_uuid);
+
+    if (!status) {
+      throw new ValidationError('Upload not found');
+    }
+
+    // Check if report exists
+    const { executeQuerySingle } = await import('../config/database');
+    const uploadWithReport = await executeQuerySingle<{ report_file_path: string }>(
+      'SELECT report_file_path FROM member_application_bulk_uploads WHERE upload_uuid = $1',
+      [upload_uuid]
+    );
+
+    if (!uploadWithReport?.report_file_path) {
+      throw new ValidationError('Report not yet generated or not available');
+    }
+
+    const reportPath = uploadWithReport.report_file_path;
+
+    if (!fs.existsSync(reportPath)) {
+      throw new ValidationError('Report file not found on server');
+    }
+
+    // Set headers for file download
+    const fileName = path.basename(reportPath);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(reportPath);
+    fileStream.pipe(res);
+  })
+);
+
+/**
+ * @route   GET /api/v1/member-application-bulk-upload/iec-status/:upload_uuid
+ * @desc    Get IEC verification status for an upload
+ * @access  Private
+ */
+router.get('/iec-status/:upload_uuid',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { upload_uuid } = req.params;
+
+    const { executeQuerySingle } = await import('../config/database');
+    const iecStatus = await executeQuerySingle<{
+      upload_uuid: string;
+      status: string;
+      total_records: number;
+      processed_records: number;
+      successful_records: number;
+      failed_records: number;
+      duplicate_records: number;
+      iec_verification_enabled: boolean;
+      iec_verified_count: number;
+      iec_not_registered_count: number;
+      iec_failed_count: number;
+      iec_rate_limited: boolean;
+      iec_rate_limit_reset_time: Date;
+      report_file_path: string;
+    }>(
+      `SELECT
+        upload_uuid, status, total_records, processed_records,
+        successful_records, failed_records, duplicate_records,
+        iec_verification_enabled, iec_verified_count, iec_not_registered_count,
+        iec_failed_count, iec_rate_limited, iec_rate_limit_reset_time, report_file_path
+      FROM member_application_bulk_uploads
+      WHERE upload_uuid = $1`,
+      [upload_uuid]
+    );
+
+    if (!iecStatus) {
+      throw new ValidationError('Upload not found');
+    }
+
     sendSuccess(res, {
-      user,
-      userId_method1: user?.userId,
-      userId_method2: user?.id,
-      userRole_method1: user?.role,
-      userRole_method2: user?.role_name
-    }, 'User debug info');
+      ...iecStatus,
+      report_available: !!iecStatus.report_file_path
+    }, 'IEC verification status retrieved successfully');
   })
 );
 

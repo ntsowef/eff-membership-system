@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface RenewalAnalyticsData {
   renewal_performance: {
@@ -84,7 +85,7 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport: _on
           include_geographic: true
         }
       });
-      console.log('Renewal Analytics API Response:', response.data);
+      devLog('Renewal Analytics API Response:', response.data);
 
       if (response.data && response.data.data && response.data.data.analytics) {
         return response.data.data.analytics as RenewalAnalyticsData;

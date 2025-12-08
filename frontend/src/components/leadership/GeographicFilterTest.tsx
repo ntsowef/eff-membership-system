@@ -19,6 +19,7 @@ import {
 import { LocationOn, Search } from '@mui/icons-material';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
+import { devLog } from '../../utils/logger';
 
 const { LeadershipAPI } = LeadershipService;
 type MemberFilters = LeadershipService.MemberFilters;
@@ -66,8 +67,8 @@ const GeographicFilterTest: React.FC = () => {
           break;
       }
 
-      console.log('Testing geographic filter:', { filterLevel, geographicCode, filters });
-      
+      devLog('Testing geographic filter:', { filterLevel, geographicCode, filters });
+
       const response = await LeadershipAPI.getMembers(filters);
       
       setResults({

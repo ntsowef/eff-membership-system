@@ -1,0 +1,587 @@
+[
+  {
+    "level": "Provincial Admin",
+    "email": "gauteng.admin@eff.org.za",
+    "loginSuccess": true,
+    "loginStatus": 200,
+    "userData": {
+      "id": 8574,
+      "name": "Gauteng Provincial Admin",
+      "email": "gauteng.admin@eff.org.za",
+      "admin_level": "province",
+      "province_code": "GP",
+      "district_code": null,
+      "municipal_code": null,
+      "ward_code": null,
+      "role": "Provincial Administrator",
+      "is_active": true
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ODU3NCwiZW1haWwiOiJnYXV0ZW5nLmFkbWluQGVmZi5vcmcuemEiLCJyb2xlX25hbWUiOiJQcm92aW5jaWFsIEFkbWluaXN0cmF0b3IiLCJhZG1pbl9sZXZlbCI6InByb3ZpbmNlIiwicHJvdmluY2VfY29kZSI6IkdQIiwiZGlzdHJpY3RfY29kZSI6bnVsbCwibXVuaWNpcGFsX2NvZGUiOm51bGwsIndhcmRfY29kZSI6bnVsbCwiaWF0IjoxNzYxMTAyNjA1LCJleHAiOjE3NjExODkwMDV9.cZAVCcJEYI5XhHEEL0U7eohztlapWWQ6vfPSD_oXjNs",
+    "endpointTests": [
+      {
+        "name": "MFA Status",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "message": "MFA status retrieved successfully.",
+          "data": {
+            "enabled": false,
+            "required": false
+          },
+          "timestamp": "2025-10-22T03:10:07.518Z"
+        }
+      },
+      {
+        "name": "File Processing Queue Status",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "message": "Queue status retrieved successfully",
+          "data": {
+            "queueLength": 0,
+            "isProcessing": false,
+            "isEmpty": true,
+            "status": "idle",
+            "currentJob": null
+          },
+          "timestamp": "2025-10-22T03:10:07.538Z"
+        }
+      },
+      {
+        "name": "Cache Stats",
+        "status": 403,
+        "success": false,
+        "data": {
+          "success": false,
+          "error": {
+            "code": "AUTHORIZATION_ERROR",
+            "message": "Insufficient admin level. Only national admin is supported.",
+            "timestamp": "2025-10-22T03:10:07.557Z",
+            "path": "/api/v1/cache/stats",
+            "method": "GET"
+          }
+        }
+      },
+      {
+        "name": "IEC Electoral Events Types",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "data": [
+            {
+              "id": 1,
+              "iec_event_type_id": 1,
+              "description": "National Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 2,
+              "iec_event_type_id": 2,
+              "description": "Provincial Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 3,
+              "iec_event_type_id": 3,
+              "description": "Local Government Election",
+              "is_municipal_election": true,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 4,
+              "iec_event_type_id": 4,
+              "description": "By-Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            }
+          ],
+          "message": "Electoral event types retrieved successfully"
+        }
+      },
+      {
+        "name": "IEC LGE Ballot Results (LP)",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "data": {
+            "province_code": "LP",
+            "results_count": 1,
+            "ballot_results": [
+              {
+                "id": 1,
+                "iec_event_id": 1091,
+                "iec_province_id": 5,
+                "iec_municipality_id": null,
+                "iec_ward_id": null,
+                "province_code": "LP",
+                "municipality_code": null,
+                "ward_code": null,
+                "ballot_data": {
+                  "parties": [
+                    {
+                      "name": "ANC",
+                      "votes": 1214,
+                      "percentage": 8.81
+                    },
+                    {
+                      "name": "DA",
+                      "votes": 1485,
+                      "percentage": 10.78
+                    },
+                    {
+                      "name": "EFF",
+                      "votes": 1160,
+                      "percentage": 8.42
+                    },
+                    {
+                      "name": "IFP",
+                      "votes": 3107,
+                      "percentage": 22.55
+                    },
+                    {
+                      "name": "FF+",
+                      "votes": 116,
+                      "percentage": 0.84
+                    },
+                    {
+                      "name": "ACDP",
+                      "votes": 2861,
+                      "percentage": 20.76
+                    },
+                    {
+                      "name": "UDM",
+                      "votes": 3418,
+                      "percentage": 24.8
+                    },
+                    {
+                      "name": "COPE",
+                      "votes": 419,
+                      "percentage": 3.04
+                    }
+                  ],
+                  "summary": {
+                    "total_votes": 10282,
+                    "voter_turnout": "76.93",
+                    "registered_voters": 13366
+                  }
+                },
+                "total_votes": 13780,
+                "registered_voters": 13366,
+                "voter_turnout_percentage": "103.1",
+                "result_type": "province",
+                "data_source": "IEC_API",
+                "last_updated": "2025-10-22T00:02:23.095Z",
+                "created_at": "2025-10-22T00:02:23.099Z"
+              }
+            ]
+          },
+          "metadata": {
+            "request_type": "province",
+            "timestamp": "2025-10-22T03:10:07.600Z"
+          }
+        }
+      }
+    ],
+    "dataValid": true
+  },
+  {
+    "level": "Municipal Admin",
+    "email": "municipal.buf.admin@eff.org.za",
+    "loginSuccess": true,
+    "loginStatus": 200,
+    "userData": {
+      "id": 8633,
+      "name": "Buffalo City Metropolitan Municipality Municipal Admin",
+      "email": "municipal.buf.admin@eff.org.za",
+      "admin_level": "municipality",
+      "province_code": "EC",
+      "district_code": "BUF",
+      "municipal_code": "BUF",
+      "ward_code": null,
+      "role": "Municipal Administrator",
+      "is_active": true
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ODYzMywiZW1haWwiOiJtdW5pY2lwYWwuYnVmLmFkbWluQGVmZi5vcmcuemEiLCJyb2xlX25hbWUiOiJNdW5pY2lwYWwgQWRtaW5pc3RyYXRvciIsImFkbWluX2xldmVsIjoibXVuaWNpcGFsaXR5IiwicHJvdmluY2VfY29kZSI6IkVDIiwiZGlzdHJpY3RfY29kZSI6IkJVRiIsIm11bmljaXBhbF9jb2RlIjoiQlVGIiwid2FyZF9jb2RlIjpudWxsLCJpYXQiOjE3NjExMDI2MDcsImV4cCI6MTc2MTE4OTAwN30.dq9wBKMfb55jBnJoswoIQYNNB61PMpZ6sgyd_SUy8QE",
+    "endpointTests": [
+      {
+        "name": "MFA Status",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "message": "MFA status retrieved successfully.",
+          "data": {
+            "enabled": false,
+            "required": false
+          },
+          "timestamp": "2025-10-22T03:10:07.798Z"
+        }
+      },
+      {
+        "name": "File Processing Queue Status",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "message": "Queue status retrieved successfully",
+          "data": {
+            "queueLength": 0,
+            "isProcessing": false,
+            "isEmpty": true,
+            "status": "idle",
+            "currentJob": null
+          },
+          "timestamp": "2025-10-22T03:10:07.815Z"
+        }
+      },
+      {
+        "name": "Cache Stats",
+        "status": 403,
+        "success": false,
+        "data": {
+          "success": false,
+          "error": {
+            "code": "AUTHORIZATION_ERROR",
+            "message": "Insufficient admin level. Only national admin is supported.",
+            "timestamp": "2025-10-22T03:10:07.832Z",
+            "path": "/api/v1/cache/stats",
+            "method": "GET"
+          }
+        }
+      },
+      {
+        "name": "IEC Electoral Events Types",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "data": [
+            {
+              "id": 1,
+              "iec_event_type_id": 1,
+              "description": "National Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 2,
+              "iec_event_type_id": 2,
+              "description": "Provincial Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 3,
+              "iec_event_type_id": 3,
+              "description": "Local Government Election",
+              "is_municipal_election": true,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 4,
+              "iec_event_type_id": 4,
+              "description": "By-Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            }
+          ],
+          "message": "Electoral event types retrieved successfully"
+        }
+      },
+      {
+        "name": "IEC LGE Ballot Results (LP)",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "data": {
+            "province_code": "LP",
+            "results_count": 1,
+            "ballot_results": [
+              {
+                "id": 1,
+                "iec_event_id": 1091,
+                "iec_province_id": 5,
+                "iec_municipality_id": null,
+                "iec_ward_id": null,
+                "province_code": "LP",
+                "municipality_code": null,
+                "ward_code": null,
+                "ballot_data": {
+                  "parties": [
+                    {
+                      "name": "ANC",
+                      "votes": 1214,
+                      "percentage": 8.81
+                    },
+                    {
+                      "name": "DA",
+                      "votes": 1485,
+                      "percentage": 10.78
+                    },
+                    {
+                      "name": "EFF",
+                      "votes": 1160,
+                      "percentage": 8.42
+                    },
+                    {
+                      "name": "IFP",
+                      "votes": 3107,
+                      "percentage": 22.55
+                    },
+                    {
+                      "name": "FF+",
+                      "votes": 116,
+                      "percentage": 0.84
+                    },
+                    {
+                      "name": "ACDP",
+                      "votes": 2861,
+                      "percentage": 20.76
+                    },
+                    {
+                      "name": "UDM",
+                      "votes": 3418,
+                      "percentage": 24.8
+                    },
+                    {
+                      "name": "COPE",
+                      "votes": 419,
+                      "percentage": 3.04
+                    }
+                  ],
+                  "summary": {
+                    "total_votes": 10282,
+                    "voter_turnout": "76.93",
+                    "registered_voters": 13366
+                  }
+                },
+                "total_votes": 13780,
+                "registered_voters": 13366,
+                "voter_turnout_percentage": "103.1",
+                "result_type": "province",
+                "data_source": "IEC_API",
+                "last_updated": "2025-10-22T00:02:23.095Z",
+                "created_at": "2025-10-22T00:02:23.099Z"
+              }
+            ]
+          },
+          "metadata": {
+            "request_type": "province",
+            "timestamp": "2025-10-22T03:10:07.871Z"
+          }
+        }
+      }
+    ],
+    "dataValid": true
+  },
+  {
+    "level": "Ward Admin",
+    "email": "ward.10101001.admin@eff.org.za",
+    "loginSuccess": true,
+    "loginStatus": 200,
+    "userData": {
+      "id": 8846,
+      "name": "Ward 1 - Matzikama Sub-Region Admin",
+      "email": "ward.10101001.admin@eff.org.za",
+      "admin_level": "ward",
+      "province_code": "WC",
+      "district_code": "DC1",
+      "municipal_code": "WC011",
+      "ward_code": "10101001",
+      "role": "Ward Administrator",
+      "is_active": true
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ODg0NiwiZW1haWwiOiJ3YXJkLjEwMTAxMDAxLmFkbWluQGVmZi5vcmcuemEiLCJyb2xlX25hbWUiOiJXYXJkIEFkbWluaXN0cmF0b3IiLCJhZG1pbl9sZXZlbCI6IndhcmQiLCJwcm92aW5jZV9jb2RlIjoiV0MiLCJkaXN0cmljdF9jb2RlIjoiREMxIiwibXVuaWNpcGFsX2NvZGUiOiJXQzAxMSIsIndhcmRfY29kZSI6IjEwMTAxMDAxIiwiaWF0IjoxNzYxMTAyNjA3LCJleHAiOjE3NjExODkwMDd9.9kAmUQKlH_aBr10RZCZVyTcFg2GdyxhGncb4n9ISa-c",
+    "endpointTests": [
+      {
+        "name": "MFA Status",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "message": "MFA status retrieved successfully.",
+          "data": {
+            "enabled": false,
+            "required": false
+          },
+          "timestamp": "2025-10-22T03:10:08.073Z"
+        }
+      },
+      {
+        "name": "File Processing Queue Status",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "message": "Queue status retrieved successfully",
+          "data": {
+            "queueLength": 0,
+            "isProcessing": false,
+            "isEmpty": true,
+            "status": "idle",
+            "currentJob": null
+          },
+          "timestamp": "2025-10-22T03:10:08.104Z"
+        }
+      },
+      {
+        "name": "Cache Stats",
+        "status": 403,
+        "success": false,
+        "data": {
+          "success": false,
+          "error": {
+            "code": "AUTHORIZATION_ERROR",
+            "message": "Insufficient admin level. Only national admin is supported.",
+            "timestamp": "2025-10-22T03:10:08.131Z",
+            "path": "/api/v1/cache/stats",
+            "method": "GET"
+          }
+        }
+      },
+      {
+        "name": "IEC Electoral Events Types",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "data": [
+            {
+              "id": 1,
+              "iec_event_type_id": 1,
+              "description": "National Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 2,
+              "iec_event_type_id": 2,
+              "description": "Provincial Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 3,
+              "iec_event_type_id": 3,
+              "description": "Local Government Election",
+              "is_municipal_election": true,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            },
+            {
+              "id": 4,
+              "iec_event_type_id": 4,
+              "description": "By-Election",
+              "is_municipal_election": false,
+              "created_at": "2025-09-24T10:58:50.593Z",
+              "updated_at": "2025-09-24T10:58:50.593Z"
+            }
+          ],
+          "message": "Electoral event types retrieved successfully"
+        }
+      },
+      {
+        "name": "IEC LGE Ballot Results (LP)",
+        "status": 200,
+        "success": true,
+        "data": {
+          "success": true,
+          "data": {
+            "province_code": "LP",
+            "results_count": 1,
+            "ballot_results": [
+              {
+                "id": 1,
+                "iec_event_id": 1091,
+                "iec_province_id": 5,
+                "iec_municipality_id": null,
+                "iec_ward_id": null,
+                "province_code": "LP",
+                "municipality_code": null,
+                "ward_code": null,
+                "ballot_data": {
+                  "parties": [
+                    {
+                      "name": "ANC",
+                      "votes": 1214,
+                      "percentage": 8.81
+                    },
+                    {
+                      "name": "DA",
+                      "votes": 1485,
+                      "percentage": 10.78
+                    },
+                    {
+                      "name": "EFF",
+                      "votes": 1160,
+                      "percentage": 8.42
+                    },
+                    {
+                      "name": "IFP",
+                      "votes": 3107,
+                      "percentage": 22.55
+                    },
+                    {
+                      "name": "FF+",
+                      "votes": 116,
+                      "percentage": 0.84
+                    },
+                    {
+                      "name": "ACDP",
+                      "votes": 2861,
+                      "percentage": 20.76
+                    },
+                    {
+                      "name": "UDM",
+                      "votes": 3418,
+                      "percentage": 24.8
+                    },
+                    {
+                      "name": "COPE",
+                      "votes": 419,
+                      "percentage": 3.04
+                    }
+                  ],
+                  "summary": {
+                    "total_votes": 10282,
+                    "voter_turnout": "76.93",
+                    "registered_voters": 13366
+                  }
+                },
+                "total_votes": 13780,
+                "registered_voters": 13366,
+                "voter_turnout_percentage": "103.1",
+                "result_type": "province",
+                "data_source": "IEC_API",
+                "last_updated": "2025-10-22T00:02:23.095Z",
+                "created_at": "2025-10-22T00:02:23.099Z"
+              }
+            ]
+          },
+          "metadata": {
+            "request_type": "province",
+            "timestamp": "2025-10-22T03:10:08.199Z"
+          }
+        }
+      }
+    ],
+    "dataValid": true
+  }
+]

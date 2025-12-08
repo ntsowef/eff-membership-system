@@ -16,6 +16,7 @@ import {
   Chip
 } from '@mui/material';
 import { PictureAsPdf, TableChart, Description } from '@mui/icons-material';
+import { devLog } from '../../utils/logger';
 
 const PDFExportTest: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -50,8 +51,9 @@ const PDFExportTest: React.FC = () => {
       if (exportParams.age_max) params.append('age_max', exportParams.age_max);
       if (exportParams.search) params.append('search', exportParams.search);
 
-      const url = `http://localhost:5000/api/v1/members/export?${params.toString()}`;
-      console.log('🔄 Exporting:', url);
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+      const url = `${apiBaseUrl}/members/export?${params.toString()}`;
+      devLog('🔄 Exporting:', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -117,8 +119,9 @@ const PDFExportTest: React.FC = () => {
     setLoading(true);
     
     try {
-      const url = `http://localhost:5000/api/v1/voting-districts/export/pdf?ward_code=${exportParams.ward_code}`;
-      console.log('🗳️ Exporting voting districts:', url);
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+      const url = `${apiBaseUrl}/voting-districts/export/pdf?ward_code=${exportParams.ward_code}`;
+      devLog('🗳️ Exporting voting districts:', url);
 
       const response = await fetch(url, {
         method: 'GET',

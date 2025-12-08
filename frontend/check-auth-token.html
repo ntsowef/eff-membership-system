@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Token Diagnostic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Authentication Token Diagnostic</h1>
+    <p>This page checks if your authentication token is properly stored in localStorage.</p>
+    
+    <div id="results"></div>
+    
+    <h2>Actions:</h2>
+    <button onclick="checkAuth()">🔄 Refresh Check</button>
+    <button onclick="clearAuth()">🗑️ Clear Auth Data</button>
+    <button onclick="window.location.href='/login'">🔐 Go to Login</button>
+    
+    <script>
+        function checkAuth() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+            
+            // Check auth-storage (Zustand)
+            const authStorage = localStorage.getItem('auth-storage');
+            let token = null;
+            let user = null;
+            let sessionId = null;
+            
+            if (authStorage) {
+                try {
+                    const parsed = JSON.parse(authStorage);
+                    token = parsed.state?.token;
+                    user = parsed.state?.user;
+                    sessionId = parsed.state?.sessionId;
+                    
+                    results.innerHTML += `
+                        <div class="status success">
+                            <h3>✅ Auth Storage Found</h3>
+                            <p><strong>Token:</strong> ${token ? token.substring(0, 30) + '...' : 'NULL'}</p>
+                            <p><strong>User:</strong> ${user ? user.email : 'NULL'}</p>
+                            <p><strong>Session ID:</strong> ${sessionId || 'NULL'}</p>
+                            <p><strong>Is Authenticated:</strong> ${parsed.state?.isAuthenticated ? 'Yes' : 'No'}</p>
+                        </div>
+                    `;
+                    
+                    if (!token) {
+                        results.innerHTML += `
+                            <div class="status error">
+                                <h3>❌ Token is NULL</h3>
+                                <p>The auth-storage exists but the token is missing. Please log out and log back in.</p>
+                            </div>
+                        `;
+                    }
+                    
+                    results.innerHTML += `
+                        <h3>Full Auth Storage:</h3>
+                        <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                    `;
+                } catch (error) {
+                    results.innerHTML += `
+                        <div class="status error">
+                            <h3>❌ Failed to Parse Auth Storage</h3>
+                            <p>${error.message}</p>
+                            <pre>${authStorage}</pre>
+                        </div>
+                    `;
+                }
+            } else {
+                results.innerHTML += `
+                    <div class="status error">
+                        <h3>❌ No Auth Storage Found</h3>
+                        <p>You are not logged in. Please go to the login page.</p>
+                    </div>
+                `;
+            }
+            
+            // Check other auth-related items
+            const authToken = localStorage.getItem('authToken');
+            const tokenExpiration = localStorage.getItem('tokenExpiration');
+            const sessionExpiration = localStorage.getItem('sessionExpiration');
+            
+            results.innerHTML += `
+                <h3>Other Auth Items:</h3>
+                <ul>
+                    <li><strong>authToken:</strong> ${authToken ? authToken.substring(0, 30) + '...' : 'Not found'}</li>
+                    <li><strong>tokenExpiration:</strong> ${tokenExpiration || 'Not found'}</li>
+                    <li><strong>sessionExpiration:</strong> ${sessionExpiration || 'Not found'}</li>
+                </ul>
+            `;
+            
+            // Check if token is expired
+            if (tokenExpiration) {
+                const expirationTime = parseInt(tokenExpiration);
+                const now = Date.now();
+                const isExpired = now > expirationTime;
+                
+                results.innerHTML += `
+                    <div class="status ${isExpired ? 'error' : 'success'}">
+                        <h3>${isExpired ? '❌ Token Expired' : '✅ Token Valid'}</h3>
+                        <p><strong>Expiration:</strong> ${new Date(expirationTime).toLocaleString()}</p>
+                        <p><strong>Current Time:</strong> ${new Date(now).toLocaleString()}</p>
+                        <p><strong>Time Remaining:</strong> ${isExpired ? 'Expired' : Math.round((expirationTime - now) / 1000 / 60) + ' minutes'}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function clearAuth() {
+            if (confirm('Are you sure you want to clear all authentication data? You will need to log in again.')) {
+                localStorage.removeItem('auth-storage');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('tokenExpiration');
+                localStorage.removeItem('sessionExpiration');
+                localStorage.removeItem('rememberMe');
+                alert('Authentication data cleared. Please log in again.');
+                checkAuth();
+            }
+        }
+        
+        // Run check on page load
+        checkAuth();
+    </script>
+</body>
+</html>
+

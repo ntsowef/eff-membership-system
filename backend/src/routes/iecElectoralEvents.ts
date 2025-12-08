@@ -1,5 +1,5 @@
 import express from 'express';
-import { iecElectoralEventsService } from '../services/iecElectoralEventsService'; // ✅ MIGRATED TO PRISMA
+import { iecElectoralEventsService } from '../services/iecElectoralEventsService';
 import { authenticate } from '../middleware/auth';
 import { createDatabaseError } from '../middleware/errorHandler';
 

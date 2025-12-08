@@ -433,38 +433,42 @@ class DatabaseOptimizationService {
     }
   }
 
-  // Monitor connection pool
+  // Monitor connection pool (PostgreSQL version)
   async getConnectionPoolStats(): Promise<any> {
     try {
+      // PostgreSQL uses pg_stat_activity instead of information_schema.processlist
       const connections = await executeQuery(`
-        SELECT 
-          SPLIT_PART(host, ':', 1) as client_host,
-          user,
-          db,
-          command,
-          time,
+        SELECT
+          COALESCE(SPLIT_PART(client_addr::text, '/', 1), 'local') as client_host,
+          usename as user,
+          datname as db,
           state,
-          info
-        FROM information_schema.processlist 
-        WHERE command != 'Sleep'
-        ORDER BY time DESC
+          EXTRACT(EPOCH FROM (NOW() - query_start))::integer as time,
+          query as info
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND pid != pg_backend_pid()
+          AND state IS NOT NULL
+        ORDER BY query_start DESC NULLS LAST
       `);
 
       const stats = {
         activeConnections: connections.length,
         connectionsByHost: {} as any,
         connectionsByUser: {} as any,
-        longRunningQueries: connections.filter((c: any) => c.time > 30)
+        longRunningQueries: connections.filter((c: any) => c.time && c.time > 30)
       };
 
       connections.forEach((conn: any) => {
         // Count by host
-        stats.connectionsByHost[conn.client_host] = 
-          (stats.connectionsByHost[conn.client_host] || 0) + 1;
-        
+        const host = conn.client_host || 'unknown';
+        stats.connectionsByHost[host] =
+          (stats.connectionsByHost[host] || 0) + 1;
+
         // Count by user
-        stats.connectionsByUser[conn.user] = 
-          (stats.connectionsByUser[conn.user] || 0) + 1;
+        const user = conn.user || 'unknown';
+        stats.connectionsByUser[user] =
+          (stats.connectionsByUser[user] || 0) + 1;
       });
 
       return stats;

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Application Status - EFF Membership{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Application Status</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p><strong>Application Number:</strong> {{ application.application_number }}</p>
+                        <p><strong>Applicant Name:</strong> {{ application.first_name }} {{ application.last_name }}</p>
+                        <p><strong>ID Number:</strong> {{ application.id_number }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Submitted:</strong> {{ application.created_at }}</p>
+                        <p><strong>Application Type:</strong> {{ application.application_type }}</p>
+                    </div>
+                </div>
+                
+                <!-- Status Badge -->
+                <div class="text-center mb-4">
+                    {% if application.status == 'Draft' %}
+                        <span class="badge bg-secondary" style="font-size: 1.5rem; padding: 1rem 2rem;">
+                            <i class="fas fa-edit"></i> Draft
+                        </span>
+                    {% elif application.status == 'Submitted' %}
+                        <span class="badge bg-primary" style="font-size: 1.5rem; padding: 1rem 2rem;">
+                            <i class="fas fa-paper-plane"></i> Submitted
+                        </span>
+                    {% elif application.status == 'Under Review' %}
+                        <span class="badge bg-warning" style="font-size: 1.5rem; padding: 1rem 2rem;">
+                            <i class="fas fa-hourglass-half"></i> Under Review
+                        </span>
+                    {% elif application.status == 'Approved' %}
+                        <span class="badge bg-success" style="font-size: 1.5rem; padding: 1rem 2rem;">
+                            <i class="fas fa-check-circle"></i> Approved
+                        </span>
+                    {% elif application.status == 'Rejected' %}
+                        <span class="badge bg-danger" style="font-size: 1.5rem; padding: 1rem 2rem;">
+                            <i class="fas fa-times-circle"></i> Rejected
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Status Information -->
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        {% if application.status == 'Draft' %}
+                            <h6>Your application is in draft status</h6>
+                            <p class="mb-0">Please complete and submit your application to proceed with the membership process.</p>
+                        {% elif application.status == 'Submitted' %}
+                            <h6>Your application has been submitted</h6>
+                            <p class="mb-0">Your application is awaiting review by our membership team. You will be notified once the review process begins.</p>
+                        {% elif application.status == 'Under Review' %}
+                            <h6>Your application is under review</h6>
+                            <p class="mb-0">Our membership team is currently reviewing your application. This process typically takes 3-5 business days.</p>
+                        {% elif application.status == 'Approved' %}
+                            <h6>Congratulations! Your application has been approved</h6>
+                            <p class="mb-0">Welcome to the Economic Freedom Fighters! You will receive your membership details and digital card via email.</p>
+                        {% elif application.status == 'Rejected' %}
+                            <h6>Your application was not approved</h6>
+                            {% if application.rejection_reason %}
+                                <p><strong>Reason:</strong> {{ application.rejection_reason }}</p>
+                            {% endif %}
+                            <p class="mb-0">If you have questions about this decision, please contact our membership office.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Admin Notes (if any) -->
+                {% if application.admin_notes %}
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">Notes from Membership Office:</h6>
+                    <p class="mb-0">{{ application.admin_notes }}</p>
+                </div>
+                {% endif %}
+                
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-home"></i> Return to Home
+                    </a>
+                    {% if application.status == 'Approved' %}
+                    <a href="#" class="btn btn-success">
+                        <i class="fas fa-id-card"></i> View Membership Card
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

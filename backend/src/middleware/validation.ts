@@ -239,6 +239,7 @@ export const memberFilterSchema = Joi.object({
   age_max: Joi.number().integer().min(Joi.ref('age_min')).max(120).optional(),
   status_id: Joi.number().integer().min(1).max(5).optional(),
   membership_type: Joi.string().max(50).optional(), // Add membership type filter
+  membership_status: Joi.string().valid('all', 'active', 'expired').optional(), // Controls expiry filtering
   has_email: Joi.boolean().optional(),
   has_cell_number: Joi.boolean().optional(),
   q: Joi.string().min(1).max(100).optional() // Add search parameter

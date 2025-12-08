@@ -1,0 +1,33 @@
+{
+  "id_number": "7808020703087",
+  "member_id": 772468,
+  "iec_data": {
+    "id_number": "7808020703087",
+    "is_registered": true,
+    "voter_status": "You are registered.",
+    "province_id": 3,
+    "province": "Gauteng",
+    "municipality_id": 3003,
+    "municipality": "JHB - City of Johannesburg",
+    "ward_id": 79800135,
+    "vd_number": 32871326,
+    "province_code": "GP",
+    "municipality_code": "JHB",
+    "district_code": "JHB",
+    "ward_code": "79800135",
+    "voting_district_code": "32871326",
+    "voting_station_name": "GLEN RIDGE PRIMARY SCHOOL",
+    "voting_district": null,
+    "voting_station_address": null,
+    "town": "JOHANNESBURG",
+    "suburb": "PROTEA GLEN EXT 16, SOWETO",
+    "street": "74 ALFONSO STREET",
+    "latitude": -26.2743,
+    "longitude": 27.78933
+  },
+  "recommended_updates": {
+    "voter_status_id": 1,
+    "voting_district_code": "32871326",
+    "municipality_code": "EKU004"
+  }
+}

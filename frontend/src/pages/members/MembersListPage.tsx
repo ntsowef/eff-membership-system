@@ -71,6 +71,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import MunicipalityContextBanner from '../../components/common/MunicipalityContextBanner';
 import FileProcessingStatusModal from '../../components/file-processing/FileProcessingStatusModal';
+import { devLog, devWarn } from '../../utils/logger';
 
 // API query functions
 import { apiGet, apiPost } from '../../lib/api';
@@ -89,6 +90,7 @@ interface FilterState {
   membershipType: string;
   hierarchyLevel: string;
   province: string;
+  membership_status: string;
 }
 
 interface GeographicFilters {
@@ -118,6 +120,7 @@ const MembersListPage: React.FC = () => {
     membershipType: '',
     hierarchyLevel: '',
     province: '',
+    membership_status: '',
   });
   const [geographicFilters, setGeographicFilters] = useState<GeographicFilters>({});
   const [sortBy, setSortBy] = useState('firstname');
@@ -127,7 +130,7 @@ const MembersListPage: React.FC = () => {
   useEffect(() => {
     const votingDistrictCode = searchParams.get('voting_district_code');
     if (votingDistrictCode) {
-      console.log('🗳️ Setting voting district filter from URL:', votingDistrictCode);
+      devLog('🗳️ Setting voting district filter from URL:', votingDistrictCode);
       setGeographicFilters(prev => ({
         ...prev,
         voting_district_code: votingDistrictCode
@@ -195,6 +198,7 @@ const MembersListPage: React.FC = () => {
         sortBy: sortBy,
         sortOrder: sortOrder,
         ...(debouncedSearchTerm && { q: debouncedSearchTerm }), // Backend uses 'q' for search
+        ...(filters.membership_status && { membership_status: filters.membership_status }), // Membership status filter
       });
 
       // Apply municipality filtering for municipality admin users
@@ -207,32 +211,32 @@ const MembersListPage: React.FC = () => {
       params = new URLSearchParams(municipalityFilteredParams);
 
       // Use geographic filtering with the enhanced main endpoint
-      console.log('🔍 Geographic Filters Debug:', geographicFilters);
+      devLog('🔍 Geographic Filters Debug:', geographicFilters);
 
       if (geographicFilters.voting_district_code) {
         // Voting district is the most specific - use main endpoint with voting_district_code filter
         params.append('voting_district_code', geographicFilters.voting_district_code);
-        console.log('🗳️ Using voting district filter:', geographicFilters.voting_district_code);
+        devLog('🗳️ Using voting district filter:', geographicFilters.voting_district_code);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       } else if (geographicFilters.ward) {
         // Ward is the most specific - use main endpoint with ward_code filter
         params.append('ward_code', geographicFilters.ward);
-        console.log('📍 Using ward filter:', geographicFilters.ward);
+        devLog('📍 Using ward filter:', geographicFilters.ward);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       } else if (geographicFilters.municipality) {
         // Municipality filtering - use main endpoint with municipality_code filter
         params.append('municipality_code', geographicFilters.municipality);
-        console.log('📍 Using municipality filter:', geographicFilters.municipality);
+        devLog('📍 Using municipality filter:', geographicFilters.municipality);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       } else if (geographicFilters.district) {
         // District filtering - use main endpoint with district_code filter
         params.append('district_code', geographicFilters.district);
-        console.log('📍 Using district filter:', geographicFilters.district);
+        devLog('📍 Using district filter:', geographicFilters.district);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       } else if (geographicFilters.province) {
         // Province filtering - use main endpoint with province_code filter (more consistent than separate endpoint)
         params.append('province_code', geographicFilters.province);
-        console.log('📍 Using province filter:', geographicFilters.province);
+        devLog('📍 Using province filter:', geographicFilters.province);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       }
 
@@ -289,6 +293,7 @@ const MembersListPage: React.FC = () => {
       membershipType: '',
       hierarchyLevel: '',
       province: '',
+      membership_status: '',
     });
     setPage(0); // Reset to first page when clearing filters
   };
@@ -369,7 +374,7 @@ const MembersListPage: React.FC = () => {
     const testId = '8908310123456'; // 31/08/1989
     const extractedDOB = extractDateOfBirthFromID(testId);
     const calculatedAge = extractedDOB ? calculateAge(extractedDOB) : null;
-    console.log('🧪 ID Parsing Test:', {
+    devLog('🧪 ID Parsing Test:', {
       testId,
       extractedDOB,
       calculatedAge
@@ -459,7 +464,7 @@ const MembersListPage: React.FC = () => {
 
   const executeBulkAction = async () => {
     try {
-      console.log(`Executing bulk action: ${bulkAction} on ${selectedMembers.length} members`);
+      devLog(`Executing bulk action: ${bulkAction} on ${selectedMembers.length} members`);
 
       // Use real API endpoint
       await apiPost(`/members/bulk-action`, {
@@ -471,7 +476,7 @@ const MembersListPage: React.FC = () => {
       setSelectedMembers([]);
       refetch(); // Refresh the data
 
-      console.log(`Bulk action ${bulkAction} completed successfully`);
+      devLog(`Bulk action ${bulkAction} completed successfully`);
     } catch (error) {
       console.error('Bulk action failed:', error);
       // Still close the dialog even if the action fails
@@ -492,7 +497,7 @@ const MembersListPage: React.FC = () => {
     setActionAnchorEl(null); // Close the action menu
 
     try {
-      console.log(`📋 Starting Attendance Register export for ward: ${wardCode} (format: ${format})`);
+      devLog(`📋 Starting Attendance Register export for ward: ${wardCode} (format: ${format})`);
 
       // Get the blob from the API
       const blob = await membersApi.exportWardAudit(wardCode, format);
@@ -521,7 +526,7 @@ const MembersListPage: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      console.log(`✅ Attendance Register downloaded: ${filename}`);
+      devLog(`✅ Attendance Register downloaded: ${filename}`);
 
       // Show success message
       setSnackbarMessage(
@@ -682,6 +687,7 @@ const MembersListPage: React.FC = () => {
           setGeographicFilters(newFilters);
           setPage(0); // Reset to first page when filtering
         }}
+        membershipStatus={filters.membership_status}
       />
 
       {/* Search and Filters */}
@@ -711,7 +717,7 @@ const MembersListPage: React.FC = () => {
               Filters
             </ActionButton>
 
-            {(filters.membershipType || filters.hierarchyLevel || filters.province) && (
+            {(filters.membershipType || filters.hierarchyLevel || filters.province || filters.membership_status) && (
               <ActionButton
                 onClick={clearFilters}
                 variant="outlined"
@@ -770,6 +776,16 @@ const MembersListPage: React.FC = () => {
                 label={`Province: ${filters.province}`}
                 onDelete={() => handleFilterChange('province', '')}
                 size="small"
+              />
+            )}
+            {filters.membership_status && (
+              <Chip
+                label={`Status: ${filters.membership_status === 'all' ? 'All Members' :
+                        filters.membership_status === 'active' ? 'Good Standing' :
+                        filters.membership_status === 'expired' ? 'Expired' : filters.membership_status}`}
+                onDelete={() => handleFilterChange('membership_status', '')}
+                size="small"
+                color="info"
               />
             )}
             {geographicFilters.voting_district_code && (
@@ -1006,7 +1022,7 @@ const MembersListPage: React.FC = () => {
                             const date = new Date(joinDate);
                             // Check if the date is valid
                             if (isNaN(date.getTime())) {
-                              console.warn('Invalid join date value:', joinDate, 'for member:', member.member_id);
+                              devWarn('Invalid join date value:', joinDate, 'for member:', member.member_id);
                               return (
                                 <Typography variant="body2" color="text.secondary">
                                   Invalid Date
@@ -1037,7 +1053,7 @@ const MembersListPage: React.FC = () => {
                         }
 
                         // This should be very rare now
-                        console.log('Missing join date for member:', member.member_id);
+                        devLog('Missing join date for member:', member.member_id);
 
                         return (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -1137,6 +1153,20 @@ const MembersListPage: React.FC = () => {
               <MenuItem value="Western Cape">Western Cape</MenuItem>
             </Select>
           </FormControl>
+
+          <FormControl fullWidth size="small">
+            <InputLabel>Membership Status</InputLabel>
+            <Select
+              value={filters.membership_status}
+              onChange={(e: any) => handleFilterChange('membership_status', e.target.value)}
+              label="Membership Status"
+            >
+              <MenuItem value="">Active Only (default)</MenuItem>
+              <MenuItem value="all">All Members</MenuItem>
+              <MenuItem value="active">Good Standing</MenuItem>
+              <MenuItem value="expired">Expired</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
       </Menu>
 
@@ -1152,14 +1182,14 @@ const MembersListPage: React.FC = () => {
             <MenuItem onClick={() => navigate(`/admin/members/${selectedMemberId}`)}>
               <Edit sx={{ mr: 1 }} /> View/Edit
             </MenuItem>
-            <MenuItem onClick={() => console.log('Send email')}>
+            <MenuItem onClick={() => devLog('Send email')}>
               <Email sx={{ mr: 1 }} /> Send Email
             </MenuItem>
-            <MenuItem onClick={() => console.log('Send SMS')}>
+            <MenuItem onClick={() => devLog('Send SMS')}>
               <Phone sx={{ mr: 1 }} /> Send SMS
             </MenuItem>
 
-            <MenuItem onClick={() => console.log('Delete member')} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={() => devLog('Delete member')} sx={{ color: 'error.main' }}>
               <Delete sx={{ mr: 1 }} /> Delete
             </MenuItem>
           </>

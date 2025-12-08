@@ -53,6 +53,7 @@ import type { WardStanding } from '../../types/wardMembershipAudit';
 import WardDetailsModal from './WardDetailsModal';
 import ProvinceFilter from './ProvinceFilter';
 import MunicipalityFilter from './MunicipalityFilter';
+import { devLog } from '../../utils/logger';
 
 interface WardAuditTableProps {
   onExportSuccess: () => void;
@@ -202,7 +203,7 @@ const WardAuditTable: React.FC<WardAuditTableProps> = ({
 
   const handleExportPDF = async () => {
     try {
-      console.log('🔄 Starting PDF export with filters:', wardFilters);
+      devLog('🔄 Starting PDF export with filters:', wardFilters);
       const blob = await wardMembershipAuditApi.exportWardAuditPDF(wardFilters);
       const filename = generateExportFilename('ward-audit', 'pdf');
       downloadBlob(blob, filename);

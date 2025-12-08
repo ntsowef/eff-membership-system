@@ -84,17 +84,6 @@ router.put('/me', authenticate, async (req: Request, res: Response, next: NextFu
       throw new NotFoundError('No member profile associated with this user account');
     }
 
-    // Explicitly reject attempts to update restricted fields
-    const restrictedFields = ['id_number', 'status', 'status_id', 'membership_status', 'member_id'];
-    const attemptedRestrictedFields = restrictedFields.filter(field => req.body.hasOwnProperty(field));
-
-    if (attemptedRestrictedFields.length > 0) {
-      throw new ValidationError(
-        `Cannot update restricted fields: ${attemptedRestrictedFields.join(', ')}. ` +
-        `These fields can only be updated by administrators.`
-      );
-    }
-
     const { error, value } = updateProfileSchema.validate(req.body);
     if (error) {
       throw new ValidationError(error.details[0].message);
@@ -115,7 +104,6 @@ router.put('/me', authenticate, async (req: Request, res: Response, next: NextFu
       landline_number: value.alternative_contact,
       residential_address: value.residential_address
       // Note: postal_address, occupation, employer are not stored in members table
-      // Note: id_number and status fields are explicitly blocked above
     };
 
     // Remove undefined fields

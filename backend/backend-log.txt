@@ -1,0 +1,358 @@
+
+> geomaps-backend@1.0.0 dev
+> nodemon src/app.ts
+
+[33m[nodemon] 3.1.10[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): src\**\*[39m
+[33m[nodemon] watching extensions: ts,json[39m
+[32m[nodemon] starting `ts-node src/app.ts src/app.ts`[39m
+≡ƒôé Upload directory configured: C:\Development\NewProj\Membership-newV2\_upload_file_directory
+Γ£à Upload directory exists: C:\Development\NewProj\Membership-newV2\_upload_file_directory
+Γ£à Rate limiting enabled
+DEBUG: Starting server initialization...
+DEBUG: Initializing database...
+Γ£à Prisma ORM connected successfully
+Γ£à Email service initialized successfully
+Γ£à PostgreSQL raw SQL pool initialized successfully
+≡ƒôè Connected to PostgreSQL database: eff_membership_database
+DEBUG: Database initialized successfully
+DEBUG: Connecting to Redis...
+Γ£à Redis connected successfully
+Γ£à Redis ready for operations
+Γ£à Connected to Redis MASTER (read-write)
+Γ£à Redis connected successfully
+DEBUG: Initializing cache service...
+Γ£à Redis connected successfully
+Γ£à Redis connected successfully
+Γ£à Redis ready for operations
+Γ£à Redis ready for operations
+Γ£à Redis cache service initialized
+DEBUG: Cache service initialized
+DEBUG: Initializing queue service...
+≡ƒÜÇ Initializing Queue Service...
+Γ£à Queue service initialized
+DEBUG: Starting performance monitoring...
+Γ£à Performance monitoring started (interval: 30000ms)
+Γ£à Performance monitoring started
+DEBUG: Creating HTTP server...
+DEBUG: HTTP server created
+DEBUG: Starting file watcher service...
+≡ƒôü Created upload directory: C:\Development\NewProj\Membership-newV2\backend\uploads\excel-processing
+≡ƒôü File watcher started monitoring: C:\Development\NewProj\Membership-newV2\backend\uploads\excel-processing
+DEBUG: File watcher service started
+DEBUG: Starting queue processing...
+≡ƒöä File processing queue manager started
+DEBUG: Queue processing started
+≡ƒÜÇ Server started successfully!
+≡ƒôì Server running on port 5000
+≡ƒîÉ API available at: http://localhost:5000/api/v1
+≡ƒôè Health check: http://localhost:5000/api/v1/health
+≡ƒôü File watcher: Active
+ΓÜí Cache Service: Connected
+[2025-11-14T13:43:36.444Z] [INFO] Starting SMS provider health monitoring
+[2025-11-14T13:43:36.501Z] [INFO] Performing health check {"provider":"JSON Applink"}
+≡ƒô▒ SMS Provider Monitoring: Active
+≡ƒöº Scheduled Maintenance Checker: Active
+Γ£à Meeting status job started (runs every 5 minutes)
+≡ƒöä Running meeting status update job (manual trigger)...
+≡ƒôà Meeting Status Update Job: Active
+[2025-11-14T13:43:36.525Z] [INFO] ≡ƒôà Scheduled materialized view refresh for ward audit & analytics (every 15 minutes)
+≡ƒöä Ward Audit Materialized View Refresh: Active (every 15 minutes)
+≡ƒöº Server Configuration:
+  Environment: production
+  Port: 5000
+  API Path: /api/v1
+  Database: localhost:5432/eff_membership_database
+  CORS Origin: http://localhost:3000,https://effmemberportal.org,https://www.effmemberportal.org
+  Rate Limit: 999999 requests per 900s
+  Log Level: info
+≡ƒôü File watcher ready
+≡ƒôä File already queued or processing: ${fileName} (Job ID: undefined)
+≡ƒôä File already queued or processing: ${fileName} (Job ID: undefined)
+Γ£à Meeting status job completed: 0 updated, 0 errors
+[2025-11-14T13:43:37.061Z] [INFO] Health check completed {"provider":"JSON Applink","healthy":true,"responseTime":327,"consecutiveFailures":0}
+ΓÜí Processing message queue...
+≡ƒô¡ No messages in queue
+::ffff:127.0.0.1 - - [14/Nov/2025:13:43:39 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+[2025-11-14T13:43:41.540Z] [INFO] ≡ƒÜÇ Running initial materialized view refresh on startup...
+[2025-11-14T13:43:41.540Z] [INFO] Starting materialized view refresh for ward audit system...
+[2025-11-14T13:43:41.541Z] [INFO] Starting materialized view refresh for analytics system...
+Γ¥î Database query error: error: null value in column "id" of relation "users" violates not-null constraint
+    at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:117:20)
+    at async Function.executeConvertedQuery (C:\Development\NewProj\Membership-newV2\backend\src\services\sqlMigrationService.ts:17:14)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database.ts:32:12)
+    at async Function.createUserDirectly (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:210:26)
+    at async Function.createAdminUser (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:82:24)
+    at async C:\Development\NewProj\Membership-newV2\backend\src\routes\adminManagement.ts:57:22 {
+  length: 482,
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (12592, Test User 1763127829159, testuser1763127829159@example.com, $2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu, null, 6, ward, null, null, null, null, null, null, null, null, null, 0, null, null, f, null, t, f, null, null, 2025-11-14 15:43:50.645427, 2025-11-14 15:43:50.645427, null).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users',
+  column: 'id',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '2005',
+  routine: 'ExecConstraints'
+}
+Query: 
+        INSERT INTO users (
+          name, email, password, role_id, admin_level,
+          province_code, district_code, municipal_code, ward_code, member_id,
+          is_active, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP)
+        RETURNING user_id
+      
+Params: [
+  'Test User 1763127829159',
+  'testuser1763127829159@example.com',
+  '$2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu',
+  6,
+  'ward',
+  null,
+  null,
+  null,
+  null,
+  null
+]
+Γ¥î Error executing converted query: error: null value in column "id" of relation "users" violates not-null constraint
+    at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:117:20)
+    at async Function.executeConvertedQuery (C:\Development\NewProj\Membership-newV2\backend\src\services\sqlMigrationService.ts:17:14)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database.ts:32:12)
+    at async Function.createUserDirectly (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:210:26)
+    at async Function.createAdminUser (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:82:24)
+    at async C:\Development\NewProj\Membership-newV2\backend\src\routes\adminManagement.ts:57:22 {
+  length: 482,
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (12592, Test User 1763127829159, testuser1763127829159@example.com, $2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu, null, 6, ward, null, null, null, null, null, null, null, null, null, 0, null, null, f, null, t, f, null, null, 2025-11-14 15:43:50.645427, 2025-11-14 15:43:50.645427, null).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users',
+  column: 'id',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '2005',
+  routine: 'ExecConstraints'
+}
+Original MySQL Query: 
+        INSERT INTO users (
+          name, email, password, role_id, admin_level,
+          province_code, district_code, municipal_code, ward_code, member_id,
+          is_active, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP)
+        RETURNING user_id
+      
+Γ¥î Database query error (hybrid system): error: null value in column "id" of relation "users" violates not-null constraint
+    at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:117:20)
+    at async Function.executeConvertedQuery (C:\Development\NewProj\Membership-newV2\backend\src\services\sqlMigrationService.ts:17:14)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database.ts:32:12)
+    at async Function.createUserDirectly (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:210:26)
+    at async Function.createAdminUser (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:82:24)
+    at async C:\Development\NewProj\Membership-newV2\backend\src\routes\adminManagement.ts:57:22 {
+  length: 482,
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (12592, Test User 1763127829159, testuser1763127829159@example.com, $2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu, null, 6, ward, null, null, null, null, null, null, null, null, null, 0, null, null, f, null, t, f, null, null, 2025-11-14 15:43:50.645427, 2025-11-14 15:43:50.645427, null).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users',
+  column: 'id',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '2005',
+  routine: 'ExecConstraints'
+}
+Original Query: 
+        INSERT INTO users (
+          name, email, password, role_id, admin_level,
+          province_code, district_code, municipal_code, ward_code, member_id,
+          is_active, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP)
+        RETURNING user_id
+      
+Params: [
+  'Test User 1763127829159',
+  'testuser1763127829159@example.com',
+  '$2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu',
+  6,
+  'ward',
+  null,
+  null,
+  null,
+  null,
+  null
+]
+Γ¥î ERROR in createUserDirectly: error: null value in column "id" of relation "users" violates not-null constraint
+    at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:117:20)
+    at async Function.executeConvertedQuery (C:\Development\NewProj\Membership-newV2\backend\src\services\sqlMigrationService.ts:17:14)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database.ts:32:12)
+    at async Function.createUserDirectly (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:210:26)
+    at async Function.createAdminUser (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:82:24)
+    at async C:\Development\NewProj\Membership-newV2\backend\src\routes\adminManagement.ts:57:22 {
+  length: 482,
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (12592, Test User 1763127829159, testuser1763127829159@example.com, $2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu, null, 6, ward, null, null, null, null, null, null, null, null, null, 0, null, null, f, null, t, f, null, null, 2025-11-14 15:43:50.645427, 2025-11-14 15:43:50.645427, null).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'users',
+  column: 'id',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '2005',
+  routine: 'ExecConstraints'
+}
+Error details: {
+  "length": 482,
+  "name": "error",
+  "severity": "ERROR",
+  "code": "23502",
+  "detail": "Failing row contains (12592, Test User 1763127829159, testuser1763127829159@example.com, $2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu, null, 6, ward, null, null, null, null, null, null, null, null, null, 0, null, null, f, null, t, f, null, null, 2025-11-14 15:43:50.645427, 2025-11-14 15:43:50.645427, null).",
+  "schema": "public",
+  "table": "users",
+  "column": "id",
+  "file": "execMain.c",
+  "line": "2005",
+  "routine": "ExecConstraints"
+}
+Error in createAdminUser: DatabaseError: Failed to create user directly
+    at createDatabaseError (C:\Development\NewProj\Membership-newV2\backend\src\middleware\errorHandler.ts:173:10)
+    at Function.createUserDirectly (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:257:32)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Function.createAdminUser (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:82:24)
+    at async C:\Development\NewProj\Membership-newV2\backend\src\routes\adminManagement.ts:57:22 {
+  details: error: null value in column "id" of relation "users" violates not-null constraint
+      at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+      at processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:117:20)
+      at async Function.executeConvertedQuery (C:\Development\NewProj\Membership-newV2\backend\src\services\sqlMigrationService.ts:17:14)
+      at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database.ts:32:12)
+      at async Function.createUserDirectly (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:210:26)
+      at async Function.createAdminUser (C:\Development\NewProj\Membership-newV2\backend\src\services\userManagementService.ts:82:24)
+      at async C:\Development\NewProj\Membership-newV2\backend\src\routes\adminManagement.ts:57:22 {
+    length: 482,
+    severity: 'ERROR',
+    code: '23502',
+    detail: 'Failing row contains (12592, Test User 1763127829159, testuser1763127829159@example.com, $2b$12$lXaFOoICziBXcNzh6oGLPOeZx8jcTXOk76pCYiFCnoE.0MB42weGu, null, 6, ward, null, null, null, null, null, null, null, null, null, 0, null, null, f, null, t, f, null, null, 2025-11-14 15:43:50.645427, 2025-11-14 15:43:50.645427, null).',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'public',
+    table: 'users',
+    column: 'id',
+    dataType: undefined,
+    constraint: undefined,
+    file: 'execMain.c',
+    line: '2005',
+    routine: 'ExecConstraints'
+  },
+  statusCode: 500,
+  code: 'DATABASE_ERROR'
+}
+Request data: {
+  name: 'Test User 1763127829159',
+  email: 'testuser1763127829159@example.com',
+  password: 'Admin@123',
+  admin_level: 'ward',
+  role_name: 'Ward Administrator',
+  province_code: '',
+  district_code: '',
+  ward_code: '',
+  justification: 'Test user creation with email notification'
+}
+≡ƒÜ¿ Error occurred: {
+  name: 'DatabaseError',
+  message: 'Failed to create admin user',
+  statusCode: 500,
+  code: 'DATABASE_ERROR',
+  stack: 'DatabaseError: Failed to create admin user\n' +
+    '    at createDatabaseError (C:\\Development\\NewProj\\Membership-newV2\\backend\\src\\middleware\\errorHandler.ts:173:10)\n' +
+    '    at Function.createAdminUser (C:\\Development\\NewProj\\Membership-newV2\\backend\\src\\services\\userManagementService.ts:94:32)\n' +
+    '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+    '    at async C:\\Development\\NewProj\\Membership-newV2\\backend\\src\\routes\\adminManagement.ts:57:22',
+  path: '/api/v1/admin-management/create-admin',
+  method: 'POST',
+  body: {
+    name: 'Test User 1763127829159',
+    email: 'testuser1763127829159@example.com',
+    password: 'Admin@123',
+    admin_level: 'ward',
+    role_name: 'Ward Administrator',
+    province_code: '',
+    district_code: '',
+    ward_code: '',
+    justification: 'Test user creation with email notification'
+  },
+  query: {},
+  params: {}
+}
+::1 - - [14/Nov/2025:13:43:50 +0000] "POST /api/v1/admin-management/create-admin HTTP/1.1" 500 193 "-" "axios/1.12.2"
+::ffff:127.0.0.1 - - [14/Nov/2025:13:43:54 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+::1 - - [14/Nov/2025:13:43:55 +0000] "GET /api/v1/maintenance/status HTTP/1.1" 200 103 "http://localhost:3000/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+::1 - - [14/Nov/2025:13:43:55 +0000] "GET /api/v1/health/detailed HTTP/1.1" 200 538 "http://localhost:3000/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+::ffff:127.0.0.1 - - [14/Nov/2025:13:44:02 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+ΓÜí Processing message queue...
+≡ƒô¡ No messages in queue
+≡ƒÜ¿ PERFORMANCE ALERTS:
+   - Low cache hit rate: 0.0%
+[2025-11-14T13:44:09.958Z] [INFO] Γ£à Analytics views refreshed successfully in 28417ms {"duration_ms":28417,"refreshed_at":"2025-11-14T13:44:09.958Z"}
+Slow request detected: GET /metrics - 5308ms
+::ffff:127.0.0.1 - - [14/Nov/2025:13:44:16 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+::ffff:127.0.0.1 - - [14/Nov/2025:13:44:23 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+::ffff:127.0.0.1 - - [14/Nov/2025:13:44:32 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+ΓÜí Processing message queue...
+≡ƒô¡ No messages in queue
+≡ƒÜ¿ PERFORMANCE ALERTS:
+   - Low cache hit rate: 0.0%
+::ffff:127.0.0.1 - - [14/Nov/2025:13:44:44 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+Slow request detected: GET /metrics - 5142ms
+::ffff:127.0.0.1 - - [14/Nov/2025:13:44:58 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+::1 - - [14/Nov/2025:13:44:58 +0000] "GET /api/v1/maintenance/status HTTP/1.1" 200 103 "http://localhost:3000/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+::1 - - [14/Nov/2025:13:44:58 +0000] "GET /api/v1/health/detailed HTTP/1.1" 200 538 "http://localhost:3000/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+[2025-11-14T13:45:00.042Z] [INFO] Performing health check {"provider":"JSON Applink"}
+≡ƒöä Running meeting status update job...
+[2025-11-14T13:45:00.047Z] [INFO] Starting materialized view refresh for ward audit system...
+[2025-11-14T13:45:00.048Z] [INFO] Starting materialized view refresh for analytics system...
+[2025-11-14T13:45:00.625Z] [INFO] Health check completed {"provider":"JSON Applink","healthy":true,"responseTime":329,"consecutiveFailures":0}
+::ffff:127.0.0.1 - - [14/Nov/2025:13:45:06 +0000] "GET /metrics HTTP/1.1" 404 - "-" "Prometheus/2.48.0"
+ΓÜí Processing message queue...
+≡ƒô¡ No messages in queue
+≡ƒÜ¿ PERFORMANCE ALERTS:
+   - Low cache hit rate: 0.0%
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting child process[39m
+[32m[nodemon] starting `ts-node src/app.ts src/app.ts`[39m

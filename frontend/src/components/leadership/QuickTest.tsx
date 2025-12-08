@@ -5,6 +5,7 @@ import React from 'react';
 import { Box, Typography, Alert, Button, Card, CardContent } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useUI } from '../../store';
+import { devLog } from '../../utils/logger';
 
 // Test importing components (should work now)
 import MemberSelector from './MemberSelector';
@@ -28,7 +29,7 @@ const QuickTest: React.FC = () => {
         message: '✅ All components imported successfully! No more Member interface errors.'
       });
 
-      console.log('Component import test results:', tests);
+      devLog('Component import test results:', tests);
       return tests;
     } catch (error) {
       addNotification({

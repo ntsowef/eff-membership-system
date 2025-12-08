@@ -51,6 +51,16 @@ router.get('/database/connections', asyncHandler(async (req: Request, res: Respo
 }));
 
 /**
+ * @route   GET /api/v1/super-admin/queue/stats
+ * @desc    Get comprehensive queue system statistics
+ * @access  Super Admin Only
+ */
+router.get('/queue/stats', asyncHandler(async (req: Request, res: Response) => {
+  const queueStats = await SuperAdminService.getQueueSystemStats();
+  sendSuccess(res, queueStats, 'Queue system stats retrieved successfully');
+}));
+
+/**
  * @route   GET /api/v1/super-admin/queue/jobs
  * @desc    Get all queue jobs with filtering
  * @access  Super Admin Only

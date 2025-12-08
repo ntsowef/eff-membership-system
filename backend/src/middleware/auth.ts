@@ -10,6 +10,7 @@ import { logAuthentication, logLogout, logPasswordReset, logPasswordChange } fro
 import bcrypt from 'bcrypt';
 import { SessionManagementService } from '../services/sessionManagementService';
 import { OTPService } from '../services/otpService';
+import { emailService } from '../services/emailService';
 
 // Rate limiting storage for login attempts
 interface LoginAttempt {
@@ -1089,14 +1090,24 @@ export const createAuthRoutes = () => {
         throw new AuthenticationError('Email is required');
       }
 
-      const resetToken = await UserModel.generatePasswordResetToken(email);
+      const resetData = await UserModel.generatePasswordResetToken(email);
 
-      if (resetToken) {
-        // TODO: Send email with reset token
-        // For now, just return success (in production, always return success to prevent email enumeration)
-        console.log(`Password reset token for ${email}: ${resetToken}`);
+      if (resetData) {
+        // Send password reset email
+        try {
+          await emailService.sendPasswordResetEmail(
+            resetData.userEmail,
+            resetData.userName,
+            resetData.token
+          );
+          console.log(`✅ Password reset email sent to ${email}`);
+        } catch (emailError) {
+          console.error(`❌ Failed to send password reset email to ${email}:`, emailError);
+          // Don't expose email sending failures to prevent enumeration
+        }
       }
 
+      // Always return success to prevent email enumeration attacks
       res.json({
         success: true,
         message: 'If the email exists, a password reset link has been sent',
@@ -1560,9 +1571,9 @@ export const requireSuperAdminOnly = () => {
       console.log(`🔍 Super Admin Check - User: ${req.user.email}, Role: ${req.user.role_name}`);
 
       // ONLY Super Admin role can access - no exceptions
-      // Check for both 'super_admin' (lowercase) and 'SUPER_ADMIN' (uppercase) for compatibility
-      if (req.user.role_name !== 'super_admin' && req.user.role_name !== 'SUPER_ADMIN') {
-        console.log(`❌ Access denied - Expected: super_admin or SUPER_ADMIN, Got: ${req.user.role_name}`);
+      // Check for SUPER_ADMIN role_code (uppercase)
+      if (req.user.role_name !== 'SUPER_ADMIN') {
+        console.log(`❌ Access denied - Expected: SUPER_ADMIN, Got: ${req.user.role_name}`);
         throw new AuthorizationError('This feature is restricted to Super Admin users only');
       }
 

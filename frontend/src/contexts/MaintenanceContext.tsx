@@ -74,19 +74,25 @@ export const MaintenanceProvider: React.FC<MaintenanceProviderProps> = ({ childr
 
   useEffect(() => {
     // Handle maintenance mode navigation
+    // Only redirect if status changes significantly, not on every status check
     if (!loading && status) {
       const isMaintenancePage = location.pathname === '/maintenance';
       const isMaintenanceActive = status.is_enabled;
-      
+
+      // Only redirect to maintenance if actively enabled AND user cannot bypass
+      // Use a small delay to prevent interrupting user interactions
       if (isMaintenanceActive && !canBypass && !isMaintenancePage) {
         // Redirect to maintenance page if maintenance is active and user can't bypass
-        navigate('/maintenance', { replace: true });
+        const timeoutId = setTimeout(() => {
+          navigate('/maintenance', { replace: true });
+        }, 100);
+        return () => clearTimeout(timeoutId);
       } else if (!isMaintenanceActive && isMaintenancePage) {
         // Redirect away from maintenance page if maintenance is not active
         navigate('/', { replace: true });
       }
     }
-  }, [status, canBypass, loading, location.pathname, navigate]);
+  }, [status?.is_enabled, canBypass, loading, location.pathname, navigate]); // Only depend on is_enabled, not entire status object
 
   const isMaintenanceActive = status?.is_enabled || false;
 

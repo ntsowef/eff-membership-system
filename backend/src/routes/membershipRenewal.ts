@@ -8,7 +8,6 @@ import { RenewalProcessingService } from '../services/renewalProcessingService';
 import { RenewalAnalyticsService } from '../services/renewalAnalyticsService';
 import { SMSService } from '../services/smsService';
 import { PDFExportService } from '../services/pdfExportService';
-import { CacheInvalidationHooks } from '../services/cacheInvalidationService';
 
 const router = Router();
 
@@ -86,23 +85,7 @@ router.post('/bulk-renewal',
         smsResult = { successful_sends: 0, failed_sends: successfulMemberIds.length };
       }
     }
-
-    // Invalidate caches for all successfully renewed members
-    if (renewalResult.successful_renewals > 0) {
-      console.log(`🔄 Invalidating caches for ${renewalResult.successful_renewals} renewed members...`);
-      try {
-        // Invalidate cache for each successfully renewed member
-        const cacheInvalidationPromises = renewalResult.renewal_details
-          .filter(r => r.success)
-          .map(r => CacheInvalidationHooks.onMemberChange('update', r.member_id));
-
-        await Promise.all(cacheInvalidationPromises);
-        console.log(`✅ Cache invalidation completed for bulk renewal`);
-      } catch (cacheError) {
-        console.error('⚠️ Cache invalidation error (non-critical):', cacheError);
-      }
-    }
-
+    
     sendSuccess(res, {
       renewal_result: renewalResult,
       sms_result: smsResult,
@@ -142,17 +125,6 @@ router.post('/process/:memberId',
       member_id: parseInt(memberId),
       ...renewalOptions
     });
-
-    // Invalidate caches if renewal was successful
-    if (renewalResult.success) {
-      console.log(`🔄 Invalidating caches for member ${memberId} after renewal...`);
-      try {
-        await CacheInvalidationHooks.onMemberChange('update', parseInt(memberId));
-        console.log(`✅ Cache invalidation completed for member ${memberId}`);
-      } catch (cacheError) {
-        console.error('⚠️ Cache invalidation error (non-critical):', cacheError);
-      }
-    }
 
     sendSuccess(res, {
       renewal_result: renewalResult,

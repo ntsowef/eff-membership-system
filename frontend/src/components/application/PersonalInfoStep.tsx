@@ -17,6 +17,7 @@ import { useApplication } from '../../store';
 import { parseIdNumber } from '../../utils/idNumberParser';
 import { useQuery } from '@tanstack/react-query';
 import { referenceApi } from '../../services/api';
+import { devLog } from '../../utils/logger';
 
 interface PersonalInfoStepProps {
   errors: Record<string, string>;
@@ -37,9 +38,9 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ errors }) => {
   const { data: referenceData, isLoading: isLoadingReference, error: referenceError } = useQuery<ReferenceData>({
     queryKey: ['referenceData'],
     queryFn: async () => {
-      console.log('🔄 Fetching reference data...');
+      devLog('🔄 Fetching reference data...');
       const result = await referenceApi.getAllReferenceData();
-      console.log('✅ Reference data fetched:', result);
+      devLog('✅ Reference data fetched:', result);
       return result.data; // Extract the data property from the API response
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -49,14 +50,14 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ errors }) => {
 
   // Debug logging
   useEffect(() => {
-    console.log('🔍 PersonalInfoStep Debug Info:');
-    console.log('  - isLoadingReference:', isLoadingReference);
-    console.log('  - referenceError:', referenceError);
-    console.log('  - referenceData:', referenceData);
+    devLog('🔍 PersonalInfoStep Debug Info:');
+    devLog('  - isLoadingReference:', isLoadingReference);
+    devLog('  - referenceError:', referenceError);
+    devLog('  - referenceData:', referenceData);
     if (referenceData) {
-      console.log('  - Languages count:', referenceData.languages?.length || 0);
-      console.log('  - Occupations count:', referenceData.occupations?.length || 0);
-      console.log('  - Qualifications count:', referenceData.qualifications?.length || 0);
+      devLog('  - Languages count:', referenceData.languages?.length || 0);
+      devLog('  - Occupations count:', referenceData.occupations?.length || 0);
+      devLog('  - Qualifications count:', referenceData.qualifications?.length || 0);
     }
   }, [isLoadingReference, referenceError, referenceData]);
 

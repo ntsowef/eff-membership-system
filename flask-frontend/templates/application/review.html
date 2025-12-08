@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Review & Submit - EFF Membership Application{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Membership Application</h4>
+            </div>
+            <div class="card-body">
+                <!-- Stepper -->
+                <div class="stepper mb-4">
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Personal Info</div>
+                    </div>
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Contact Info</div>
+                    </div>
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Declaration</div>
+                    </div>
+                    <div class="step completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Payment</div>
+                    </div>
+                    <div class="step active">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Review</div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-4">Step 5: Review & Submit</h5>
+                
+                <div class="alert alert-warning mb-4">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Please review your information carefully before submitting. You can go back to edit any section.
+                </div>
+                
+                <!-- Personal Information -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <strong>Personal Information</strong>
+                        <a href="{{ url_for('personal_info') }}" class="btn btn-sm btn-outline-primary float-end">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Name:</strong> {{ data.get('first_name', '') }} {{ data.get('last_name', '') }}</p>
+                                <p><strong>ID Number:</strong> {{ data.get('id_number', '') }}</p>
+                                <p><strong>Date of Birth:</strong> {{ data.get('date_of_birth', '') }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Gender:</strong> {{ data.get('gender', '') }}</p>
+                                <p><strong>Citizenship:</strong> {{ data.get('citizenship_status', 'Not specified') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Information -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <strong>Contact Information</strong>
+                        <a href="{{ url_for('contact_info') }}" class="btn btn-sm btn-outline-primary float-end">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Email:</strong> {{ data.get('email', 'Not provided') }}</p>
+                                <p><strong>Cell Number:</strong> {{ data.get('cell_number', 'Not provided') }}</p>
+                                <p><strong>Address:</strong> {{ data.get('residential_address', 'Not provided') }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Ward:</strong> {{ data.get('ward_code', '') }}</p>
+                                <p><strong>Municipality:</strong> {{ data.get('municipal_code', '') }}</p>
+                                <p><strong>Province:</strong> {{ data.get('province_code', '') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Declaration -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <strong>Party Declaration</strong>
+                        <a href="{{ url_for('party_declaration') }}" class="btn btn-sm btn-outline-primary float-end">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <p>
+                            <i class="fas fa-check-circle text-success"></i>
+                            Declaration accepted
+                        </p>
+                        <p>
+                            <i class="fas fa-check-circle text-success"></i>
+                            Constitution accepted
+                        </p>
+                        {% if data.get('reason_for_joining') %}
+                        <p><strong>Reason for joining:</strong> {{ data.get('reason_for_joining') }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Payment Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <strong>Payment Information</strong>
+                        <a href="{{ url_for('payment_info') }}" class="btn btn-sm btn-outline-primary float-end">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Payment Method:</strong> {{ data.get('payment_method', 'Not specified') }}</p>
+                        <p><strong>Amount:</strong> R{{ "%.2f"|format(data.get('payment_amount', 0)) }}</p>
+                        {% if data.get('payment_reference') %}
+                        <p><strong>Reference:</strong> {{ data.get('payment_reference') }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Submit Form -->
+                <form method="POST" action="{{ url_for('review_submit') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="confirm" required>
+                        <label class="form-check-label" for="confirm">
+                            I confirm that all the information provided is accurate and complete.
+                        </label>
+                    </div>
+                    
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('payment_info') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-paper-plane"></i> Submit Application
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

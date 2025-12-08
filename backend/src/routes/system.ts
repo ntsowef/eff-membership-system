@@ -191,220 +191,6 @@ router.get('/logs', authenticate, requireAdminLevel(1), async (req: Request, res
   }
 });
 
-// Get single log detail by ID and source
-router.get('/logs/:source/:id', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { source, id } = req.params;
-    let logDetail: any = null;
-
-    if (source === 'audit') {
-      const result = await executeQuery(`
-        SELECT
-          al.audit_id as id,
-          'audit' as source,
-          al.action,
-          al.entity_type,
-          al.entity_id,
-          al.old_values,
-          al.new_values,
-          al.ip_address,
-          al.user_agent,
-          al.session_id,
-          al.created_at as timestamp,
-          u.name as user_name,
-          u.email as user_email
-        FROM audit_logs al
-        LEFT JOIN users u ON al.user_id = u.user_id
-        WHERE al.audit_id = $1
-      `, [id]);
-      logDetail = result[0] || null;
-    } else if (source === 'system') {
-      const result = await executeQuery(`
-        SELECT
-          sl.id,
-          'system' as source,
-          sl.level,
-          sl.category,
-          sl.message,
-          sl.details,
-          sl.user_id,
-          sl.ip_address,
-          sl.user_agent,
-          sl.request_id,
-          sl.created_at as timestamp,
-          u.name as user_name,
-          u.email as user_email
-        FROM system_logs sl
-        LEFT JOIN users u ON sl.user_id = u.user_id
-        WHERE sl.id = $1
-      `, [id]);
-      logDetail = result[0] || null;
-    } else if (source === 'activity') {
-      const result = await executeQuery(`
-        SELECT
-          ual.log_id as id,
-          'activity' as source,
-          ual.action_type,
-          ual.resource_type,
-          ual.resource_id,
-          ual.description,
-          ual.ip_address,
-          ual.user_agent,
-          ual.request_method,
-          ual.request_url,
-          ual.response_status,
-          ual.response_time_ms,
-          ual.metadata,
-          ual.created_at as timestamp,
-          u.name as user_name,
-          u.email as user_email
-        FROM user_activity_logs ual
-        LEFT JOIN users u ON ual.user_id = u.user_id
-        WHERE ual.log_id = $1
-      `, [id]);
-      logDetail = result[0] || null;
-    }
-
-    if (!logDetail) {
-      return res.status(404).json({
-        success: false,
-        message: 'Log not found',
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Log detail retrieved successfully',
-      data: logDetail,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching log detail:', error);
-    next(error);
-  }
-});
-
-// Export logs to CSV
-router.get('/logs/export/csv', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const {
-      level,
-      category,
-      startDate,
-      endDate
-    } = req.query;
-
-    // Build WHERE clause
-    const conditions: string[] = [];
-    const params: any[] = [];
-    let paramIndex = 1;
-
-    if (level) {
-      conditions.push(`level = $${paramIndex++}`);
-      params.push(level);
-    }
-
-    if (category) {
-      conditions.push(`category = $${paramIndex++}`);
-      params.push(category);
-    }
-
-    if (startDate) {
-      conditions.push(`created_at >= $${paramIndex++}`);
-      params.push(startDate);
-    }
-
-    if (endDate) {
-      conditions.push(`created_at <= $${paramIndex++}`);
-      params.push(endDate);
-    }
-
-    // Fetch logs from all sources (no limit for export)
-    const [auditLogs, systemLogs, activityLogs] = await Promise.all([
-      // Audit logs
-      executeQuery(`
-        SELECT
-          al.audit_id as id,
-          'audit' as source,
-          CASE
-            WHEN al.action IN ('login', 'logout', 'login_failed') THEN 'info'
-            WHEN al.action IN ('delete', 'permission_revoked') THEN 'warning'
-            ELSE 'info'
-          END as level,
-          CASE
-            WHEN al.entity_type = 'user' THEN 'Authentication'
-            WHEN al.entity_type = 'system' THEN 'System'
-            WHEN al.entity_type = 'member' THEN 'Members'
-            ELSE 'General'
-          END as category,
-          CONCAT(COALESCE(u.name, 'System'), ' performed ', al.action, ' on ', al.entity_type) as message,
-          al.ip_address,
-          COALESCE(u.name, 'System') as user_name,
-          al.created_at as timestamp
-        FROM audit_logs al
-        LEFT JOIN users u ON al.user_id = u.user_id
-        ORDER BY al.created_at DESC
-      `, []),
-
-      // System logs
-      executeQuery(`
-        SELECT
-          sl.id,
-          'system' as source,
-          sl.level,
-          sl.category,
-          sl.message,
-          sl.ip_address,
-          COALESCE(u.name, 'System') as user_name,
-          sl.created_at as timestamp
-        FROM system_logs sl
-        LEFT JOIN users u ON sl.user_id = u.user_id
-        ORDER BY sl.created_at DESC
-      `, []).catch(() => []),
-
-      // Activity logs
-      executeQuery(`
-        SELECT
-          ual.log_id as id,
-          'activity' as source,
-          'info' as level,
-          'User Activity' as category,
-          CONCAT(COALESCE(u.name, 'Unknown'), ' - ', ual.action_type, ' on ', COALESCE(ual.resource_type, 'resource')) as message,
-          ual.ip_address,
-          COALESCE(u.name, 'Unknown') as user_name,
-          ual.created_at as timestamp
-        FROM user_activity_logs ual
-        LEFT JOIN users u ON ual.user_id = u.user_id
-        ORDER BY ual.created_at DESC
-      `, []).catch(() => [])
-    ]);
-
-    // Combine and sort all logs
-    const allLogs = [...auditLogs, ...systemLogs, ...activityLogs]
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    // Generate CSV
-    const csvHeader = 'ID,Source,Timestamp,Level,Category,Message,User,IP Address\n';
-    const csvRows = allLogs.map(log => {
-      const timestamp = new Date(log.timestamp).toISOString();
-      const message = (log.message || '').replace(/"/g, '""'); // Escape quotes
-      return `${log.id},"${log.source}","${timestamp}","${log.level}","${log.category}","${message}","${log.user_name || 'N/A'}","${log.ip_address || 'N/A'}"`;
-    }).join('\n');
-
-    const csv = csvHeader + csvRows;
-
-    // Set headers for file download
-    const filename = `system-logs-${new Date().toISOString().split('T')[0]}.csv`;
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(csv);
-  } catch (error) {
-    console.error('Error exporting logs:', error);
-    next(error);
-  }
-});
-
 // Get cache statistics
 router.get('/cache/stats', authenticate, requireAdminLevel(2), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -606,122 +392,6 @@ router.post('/database/clear-query-log', authenticate, requireAdminLevel(3), asy
   }
 });
 
-// Get system overview with real data
-router.get('/overview', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Get real system statistics from database
-    const [
-      memberStats,
-      userStats,
-      sessionStats,
-      auditStats,
-      cacheStats,
-      dbSize
-    ] = await Promise.all([
-      // Member statistics
-      executeQuerySingle(`
-        SELECT
-          COUNT(*) as total_members,
-          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_members_30d,
-          COUNT(CASE WHEN vs.status_name = 'Registered' THEN 1 END) as active_members
-        FROM members_consolidated m
-        LEFT JOIN voter_statuses vs ON m.voter_status_id = vs.status_id
-      `),
-      // User statistics
-      executeQuerySingle(`
-        SELECT
-          COUNT(*) as total_users,
-          COUNT(CASE WHEN is_active = TRUE THEN 1 END) as active_users,
-          COUNT(CASE WHEN last_login_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as active_last_30_days
-        FROM users
-      `),
-      // Session statistics
-      executeQuerySingle(`
-        SELECT
-          COUNT(*) as active_sessions,
-          COUNT(DISTINCT user_id) as unique_users
-        FROM user_sessions
-        WHERE expires_at > NOW() AND is_active = TRUE
-      `),
-      // Audit log statistics (for request tracking)
-      executeQuerySingle(`
-        SELECT
-          COUNT(*) as total_requests_24h,
-          COUNT(CASE WHEN action = 'LOGIN_FAILED' THEN 1 END) as failed_logins_24h
-        FROM audit_logs
-        WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-      `),
-      // Cache stats
-      cacheService.getStats(),
-      // Database size
-      dbOptimizationService.getDatabaseSize()
-    ]);
-
-    // Calculate system metrics
-    const uptime = process.uptime();
-    const memory = process.memoryUsage();
-    const memoryUsagePercent = Math.round((memory.heapUsed / memory.heapTotal) * 100);
-
-    // Calculate error rate (failed logins / total requests)
-    const errorRate = auditStats?.total_requests_24h > 0
-      ? ((auditStats.failed_logins_24h / auditStats.total_requests_24h) * 100).toFixed(2)
-      : '0.00';
-
-    // Format uptime
-    const days = Math.floor(uptime / 86400);
-    const hours = Math.floor((uptime % 86400) / 3600);
-    const uptimeFormatted = `${days} days, ${hours} hours`;
-
-    const overview = {
-      system_info: {
-        version: process.env.npm_package_version || '2.1.0',
-        environment: process.env.NODE_ENV || 'production',
-        uptime: uptimeFormatted,
-        uptime_seconds: Math.floor(uptime),
-        last_restart: new Date(Date.now() - uptime * 1000).toISOString(),
-        status: 'healthy',
-        node_version: process.version
-      },
-      system_metrics: {
-        cpu: 0, // CPU usage requires OS-level monitoring
-        memory: memoryUsagePercent,
-        disk: 0, // Disk usage requires OS-level monitoring
-        network: 0, // Network I/O requires OS-level monitoring
-        active_users: sessionStats?.unique_users || 0,
-        total_requests: auditStats?.total_requests_24h || 0,
-        error_rate: parseFloat(errorRate),
-        response_time: 0 // Would need request timing middleware
-      },
-      database_stats: {
-        total_members: memberStats?.total_members || 0,
-        new_members_30d: memberStats?.new_members_30d || 0,
-        active_members: memberStats?.active_members || 0,
-        total_users: userStats?.total_users || 0,
-        active_users: userStats?.active_users || 0,
-        active_sessions: sessionStats?.active_sessions || 0,
-        database_size: dbSize
-      },
-      cache_stats: {
-        connected: cacheStats.connected,
-        hit_rate: cacheStats.hitRate || 0,
-        memory_usage: cacheStats.memoryUsage || 0,
-        total_keys: cacheStats.totalKeys || 0
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    res.json({
-      success: true,
-      message: 'System overview retrieved successfully',
-      data: overview,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching system overview:', error);
-    next(error);
-  }
-});
-
 // Get system metrics
 router.get('/metrics', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -903,25 +573,24 @@ router.get('/alerts', authenticate, requireAdminLevel(2), async (req: Request, r
 });
 
 // Get performance history
-// TEMPORARILY DISABLED - TypeScript compilation issue with MonitoringService
-// router.get('/performance/history', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const hours = parseInt(req.query.hours as string) || 24;
-//     const history = await MonitoringService.getPerformanceHistory(hours);
+router.get('/performance/history', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hours = parseInt(req.query.hours as string) || 24;
+    const history = await MonitoringService.getPerformanceHistory(hours);
 
-//     res.json({
-//       success: true,
-//       message: 'Performance history retrieved successfully',
-//       data: {
-//         history,
-//         period_hours: hours
-//       },
-//       timestamp: new Date().toISOString()
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// });
+    res.json({
+      success: true,
+      message: 'Performance history retrieved successfully',
+      data: {
+        history,
+        period_hours: hours
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Log current performance metrics
 router.post('/metrics/log', authenticate, requireAdminLevel(3), async (req: Request, res: Response, next: NextFunction) => {

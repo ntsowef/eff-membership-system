@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface MembershipStatusData {
   active_members: number;
@@ -52,7 +53,7 @@ const MembershipStatusOverview: React.FC<MembershipStatusOverviewProps> = ({
     queryKey: ['membership-status-overview'],
     queryFn: async () => {
       const response = await api.get('/statistics/membership-status-overview');
-      console.log('Membership Status API Response:', response.data);
+      devLog('Membership Status API Response:', response.data);
 
       if (response.data && response.data.data && response.data.data.membership_status) {
         return response.data.data.membership_status as MembershipStatusData;

@@ -38,6 +38,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { wardMembershipAuditApi, downloadBlob } from '../../services/wardMembershipAuditApi';
 import { WARD_STANDING_COLORS } from '../../types/wardMembershipAudit';
 import type { WardStanding } from '../../types/wardMembershipAudit';
+import { showWarning, showError } from '../../utils/sweetAlert';
 
 // No registration needed for Recharts
 
@@ -71,9 +72,9 @@ const WardDetailsModal: React.FC<WardDetailsModalProps> = ({
       console.error('Export failed:', error);
       // Handle 501 Not Implemented response
       if (error.response?.status === 501) {
-        alert('Export feature is not yet implemented. This feature will be available in a future update.');
+        showWarning('Export feature is not yet implemented. This feature will be available in a future update.', 'Coming Soon');
       } else {
-        alert('Export failed. Please try again.');
+        showError('Export failed. Please try again.');
       }
     }
   };
@@ -87,9 +88,9 @@ const WardDetailsModal: React.FC<WardDetailsModalProps> = ({
       console.error('Export failed:', error);
       // Handle 501 Not Implemented response
       if (error.response?.status === 501) {
-        alert('Export feature is not yet implemented. This feature will be available in a future update.');
+        showWarning('Export feature is not yet implemented. This feature will be available in a future update.', 'Coming Soon');
       } else {
-        alert('Export failed. Please try again.');
+        showError('Export failed. Please try again.');
       }
     }
   };

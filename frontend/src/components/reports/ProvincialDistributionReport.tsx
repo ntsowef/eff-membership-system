@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { devLog } from '../../utils/logger';
 
 interface ProvinceData {
   province_code: string;
@@ -92,7 +93,7 @@ const ProvincialDistributionReport: React.FC = () => {
         const response = await api.get('/statistics/provincial-distribution', {
           params: { sort_by: sortBy, sort_order: sortOrder }
         });
-        console.log('Provincial Distribution API Response:', response.data);
+        devLog('Provincial Distribution API Response:', response.data);
 
         // Handle the nested data structure
         if (response.data && response.data.data && response.data.data.provincial_distribution) {
@@ -106,11 +107,11 @@ const ProvincialDistributionReport: React.FC = () => {
 
         throw new Error('Invalid provincial distribution data structure');
       } catch (error) {
-        console.log('New endpoint not available, using fallback...');
+        devLog('New endpoint not available, using fallback...');
 
         // Fallback to existing working endpoint
         const fallbackResponse = await api.get('/members/stats/provinces');
-        console.log('Fallback API Response:', fallbackResponse.data);
+        devLog('Fallback API Response:', fallbackResponse.data);
 
         const rawData = fallbackResponse.data.data.data;
         if (!Array.isArray(rawData)) {
@@ -204,7 +205,7 @@ const ProvincialDistributionReport: React.FC = () => {
           },
         });
       } catch (error) {
-        console.log('New PDF endpoint not available, using fallback message...');
+        devLog('New PDF endpoint not available, using fallback message...');
         // Show a message that PDF generation is not yet available
         alert('PDF generation for Provincial Distribution is being implemented. The report data is available in the interface above. Please check back soon for PDF export functionality.');
         setPdfDialogOpen(false);
@@ -212,7 +213,7 @@ const ProvincialDistributionReport: React.FC = () => {
       }
 
       if (!response.ok) {
-        console.log('PDF endpoint returned error, showing fallback message...');
+        devLog('PDF endpoint returned error, showing fallback message...');
         alert('PDF generation for Provincial Distribution is being implemented. The report data is available in the interface above. Please check back soon for PDF export functionality.');
         setPdfDialogOpen(false);
         return;

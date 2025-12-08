@@ -4,6 +4,7 @@
 import React from 'react';
 import { Box, Typography, Alert, Button, Grid, Card, CardContent } from '@mui/material';
 import { useUI } from '../../store';
+import { devLog } from '../../utils/logger';
 
 // Import all icons used in leadership components
 import {
@@ -70,8 +71,8 @@ const IconTest: React.FC = () => {
         type: 'success',
         message: `✅ All ${validIcons.length} Material-UI icons are valid and imported successfully!`
       });
-      
-      console.log('Valid icons:', validIcons.map(icon => icon.name));
+
+      devLog('Valid icons:', validIcons.map(icon => icon.name));
     } catch (error) {
       addNotification({
         type: 'error',

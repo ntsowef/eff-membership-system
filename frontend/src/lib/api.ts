@@ -1,11 +1,9 @@
 import axios from 'axios';
-
-// Get API base URL from environment variable or use proxy path for development
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+import { devLog } from '../utils/logger';
 
 // Create axios instance with base configuration
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api/v1', // Use proxy path
   timeout: 60000, // 60 seconds - increased for PDF generation and large exports
   headers: {
     'Content-Type': 'application/json',
@@ -15,11 +13,6 @@ export const api = axios.create({
 // Request interceptor to add auth token, session ID, and CSRF protection
 api.interceptors.request.use(
   (config) => {
-    // Ensure headers object exists (important for blob requests)
-    if (!config.headers) {
-      config.headers = {} as any;
-    }
-
     // Read token from Zustand persisted storage
     const authStorage = localStorage.getItem('auth-storage');
     let token = null;
@@ -35,16 +28,13 @@ api.interceptors.request.use(
       }
     }
 
-    console.log('🔑 Axios Interceptor - Token from auth-storage:', token ? `${token.substring(0, 20)}...` : 'NULL');
-    console.log('🔑 Axios Interceptor - Request URL:', config.url);
-    console.log('🔑 Axios Interceptor - Response Type:', config.responseType);
+    devLog('🔑 Axios Interceptor - Token from auth-storage:', token ? `${token.substring(0, 20)}...` : 'NULL');
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ Axios Interceptor - Authorization header added');
+      devLog('✅ Axios Interceptor - Authorization header added');
     } else {
-      console.log('❌ Axios Interceptor - NO TOKEN FOUND in auth-storage!');
-      console.log('❌ Axios Interceptor - localStorage keys:', Object.keys(localStorage));
+      devLog('❌ Axios Interceptor - NO TOKEN FOUND in auth-storage!');
     }
 
     if (sessionId) {
@@ -63,14 +53,10 @@ api.interceptors.request.use(
       config.headers['X-Requested-With'] = 'XMLHttpRequest';
     }
 
-    console.log('📤 Axios Interceptor - Request config:', {
+    devLog('📤 Axios Interceptor - Request config:', {
       url: config.url,
       method: config.method,
-      responseType: config.responseType,
-      hasAuthHeader: !!config.headers.Authorization,
-      authHeaderValue: config.headers.Authorization
-        ? String(config.headers.Authorization).substring(0, 20) + '...'
-        : 'NONE'
+      hasAuthHeader: !!config.headers.Authorization
     });
 
     return config;
@@ -136,6 +122,20 @@ export interface ApiError {
 // Generic API functions
 export const apiGet = async <T>(url: string, params?: any): Promise<T> => {
   const response = await api.get(url, { params });
+
+  // Check if this is a paginated response (has pagination property)
+  if (response.data && typeof response.data === 'object' && 'pagination' in response.data) {
+    // For paginated responses, return the entire response structure
+    return response.data;
+  }
+
+  // Check if this is a standard API response wrapper with data property
+  if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+    // For analytics and dashboard endpoints, extract the data property
+    return response.data.data;
+  }
+
+  // For other responses, return as-is
   return response.data;
 };
 
