@@ -24,7 +24,7 @@ import {
   BadRequest,
   ServiceUnavailable,
   GenericError,
-  ErrorBoundary,
+  // ErrorBoundary,
   ErrorPageDemo,
 } from '../pages/errors';
 
@@ -45,6 +45,9 @@ import MemberRenewalPortal from '../pages/public/MemberRenewalPortal';
 
 // Profile & Settings Pages
 import ProfileSettingsPage from '../pages/profile/ProfileSettingsPage';
+
+// Self Data Management Pages
+import SelfDataManagementPage from '../pages/selfDataManagement/SelfDataManagementPage';
 
 // Application Management Pages
 import ApplicationsListPage from '../pages/applications/ApplicationsListPage';
@@ -79,6 +82,18 @@ import SystemPage from '../pages/system/SystemPage';
 // User Management Pages
 import UserManagementPage from '../pages/users/UserManagementPage';
 import AdminManagementDashboard from '../pages/admin/AdminManagementDashboard';
+import SRPADelegateSetter from '../pages/admin/SRPADelegateSetter';
+
+// Super Admin Pages
+import SuperAdminLayout from '../components/superadmin/SuperAdminLayout';
+import SuperAdminDashboard from '../pages/superadmin/SuperAdminDashboard';
+import SystemMonitoring from '../pages/superadmin/SystemMonitoring';
+import QueueManagement from '../pages/superadmin/QueueManagement';
+import UserManagement from '../pages/superadmin/UserManagement';
+import BulkUploadManagement from '../pages/superadmin/BulkUploadManagement';
+import ConfigurationManagement from '../pages/superadmin/ConfigurationManagement';
+import LookupDataManagement from '../pages/superadmin/LookupDataManagement';
+import AuditLogsViewer from '../pages/superadmin/AuditLogsViewer';
 
 // import CommunicationDashboard from '../pages/communication/CommunicationDashboard'; // Removed communication module
 
@@ -103,6 +118,9 @@ import WardComplianceDashboard from '../pages/wardAudit/WardAuditDashboard';
 import WardComplianceDetail from '../pages/wardAudit/WardComplianceDetail';
 import MunicipalityDelegateReport from '../pages/wardAudit/MunicipalityDelegateReport';
 
+// Delegates Management Pages
+import DelegatesManagementPage from '../pages/delegatesManagement/DelegatesManagementPage';
+
 // Search Pages
 import MemberSearchPage from '../pages/search/MemberSearchPage';
 import GeographicSearchPage from '../pages/search/GeographicSearchPage';
@@ -110,7 +128,7 @@ import VotingDistrictsSearchPage from '../pages/search/VotingDistrictsSearchPage
 import VotingStationsSearchPage from '../pages/search/VotingStationsSearchPage';
 
 // Legacy Error Pages (keeping for backward compatibility)
-import NotFoundPage from '../pages/error/NotFoundPage';
+// import NotFoundPage from '../pages/error/NotFoundPage';
 
 // Maintenance Pages
 import MaintenancePage from '../pages/maintenance/MaintenancePage';
@@ -263,6 +281,23 @@ const AppRoutes: React.FC = () => {
           <Route path="municipality/:municipalityCode" element={<MunicipalityDelegateReport />} />
         </Route>
 
+        {/* Delegates Management */}
+        <Route path="delegates-management" element={<DelegatesManagementPage />} />
+
+        {/* SRPA Delegate Setter - National and Provincial Admin only */}
+        <Route path="srpa-delegate-setter" element={
+          <ProtectedRoute requireAdminLevel="province">
+            <SRPADelegateSetter />
+          </ProtectedRoute>
+        } />
+
+        {/* Self Data Management - National and Provincial Admin only */}
+        <Route path="self-data-management" element={
+          <ProtectedRoute requireAdminLevel="province">
+            <SelfDataManagementPage />
+          </ProtectedRoute>
+        } />
+
         {/* User Management - National and Provincial Admin only */}
         <Route path="users" element={
           <ProtectedRoute requireUserManagement={true}>
@@ -289,6 +324,23 @@ const AppRoutes: React.FC = () => {
             <SystemPage />
           </ProtectedRoute>
         } />
+
+        {/* Super Admin Interface - Super Admin Only */}
+        <Route path="super-admin" element={
+          <ProtectedRoute requireRole="SUPER_ADMIN">
+            <SuperAdminLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<SuperAdminDashboard />} />
+          <Route path="system-monitoring" element={<SystemMonitoring />} />
+          <Route path="queue-management" element={<QueueManagement />} />
+          <Route path="user-management" element={<UserManagement />} />
+          <Route path="bulk-uploads" element={<BulkUploadManagement />} />
+          <Route path="configuration" element={<ConfigurationManagement />} />
+          <Route path="lookup-data" element={<LookupDataManagement />} />
+          <Route path="audit-logs" element={<AuditLogsViewer />} />
+        </Route>
 
         {/* Demo Routes */}
         <Route path="demo/permissions" element={<PermissionDemo />} />

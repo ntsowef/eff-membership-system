@@ -7,19 +7,10 @@ import {
   Grid,
   Chip,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
+
   Alert,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+
   Tabs,
   Tab,
   Avatar,
@@ -30,11 +21,11 @@ import {
   AccountTree,
   Person,
   PersonAdd,
-  Gavel,
+
   LocationOn,
   CheckCircle,
   Cancel,
-  Info,
+
   Refresh
 } from '@mui/icons-material';
 import { LeadershipAPI } from '../../services/leadershipApi';
@@ -86,9 +77,9 @@ const WarCouncilStructure: React.FC<WarCouncilStructureProps> = ({
   const { user } = useAuth();
 
   // Check permissions
-  const canViewStructure = WarCouncilPermissions.canViewWarCouncil(user);
-  const canManageAppointments = WarCouncilPermissions.canManageWarCouncilAppointments(user);
-  const uiConfig = WarCouncilPermissions.getUIConfig(user);
+  const canViewStructure = WarCouncilPermissions.canViewWarCouncil(user as any);
+  const canManageAppointments = WarCouncilPermissions.canManageWarCouncilAppointments(user as any);
+  const uiConfig = WarCouncilPermissions.getUIConfig(user as any);
 
   // Load War Council Structure
   const loadStructure = async () => {
@@ -110,7 +101,7 @@ const WarCouncilStructure: React.FC<WarCouncilStructureProps> = ({
     loadStructure();
   }, []);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 

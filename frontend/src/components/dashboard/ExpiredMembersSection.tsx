@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -15,7 +15,9 @@ import {
   ListItemIcon,
   IconButton,
   Tooltip,
-  useTheme
+  useTheme,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material';
 import {
   Warning as WarningIcon,
@@ -23,13 +25,16 @@ import {
   Schedule as ScheduleIcon,
   TrendingUp as TrendingUpIcon,
   Visibility as VisibilityIcon,
-  FilterList as FilterIcon
+  FilterList as FilterIcon,
+  Speed as SpeedIcon,
+  BarChart as BarChartIcon,
+  List as ListIcon
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
-import { statisticsApi } from '../../services/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import { useSecureApi } from '../../hooks/useSecureApi';
+import ProvinceBreakdownCharts from './ProvinceBreakdownCharts';
 
 interface ExpiredMembersData {
   national_summary: {
@@ -41,6 +46,24 @@ interface ExpiredMembersData {
   province_breakdown: Array<{
     province_code: string;
     province_name: string;
+    expired_count: number;
+    expiring_soon_count: number;
+    expiring_urgent_count: number;
+    total_members: number;
+    expired_percentage: number;
+  }>;
+  subregional_breakdown?: Array<{
+    municipality_code: string;
+    municipality_name: string;
+    expired_count: number;
+    expiring_soon_count: number;
+    expiring_urgent_count: number;
+    total_members: number;
+    expired_percentage: number;
+  }>;
+  ward_breakdown?: Array<{
+    ward_code: string;
+    ward_name: string;
     expired_count: number;
     expiring_soon_count: number;
     expiring_urgent_count: number;
@@ -65,6 +88,9 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
   const municipalityContext = useMunicipalityContext();
   const { secureGet, getProvinceFilter } = useSecureApi();
 
+  // State for chart view mode
+  const [viewMode, setViewMode] = useState<'gauge' | 'bar' | 'list'>('gauge');
+
   // Get province filter for API calls
   const provinceFilter = getProvinceFilter();
 
@@ -81,12 +107,15 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
     return applyMunicipalityFilter(baseParams, municipalityContext);
   };
 
-  const { data: expiredData, isLoading, error } = useQuery<ExpiredMembersData>({
+  const { data: expiredDataRaw, isLoading, error } = useQuery<any>({
     queryKey: ['expired-members-stats', provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/statistics/expired-members', getFilterParams()),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 10 * 60 * 1000, // 10 minutes
   });
+
+  // Extract data from API response (handles both { data: {...} } and direct {...} structures)
+  const expiredData = expiredDataRaw?.data || expiredDataRaw;
 
   if (isLoading) {
     return (
@@ -104,7 +133,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
     );
   }
 
-  if (error || !expiredData) {
+  if (error || !expiredData || !expiredData.national_summary) {
     return (
       <Card>
         <CardContent>
@@ -116,13 +145,15 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
     );
   }
 
-  const { national_summary, province_breakdown, filtered_by_province, filtered_by_municipality } = expiredData;
+  const { national_summary, province_breakdown, filtered_by_province, subregional_breakdown, ward_breakdown } = expiredData;
+  const filtered_by_municipality = (expiredData as any).filtered_by_municipality;
 
   // Calculate percentages with proper numeric conversion
-  const totalMembers = parseInt(national_summary.total_members, 10) || 0;
-  const totalExpired = parseInt(national_summary.total_expired, 10) || 0;
-  const totalExpiringSoon = parseInt(national_summary.total_expiring_soon, 10) || 0;
-  const totalExpiringUrgent = parseInt(national_summary.total_expiring_urgent, 10) || 0;
+  // Use Number() instead of parseInt() to handle both strings and numbers correctly
+  const totalMembers = Number(national_summary.total_members) || 0;
+  const totalExpired = Number(national_summary.total_expired) || 0;
+  const totalExpiringSoon = Number(national_summary.total_expiring_soon) || 0;
+  const totalExpiringUrgent = Number(national_summary.total_expiring_urgent) || 0;
 
   const expiredPercentage = totalMembers > 0
     ? (totalExpired / totalMembers) * 100
@@ -232,33 +263,183 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
         {!filtered_by_province && !filtered_by_municipality && provinceContext.isNationalAdmin && province_breakdown.length > 0 && (
           <>
             <Divider sx={{ my: 2 }} />
-            <Typography variant="h6" gutterBottom display="flex" alignItems="center" gap={1}>
-              <TrendingUpIcon color="primary" />
-              Province Breakdown
-            </Typography>
-            
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" display="flex" alignItems="center" gap={1}>
+                <TrendingUpIcon color="primary" />
+                Province Breakdown
+              </Typography>
+
+              {/* View Mode Toggle */}
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_event, newMode) => {
+                  if (newMode !== null) {
+                    setViewMode(newMode);
+                  }
+                }}
+                size="small"
+                aria-label="chart view mode"
+              >
+                <ToggleButton value="gauge" aria-label="gauge charts">
+                  <Tooltip title="Gauge Charts View">
+                    <SpeedIcon fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+                <ToggleButton value="bar" aria-label="bar chart">
+                  <Tooltip title="Stacked Bar Chart View">
+                    <BarChartIcon fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+                <ToggleButton value="list" aria-label="list view">
+                  <Tooltip title="List View">
+                    <ListIcon fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Chart Views */}
+            {(viewMode === 'gauge' || viewMode === 'bar') && (
+              <ProvinceBreakdownCharts
+                data={province_breakdown}
+                viewMode={viewMode}
+                onFilterByProvince={onFilterByProvince}
+              />
+            )}
+
+            {/* List View */}
+            {viewMode === 'list' && (
+              <>
+                <List dense>
+                  {province_breakdown
+                    .sort((a, b) => {
+                      const aTotal = (parseInt(String(a.expired_count), 10) || 0) + (parseInt(String(a.expiring_soon_count), 10) || 0);
+                      const bTotal = (parseInt(String(b.expired_count), 10) || 0) + (parseInt(String(b.expiring_soon_count), 10) || 0);
+                      return bTotal - aTotal;
+                    })
+                    .slice(0, 5) // Show top 5 provinces with most expired/expiring members
+                    .map((province) => {
+                      const totalAtRisk = (parseInt(String(province.expired_count), 10) || 0) + (parseInt(String(province.expiring_soon_count), 10) || 0);
+                      const provinceTotalMembers = parseInt(String(province.total_members), 10) || 0;
+                      const riskPercentage = provinceTotalMembers > 0
+                        ? (totalAtRisk / provinceTotalMembers) * 100
+                        : 0;
+
+                      return (
+                        <ListItem
+                          key={province.province_code}
+                          sx={{
+                            border: 1,
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            mb: 1,
+                            '&:hover': { bgcolor: 'action.hover' }
+                          }}
+                        >
+                          <ListItemIcon>
+                            {riskPercentage > 15 ? (
+                              <ErrorIcon color="error" />
+                            ) : riskPercentage > 10 ? (
+                              <WarningIcon color="warning" />
+                            ) : (
+                              <ScheduleIcon color="info" />
+                            )}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="subtitle2" component="span">
+                                  {province.province_name}
+                                </Typography>
+                                <span style={{ display: 'flex', gap: '8px' }}>
+                                  <Chip
+                                    label={`${parseInt(String(province.expired_count), 10) || 0} expired`}
+                                    size="small"
+                                    color="error"
+                                    variant="outlined"
+                                  />
+                                  <Chip
+                                    label={`${parseInt(String(province.expiring_soon_count), 10) || 0} expiring`}
+                                    size="small"
+                                    color="warning"
+                                    variant="outlined"
+                                  />
+                                </span>
+                              </span>
+                            }
+                            secondary={
+                              <span>
+                                <Typography variant="caption" color="text.secondary" component="span" display="block">
+                                  {riskPercentage.toFixed(1)}% at risk • {province.total_members.toLocaleString()} total members
+                                </Typography>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={Math.min(riskPercentage, 100)}
+                                  color={riskPercentage > 15 ? 'error' : riskPercentage > 10 ? 'warning' : 'info'}
+                                  sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
+                                />
+                              </span>
+                            }
+                          />
+                          {onFilterByProvince && (
+                            <Tooltip title={`Filter by ${province.province_name}`}>
+                              <IconButton
+                                size="small"
+                                onClick={() => onFilterByProvince(province.province_code)}
+                              >
+                                <FilterIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </ListItem>
+                      );
+                    })}
+                </List>
+
+                {province_breakdown.length > 5 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Showing top 5 provinces by expired/expiring members. {province_breakdown.length - 5} more provinces available.
+                  </Typography>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* Sub-Regional Breakdown - Only show for province admins */}
+        {filtered_by_province && !filtered_by_municipality && subregional_breakdown && subregional_breakdown.length > 0 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" display="flex" alignItems="center" gap={1}>
+                <TrendingUpIcon color="primary" />
+                Sub-Regional Breakdown ({provinceContext.assignedProvince?.name})
+              </Typography>
+            </Box>
+
             <List dense>
-              {province_breakdown
+              {subregional_breakdown
                 .sort((a, b) => {
-                  const aTotal = (parseInt(a.expired_count, 10) || 0) + (parseInt(a.expiring_soon_count, 10) || 0);
-                  const bTotal = (parseInt(b.expired_count, 10) || 0) + (parseInt(b.expiring_soon_count, 10) || 0);
+                  const aTotal = (parseInt(String(a.expired_count), 10) || 0) + (parseInt(String(a.expiring_soon_count), 10) || 0);
+                  const bTotal = (parseInt(String(b.expired_count), 10) || 0) + (parseInt(String(b.expiring_soon_count), 10) || 0);
                   return bTotal - aTotal;
                 })
-                .slice(0, 5) // Show top 5 provinces with most expired/expiring members
-                .map((province) => {
-                  const totalAtRisk = (parseInt(province.expired_count, 10) || 0) + (parseInt(province.expiring_soon_count, 10) || 0);
-                  const provinceTotalMembers = parseInt(province.total_members, 10) || 0;
-                  const riskPercentage = provinceTotalMembers > 0
-                    ? (totalAtRisk / provinceTotalMembers) * 100
+                .slice(0, 10) // Show top 10 sub-regions
+                .map((subregion) => {
+                  const totalAtRisk = (parseInt(String(subregion.expired_count), 10) || 0) + (parseInt(String(subregion.expiring_soon_count), 10) || 0);
+                  const subregionTotalMembers = parseInt(String(subregion.total_members), 10) || 0;
+                  const riskPercentage = subregionTotalMembers > 0
+                    ? (totalAtRisk / subregionTotalMembers) * 100
                     : 0;
 
                   return (
-                    <ListItem 
-                      key={province.province_code}
-                      sx={{ 
-                        border: 1, 
-                        borderColor: 'divider', 
-                        borderRadius: 1, 
+                    <ListItem
+                      key={subregion.municipality_code}
+                      sx={{
+                        border: 1,
+                        borderColor: 'divider',
+                        borderRadius: 1,
                         mb: 1,
                         '&:hover': { bgcolor: 'action.hover' }
                       }}
@@ -276,28 +457,30 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
                         primary={
                           <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography variant="subtitle2" component="span">
-                              {province.province_name}
+                              {subregion.municipality_name}
                             </Typography>
-                            <span style={{ display: 'flex', gap: '8px' }}>
+                            <Box display="flex" gap={1}>
                               <Chip
-                                label={`${parseInt(province.expired_count, 10) || 0} expired`}
+                                label={`${subregion.expired_count} expired`}
                                 size="small"
                                 color="error"
                                 variant="outlined"
+                                sx={{ borderRadius: '50px' }} // Pill shape
                               />
                               <Chip
-                                label={`${parseInt(province.expiring_soon_count, 10) || 0} expiring`}
+                                label={`${subregion.expiring_soon_count} expiring`}
                                 size="small"
                                 color="warning"
                                 variant="outlined"
+                                sx={{ borderRadius: '50px' }} // Pill shape
                               />
-                            </span>
+                            </Box>
                           </span>
                         }
                         secondary={
                           <span>
                             <Typography variant="caption" color="text.secondary" component="span" display="block">
-                              {riskPercentage.toFixed(1)}% at risk • {province.total_members.toLocaleString()} total members
+                              {riskPercentage.toFixed(1)}% at risk • {subregion.total_members.toLocaleString()} total members
                             </Typography>
                             <LinearProgress
                               variant="determinate"
@@ -308,24 +491,109 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
                           </span>
                         }
                       />
-                      {onFilterByProvince && (
-                        <Tooltip title={`Filter by ${province.province_name}`}>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => onFilterByProvince(province.province_code)}
-                          >
-                            <FilterIcon />
-                          </IconButton>
-                        </Tooltip>
-                      )}
                     </ListItem>
                   );
                 })}
             </List>
 
-            {province_breakdown.length > 5 && (
+            {subregional_breakdown.length > 10 && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Showing top 5 provinces by expired/expiring members. {province_breakdown.length - 5} more provinces available.
+                Showing top 10 sub-regions by expired/expiring members. {subregional_breakdown.length - 10} more sub-regions available.
+              </Typography>
+            )}
+          </>
+        )}
+
+        {/* Ward Breakdown - Only show for municipality admins */}
+        {filtered_by_municipality && ward_breakdown && ward_breakdown.length > 0 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" display="flex" alignItems="center" gap={1}>
+                <TrendingUpIcon color="primary" />
+                Ward Breakdown ({municipalityContext.assignedMunicipality?.name})
+              </Typography>
+            </Box>
+
+            <List dense>
+              {ward_breakdown
+                .sort((a, b) => {
+                  const aTotal = (parseInt(String(a.expired_count), 10) || 0) + (parseInt(String(a.expiring_soon_count), 10) || 0);
+                  const bTotal = (parseInt(String(b.expired_count), 10) || 0) + (parseInt(String(b.expiring_soon_count), 10) || 0);
+                  return bTotal - aTotal;
+                })
+                .slice(0, 10) // Show top 10 wards
+                .map((ward) => {
+                  const totalAtRisk = (parseInt(String(ward.expired_count), 10) || 0) + (parseInt(String(ward.expiring_soon_count), 10) || 0);
+                  const wardTotalMembers = parseInt(String(ward.total_members), 10) || 0;
+                  const riskPercentage = wardTotalMembers > 0
+                    ? (totalAtRisk / wardTotalMembers) * 100
+                    : 0;
+
+                  return (
+                    <ListItem
+                      key={ward.ward_code}
+                      sx={{
+                        border: 1,
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        mb: 1,
+                        '&:hover': { bgcolor: 'action.hover' }
+                      }}
+                    >
+                      <ListItemIcon>
+                        {riskPercentage > 15 ? (
+                          <ErrorIcon color="error" />
+                        ) : riskPercentage > 10 ? (
+                          <WarningIcon color="warning" />
+                        ) : (
+                          <ScheduleIcon color="info" />
+                        )}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="subtitle2" component="span">
+                              {ward.ward_name}
+                            </Typography>
+                            <Box display="flex" gap={1}>
+                              <Chip
+                                label={`${ward.expired_count} expired`}
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                              />
+                              <Chip
+                                label={`${ward.expiring_soon_count} expiring`}
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                              />
+                            </Box>
+                          </span>
+                        }
+                        secondary={
+                          <span>
+                            <Typography variant="caption" color="text.secondary" component="span" display="block">
+                              {riskPercentage.toFixed(1)}% at risk • {ward.total_members.toLocaleString()} total members
+                            </Typography>
+                            <LinearProgress
+                              variant="determinate"
+                              value={Math.min(riskPercentage, 100)}
+                              color={riskPercentage > 15 ? 'error' : riskPercentage > 10 ? 'warning' : 'info'}
+                              sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
+                            />
+                          </span>
+                        }
+                      />
+                    </ListItem>
+                  );
+                })}
+            </List>
+
+            {ward_breakdown.length > 10 && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Showing top 10 wards by expired/expiring members. {ward_breakdown.length - 10} more wards available.
               </Typography>
             )}
           </>

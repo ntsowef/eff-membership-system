@@ -14,7 +14,7 @@ import {
   useTheme,
   alpha,
 } from '@mui/material';
-import EFFLogo from '../ui/EFFLogo';
+import effLogo from '../../assets/images/EFF_Reglogo.png';
 import {
   Dashboard,
   People,
@@ -40,10 +40,10 @@ import {
   Place,
   AccountBalance,
   History,
-  Logout,
   AccountCircle,
   AccountTree,
   CloudUpload,
+  Groups,
 } from '@mui/icons-material';
 import { useAuth } from '../../store';
 import LogoutButton from '../auth/LogoutButton';
@@ -62,6 +62,7 @@ interface MenuItem {
   // Permission requirements
   requireSMS?: boolean; // Requires SMS permission (National Admin only)
   requireElectionManagement?: boolean; // Requires election management permission (National/Provincial Admin)
+  requireDelegatesManagement?: boolean; // Requires delegates management permission
   adminLevels?: ('national' | 'province' | 'district' | 'municipality' | 'ward')[]; // Required admin levels
   permissions?: string[]; // Custom permission requirements
 }
@@ -256,7 +257,27 @@ const menuItems: MenuItem[] = [
         icon: <Assessment />,
         path: '/admin/ward-audit',
       },
+      {
+        id: 'srpa-delegate-setter',
+        label: 'SRPA Delegate Setter',
+        icon: <Settings />,
+        path: '/admin/srpa-delegate-setter',
+      },
     ],
+    adminLevels: ['national', 'province'], // National and Provincial Admin only
+  },
+  {
+    id: 'delegates-management',
+    label: 'Delegates Management',
+    icon: <Groups />,
+    path: '/admin/delegates-management',
+    requireDelegatesManagement: true, // Requires delegates management permission
+  },
+  {
+    id: 'self-data-management',
+    label: 'Self Data Management',
+    icon: <CloudUpload />,
+    path: '/admin/self-data-management',
     adminLevels: ['national', 'province'], // National and Provincial Admin only
   },
   {
@@ -310,7 +331,62 @@ const menuItems: MenuItem[] = [
     path: '/admin/admin-management',
     adminLevels: ['national'], // National Admin only
   },
-
+  {
+    id: 'super-admin',
+    label: 'Super Admin',
+    icon: <AdminPanelSettings />,
+    children: [
+      {
+        id: 'super-admin-dashboard',
+        label: 'Dashboard',
+        icon: <Dashboard />,
+        path: '/admin/super-admin/dashboard',
+      },
+      {
+        id: 'super-admin-system-monitoring',
+        label: 'System Monitoring',
+        icon: <Assessment />,
+        path: '/admin/super-admin/system-monitoring',
+      },
+      {
+        id: 'super-admin-queue-management',
+        label: 'Queue Management',
+        icon: <CloudUpload />,
+        path: '/admin/super-admin/queue-management',
+      },
+      {
+        id: 'super-admin-user-management',
+        label: 'User Management',
+        icon: <SupervisorAccount />,
+        path: '/admin/super-admin/user-management',
+      },
+      {
+        id: 'super-admin-bulk-uploads',
+        label: 'Bulk Upload Management',
+        icon: <CloudUpload />,
+        path: '/admin/super-admin/bulk-uploads',
+      },
+      {
+        id: 'super-admin-audit-logs',
+        label: 'Audit & Logs',
+        icon: <History />,
+        path: '/admin/super-admin/audit-logs',
+      },
+      {
+        id: 'super-admin-configuration',
+        label: 'Configuration',
+        icon: <Settings />,
+        path: '/admin/super-admin/configuration',
+      },
+      {
+        id: 'super-admin-lookup-data',
+        label: 'Lookup Data',
+        icon: <Assignment />,
+        path: '/admin/super-admin/lookup-data',
+      },
+    ],
+    permissions: ['super_admin_only'], // Super Admin only
+  },
   {
     id: 'system',
     label: 'System',
@@ -332,7 +408,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { permissions, hasPermission } = usePermissionCheck();
+  const { permissions } = usePermissionCheck();
   const [openItems, setOpenItems] = React.useState<string[]>([]);
 
   // Function to check if a menu item should be visible
@@ -347,10 +423,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       return false;
     }
 
+    // Check delegates management permission requirement
+    if (item.requireDelegatesManagement && !permissions.canAccessDelegatesManagement) {
+      return false;
+    }
+
     // Check admin level requirements
     if (item.adminLevels && item.adminLevels.length > 0) {
       const userAdminLevel = user?.admin_level;
-      const isSuperAdmin = user?.role_name === 'super_admin';
+      const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
       // Allow super admins to bypass admin level restrictions
       if (isSuperAdmin) {
@@ -366,11 +447,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     // Check custom permission requirements
     if (item.permissions && item.permissions.length > 0) {
       // Check if user has financial reviewer role or super admin role
-      const isFinancialReviewer = user?.role_name === 'financial_reviewer' || user?.role_name === 'financial.approver';
-      const isSuperAdmin = user?.role_name === 'super_admin';
-      const isMembershipApprover = user?.role_name === 'membership_approver' || user?.role_name === 'membership.approver';
+      const isFinancialReviewer = user?.role === 'FINANCIAL_REVIEWER' || user?.role === 'FINANCIAL_APPROVER';
+      const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+      const isMembershipApprover = user?.role === 'MEMBERSHIP_APPROVER';
       const isNationalAdmin = user?.admin_level === 'national';
       const isProvincialAdmin = user?.admin_level === 'province';
+
+      // For super admin only features
+      if (item.permissions.includes('super_admin_only')) {
+        return isSuperAdmin;
+      }
 
       // For financial dashboard, allow financial reviewers, membership approvers, super admins, and national/provincial admins
       if (item.permissions.some(p => p.startsWith('financial.'))) {
@@ -520,7 +606,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           borderBottom: `3px solid ${theme.palette.primary.main}`,
         }}
       >
-        <EFFLogo size={48} color={theme.palette.primary.main} />
+        <Box
+          component="img"
+          src={effLogo}
+          alt="EFF Logo"
+          sx={{
+            width: 48,
+            height: 48,
+            objectFit: 'contain'
+          }}
+        />
         <Box>
           <Typography
             variant="h5"

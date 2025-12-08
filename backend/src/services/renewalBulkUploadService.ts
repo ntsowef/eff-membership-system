@@ -230,7 +230,7 @@ export class RenewalBulkUploadService {
             ELSE 'Unknown'
           END as membership_status,
           ms.expiry_date as membership_expiry_date
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN memberships ms ON m.member_id = ms.member_id
         WHERE m.id_number = $1

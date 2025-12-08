@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 import { Pool, PoolClient } from 'pg';
 import { config } from './config';
 
@@ -103,7 +103,7 @@ export const getConnection = async (): Promise<PoolClient> => {
   if (!pool) {
     throw new Error('Database pool not initialized. Call initializeDatabase() first.');
   }
-  
+
   try {
     return await pool.connect();
   } catch (error) {
@@ -142,6 +142,29 @@ export const executeQuerySingle = async <T = any>(
 ): Promise<T | null> => {
   const results = await executeQuery<T>(query, params);
   return results.length > 0 ? results[0] : null;
+};
+
+// Execute UPDATE/DELETE query and return affected row count
+export const executeUpdate = async (
+  query: string,
+  params?: any[]
+): Promise<{ affectedRows: number }> => {
+  const client = await getConnection();
+
+  try {
+    // Convert MySQL-style ? placeholders to PostgreSQL $1, $2, etc.
+    const pgQuery = convertPlaceholders(query);
+    const result = await client.query(pgQuery, params);
+
+    return { affectedRows: result.rowCount || 0 };
+  } catch (error) {
+    console.error('❌ Database update error:', error);
+    console.error('Query:', query);
+    console.error('Params:', params);
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 // Execute transaction with raw SQL
@@ -298,5 +321,5 @@ process.on('SIGTERM', async () => {
 });
 
 // Export types for use in other modules
-export type { PrismaClient } from '../generated/prisma';
+export type { PrismaClient } from '@prisma/client';
 export type { PoolClient } from 'pg';

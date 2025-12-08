@@ -6,9 +6,11 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { config } from '../config/config';
-import { executeQuery } from '../config/database';
+import { getPrisma } from './prismaService';
 import { iecElectoralEventsService } from './iecElectoralEventsService';
 import { createDatabaseError } from '../middleware/errorHandler';
+
+const prisma = getPrisma();
 
 interface ProvinceMapping {
   id?: number;
@@ -231,12 +233,15 @@ export class IecGeographicMappingService {
     const results = { updated: 0, errors: [] as string[] };
 
     try {
-      // Get our current province mappings
-      const ourProvinces = await executeQuery(`
-        SELECT province_code, province_name 
-        FROM iec_province_mappings 
-        WHERE iec_province_id IS NULL
-      `) as ProvinceMapping[];
+      // Get our current province mappings (all provinces are pre-populated with IEC IDs)
+      // This query will return empty array since all provinces have IEC IDs
+      const ourProvinces = await prisma.iec_province_mappings.findMany({
+        where: { iec_province_id: 0 }, // No provinces will match this - all have valid IEC IDs
+        select: {
+          province_code: true,
+          province_name: true
+        }
+      });
 
       console.log(`Found ${ourProvinces.length} provinces to map`);
 
@@ -257,13 +262,16 @@ export class IecGeographicMappingService {
       for (const province of ourProvinces) {
         try {
           const iecMapping = iecProvinceMap[province.province_code as keyof typeof iecProvinceMap];
-          
+
           if (iecMapping) {
-            await executeQuery(`
-              UPDATE iec_province_mappings 
-              SET iec_province_id = ?, iec_province_name = ?, updated_at = CURRENT_TIMESTAMP
-              WHERE province_code = ?
-            `, [iecMapping.id, iecMapping.name, province.province_code]);
+            await prisma.iec_province_mappings.update({
+              where: { province_code: province.province_code },
+              data: {
+                iec_province_id: iecMapping.id,
+                iec_province_name: iecMapping.name,
+                updated_at: new Date()
+              }
+            });
 
             console.log(`✅ Mapped ${province.province_code} → IEC Province ID ${iecMapping.id}`);
             results.updated++;
@@ -293,15 +301,18 @@ export class IecGeographicMappingService {
       console.log('🏛️ Starting real IEC API municipality discovery...');
 
       // Get provinces that need municipality mapping
-      const provincesToProcess = await executeQuery(`
-        SELECT DISTINCT
-          pm.province_code,
-          pm.iec_province_id,
-          pm.province_name
-        FROM iec_province_mappings pm
-        WHERE pm.iec_province_id IS NOT NULL
-        ORDER BY pm.province_code
-      `) as any[];
+      const provincesToProcess = await prisma.iec_province_mappings.findMany({
+        where: {
+          iec_province_id: { gt: 0 } // All provinces have IEC IDs > 0
+        },
+        select: {
+          province_code: true,
+          iec_province_id: true,
+          province_name: true
+        },
+        orderBy: { province_code: 'asc' },
+        distinct: ['province_code']
+      });
 
       console.log(`Found ${provincesToProcess.length} provinces to process for municipality mapping`);
 
@@ -322,13 +333,24 @@ export class IecGeographicMappingService {
             results.errors.push(`IEC API failed for ${province.province_code}: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
           }
 
-          // Get our municipalities for this province
-          const ourMunicipalities = await executeQuery(`
-            SELECT municipality_code, municipality_name, province_code
-            FROM municipalities
-            WHERE province_code = ?
-            ORDER BY municipality_code
-          `, [province.province_code]) as any[];
+          // Get our municipalities for this province (via district relationship)
+          const ourMunicipalities = await prisma.municipalities.findMany({
+            where: {
+              districts: {
+                province_code: province.province_code
+              }
+            },
+            select: {
+              municipality_code: true,
+              municipality_name: true,
+              districts: {
+                select: {
+                  province_code: true
+                }
+              }
+            },
+            orderBy: { municipality_code: 'asc' }
+          });
 
           console.log(`Found ${ourMunicipalities.length} local municipalities for ${province.province_code}`);
 
@@ -362,23 +384,23 @@ export class IecGeographicMappingService {
               }
 
               // Insert or update municipality mapping
-              await executeQuery(`
-                INSERT INTO iec_municipality_mappings
-                (municipality_code, municipality_name, province_code, iec_municipality_id, iec_municipality_name, iec_province_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                iec_municipality_id = VALUES(iec_municipality_id),
-                iec_municipality_name = VALUES(iec_municipality_name),
-                iec_province_id = VALUES(iec_province_id),
-                updated_at = CURRENT_TIMESTAMP
-              `, [
-                ourMunicipality.municipality_code,
-                ourMunicipality.municipality_name,
-                ourMunicipality.province_code,
-                iecMunicipalityId,
-                iecMunicipalityName,
-                province.iec_province_id
-              ]);
+              await prisma.iec_municipality_mappings.upsert({
+                where: { municipality_code: ourMunicipality.municipality_code },
+                update: {
+                  iec_municipality_id: String(iecMunicipalityId),
+                  iec_municipality_name: iecMunicipalityName,
+                  iec_province_id: province.iec_province_id!,
+                  updated_at: new Date()
+                },
+                create: {
+                  municipality_code: ourMunicipality.municipality_code,
+                  municipality_name: ourMunicipality.municipality_name,
+                  province_code: ourMunicipality.districts?.province_code || province.province_code,
+                  iec_municipality_id: String(iecMunicipalityId),
+                  iec_municipality_name: iecMunicipalityName,
+                  iec_province_id: province.iec_province_id!
+                }
+              });
 
               results.updated++;
 
@@ -444,18 +466,24 @@ export class IecGeographicMappingService {
       console.log('🗳️ Starting real IEC API ward discovery...');
 
       // Get municipalities that have IEC mappings and need ward mapping
-      const municipalitiesToProcess = await executeQuery(`
-        SELECT DISTINCT
-          imm.municipality_code,
-          imm.iec_municipality_id,
-          imm.municipality_name,
-          imm.province_code,
-          imm.iec_province_id
-        FROM iec_municipality_mappings imm
-        WHERE imm.iec_municipality_id IS NOT NULL
-        ORDER BY imm.province_code, imm.municipality_code
-        LIMIT 10
-      `) as any[];
+      const municipalitiesToProcess = await prisma.iec_municipality_mappings.findMany({
+        where: {
+          iec_municipality_id: { not: '' } // Not empty string
+        },
+        select: {
+          municipality_code: true,
+          iec_municipality_id: true,
+          municipality_name: true,
+          province_code: true,
+          iec_province_id: true
+        },
+        orderBy: [
+          { province_code: 'asc' },
+          { municipality_code: 'asc' }
+        ],
+        take: 10,
+        distinct: ['municipality_code']
+      });
 
       console.log(`Found ${municipalitiesToProcess.length} municipalities to process for ward mapping`);
 
@@ -468,7 +496,9 @@ export class IecGeographicMappingService {
           let useRealData = false;
 
           try {
-            iecWards = await this.fetchWardsFromIEC(1091, municipality.iec_province_id, municipality.iec_municipality_id);
+            // Convert municipality ID to number for IEC API
+            const munIdNumber = parseInt(municipality.iec_municipality_id || '0', 10);
+            iecWards = await this.fetchWardsFromIEC(1091, municipality.iec_province_id!, munIdNumber);
             useRealData = true;
             console.log(`✅ Retrieved ${iecWards.length} wards from IEC API for ${municipality.municipality_code}`);
           } catch (apiError) {
@@ -477,12 +507,16 @@ export class IecGeographicMappingService {
           }
 
           // Get our wards for this municipality
-          const ourWards = await executeQuery(`
-            SELECT ward_code, ward_name, ward_number, municipality_code, province_code
-            FROM wards
-            WHERE municipality_code = ?
-            ORDER BY ward_code
-          `, [municipality.municipality_code]) as any[];
+          const ourWards = await prisma.wards.findMany({
+            where: { municipality_code: municipality.municipality_code },
+            select: {
+              ward_code: true,
+              ward_name: true,
+              ward_number: true,
+              municipality_code: true
+            },
+            orderBy: { ward_code: 'asc' }
+          });
 
           console.log(`Found ${ourWards.length} local wards for ${municipality.municipality_code}`);
 
@@ -501,40 +535,39 @@ export class IecGeographicMappingService {
                   console.log(`🎯 Matched ${ourWard.ward_code} → IEC Ward ID ${iecWardId} (${iecWardName})`);
                 } else {
                   // No match found, use mock data
-                  iecWardId = this.generateMockWardId(municipality.iec_municipality_id, ourWard.ward_number);
+                  iecWardId = this.generateMockWardId(municipality.iec_municipality_id || '', ourWard.ward_number || 0);
                   iecWardName = ourWard.ward_name;
                   console.log(`🔄 No IEC match for ${ourWard.ward_code}, using mock ID: ${iecWardId}`);
                 }
               } else {
                 // Use mock data
-                iecWardId = this.generateMockWardId(municipality.iec_municipality_id, ourWard.ward_number);
+                iecWardId = this.generateMockWardId(municipality.iec_municipality_id || '', ourWard.ward_number || 0);
                 iecWardName = ourWard.ward_name;
                 console.log(`🔄 Using mock data for ${ourWard.ward_code}: ${iecWardId}`);
               }
 
               // Insert or update ward mapping
-              await executeQuery(`
-                INSERT INTO iec_ward_mappings
-                (ward_code, ward_name, ward_number, municipality_code, province_code,
-                 iec_ward_id, iec_ward_name, iec_municipality_id, iec_province_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                iec_ward_id = VALUES(iec_ward_id),
-                iec_ward_name = VALUES(iec_ward_name),
-                iec_municipality_id = VALUES(iec_municipality_id),
-                iec_province_id = VALUES(iec_province_id),
-                updated_at = CURRENT_TIMESTAMP
-              `, [
-                ourWard.ward_code,
-                ourWard.ward_name,
-                ourWard.ward_number,
-                ourWard.municipality_code,
-                ourWard.province_code,
-                iecWardId,
-                iecWardName,
-                municipality.iec_municipality_id,
-                municipality.iec_province_id
-              ]);
+              await prisma.iec_ward_mappings.upsert({
+                where: { ward_code: ourWard.ward_code },
+                update: {
+                  iec_ward_id: String(iecWardId),
+                  iec_ward_name: iecWardName,
+                  iec_municipality_id: municipality.iec_municipality_id,
+                  iec_province_id: municipality.iec_province_id!,
+                  updated_at: new Date()
+                },
+                create: {
+                  ward_code: ourWard.ward_code,
+                  ward_name: ourWard.ward_name,
+                  ward_number: ourWard.ward_number || 0,
+                  municipality_code: ourWard.municipality_code,
+                  province_code: municipality.province_code,
+                  iec_ward_id: String(iecWardId),
+                  iec_ward_name: iecWardName,
+                  iec_municipality_id: municipality.iec_municipality_id,
+                  iec_province_id: municipality.iec_province_id!
+                }
+              });
 
               results.updated++;
 
@@ -592,13 +625,15 @@ export class IecGeographicMappingService {
    */
   async getIecProvinceId(provinceCode: string): Promise<number | null> {
     try {
-      const result = await executeQuery(`
-        SELECT iec_province_id
-        FROM iec_province_mappings
-        WHERE province_code = ? AND is_active = TRUE
-      `, [provinceCode]) as ProvinceMapping[];
+      const result = await prisma.iec_province_mappings.findFirst({
+        where: {
+          province_code: provinceCode,
+          is_active: true
+        },
+        select: { iec_province_id: true }
+      });
 
-      return result.length > 0 ? result[0].iec_province_id : null;
+      return result?.iec_province_id || null;
     } catch (error) {
       console.error(`Error getting IEC Province ID for ${provinceCode}:`, error);
       return null;
@@ -611,13 +646,12 @@ export class IecGeographicMappingService {
    */
   async getIecMunicipalityId(municipalityCode: string): Promise<string | number | null> {
     try {
-      const result = await executeQuery(`
-        SELECT iec_municipality_id
-        FROM iec_municipality_mappings
-        WHERE municipality_code = ?
-      `, [municipalityCode]) as any[];
+      const result = await prisma.iec_municipality_mappings.findFirst({
+        where: { municipality_code: municipalityCode },
+        select: { iec_municipality_id: true }
+      });
 
-      return result.length > 0 ? result[0].iec_municipality_id : null;
+      return result?.iec_municipality_id || null;
     } catch (error) {
       console.error(`Error getting IEC Municipality ID for ${municipalityCode}:`, error);
       return null;
@@ -630,13 +664,12 @@ export class IecGeographicMappingService {
    */
   async getIecWardId(wardCode: string): Promise<string | number | null> {
     try {
-      const result = await executeQuery(`
-        SELECT iec_ward_id
-        FROM iec_ward_mappings
-        WHERE ward_code = ?
-      `, [wardCode]) as any[];
+      const result = await prisma.iec_ward_mappings.findFirst({
+        where: { ward_code: wardCode },
+        select: { iec_ward_id: true }
+      });
 
-      return result.length > 0 ? result[0].iec_ward_id : null;
+      return result?.iec_ward_id || null;
     } catch (error) {
       console.error(`Error getting IEC Ward ID for ${wardCode}:`, error);
       return null;
@@ -686,32 +719,38 @@ export class IecGeographicMappingService {
     wards: { total: number; mapped: number; unmapped: number };
   }> {
     try {
-      // Province stats
-      const provinceStats = await executeQuery(`
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN iec_province_id IS NOT NULL THEN 1 ELSE 0 END) as mapped,
-          SUM(CASE WHEN iec_province_id IS NULL THEN 1 ELSE 0 END) as unmapped
-        FROM iec_province_mappings
-      `) as any[];
+      // Province stats (all provinces have IEC IDs since they're pre-populated)
+      const [provinceTotal, provinceMapped] = await Promise.all([
+        prisma.iec_province_mappings.count(),
+        prisma.iec_province_mappings.count({ where: { iec_province_id: { gt: 0 } } })
+      ]);
+      const provinceStats = [{
+        total: provinceTotal,
+        mapped: provinceMapped,
+        unmapped: provinceTotal - provinceMapped
+      }];
 
-      // Municipality stats
-      const municipalityStats = await executeQuery(`
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN iec_municipality_id IS NOT NULL THEN 1 ELSE 0 END) as mapped,
-          SUM(CASE WHEN iec_municipality_id IS NULL THEN 1 ELSE 0 END) as unmapped
-        FROM iec_municipality_mappings
-      `) as any[];
+      // Municipality stats (mapped = has non-empty iec_municipality_id)
+      const [municipalityTotal, municipalityMapped] = await Promise.all([
+        prisma.iec_municipality_mappings.count(),
+        prisma.iec_municipality_mappings.count({ where: { iec_municipality_id: { not: '' } } })
+      ]);
+      const municipalityStats = [{
+        total: municipalityTotal,
+        mapped: municipalityMapped,
+        unmapped: municipalityTotal - municipalityMapped
+      }];
 
-      // Ward stats
-      const wardStats = await executeQuery(`
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN iec_ward_id IS NOT NULL THEN 1 ELSE 0 END) as mapped,
-          SUM(CASE WHEN iec_ward_id IS NULL THEN 1 ELSE 0 END) as unmapped
-        FROM iec_ward_mappings
-      `) as any[];
+      // Ward stats (mapped = has non-empty iec_ward_id)
+      const [wardTotal, wardMapped] = await Promise.all([
+        prisma.iec_ward_mappings.count(),
+        prisma.iec_ward_mappings.count({ where: { iec_ward_id: { not: '' } } })
+      ]);
+      const wardStats = [{
+        total: wardTotal,
+        mapped: wardMapped,
+        unmapped: wardTotal - wardMapped
+      }];
 
       return {
         provinces: {

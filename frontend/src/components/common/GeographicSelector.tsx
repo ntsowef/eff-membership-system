@@ -151,7 +151,22 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
+  // Check if selected municipality is a metro
+  const { data: municipalityInfo } = useQuery({
+    queryKey: ['municipality-info', selectedMunicipality],
+    queryFn: async () => {
+      if (!selectedMunicipality) return null;
+      const response = await geographicApi.getMunicipalityByCode(selectedMunicipality);
+      return response.data;
+    },
+    enabled: !!selectedMunicipality,
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
+  const isMetro = municipalityInfo?.municipality_type === 'Metropolitan';
+
   // Fetch wards based on selected municipality
+  // For metros, load wards directly without requiring district selection
   const { data: wards, isLoading: wardsLoading, error: wardsError } = useQuery({
     queryKey: ['wards', selectedMunicipality],
     queryFn: () => geographicApi.getWards(selectedMunicipality),
@@ -447,7 +462,13 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               displayEmpty
             >
               <MenuItem value="">
-                <em>{!selectedMunicipality ? 'Select a sub-region first...' : 'Select a ward...'}</em>
+                <em>
+                  {!selectedMunicipality
+                    ? 'Select a sub-region first...'
+                    : isMetro
+                      ? 'Select a ward...'
+                      : 'Select a ward...'}
+                </em>
               </MenuItem>
               {wardsLoading ? (
                 <MenuItem disabled>
@@ -472,6 +493,11 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 ))
               )}
             </Select>
+            {isMetro && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                Metro municipality - wards loaded directly
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 

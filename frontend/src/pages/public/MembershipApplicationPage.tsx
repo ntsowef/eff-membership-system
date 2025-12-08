@@ -9,9 +9,15 @@ import {
   Step,
   StepLabel,
   Button,
-
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material';
+import { ArrowForward, ArrowBack } from '@mui/icons-material';
 
 import { useApplication } from '../../store';
 import PersonalInfoStep from '../../components/application/PersonalInfoStep';
@@ -20,8 +26,9 @@ import PartyDeclarationStep from '../../components/application/PartyDeclarationS
 import PaymentStep from '../../components/application/PaymentStep';
 import ReviewStep from '../../components/application/ReviewStep';
 import { useMutation } from '@tanstack/react-query';
-import { apiPost } from '../../lib/api';
+import { apiPost, api } from '../../lib/api';
 import { useUI } from '../../store';
+import PublicHeader from '../../components/layout/PublicHeader';
 
 const steps = [
   'Personal Information',
@@ -33,31 +40,47 @@ const steps = [
 
 const MembershipApplicationPage: React.FC = () => {
   const navigate = useNavigate();
-  const { applicationStep, setApplicationStep, applicationData, resetApplication } = useApplication();
+  const { applicationStep, setApplicationStep, applicationData, resetApplication, updateApplicationData } = useApplication();
   const { addNotification } = useUI();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isCheckingId, setIsCheckingId] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateData, setDuplicateData] = useState<any>(null);
 
   const submitApplicationMutation = useMutation({
-    mutationFn: (data: any) => apiPost<{data: {application_id: string}}>('/membership-applications', data),
+    mutationFn: (data: any) => apiPost<{application: {id: number; application_number: string}}>('/membership-applications', data),
     onSuccess: (response) => {
+      const application = response.application;
       addNotification({
         type: 'success',
-        message: 'Application submitted successfully!',
+        message: `Application submitted successfully! Reference: ${application.application_number}`,
       });
       resetApplication();
       navigate('/application-status', {
-        state: { applicationId: response.data.application_id }
+        state: {
+          applicationId: application.id,
+          applicationNumber: application.application_number
+        }
       });
     },
     onError: (error: any) => {
+      console.error('❌ Application submission error:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+
+      const errorMessage = error.response?.data?.message
+        || error.response?.data?.error?.message
+        || error.message
+        || 'Failed to submit application';
+
       addNotification({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to submit application',
+        message: errorMessage,
       });
     },
   });
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // Validate current step
     const stepErrors = validateStep(applicationStep);
     if (Object.keys(stepErrors).length > 0) {
@@ -66,6 +89,14 @@ const MembershipApplicationPage: React.FC = () => {
     }
 
     setErrors({});
+
+    // STEP 0: Personal Information - Check for duplicate ID and verify with IEC
+    if (applicationStep === 0) {
+      await checkIdAndVerifyIEC();
+      return; // Don't proceed yet - will be handled after checks
+    }
+
+    // For other steps, proceed normally
     if (applicationStep === steps.length - 1) {
       // Submit application
       handleSubmit();
@@ -74,11 +105,126 @@ const MembershipApplicationPage: React.FC = () => {
     }
   };
 
+  const checkIdAndVerifyIEC = async () => {
+    const idNumber = applicationData.id_number;
+
+    if (!idNumber) {
+      addNotification({
+        type: 'error',
+        message: 'ID number is required',
+      });
+      return;
+    }
+
+    setIsCheckingId(true);
+
+    try {
+      // STEP 1: Check for duplicate ID number
+      console.log('🔍 Step 1: Checking for duplicate ID number...');
+      console.log('📤 Sending request with ID:', idNumber);
+
+      const duplicateCheckResponse = await api.post('/membership-applications/check-id-number', {
+        id_number: idNumber,
+      });
+
+      console.log('✅ Duplicate check response:', duplicateCheckResponse.data);
+
+      // Check if ID exists
+      if (duplicateCheckResponse.data.success && duplicateCheckResponse.data.data?.exists) {
+        console.log('❌ Duplicate ID found!');
+        setDuplicateData(duplicateCheckResponse.data.data);
+        setDuplicateDialogOpen(true);
+        setIsCheckingId(false);
+        return; // Stop here - don't proceed to IEC verification
+      }
+
+      console.log('✅ No duplicate found. Proceeding to IEC verification...');
+
+      // STEP 2: Verify with IEC API
+      try {
+        console.log('🔍 Step 2: Verifying voter registration with IEC...');
+        const iecResponse = await api.post('/iec/verify-voter-public', {
+          idNumber: idNumber,
+        });
+
+        console.log('✅ IEC verification response:', iecResponse.data);
+
+        // Store IEC verification results in application data
+        if (iecResponse.data.success && iecResponse.data.data) {
+          const iecData = iecResponse.data.data;
+          console.log('✅ IEC verification successful');
+          console.log('   Registered:', iecData.is_registered);
+
+          // Store IEC data for use in Contact Info step
+          updateApplicationData({
+            iec_verification: iecData,
+          } as any);
+
+          if (iecData.is_registered) {
+            addNotification({
+              type: 'success',
+              message: 'Voter registration verified with IEC',
+            });
+          } else {
+            addNotification({
+              type: 'info',
+              message: 'ID verified. You can proceed with your application.',
+            });
+          }
+        } else {
+          console.log('⚠️ IEC verification returned no data');
+          addNotification({
+            type: 'info',
+            message: 'ID verified. You can proceed with your application.',
+          });
+        }
+      } catch (iecError: any) {
+        console.log('⚠️ IEC verification failed:', iecError);
+        // IEC verification failure is not critical - continue with application
+        addNotification({
+          type: 'info',
+          message: 'ID verified. You can proceed with your application.',
+        });
+      }
+
+      // All checks passed - proceed to next step
+      setIsCheckingId(false);
+      setApplicationStep(applicationStep + 1);
+
+    } catch (error: any) {
+      console.error('❌ Error during ID check:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+      setIsCheckingId(false);
+
+      const errorMessage = error.response?.data?.message
+        || error.response?.data?.error?.message
+        || error.message
+        || 'Error verifying ID number. Please try again.';
+
+      addNotification({
+        type: 'error',
+        message: errorMessage,
+      });
+    }
+  };
+
   const handleBack = () => {
     setApplicationStep(applicationStep - 1);
   };
 
   const handleSubmit = () => {
+    console.log('📤 Submitting application with data:', applicationData);
+    console.log('📋 Required fields check:');
+    console.log('  - firstname:', applicationData.firstname);
+    console.log('  - surname:', applicationData.surname);
+    console.log('  - id_number:', applicationData.id_number);
+    console.log('  - date_of_birth:', applicationData.date_of_birth);
+    console.log('  - gender:', applicationData.gender);
+    console.log('  - phone:', applicationData.phone);
+    console.log('  - address:', applicationData.address);
+    console.log('  - ward_code:', applicationData.ward_code);
+
     submitApplicationMutation.mutate(applicationData);
   };
 
@@ -166,12 +312,128 @@ const MembershipApplicationPage: React.FC = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+      {/* Sticky Header */}
+      <PublicHeader />
+
+      {/* Duplicate ID Dialog */}
+      <Dialog
+        open={duplicateDialogOpen}
+        onClose={() => setDuplicateDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ color: '#FE0000', fontWeight: 600 }}>
+          ID Number Already Registered
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This ID number is already registered in our system.
+          </DialogContentText>
+
+          {duplicateData?.exists_in_members && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                ✓ You are already a member
+              </Typography>
+              {duplicateData.member_details && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    <strong>Member ID:</strong> {duplicateData.member_details.member_id}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Full Name:</strong> {duplicateData.member_details.first_name} {duplicateData.member_details.last_name}
+                  </Typography>
+                  {duplicateData.member_details.province_name && (
+                    <Typography variant="body2">
+                      <strong>Province:</strong> {duplicateData.member_details.province_name}
+                    </Typography>
+                  )}
+                  {duplicateData.member_details.municipality_name && (
+                    <Typography variant="body2">
+                      <strong>Sub-Region:</strong> {duplicateData.member_details.municipality_name}
+                    </Typography>
+                  )}
+                  {duplicateData.member_details.ward_code && (
+                    <Typography variant="body2">
+                      <strong>Ward Code:</strong> {duplicateData.member_details.ward_code}
+                    </Typography>
+                  )}
+                  {duplicateData.member_details.ward_name && (
+                    <Typography variant="body2">
+                      <strong>Ward Name:</strong> {duplicateData.member_details.ward_name}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Alert>
+          )}
+
+          {duplicateData?.exists_in_applications && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                ✓ You have a pending application
+              </Typography>
+              {duplicateData.application_details && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    <strong>Application #:</strong> {duplicateData.application_details.application_number}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Full Name:</strong> {duplicateData.application_details.firstname} {duplicateData.application_details.surname}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Status:</strong> {duplicateData.application_details.status}
+                  </Typography>
+                  {duplicateData.application_details.province_name && (
+                    <Typography variant="body2">
+                      <strong>Province:</strong> {duplicateData.application_details.province_name}
+                    </Typography>
+                  )}
+                  {duplicateData.application_details.municipality_name && (
+                    <Typography variant="body2">
+                      <strong>Sub-Region:</strong> {duplicateData.application_details.municipality_name}
+                    </Typography>
+                  )}
+                  {duplicateData.application_details.ward_code && (
+                    <Typography variant="body2">
+                      <strong>Ward Code:</strong> {duplicateData.application_details.ward_code}
+                    </Typography>
+                  )}
+                  {duplicateData.application_details.submission_date && (
+                    <Typography variant="body2">
+                      <strong>Submitted:</strong> {new Date(duplicateData.application_details.submission_date).toLocaleDateString()}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Alert>
+          )}
+
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            Please contact our membership support team for assistance:
+          </Typography>
+          <Box sx={{ mt: 1, ml: 2 }}>
+            <Typography variant="body2">
+              <strong>Email:</strong> membership@eff.org.za
+            </Typography>
+            <Typography variant="body2">
+              <strong>Phone:</strong> +27 11 447 4797
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDuplicateDialogOpen(false)} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Hero Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #FE0000 0%, #E20202 100%)',
+          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
           color: 'white',
-          py: 6,
+          py: 7,
           position: 'relative',
           overflow: 'hidden',
           '&::before': {
@@ -181,7 +443,18 @@ const MembershipApplicationPage: React.FC = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+            background: 'radial-gradient(circle at 20% 50%, rgba(220, 20, 60, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139, 0, 0, 0.15) 0%, transparent 50%)',
+            pointerEvents: 'none'
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.02"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+            pointerEvents: 'none'
           },
         }}
       >
@@ -190,12 +463,18 @@ const MembershipApplicationPage: React.FC = () => {
             <Typography
               variant="overline"
               sx={{
-                color: '#FFAB00',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                letterSpacing: '0.1em',
+                color: '#DC143C',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                letterSpacing: '0.15em',
                 mb: 2,
                 display: 'block',
+                textShadow: '0 2px 8px rgba(220, 20, 60, 0.3)',
+                animation: 'fadeInUp 0.8s ease-out 0.1s both',
+                '@keyframes fadeInUp': {
+                  '0%': { opacity: 0, transform: 'translateY(20px)' },
+                  '100%': { opacity: 1, transform: 'translateY(0)' }
+                }
               }}
             >
               JOIN THE REVOLUTION
@@ -206,8 +485,14 @@ const MembershipApplicationPage: React.FC = () => {
               gutterBottom
               sx={{
                 fontWeight: 700,
-                mb: 2,
+                mb: 3,
                 fontSize: { xs: '2rem', md: '3rem' },
+                textShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                animation: 'fadeInUp 0.8s ease-out 0.2s both',
+                '@keyframes fadeInUp': {
+                  '0%': { opacity: 0, transform: 'translateY(20px)' },
+                  '100%': { opacity: 1, transform: 'translateY(0)' }
+                }
               }}
             >
               Membership Application
@@ -216,9 +501,16 @@ const MembershipApplicationPage: React.FC = () => {
               variant="h6"
               sx={{
                 opacity: 0.95,
-                maxWidth: '600px',
+                maxWidth: '700px',
                 mx: 'auto',
-                lineHeight: 1.5,
+                lineHeight: 1.7,
+                fontSize: '1.1rem',
+                color: 'rgba(255, 255, 255, 0.9)',
+                animation: 'fadeInUp 0.8s ease-out 0.3s both',
+                '@keyframes fadeInUp': {
+                  '0%': { opacity: 0, transform: 'translateY(20px)' },
+                  '100%': { opacity: 1, transform: 'translateY(0)' }
+                }
               }}
             >
               Take your first step in the fight for economic freedom.
@@ -228,14 +520,21 @@ const MembershipApplicationPage: React.FC = () => {
         </Container>
       </Box>
 
-      <Container maxWidth="md" sx={{ py: 6 }}>
+      <Container maxWidth="md" sx={{ py: 8 }}>
         <Paper
-          elevation={8}
+          elevation={0}
           sx={{
-            p: 5,
+            p: 6,
             borderRadius: 4,
-            border: '1px solid rgba(254, 0, 0, 0.1)',
-            boxShadow: '0px 8px 40px rgba(0, 0, 0, 0.12)',
+            border: '1px solid rgba(220, 20, 60, 0.15)',
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 100px rgba(220, 20, 60, 0.05)',
+            animation: 'fadeInUp 0.8s ease-out 0.4s both',
+            '@keyframes fadeInUp': {
+              '0%': { opacity: 0, transform: 'translateY(30px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' }
+            }
           }}
         >
 
@@ -243,27 +542,31 @@ const MembershipApplicationPage: React.FC = () => {
           <Stepper
             activeStep={applicationStep}
             sx={{
-              mb: 5,
+              mb: 6,
               '& .MuiStepLabel-root .Mui-completed': {
-                color: '#055305',
+                color: '#8B0000',
               },
               '& .MuiStepLabel-root .Mui-active': {
-                color: '#FE0000',
+                color: '#DC143C',
               },
               '& .MuiStepConnector-root': {
                 '&.Mui-completed .MuiStepConnector-line': {
-                  borderColor: '#055305',
+                  borderColor: '#8B0000',
+                  borderWidth: 2,
                 },
                 '&.Mui-active .MuiStepConnector-line': {
-                  borderColor: '#FE0000',
+                  borderColor: '#DC143C',
+                  borderWidth: 2,
                 },
               },
               '& .MuiStepIcon-root': {
+                fontSize: '1.8rem',
                 '&.Mui-completed': {
-                  color: '#055305',
+                  color: '#8B0000',
                 },
                 '&.Mui-active': {
-                  color: '#FE0000',
+                  color: '#DC143C',
+                  filter: 'drop-shadow(0 2px 4px rgba(220, 20, 60, 0.3))',
                 },
               },
             }}
@@ -274,14 +577,14 @@ const MembershipApplicationPage: React.FC = () => {
                   sx={{
                     '& .MuiStepLabel-label': {
                       fontWeight: 500,
-                      fontSize: '0.875rem',
+                      fontSize: '0.9rem',
                     },
                     '& .MuiStepLabel-label.Mui-active': {
-                      color: '#FE0000',
-                      fontWeight: 600,
+                      color: '#DC143C',
+                      fontWeight: 700,
                     },
                     '& .MuiStepLabel-label.Mui-completed': {
-                      color: '#055305',
+                      color: '#8B0000',
                       fontWeight: 600,
                     },
                   }}
@@ -305,15 +608,36 @@ const MembershipApplicationPage: React.FC = () => {
         )}
 
         {/* Navigation Buttons */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
           <Button
             onClick={handleBack}
             disabled={applicationStep === 0}
             variant="outlined"
+            startIcon={<ArrowBack />}
+            sx={{
+              borderColor: 'rgba(220, 20, 60, 0.3)',
+              color: '#DC143C',
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              borderRadius: 3,
+              textTransform: 'none',
+              fontSize: '1rem',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                borderColor: '#DC143C',
+                backgroundColor: 'rgba(220, 20, 60, 0.05)',
+                transform: 'translateX(-3px)',
+              },
+              '&:disabled': {
+                borderColor: 'rgba(0, 0, 0, 0.12)',
+                color: 'rgba(0, 0, 0, 0.26)',
+              }
+            }}
           >
             Back
           </Button>
-          
+
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
               variant="outlined"
@@ -321,81 +645,72 @@ const MembershipApplicationPage: React.FC = () => {
                 resetApplication();
                 navigate('/');
               }}
+              sx={{
+                borderColor: 'rgba(0, 0, 0, 0.23)',
+                color: 'text.secondary',
+                fontWeight: 600,
+                px: 3,
+                py: 1.5,
+                borderRadius: 3,
+                textTransform: 'none',
+                fontSize: '1rem',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                }
+              }}
             >
               Cancel
             </Button>
-            
+
             <Button
               variant="contained"
               size="large"
               onClick={handleNext}
-              disabled={submitApplicationMutation.isPending}
+              disabled={submitApplicationMutation.isPending || isCheckingId}
+              startIcon={isCheckingId ? <CircularProgress size={20} color="inherit" /> : null}
+              endIcon={!isCheckingId && <ArrowForward />}
               sx={{
-                backgroundColor: applicationStep === steps.length - 1 ? '#055305' : '#FE0000',
-                fontWeight: 600,
+                background: applicationStep === steps.length - 1
+                  ? 'linear-gradient(135deg, #8B0000 0%, #6B0000 100%)'
+                  : 'linear-gradient(135deg, #DC143C 0%, #8B0000 100%)',
+                color: 'white',
+                fontWeight: 700,
                 px: 4,
-                py: 1.5,
+                py: 1.8,
                 textTransform: 'none',
                 borderRadius: 3,
-                fontSize: '1rem',
+                fontSize: '1.05rem',
                 boxShadow: applicationStep === steps.length - 1
-                  ? '0px 4px 20px rgba(5, 83, 5, 0.4)'
-                  : '0px 4px 20px rgba(254, 0, 0, 0.4)',
+                  ? '0 6px 20px rgba(139, 0, 0, 0.4)'
+                  : '0 6px 20px rgba(220, 20, 60, 0.4)',
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  backgroundColor: applicationStep === steps.length - 1 ? '#033303' : '#E20202',
-                  transform: 'translateY(-1px)',
+                  background: applicationStep === steps.length - 1
+                    ? 'linear-gradient(135deg, #6B0000 0%, #4B0000 100%)'
+                    : 'linear-gradient(135deg, #B01030 0%, #6B0000 100%)',
+                  transform: 'translateY(-3px)',
                   boxShadow: applicationStep === steps.length - 1
-                    ? '0px 6px 25px rgba(5, 83, 5, 0.5)'
-                    : '0px 6px 25px rgba(254, 0, 0, 0.5)',
+                    ? '0 8px 28px rgba(139, 0, 0, 0.5)'
+                    : '0 8px 28px rgba(220, 20, 60, 0.5)',
                 },
                 '&:disabled': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.12)',
+                  background: 'rgba(0, 0, 0, 0.12)',
                   color: 'rgba(0, 0, 0, 0.26)',
                   boxShadow: 'none',
                 },
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
             >
-              {applicationStep === steps.length - 1
+              {isCheckingId
+                ? 'Verifying ID...'
+                : applicationStep === steps.length - 1
                 ? (submitApplicationMutation.isPending ? 'Submitting...' : 'Submit Application')
                 : 'Next'
               }
             </Button>
           </Box>
         </Box>
-
-          {/* Help Text */}
-          <Box
-            sx={{
-              mt: 5,
-              p: 3,
-              background: 'linear-gradient(135deg, rgba(255, 171, 0, 0.1) 0%, rgba(255, 171, 0, 0.05) 100%)',
-              border: '1px solid rgba(255, 171, 0, 0.2)',
-              borderRadius: 3,
-            }}
-          >
-            <Typography
-              variant="body1"
-              sx={{
-                color: 'text.primary',
-                fontWeight: 500,
-                textAlign: 'center',
-              }}
-            >
-              <Box component="span" sx={{ color: '#FE0000', fontWeight: 600 }}>
-                Need Help?
-              </Box>{' '}
-              If you encounter any issues during the application process,
-              contact our membership support team at{' '}
-              <Box component="span" sx={{ color: '#FE0000', fontWeight: 600 }}>
-                membership@eff.org.za
-              </Box>{' '}
-              or call{' '}
-              <Box component="span" sx={{ color: '#FE0000', fontWeight: 600 }}>
-                +27 11 447 4797
-              </Box>
-            </Typography>
-          </Box>
         </Paper>
       </Container>
     </Box>

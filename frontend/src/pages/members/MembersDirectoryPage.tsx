@@ -40,16 +40,30 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { viewsApi, geographicApi, searchApi } from '../../services/api';
 import GeographicSelector from '../../components/common/GeographicSelector';
-import type { Member } from '../../types/member';
+import GeographicFilter from '../../components/members/GeographicFilter';
+// import type { Member } from '../../types/member';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
 import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 const MembersDirectoryPage: React.FC = () => {
   // Get province context for provincial admin restrictions
   const provinceContext = useProvinceContext();
   const pageTitle = useProvincePageTitle('Members Directory');
+  const [searchParams] = useSearchParams();
 
+  // Geographic filters for chart-based filtering
+  const [geographicFilters, setGeographicFilters] = useState({
+    province: '',
+    district: '',
+    municipality: '',
+    subregion: '',
+    ward: '',
+    votingDistrict: ''
+  });
+
+  // API filters for backend queries
   const [filters, setFilters] = useState({
     province_code: '',
     district_code: '',
@@ -60,23 +74,70 @@ const MembersDirectoryPage: React.FC = () => {
     search: '',
     gender_id: '',
     age_group: '',
-    has_voting_district: ''
+    has_voting_district: '',
+    membership_status: ''
   });
   const [searchType, setSearchType] = useState<'voting_district' | 'voting_station' | 'ward'>('voting_district');
   const [searchInput, setSearchInput] = useState('');
-  const [selectedSearch, setSelectedSearch] = useState<any>(null);
+  const [_selectedSearch, _setSelectedSearch] = useState<any>(null);
+
+  // Sync geographic filters to API filters
+  useEffect(() => {
+    console.log('🔄 Syncing geographic filters to API filters:', geographicFilters);
+    setFilters(prev => ({
+      ...prev,
+      province_code: geographicFilters.province || '',
+      district_code: geographicFilters.district || '',
+      municipal_code: geographicFilters.municipality || '',
+      ward_code: geographicFilters.ward || '',
+      voting_district_code: geographicFilters.votingDistrict || ''
+    }));
+  }, [geographicFilters]);
+
+  // Read URL parameters on mount
+  useEffect(() => {
+    const votingDistrictCode = searchParams.get('voting_district_code');
+    const wardCode = searchParams.get('ward_code');
+    const municipalCode = searchParams.get('municipal_code');
+    const districtCode = searchParams.get('district_code');
+    const provinceCode = searchParams.get('province_code');
+
+    console.log('🗳️ MembersDirectory URL params:', {
+      votingDistrictCode,
+      wardCode,
+      municipalCode,
+      districtCode,
+      provinceCode
+    });
+
+    if (votingDistrictCode) {
+      console.log('🗳️ Setting voting district filter from URL:', votingDistrictCode);
+      setGeographicFilters(prev => ({
+        ...prev,
+        votingDistrict: votingDistrictCode
+      }));
+    } else if (wardCode) {
+      setGeographicFilters(prev => ({ ...prev, ward: wardCode }));
+    } else if (municipalCode) {
+      setGeographicFilters(prev => ({ ...prev, municipality: municipalCode }));
+    } else if (districtCode) {
+      setGeographicFilters(prev => ({ ...prev, district: districtCode }));
+    } else if (provinceCode) {
+      setGeographicFilters(prev => ({ ...prev, province: provinceCode }));
+    }
+  }, [searchParams]);
 
   // Auto-select province for provincial admins
   useEffect(() => {
     if (provinceContext.shouldRestrictToProvince &&
         provinceContext.assignedProvince &&
-        !filters.province_code) {
-      setFilters(prev => ({
+        !geographicFilters.province) {
+      setGeographicFilters(prev => ({
         ...prev,
-        province_code: provinceContext.assignedProvince!.code
+        province: provinceContext.assignedProvince!.code
       }));
     }
-  }, [provinceContext, filters.province_code]);
+  }, [provinceContext, geographicFilters.province]);
 
   const { data: suggestions = [] } = useQuery({
     queryKey: ['geo-search-suggestions', searchType, searchInput],
@@ -166,7 +227,7 @@ const MembersDirectoryPage: React.FC = () => {
   }
 
   const members = membersData?.data?.members || [];
-  const summary = summaryData?.data?.summary || [];
+  const summary = summaryData?.data || [];
 
   return (
     <Box>
@@ -248,12 +309,22 @@ const MembersDirectoryPage: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* Filters */}
+      {/* Geographic Filter with Interactive Charts */}
+      <GeographicFilter
+        filters={geographicFilters}
+        onFiltersChange={(newFilters: any) => {
+          console.log('📊 Geographic filters changed:', newFilters);
+          setGeographicFilters(newFilters);
+        }}
+        membershipStatus={filters.membership_status}
+      />
+
+      {/* Additional Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom display="flex" alignItems="center" gap={1}>
             <FilterIcon />
-            Filter Members
+            Additional Filters
           </Typography>
 
           <GeographicSelector
@@ -291,7 +362,7 @@ const MembersDirectoryPage: React.FC = () => {
               onInputChange={(_, val) => setSearchInput(val)}
               inputValue={searchInput}
               onChange={(_, val) => {
-                setSelectedSearch(val);
+                _setSelectedSearch(val);
                 applyGeoSearch(val);
               }}
               sx={{ flex: 1, minWidth: 280 }}
@@ -362,6 +433,20 @@ const MembersDirectoryPage: React.FC = () => {
                   <MenuItem value="">All</MenuItem>
                   <MenuItem value="Yes">Has Voting District</MenuItem>
                   <MenuItem value="No">No Voting District</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Membership Status</InputLabel>
+                <Select
+                  value={filters.membership_status}
+                  onChange={(e) => handleFilterChange('membership_status', e.target.value)}
+                  label="Membership Status"
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="good_standing">Good Standing</MenuItem>
+                  <MenuItem value="expired">Expired</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -462,6 +547,7 @@ const MembersDirectoryPage: React.FC = () => {
                               size="small"
                               color="primary"
                               variant="outlined"
+                              sx={{ borderRadius: '50px' }} // Pill shape
                             />
                             <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
                               {member.voting_district_name}
@@ -472,6 +558,7 @@ const MembersDirectoryPage: React.FC = () => {
                             label="Not Assigned"
                             size="small"
                             color="default"
+                            sx={{ borderRadius: '50px' }} // Pill shape
                           />
                         )}
                       </TableCell>

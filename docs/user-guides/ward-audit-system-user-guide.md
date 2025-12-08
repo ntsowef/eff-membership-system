@@ -150,7 +150,7 @@ Presiding Officer: [Start typing name]
 ---
 
 ### Criterion 5: Delegate Selection ⭐ ENHANCED
-**Requirement**: Delegates selected for assemblies (SRPA/PPA/NPA)
+**Requirement**: At least 3 delegates selected across SRPA/PPA/NPA assemblies (any combination)
 
 **How to Assign Delegates**:
 1. Click **"Manage Delegates"** button
@@ -165,9 +165,9 @@ Presiding Officer: [Start typing name]
 4. Click **"Assign Delegate"**
 
 **Visual Indicator**:
-- When SRPA delegates are successfully assigned, a **green checkmark (✓)** appears next to Criterion 5
+- When at least 3 delegates are assigned (across any combination of SRPA/PPA/NPA), a **green checkmark (✓)** appears next to Criterion 5
 - This provides instant visual confirmation of compliance
-- Maximum of 3 SRPA delegates per ward
+- Example: 3 SRPA delegates, or 2 SRPA + 1 PPA, or 1 SRPA + 1 PPA + 1 NPA
 
 **Delegate Limits**:
 - **SRPA**: Maximum 3 delegates
@@ -182,7 +182,7 @@ Selection Method: Elected
 Term: 2025-10-06 to 2026-10-06
 Notes: "Elected at BPA meeting on 2025-10-05"
 
-Result: ✅ Green checkmark appears on Criterion 5
+Result: ✅ Green checkmark appears on Criterion 5 (if total delegates >= 3)
 ```
 
 ---
@@ -280,7 +280,7 @@ Fill in all required fields:
 - Review all details
 - Click **"Assign Delegate"**
 - System confirms: "Delegate assigned successfully"
-- Green checkmark (✓) appears on Criterion 5 for SRPA delegates
+- Green checkmark (✓) appears on Criterion 5 when total delegates >= 3
 
 ### Viewing Current Delegates
 The delegate management screen shows:
@@ -368,11 +368,11 @@ A ward can be approved when **all 5 criteria** are met:
 5. Contact membership team to verify member details
 
 #### Issue: Green checkmark not appearing for delegates (Criterion 5)
-**Problem**: Assigned SRPA delegates but no visual indicator
+**Problem**: Assigned delegates but no visual indicator
 **Solutions**:
-1. Refresh the page to update display
-2. Verify delegate was successfully assigned (check delegate list)
-3. Ensure delegate is for SRPA assembly (not PPA or NPA)
+1. Verify you have at least 3 total delegates across all assemblies (SRPA/PPA/NPA)
+2. Refresh the page to update display
+3. Verify delegates were successfully assigned (check delegate list)
 4. Check delegate status is "Active"
 5. Clear browser cache and reload
 

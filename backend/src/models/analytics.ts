@@ -1,6 +1,31 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 
+// Helper function to convert PostgreSQL bigint strings to numbers
+function convertToNumber(value: any): number {
+  if (value === null || value === undefined) return 0;
+  return Number(value);
+}
+
+// Helper function to convert all numeric fields in an array of objects
+function convertArrayNumbers<T extends Record<string, any>>(arr: T[]): T[] {
+  return arr.map(obj => {
+    const converted: any = {};
+    for (const key in obj) {
+      const value = obj[key];
+      // Convert if it's a number-like string or already a number
+      if (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '') {
+        converted[key] = Number(value);
+      } else if (typeof value === 'number' || typeof value === 'bigint') {
+        converted[key] = Number(value);
+      } else {
+        converted[key] = value;
+      }
+    }
+    return converted as T;
+  });
+}
+
 // Analytics interfaces
 export interface DashboardStats {
   total_members: number;
@@ -31,6 +56,11 @@ export interface MembershipAnalytics {
     member_count: number;
     percentage: number;
   }>;
+  voter_registration_status: Array<{
+    voter_status: string;
+    member_count: number;
+    percentage: number;
+  }>;
   membership_growth: Array<{
     month: string;
     new_members: number;
@@ -45,6 +75,13 @@ export interface MembershipAnalytics {
     gender: string;
     member_count: number;
     percentage: number;
+  }>;
+  age_gender_pyramid: Array<{
+    age_group: string;
+    male_count: number;
+    female_count: number;
+    male_percentage: number;
+    female_percentage: number;
   }>;
   geographic_performance: {
     best_performing_wards: Array<{
@@ -194,7 +231,7 @@ export class AnalyticsModel {
   // Get dashboard statistics
   static async getDashboardStats(filters: ReportFilters = {}): Promise<DashboardStats> {
     try {
-      // Build WHERE clause for province filtering
+      // Build WHERE clause for province and municipality filtering
       const whereConditions: string[] = [];
       const queryParams: any[] = [];
 
@@ -203,57 +240,97 @@ export class AnalyticsModel {
         queryParams.push(filters.province_code);
       }
 
+      if (filters.municipal_code) {
+        whereConditions.push('m.municipality_code = ?');
+        queryParams.push(filters.municipal_code);
+      }
+
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
       const queries = [
-        // Total members with province filtering
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause}`,
-        // Active members with province filtering
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause}`,
-        // Pending applications with province filtering - Fixed: membership_applications doesn't have member_id
-        filters.province_code
+        // Total members with province filtering - FIXED: Use members_consolidated table
+        `SELECT COUNT(*) as count FROM members_consolidated m ${whereClause}`,
+        // Active members with province filtering - FIXED: Use membership_status_id = 1 (Active/Good Standing)
+        `SELECT COUNT(*) as count FROM members_consolidated m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} m.membership_status_id = 1`,
+        // Pending applications with province/municipality filtering - Fixed: membership_applications doesn't have member_id
+        filters.municipal_code
+          ? `SELECT COUNT(*) as count FROM membership_applications ma
+             JOIN wards w ON ma.ward_code = w.ward_code
+             WHERE w.municipality_code = ? AND ma.status = 'Submitted'`
+          : filters.province_code
           ? `SELECT COUNT(*) as count FROM membership_applications ma
              JOIN wards w ON ma.ward_code = w.ward_code
              JOIN municipalities mu ON w.municipality_code = mu.municipality_code
              JOIN districts d ON mu.district_code = d.district_code
              WHERE d.province_code = ? AND ma.status = 'Submitted'`
           : `SELECT COUNT(*) as count FROM membership_applications WHERE status = 'Submitted'`,
-        // Total meetings with province filtering - Fixed: meetings doesn't have ward_code
-        filters.province_code
+        // Total meetings with province/municipality filtering - Fixed: meetings doesn't have ward_code
+        filters.municipal_code
+          ? `SELECT COUNT(*) as count FROM meetings me
+             WHERE (me.hierarchy_level = 'Municipality' AND me.entity_id = (SELECT municipality_id FROM municipalities WHERE municipality_code = ?))
+             OR me.hierarchy_level IN ('Province', 'National')`
+          : filters.province_code
           ? `SELECT COUNT(*) as count FROM meetings me
              WHERE (me.hierarchy_level = 'Province' AND me.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR me.hierarchy_level = 'National'`
           : `SELECT COUNT(*) as count FROM meetings`,
-        // Upcoming meetings with province filtering - Fixed: meetings uses meeting_date instead of start_datetime
-        filters.province_code
+        // Upcoming meetings with province/municipality filtering - Fixed: meetings uses meeting_date instead of start_datetime
+        filters.municipal_code
+          ? `SELECT COUNT(*) as count FROM meetings me
+             WHERE ((me.hierarchy_level = 'Municipality' AND me.entity_id = (SELECT municipality_id FROM municipalities WHERE municipality_code = ?))
+             OR me.hierarchy_level IN ('Province', 'National'))
+             AND me.meeting_status = 'Scheduled' AND me.meeting_date >= CURRENT_DATE`
+          : filters.province_code
           ? `SELECT COUNT(*) as count FROM meetings me
              WHERE ((me.hierarchy_level = 'Province' AND me.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR me.hierarchy_level = 'National')
              AND me.meeting_status = 'Scheduled' AND me.meeting_date >= CURRENT_DATE`
           : `SELECT COUNT(*) as count FROM meetings
              WHERE meeting_status = 'Scheduled' AND meeting_date >= CURRENT_DATE`,
-        // Total elections with province filtering - Fixed schema
-        filters.province_code
+        // Total elections with province/municipality filtering - Fixed schema
+        filters.municipal_code
+          ? `SELECT COUNT(*) as count FROM leadership_elections le
+             WHERE (le.hierarchy_level = 'Municipality' AND le.entity_id = (SELECT municipality_id FROM municipalities WHERE municipality_code = ?))
+             OR le.hierarchy_level IN ('Province', 'National')`
+          : filters.province_code
           ? `SELECT COUNT(*) as count FROM leadership_elections le
              WHERE (le.hierarchy_level = 'Province' AND le.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR le.hierarchy_level = 'National'`
           : `SELECT COUNT(*) as count FROM leadership_elections`,
-        // Active elections with province filtering - Fixed schema
-        filters.province_code
+        // Active elections with province/municipality filtering - Fixed schema
+        filters.municipal_code
+          ? `SELECT COUNT(*) as count FROM leadership_elections le
+             WHERE ((le.hierarchy_level = 'Municipality' AND le.entity_id = (SELECT municipality_id FROM municipalities WHERE municipality_code = ?))
+             OR le.hierarchy_level IN ('Province', 'National'))
+             AND le.election_status IN ('Nominations Open', 'Voting Open')`
+          : filters.province_code
           ? `SELECT COUNT(*) as count FROM leadership_elections le
              WHERE ((le.hierarchy_level = 'Province' AND le.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR le.hierarchy_level = 'National')
              AND le.election_status IN ('Nominations Open', 'Voting Open')`
           : `SELECT COUNT(*) as count FROM leadership_elections
              WHERE election_status IN ('Nominations Open', 'Voting Open')`,
-        // Leadership positions filled with province filtering - Fixed schema
-        filters.province_code
+        // Leadership positions filled with province/municipality filtering - Fixed schema
+        filters.municipal_code
+          ? `SELECT COUNT(*) as count FROM leadership_appointments la
+             JOIN vw_member_details m ON la.member_id = m.member_id
+             WHERE m.municipality_code = ? AND la.appointment_status = 'Active'`
+          : filters.province_code
           ? `SELECT COUNT(*) as count FROM leadership_appointments la
              JOIN vw_member_details m ON la.member_id = m.member_id
              WHERE m.province_code = ? AND la.appointment_status = 'Active'`
           : `SELECT COUNT(*) as count FROM leadership_appointments WHERE appointment_status = 'Active'`,
-        // Leadership positions vacant with province filtering - Fixed schema
-        filters.province_code
+        // Leadership positions vacant with province/municipality filtering - Fixed schema
+        filters.municipal_code
+          ? `SELECT (
+               SELECT COUNT(*) FROM leadership_positions
+               WHERE hierarchy_level IN ('Municipality', 'Province', 'National') AND is_active = TRUE
+             ) - (
+               SELECT COUNT(*) FROM leadership_appointments la
+               JOIN vw_member_details m ON la.member_id = m.member_id
+               WHERE m.municipality_code = ? AND la.appointment_status = 'Active'
+             ) as count`
+          : filters.province_code
           ? `SELECT (
                SELECT COUNT(*) FROM leadership_positions
                WHERE hierarchy_level IN ('Province', 'National') AND is_active = TRUE
@@ -267,21 +344,21 @@ export class AnalyticsModel {
              ) - (
                SELECT COUNT(*) FROM leadership_appointments WHERE appointment_status = 'Active'
              ) as count`,
-        // Recent registrations (last 30 days) with province filtering
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} m.member_created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+        // Recent registrations (last 30 days) with province filtering - FIXED: Use members_consolidated
+        `SELECT COUNT(*) as count FROM members_consolidated m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} m.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
       ];
 
       // Prepare parameters for each query
       const queryParamsArray = [
         queryParams, // Total members
-        queryParams, // Active members
-        filters.province_code ? [filters.province_code] : [], // Pending applications
-        filters.province_code ? [filters.province_code] : [], // Total meetings
-        filters.province_code ? [filters.province_code] : [], // Upcoming meetings
-        filters.province_code ? [filters.province_code] : [], // Total elections
-        filters.province_code ? [filters.province_code] : [], // Active elections
-        filters.province_code ? [filters.province_code] : [], // Leadership positions filled
-        filters.province_code ? [filters.province_code] : [], // Leadership positions vacant
+        [...queryParams], // Active members (needs separate array because of additional WHERE condition)
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Pending applications
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Total meetings
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Upcoming meetings
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Total elections
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Active elections
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Leadership positions filled
+        filters.municipal_code ? [filters.municipal_code] : filters.province_code ? [filters.province_code] : [], // Leadership positions vacant
         [...queryParams] // Recent registrations
       ];
 
@@ -289,31 +366,35 @@ export class AnalyticsModel {
         queries.map((query, index) => executeQuerySingle<{ count: number }>(query, queryParamsArray[index]))
       );
 
-      // Calculate membership growth rate with province filtering
+      // Calculate membership growth rate with province filtering - FIXED: Use members_consolidated
       const currentMonth = await executeQuerySingle<{ count: number }>(
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} MONTH(m.member_created_at) = MONTH(NOW()) AND YEAR(m.member_created_at) = YEAR(NOW())`,
+        `SELECT COUNT(*) as count FROM members_consolidated m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} MONTH(m.created_at) = MONTH(NOW()) AND YEAR(m.created_at) = YEAR(NOW())`,
         queryParams
       );
       const previousMonth = await executeQuerySingle<{ count: number }>(
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} MONTH(m.member_created_at) = MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(m.member_created_at) = YEAR(DATE_SUB(NOW(), INTERVAL 1 MONTH))`,
+        `SELECT COUNT(*) as count FROM members_consolidated m ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} MONTH(m.created_at) = MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(m.created_at) = YEAR(DATE_SUB(NOW(), INTERVAL 1 MONTH))`,
         queryParams
       );
 
-      const growthRate = previousMonth?.count && previousMonth.count > 0 
-        ? Math.round(((currentMonth?.count || 0) - previousMonth.count) / previousMonth.count * 100)
+      // Convert string counts to numbers (PostgreSQL returns bigint as string)
+      const currentMonthCount = Number(currentMonth?.count || 0);
+      const previousMonthCount = Number(previousMonth?.count || 0);
+
+      const growthRate = previousMonthCount > 0
+        ? Math.round(((currentMonthCount - previousMonthCount) / previousMonthCount) * 100)
         : 0;
 
       return {
-        total_members: results[0]?.count || 0,
-        active_members: results[1]?.count || 0,
-        pending_applications: results[2]?.count || 0,
-        total_meetings: results[3]?.count || 0,
-        upcoming_meetings: results[4]?.count || 0,
-        total_elections: results[5]?.count || 0,
-        active_elections: results[6]?.count || 0,
-        leadership_positions_filled: results[7]?.count || 0,
-        leadership_positions_vacant: results[8]?.count || 0,
-        recent_registrations: results[9]?.count || 0,
+        total_members: Number(results[0]?.count || 0),
+        active_members: Number(results[1]?.count || 0),
+        pending_applications: Number(results[2]?.count || 0),
+        total_meetings: Number(results[3]?.count || 0),
+        upcoming_meetings: Number(results[4]?.count || 0),
+        total_elections: Number(results[5]?.count || 0),
+        active_elections: Number(results[6]?.count || 0),
+        leadership_positions_filled: Number(results[7]?.count || 0),
+        leadership_positions_vacant: Number(results[8]?.count || 0),
+        recent_registrations: Number(results[9]?.count || 0),
         membership_growth_rate: growthRate
       };
     } catch (error) {
@@ -340,20 +421,35 @@ export class AnalyticsModel {
 
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-      // Get total counts with province filtering
+      // Get total counts with province filtering - FIXED: Use members_consolidated
       const totalMembers = await executeQuerySingle<{ count: number }>(
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause}`,
+        `SELECT COUNT(*) as count FROM members_consolidated m ${whereClause}`,
         queryParams
       );
 
-      // Since there's no membership_status column, we'll assume all members are active
+      // Count active members: membership_status_id = 1 (Active/Good Standing) - FIXED
+      const activeMembersWhereClause = whereClause
+        ? `${whereClause} AND m.membership_status_id = 1`
+        : 'WHERE m.membership_status_id = 1';
+
       const activeMembers = await executeQuerySingle<{ count: number }>(
-        `SELECT COUNT(*) as count FROM vw_member_details m ${whereClause}`,
+        `SELECT COUNT(*) as count FROM members_consolidated m ${activeMembersWhereClause}`,
         queryParams
       );
+      console.log('🔍 Active Members Query Result:', activeMembers);
 
-      // Set inactive and pending to 0 since we don't have membership status
-      const inactiveMembers = { count: 0 };
+      // Count inactive members: membership_status_id IN (2, 3, 4) (Expired, Inactive, Grace Period) - FIXED
+      const inactiveMembersWhereClause = whereClause
+        ? `${whereClause} AND m.membership_status_id IN (2, 3, 4)`
+        : 'WHERE m.membership_status_id IN (2, 3, 4)';
+
+      const inactiveMembers = await executeQuerySingle<{ count: number }>(
+        `SELECT COUNT(*) as count FROM members_consolidated m ${inactiveMembersWhereClause}`,
+        queryParams
+      );
+      console.log('🔍 Inactive Members Query Result:', inactiveMembers);
+
+      // Pending members (applications not yet approved) - set to 0 for now
       const pendingMembers = { count: 0 };
 
       // Get membership by hierarchy (simplified - just return empty array for now)
@@ -363,18 +459,41 @@ export class AnalyticsModel {
         percentage: number;
       }> = [];
 
-      // Get membership by status (simplified - since no membership_status column exists)
-      const membershipByStatus: Array<{
+      // Get membership by status - FIXED: Use membership_status_id from members_consolidated
+      const membershipByStatus = await executeQuery<{
         membership_status: string;
         member_count: number;
         percentage: number;
-      }> = [
-        {
-          membership_status: 'Active',
-          member_count: totalMembers?.count || 0,
-          percentage: 100
-        }
-      ];
+      }>(
+        `SELECT
+          ms.status_name as membership_status,
+          COUNT(*) as member_count,
+          ROUND((COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM members_consolidated m2 ${whereClause.replace(/m\./g, 'm2.')}), 0)), 2) as percentage
+        FROM members_consolidated m
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+        ${whereClause}
+        GROUP BY ms.status_name, ms.status_id
+        ORDER BY ms.status_id`,
+        queryParams
+      );
+
+      // Get voter registration status breakdown - NEW
+      const voterRegistrationStatus = await executeQuery<{
+        voter_status: string;
+        member_count: number;
+        percentage: number;
+      }>(
+        `SELECT
+          vs.status_name as voter_status,
+          COUNT(*) as member_count,
+          ROUND((COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM members_consolidated m2 ${whereClause.replace(/m\./g, 'm2.')}), 0)), 2) as percentage
+        FROM members_consolidated m
+        LEFT JOIN voter_statuses vs ON m.voter_status_id = vs.status_id
+        ${whereClause}
+        GROUP BY vs.status_name, vs.status_id
+        ORDER BY vs.status_id`,
+        queryParams
+      );
 
       // Get membership growth (last 12 months) with province filtering
       const membershipGrowth = await executeQuery<{
@@ -383,24 +502,18 @@ export class AnalyticsModel {
         total_members: number;
       }>(
         `SELECT
-          TO_CHAR(m.member_created_at, 'YYYY-MM') as month,
+          DATE_FORMAT(m.created_at, '%Y-%m') as month,
           COUNT(*) as new_members,
           COUNT(*) as total_members
-        FROM vw_member_details m
-        ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} m.member_created_at >= CURRENT_DATE - INTERVAL '12 months'
-        GROUP BY TO_CHAR(m.member_created_at, 'YYYY-MM')
+        FROM members_consolidated m
+        ${whereClause} ${whereConditions.length > 0 ? 'AND' : 'WHERE'} m.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(m.created_at, '%Y-%m')
         ORDER BY month`,
         queryParams
       );
 
-      // Get age distribution with province filtering
+      // Get age distribution with province filtering - FIXED: Use members_consolidated
       const ageWhereClause = whereClause ? `${whereClause} AND m.age IS NOT NULL` : 'WHERE m.age IS NOT NULL';
-
-      // Age distribution - Fixed PostgreSQL subquery issue
-      const totalMembersWithAge = await executeQuerySingle<{ total: number }>(
-        `SELECT COUNT(*) as total FROM vw_member_details m ${ageWhereClause}`,
-        queryParams
-      );
 
       const ageDistribution = await executeQuery<{
         age_group: string;
@@ -417,21 +530,16 @@ export class AnalyticsModel {
             ELSE '65+'
           END as age_group,
           COUNT(*) as member_count,
-          ROUND((COUNT(*) * 100.0 / NULLIF(${totalMembersWithAge?.total || 1}, 0)), 2) as percentage
-        FROM vw_member_details m
+          ROUND((COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM members_consolidated m2 ${ageWhereClause.replace(/m\./g, 'm2.')}), 0)), 2) as percentage
+        FROM members_consolidated m
         ${ageWhereClause}
         GROUP BY age_group
-        ORDER BY age_group`,
+        ORDER BY MIN(m.age)`,
         queryParams
       );
 
-      // Get gender distribution with province filtering - Fixed PostgreSQL subquery issue
-      const genderWhereClause = whereClause ? `${whereClause} AND m.gender_name IS NOT NULL` : 'WHERE m.gender_name IS NOT NULL';
-
-      const totalMembersWithGender = await executeQuerySingle<{ total: number }>(
-        `SELECT COUNT(*) as total FROM vw_member_details m ${genderWhereClause}`,
-        queryParams
-      );
+      // Get gender distribution with province filtering - FIXED: Use members_consolidated
+      const genderWhereClause = whereClause ? `${whereClause} AND g.gender_name IS NOT NULL` : 'WHERE g.gender_name IS NOT NULL';
 
       const genderDistribution = await executeQuery<{
         gender: string;
@@ -439,29 +547,77 @@ export class AnalyticsModel {
         percentage: number;
       }>(
         `SELECT
-          m.gender_name as gender,
+          g.gender_name as gender,
           COUNT(*) as member_count,
-          ROUND((COUNT(*) * 100.0 / NULLIF(${totalMembersWithGender?.total || 1}, 0)), 2) as percentage
-        FROM vw_member_details m
+          ROUND((COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM members_consolidated m2 LEFT JOIN genders g2 ON m2.gender_id = g2.gender_id ${genderWhereClause.replace(/g\./g, 'g2.')}), 0)), 2) as percentage
+        FROM members_consolidated m
+        LEFT JOIN genders g ON m.gender_id = g.gender_id
         ${genderWhereClause}
-        GROUP BY m.gender_name
+        GROUP BY g.gender_name
         ORDER BY member_count DESC`,
         queryParams
       );
+
+      // Get age-gender pyramid data (population pyramid) - Optimized
+      const pyramidWhereClause = whereClause ? `${whereClause} AND m.age IS NOT NULL AND g.gender_name IN ('Male', 'Female')` : 'WHERE m.age IS NOT NULL AND g.gender_name IN (\'Male\', \'Female\')';
+
+      const ageGenderPyramidRaw = await executeQuery<{
+        age_group: string;
+        male_count: string;
+        female_count: string;
+      }>(
+        `SELECT
+          CASE
+            WHEN m.age < 25 THEN '18-24'
+            WHEN m.age < 35 THEN '25-34'
+            WHEN m.age < 45 THEN '35-44'
+            WHEN m.age < 55 THEN '45-54'
+            WHEN m.age < 65 THEN '55-64'
+            ELSE '65+'
+          END as age_group,
+          SUM(CASE WHEN g.gender_name = 'Male' THEN 1 ELSE 0 END) as male_count,
+          SUM(CASE WHEN g.gender_name = 'Female' THEN 1 ELSE 0 END) as female_count
+        FROM members_consolidated m
+        LEFT JOIN genders g ON m.gender_id = g.gender_id
+        ${pyramidWhereClause}
+        GROUP BY age_group
+        ORDER BY MIN(m.age)`,
+        queryParams
+      );
+
+      // Calculate total for percentage calculation
+      const totalPyramidMembers = ageGenderPyramidRaw.reduce((sum, row) =>
+        sum + Number(row.male_count) + Number(row.female_count), 0
+      );
+
+      // Calculate percentages in JavaScript
+      const ageGenderPyramid = ageGenderPyramidRaw.map(row => ({
+        age_group: row.age_group,
+        male_count: Number(row.male_count),
+        female_count: Number(row.female_count),
+        male_percentage: totalPyramidMembers > 0
+          ? Number(((Number(row.male_count) * 100) / totalPyramidMembers).toFixed(2))
+          : 0,
+        female_percentage: totalPyramidMembers > 0
+          ? Number(((Number(row.female_count) * 100) / totalPyramidMembers).toFixed(2))
+          : 0
+      }));
 
       // Get geographic performance data with province filtering
       const geographicPerformance = await this.getGeographicPerformance(filters);
 
       return {
-        total_members: totalMembers?.count || 0,
-        active_members: activeMembers?.count || 0,
-        inactive_members: inactiveMembers?.count || 0,
-        pending_members: pendingMembers?.count || 0,
-        membership_by_hierarchy: membershipByHierarchy || [],
-        membership_by_status: membershipByStatus || [],
-        membership_growth: membershipGrowth || [],
-        age_distribution: ageDistribution || [],
-        gender_distribution: genderDistribution || [],
+        total_members: Number(totalMembers?.count || 0),
+        active_members: Number(activeMembers?.count || 0),
+        inactive_members: Number(inactiveMembers?.count || 0),
+        pending_members: Number(pendingMembers?.count || 0),
+        membership_by_hierarchy: convertArrayNumbers(membershipByHierarchy || []),
+        membership_by_status: convertArrayNumbers(membershipByStatus || []),
+        voter_registration_status: convertArrayNumbers(voterRegistrationStatus || []),
+        membership_growth: convertArrayNumbers(membershipGrowth || []),
+        age_distribution: convertArrayNumbers(ageDistribution || []),
+        gender_distribution: convertArrayNumbers(genderDistribution || []),
+        age_gender_pyramid: ageGenderPyramid || [],
         geographic_performance: geographicPerformance
       };
     } catch (error) {
@@ -570,14 +726,14 @@ export class AnalyticsModel {
       );
 
       return {
-        total_meetings: totalMeetings?.count || 0,
-        completed_meetings: completedMeetings?.count || 0,
-        cancelled_meetings: cancelledMeetings?.count || 0,
-        upcoming_meetings: upcomingMeetings?.count || 0,
-        average_attendance: Math.round(avgAttendance?.avg_attendance || 0),
-        meetings_by_type: meetingsByType || [],
-        meetings_by_hierarchy: meetingsByHierarchy || [],
-        monthly_meetings: monthlyMeetings || []
+        total_meetings: Number(totalMeetings?.count || 0),
+        completed_meetings: Number(completedMeetings?.count || 0),
+        cancelled_meetings: Number(cancelledMeetings?.count || 0),
+        upcoming_meetings: Number(upcomingMeetings?.count || 0),
+        average_attendance: Math.round(Number(avgAttendance?.avg_attendance || 0)),
+        meetings_by_type: convertArrayNumbers(meetingsByType || []),
+        meetings_by_hierarchy: convertArrayNumbers(meetingsByHierarchy || []),
+        monthly_meetings: convertArrayNumbers(monthlyMeetings || [])
       };
     } catch (error) {
       throw createDatabaseError('Failed to get meeting analytics', error);
@@ -781,16 +937,16 @@ export class AnalyticsModel {
       );
 
       return {
-        total_positions: totalPositions?.count || 0,
-        filled_positions: filledPositions?.count || 0,
-        vacant_positions: (totalPositions?.count || 0) - (filledPositions?.count || 0),
-        total_elections: totalElections?.count || 0,
-        completed_elections: completedElections?.count || 0,
-        upcoming_elections: upcomingElections?.count || 0,
-        organizational_structures: organizationalStructures || [],
-        positions_by_hierarchy: positionsByHierarchy || [],
-        leadership_tenure: leadershipTenure || [],
-        election_participation: electionParticipation || []
+        total_positions: Number(totalPositions?.count || 0),
+        filled_positions: Number(filledPositions?.count || 0),
+        vacant_positions: Number(totalPositions?.count || 0) - Number(filledPositions?.count || 0),
+        total_elections: Number(totalElections?.count || 0),
+        completed_elections: Number(completedElections?.count || 0),
+        upcoming_elections: Number(upcomingElections?.count || 0),
+        organizational_structures: convertArrayNumbers(organizationalStructures || []),
+        positions_by_hierarchy: convertArrayNumbers(positionsByHierarchy || []),
+        leadership_tenure: convertArrayNumbers(leadershipTenure || []),
+        election_participation: convertArrayNumbers(electionParticipation || [])
       };
     } catch (error) {
       throw createDatabaseError('Failed to get leadership analytics', error);
@@ -891,7 +1047,8 @@ export class AnalyticsModel {
 
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-      // Get best performing wards (top 10 by member count) with geographic filtering
+      // Get best performing wards (top 10 by Good Standing member count) with geographic filtering
+      // Only count members with membership_status_id = 1 (Good Standing)
       const bestPerformingWards = await executeQuery<{
         ward_code: string;
         ward_name: string;
@@ -905,8 +1062,8 @@ export class AnalyticsModel {
           w.ward_name,
           m.municipality_name,
           p.province_name,
-          COUNT(mem.member_id) as member_count,
-          ROUND((COUNT(mem.member_id) / 200.0) * 100, 1) as performance_score
+          COUNT(CASE WHEN mem.membership_status_id = 1 THEN 1 END) as member_count,
+          ROUND((COUNT(CASE WHEN mem.membership_status_id = 1 THEN 1 END) / 200.0) * 100, 1) as performance_score
         FROM wards w
         LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
         LEFT JOIN districts d ON m.district_code = d.district_code
@@ -914,7 +1071,7 @@ export class AnalyticsModel {
         LEFT JOIN members mem ON w.ward_code = mem.ward_code
         ${whereClause}
         GROUP BY w.ward_code, w.ward_name, m.municipality_name, p.province_name
-        HAVING COUNT(mem.member_id) > 0
+        HAVING COUNT(CASE WHEN mem.membership_status_id = 1 THEN 1 END) > 0
         ORDER BY member_count DESC
         LIMIT 10`,
         queryParams
@@ -943,7 +1100,7 @@ export class AnalyticsModel {
         LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
         LEFT JOIN districts d ON m.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN members mem ON w.ward_code = mem.ward_code
+        LEFT JOIN members_consolidated mem ON w.ward_code = mem.ward_code
         ${whereClause}
         GROUP BY w.ward_code, w.ward_name
         HAVING COUNT(mem.member_id) > 0 AND COALESCE(
@@ -980,7 +1137,7 @@ export class AnalyticsModel {
         LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
         LEFT JOIN districts d ON m.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN members mem ON w.ward_code = mem.ward_code
+        LEFT JOIN members_consolidated mem ON w.ward_code = mem.ward_code
         ${whereClause}
         GROUP BY w.ward_code, w.ward_name
         HAVING member_count < 200
@@ -991,7 +1148,7 @@ export class AnalyticsModel {
 
       // Get total member count for percentage calculations
       const totalMembersResult = await executeQuerySingle<{ total: number }>(
-        `SELECT COUNT(*) as total FROM members`,
+        `SELECT COUNT(*) as total FROM members_consolidated`,
         []
       );
       const totalMembers = totalMembersResult?.total || 1;
@@ -1012,7 +1169,7 @@ export class AnalyticsModel {
         LEFT JOIN districts d ON p.province_code = d.province_code
         LEFT JOIN municipalities mun ON d.district_code = mun.district_code
         LEFT JOIN wards w ON mun.municipality_code = w.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         GROUP BY p.province_code, p.province_name
         HAVING COUNT(DISTINCT m.member_id) > 0
         ORDER BY member_count DESC
@@ -1038,7 +1195,7 @@ export class AnalyticsModel {
         LEFT JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN municipalities mun ON d.district_code = mun.district_code
         LEFT JOIN wards w ON mun.municipality_code = w.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         GROUP BY d.district_code, d.district_name, p.province_name
         HAVING COUNT(DISTINCT m.member_id) > 0
         ORDER BY member_count DESC
@@ -1061,7 +1218,7 @@ export class AnalyticsModel {
         FROM districts d
         LEFT JOIN municipalities mun ON d.district_code = mun.district_code
         LEFT JOIN wards w ON mun.municipality_code = w.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         WHERE d.province_code = $2
         GROUP BY d.district_code, d.district_name
         ORDER BY member_count DESC`,
@@ -1107,7 +1264,7 @@ export class AnalyticsModel {
         LEFT JOIN districts d ON mun.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN wards w ON mun.municipality_code = w.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         ${municipalityWhereClause}
         GROUP BY mun.municipality_code, mun.municipality_name, p.province_name
         HAVING COUNT(DISTINCT m.member_id) > 0
@@ -1116,7 +1273,8 @@ export class AnalyticsModel {
         municipalityParams
       );
 
-      // Get top 10 wards by membership count (Municipal level only)
+      // Get top 10 wards by active membership count (Municipal level only)
+      // Active = not expired OR in grace period (expired < 90 days)
       const topWards = filters.municipal_code ? await executeQuery<{
         ward_code: string;
         ward_name: string;
@@ -1128,14 +1286,14 @@ export class AnalyticsModel {
           w.ward_code,
           w.ward_name,
           mun.municipality_name,
-          COUNT(m.member_id) as member_count,
-          ROUND((COUNT(m.member_id) * 100.0 / $1), 2) as percentage
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) as member_count,
+          ROUND((COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) * 100.0 / $1), 2) as percentage
         FROM wards w
         LEFT JOIN municipalities mun ON w.municipality_code = mun.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         WHERE w.municipality_code = $2
         GROUP BY w.ward_code, w.ward_name, mun.municipality_name
-        HAVING COUNT(m.member_id) > 0
+        HAVING COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) > 0
         ORDER BY member_count DESC
         LIMIT 10`,
         [totalMembers, filters.municipal_code]
@@ -1163,7 +1321,7 @@ export class AnalyticsModel {
         LEFT JOIN provinces p ON d.province_code = p.province_code
         LEFT JOIN municipalities mun ON d.district_code = mun.district_code
         LEFT JOIN wards w ON mun.municipality_code = w.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         ${whereClause}
         GROUP BY d.district_code, d.district_name, p.province_name
         HAVING COUNT(DISTINCT m.member_id) > 0
@@ -1282,7 +1440,7 @@ export class AnalyticsModel {
           COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '12 months' THEN 1 END) as new_members_12m,
           COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '24 months'
                      AND DATE(created_at) < CURRENT_DATE - INTERVAL '12 months' THEN 1 END) as new_members_prev_12m
-        FROM members
+        FROM members_consolidated
       `);
 
       // Calculate growth rate

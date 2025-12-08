@@ -112,7 +112,7 @@ const VotingDistrictsTest: React.FC = () => {
                     </Typography>
                     
                     <List dense>
-                      {votingDistricts.data.slice(0, 10).map((vd: any, index: number) => (
+                      {votingDistricts.data.slice(0, 10).map((vd: any, _index: number) => (
                         <ListItem key={vd.voting_district_code} divider>
                           <ListItemText
                             primary={`VD ${vd.voting_district_number} - ${vd.voting_district_name}`}

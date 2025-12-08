@@ -271,7 +271,7 @@ const MemberDetailPage: React.FC = () => {
                 />
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Member since {(member.membership_date_joined || member.created_at) ? new Date(member.membership_date_joined || member.created_at).toLocaleDateString() : 'N/A'}
+                Member since {((member as any).membership_date_joined || member.created_at) ? new Date((member as any).membership_date_joined || member.created_at).toLocaleDateString() : 'N/A'}
               </Typography>
             </Box>
           </Box>
@@ -443,6 +443,32 @@ const MemberDetailPage: React.FC = () => {
                     <MenuItem value="Associate">Associate</MenuItem>
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Date Joined"
+                  value={editedMember.date_joined
+                    ? new Date(editedMember.date_joined).toLocaleDateString()
+                    : (editedMember.created_at ? new Date(editedMember.created_at).toLocaleDateString() : 'N/A')}
+                  InputProps={{
+                    readOnly: true,
+                  }}
+                  helperText="The date when the member first joined"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Membership Expiry Date"
+                  value={editedMember.expiry_date
+                    ? new Date(editedMember.expiry_date).toLocaleDateString()
+                    : 'N/A'}
+                  InputProps={{
+                    readOnly: true,
+                  }}
+                  helperText="The membership expiry date"
+                />
               </Grid>
             </Grid>
           ) : (

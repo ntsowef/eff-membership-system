@@ -27,7 +27,7 @@ import {
   Grid,
 } from '@mui/material';
 import {
-  Visibility,
+
   GetApp,
   Refresh,
   Search,
@@ -37,7 +37,7 @@ import {
   Cancel,
 } from '@mui/icons-material';
 import { useRenewalBulkUpload } from '../../hooks/useRenewalBulkUpload';
-import type { BulkUpload } from '../../types/renewalBulkUpload';
+// import type { BulkUpload } from '../../types/renewalBulkUpload';
 
 const UploadHistoryTab: React.FC = () => {
   const {
@@ -55,7 +55,7 @@ const UploadHistoryTab: React.FC = () => {
     fetchRecentUploads();
   }, [fetchRecentUploads]);
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

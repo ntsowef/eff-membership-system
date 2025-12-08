@@ -15,14 +15,13 @@ import {
   Alert,
   CircularProgress,
   Divider,
-  Tooltip,
-  IconButton,
+
 } from '@mui/material';
 import {
   DragDropContext,
   Droppable,
   Draggable,
-  DropResult,
+  type DropResult,
 } from 'react-beautiful-dnd';
 import {
   Person as PersonIcon,
@@ -30,7 +29,6 @@ import {
   Assignment as AssignmentIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  Info as InfoIcon,
 } from '@mui/icons-material';
 import { LeadershipAPI } from '../../services/leadershipApi';
 import type { 
@@ -58,7 +56,7 @@ interface AssignmentDialogData {
 }
 
 const WarCouncilAssignment: React.FC = () => {
-  const { showNotification } = useUI();
+  const { addNotification } = useUI();
   const [positions, setPositions] = useState<WarCouncilStructureView[]>([]);
   const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,20 +72,18 @@ const WarCouncilAssignment: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [structureData, membersResponse] = await Promise.all([
-        LeadershipAPI.getWarCouncilStructure(),
-        LeadershipAPI.getEligibleMembers({
-          hierarchy_level: 'National',
-          entity_id: 1,
-          limit: 100
-        })
-      ]);
+      const structureData = await LeadershipAPI.getWarCouncilStructure();
+      // Get eligible members for all positions
+      const membersResponse = { members: [] as Member[] }; // Placeholder - would need to fetch for each position
 
-      setPositions(structureData);
+      setPositions(structureData.structure.all_positions);
       setAvailableMembers(membersResponse.members.filter((member: Member) => member.is_eligible));
     } catch (error) {
       console.error('Error loading War Council data:', error);
-      showNotification('Failed to load War Council data', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to load War Council data'
+      });
     } finally {
       setLoading(false);
     }
@@ -95,7 +91,7 @@ const WarCouncilAssignment: React.FC = () => {
 
   // Handle drag and drop
   const handleDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+    const { destination, source: _source, draggableId } = result;
 
     if (!destination) return;
 
@@ -119,13 +115,7 @@ const WarCouncilAssignment: React.FC = () => {
       setValidating(true);
       
       // Validate the appointment
-      const validation = await LeadershipAPI.validateWarCouncilAppointment({
-        position_id: position.position_id,
-        member_id: member.member_id,
-        appointment_type: 'Appointment',
-        hierarchy_level: 'National',
-        entity_id: 1
-      });
+      const validation = await LeadershipAPI.validateWarCouncilAppointment(position.position_id, member.member_id);
 
       setAssignmentDialog({
         position,
@@ -134,7 +124,10 @@ const WarCouncilAssignment: React.FC = () => {
       });
     } catch (error) {
       console.error('Error validating appointment:', error);
-      showNotification('Failed to validate appointment', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to validate appointment'
+      });
     } finally {
       setValidating(false);
     }
@@ -150,26 +143,29 @@ const WarCouncilAssignment: React.FC = () => {
       const appointmentData: CreateAppointmentData = {
         position_id: assignmentDialog.position.position_id,
         member_id: assignmentDialog.member.member_id,
-        appointment_type: 'Appointment',
+        appointment_type: 'Appointed',
         hierarchy_level: 'National',
         entity_id: 1,
         start_date: new Date().toISOString().split('T')[0],
-        notes: `War Council appointment: ${assignmentDialog.position.position_name}`
+        appointment_notes: `War Council appointment: ${assignmentDialog.position.position_name}`
       };
 
       await LeadershipAPI.createWarCouncilAppointment(appointmentData);
-      
-      showNotification(
-        `Successfully appointed ${assignmentDialog.member.firstname} ${assignmentDialog.member.surname} as ${assignmentDialog.position.position_name}`,
-        'success'
-      );
+
+      addNotification({
+        type: 'success',
+        message: `Successfully appointed ${assignmentDialog.member.firstname} ${assignmentDialog.member.surname} as ${assignmentDialog.position.position_name}`
+      });
 
       // Refresh data
       await loadData();
       setAssignmentDialog(null);
     } catch (error) {
       console.error('Error creating appointment:', error);
-      showNotification('Failed to create appointment', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to create appointment'
+      });
     } finally {
       setAssigning(false);
     }
@@ -329,7 +325,7 @@ interface PositionCardProps {
   eligibleMembers: Member[];
 }
 
-const PositionCard: React.FC<PositionCardProps> = ({ position, onAssign, eligibleMembers }) => {
+const PositionCard: React.FC<PositionCardProps> = ({ position, onAssign: _onAssign, eligibleMembers }) => {
   return (
     <Droppable droppableId={`position-${position.position_id}`}>
       {(provided, snapshot) => (

@@ -9,7 +9,7 @@ import {
   Chip,
   LinearProgress,
   Alert,
-  Paper,
+
   List,
   ListItem,
   ListItemText,
@@ -20,7 +20,7 @@ import {
   People as PeopleIcon,
   Security as SecurityIcon,
   AdminPanelSettings as AdminIcon,
-  TrendingUp as TrendingUpIcon,
+
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
@@ -43,16 +43,15 @@ const UserManagementDashboard: React.FC = () => {
     pendingWorkflows,
     workflowsLoading,
     mySessions,
-    sessionsLoading,
-    mfaStatus,
-    mfaLoading
+
+    mfaStatus
   } = useAppSelector(state => state.userManagement);
 
   useEffect(() => {
-    dispatch(fetchUserStatistics());
-    dispatch(fetchPendingWorkflows());
-    dispatch(fetchMySessions());
-    dispatch(fetchMFAStatus());
+    dispatch(fetchUserStatistics() as any);
+    dispatch(fetchPendingWorkflows() as any);
+    dispatch(fetchMySessions() as any);
+    dispatch(fetchMFAStatus() as any);
   }, [dispatch]);
 
   const StatCard: React.FC<{
@@ -232,7 +231,7 @@ const UserManagementDashboard: React.FC = () => {
                 </Box>
               ) : (
                 <List>
-                  {pendingWorkflows.slice(0, 5).map((workflow) => (
+                  {pendingWorkflows.slice(0, 5).map((workflow: any) => (
                     <ListItem key={workflow.id}>
                       <ListItemIcon>
                         <ScheduleIcon color="warning" />

@@ -405,7 +405,7 @@ export class LeadershipModel {
           lp.position_code,
           TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
-          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
+          COALESCE(appointer.name, 'System') as appointed_by_name,
           CASE
             WHEN la.hierarchy_level = 'National' THEN 'National Level'
             WHEN la.hierarchy_level = 'Province' THEN p.province_name
@@ -430,8 +430,8 @@ export class LeadershipModel {
           w.ward_number AS ward_number
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
-        LEFT JOIN members m ON la.member_id = m.member_id
-        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
+        LEFT JOIN members_consolidated m ON la.member_id = m.member_id
+        LEFT JOIN users appointer ON la.appointed_by = appointer.user_id
         LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
         LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
         LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
@@ -513,8 +513,8 @@ export class LeadershipModel {
           lp.position_code,
           TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
-          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
-          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name,
+          COALESCE(appointer.name, 'System') as appointed_by_name,
+          COALESCE(terminator.name, '') as terminated_by_name,
           CASE
             WHEN la.hierarchy_level = 'National' THEN 'National Level'
             WHEN la.hierarchy_level = 'Province' THEN p.province_name
@@ -525,9 +525,9 @@ export class LeadershipModel {
           END as entity_name
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
-        LEFT JOIN members m ON la.member_id = m.member_id
-        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
-        LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
+        LEFT JOIN members_consolidated m ON la.member_id = m.member_id
+        LEFT JOIN users appointer ON la.appointed_by = appointer.user_id
+        LEFT JOIN users terminator ON la.terminated_by = terminator.user_id
         LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
         LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
         LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
@@ -552,6 +552,7 @@ export class LeadershipModel {
           position_id, member_id, hierarchy_level, entity_id, appointment_type,
           start_date, end_date, appointed_by, appointment_notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id
       `;
 
       const params = [
@@ -567,7 +568,7 @@ export class LeadershipModel {
       ];
 
       const result = await executeQuery(query, params);
-      return result.insertId;
+      return result[0]?.id || result[0]?.insertId || 0;
     } catch (error) {
       throw createDatabaseError('Failed to create appointment', error);
     }
@@ -624,7 +625,16 @@ export class LeadershipModel {
     }
   }
 
-
+  // Delete appointment (hard delete - use with caution)
+  static async deleteAppointment(id: number): Promise<boolean> {
+    try {
+      const query = `DELETE FROM leadership_appointments WHERE id = ?`;
+      const result = await executeQuery(query, [id]);
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to delete appointment', error);
+    }
+  }
 
   // Get appointment by ID
   static async getAppointmentById(id: number): Promise<LeadershipAppointmentDetails | null> {
@@ -636,13 +646,13 @@ export class LeadershipModel {
           lp.position_code,
           TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
-          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
-          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name
+          COALESCE(appointer.name, 'System') as appointed_by_name,
+          COALESCE(terminator.name, '') as terminated_by_name
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
-        LEFT JOIN members m ON la.member_id = m.member_id
-        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
-        LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
+        LEFT JOIN members_consolidated m ON la.member_id = m.member_id
+        LEFT JOIN users appointer ON la.appointed_by = appointer.user_id
+        LEFT JOIN users terminator ON la.terminated_by = terminator.user_id
         WHERE la.id = ?
       `;
 
@@ -702,8 +712,8 @@ export class LeadershipModel {
           lp.position_code,
           TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
-          TRIM(COALESCE(appointer.firstname, '') || ' ' || COALESCE(appointer.surname, '')) as appointed_by_name,
-          TRIM(COALESCE(terminator.firstname, '') || ' ' || COALESCE(terminator.surname, '')) as terminated_by_name,
+          COALESCE(appointer.name, 'System') as appointed_by_name,
+          COALESCE(terminator.name, '') as terminated_by_name,
           CASE
             WHEN la.hierarchy_level = 'National' THEN 'National Level'
             WHEN la.hierarchy_level = 'Province' THEN p.province_name
@@ -713,9 +723,9 @@ export class LeadershipModel {
           END as entity_name
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
-        LEFT JOIN members m ON la.member_id = m.member_id
-        LEFT JOIN members appointer ON la.appointed_by = appointer.member_id
-        LEFT JOIN members terminator ON la.terminated_by = terminator.member_id
+        LEFT JOIN members_consolidated m ON la.member_id = m.member_id
+        LEFT JOIN users appointer ON la.appointed_by = appointer.user_id
+        LEFT JOIN users terminator ON la.terminated_by = terminator.user_id
         LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
         LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
         LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
@@ -770,7 +780,7 @@ export class LeadershipModel {
           AND la.hierarchy_level = ?
           AND la.entity_id = ?
           AND la.appointment_status = 'Active'
-        LEFT JOIN members m ON la.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON la.member_id = m.member_id
         WHERE lp.hierarchy_level = ? AND lp.is_active = TRUE
         ORDER BY lp.position_order
       `;
@@ -835,10 +845,10 @@ export class LeadershipModel {
         FROM leadership_elections le
         LEFT JOIN leadership_election_candidates lec ON le.election_id = lec.election_id
         LEFT JOIN leadership_positions lp ON lec.position_id = lp.id
-        LEFT JOIN members creator ON le.created_by = creator.member_id
+        LEFT JOIN members_consolidated creator ON le.created_by = creator.member_id
         LEFT JOIN election_candidates ec ON le.id = ec.election_id
         LEFT JOIN election_candidates winner_ec ON le.id = winner_ec.election_id AND winner_ec.is_winner = TRUE
-        LEFT JOIN members winner ON winner_ec.member_id = winner.member_id
+        LEFT JOIN members_consolidated winner ON winner_ec.member_id = winner.member_id
         LEFT JOIN provinces p ON le.entity_id = p.province_id AND le.hierarchy_level = 'Province'
         LEFT JOIN municipalities mun ON le.entity_id = mun.municipality_id AND le.hierarchy_level = 'Municipality'
         LEFT JOIN wards w ON le.entity_id = w.ward_id AND le.hierarchy_level = 'Ward'
@@ -948,7 +958,7 @@ export class LeadershipModel {
           m.email,
           m.cell_number as phone_number
         FROM election_candidates ec
-        LEFT JOIN members m ON ec.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON ec.member_id = m.member_id
         WHERE ec.election_id = ?
         ORDER BY ec.nomination_date ASC
       `;
@@ -1008,7 +1018,7 @@ export class LeadershipModel {
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           ROUND((ec.votes_received * 100.0 / NULLIF(le.total_votes_cast, 0)), 2) as vote_percentage
         FROM election_candidates ec
-        LEFT JOIN members m ON ec.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON ec.member_id = m.member_id
         LEFT JOIN leadership_elections le ON ec.election_id = le.id
         WHERE ec.election_id = ?
         ORDER BY ec.votes_received DESC, ec.nomination_date ASC
@@ -1074,7 +1084,7 @@ export class LeadershipModel {
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
           m.email,
           m.cell_number as phone_number
-        FROM members m
+        FROM members_consolidated m
         WHERE m.member_id IS NOT NULL
       `;
 
@@ -1110,19 +1120,11 @@ export class LeadershipModel {
       const query = `
         SELECT
           lp.*,
-          ls.structure_name,
-          CASE
-            WHEN lp.province_code = 'EC' THEN 'Eastern Cape'
-            WHEN lp.province_code = 'FS' THEN 'Free State'
-            WHEN lp.province_code = 'GP' THEN 'Gauteng'
-            WHEN lp.province_code = 'KZN' THEN 'KwaZulu-Natal'
-            WHEN lp.province_code = 'LP' THEN 'Limpopo'
-            WHEN lp.province_code = 'MP' THEN 'Mpumalanga'
-            WHEN lp.province_code = 'NC' THEN 'Northern Cape'
-            WHEN lp.province_code = 'NW' THEN 'North West'
-            WHEN lp.province_code = 'WC' THEN 'Western Cape'
-            ELSE NULL
-          END as province_name
+          NULL as structure_name,
+          NULL as province_name,
+          NULL as province_code,
+          FALSE as province_specific,
+          TRUE as is_unique_position
         FROM leadership_positions lp
         WHERE lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
           AND lp.is_active = TRUE
@@ -1178,19 +1180,12 @@ export class LeadershipModel {
 
       // Check if position exists and is War Council position
       const positionQuery = `
-        SELECT lp.*, ls.structure_code,
-          CASE
-            WHEN lp.province_code = 'EC' THEN 'Eastern Cape'
-            WHEN lp.province_code = 'FS' THEN 'Free State'
-            WHEN lp.province_code = 'GP' THEN 'Gauteng'
-            WHEN lp.province_code = 'KZN' THEN 'KwaZulu-Natal'
-            WHEN lp.province_code = 'LP' THEN 'Limpopo'
-            WHEN lp.province_code = 'MP' THEN 'Mpumalanga'
-            WHEN lp.province_code = 'NC' THEN 'Northern Cape'
-            WHEN lp.province_code = 'NW' THEN 'North West'
-            WHEN lp.province_code = 'WC' THEN 'Western Cape'
-            ELSE NULL
-          END as province_name
+        SELECT
+          lp.*,
+          NULL as structure_code,
+          NULL as province_name,
+          NULL as province_code,
+          FALSE as province_specific
         FROM leadership_positions lp
         WHERE lp.id = ? AND lp.id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
       `;

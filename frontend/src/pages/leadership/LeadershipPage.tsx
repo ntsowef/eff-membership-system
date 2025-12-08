@@ -18,8 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Button,
-  Divider
+  Button
 } from '@mui/material';
 import {
   AccountTree,

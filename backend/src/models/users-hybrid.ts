@@ -63,7 +63,7 @@ export class UserModel {
       const prisma = getPrismaClient();
       const hashedPassword = await bcrypt.hash(userData.password, 12);
       
-      const user = await prisma.user.create({
+      const user = await prisma.users.create({
         data: {
           name: userData.name,
           email: userData.email,
@@ -99,16 +99,8 @@ export class UserModel {
     try {
       const prisma = getPrismaClient();
       
-      const user = await prisma.user.findUnique({
-        where: { user_id: id },
-        include: {
-          role: true,
-          province: true,
-          district: true,
-          municipality: true,
-          ward: true,
-          member: true
-        }
+      const user = await prisma.users.findUnique({
+        where: { user_id: id }
       });
       
       if (!user) return null;
@@ -130,8 +122,8 @@ export class UserModel {
         last_login_at: user.last_login_at?.toISOString(),
         created_at: user.created_at?.toISOString() ?? new Date().toISOString(),
         updated_at: user.updated_at?.toISOString() ?? new Date().toISOString(),
-        role_name: user.role?.role_name,
-        role_description: user.role?.description ?? undefined,
+        role_name: undefined,
+        role_description: undefined,
         province_code: user.province_code ?? undefined,
         district_code: user.district_code ?? undefined,
         municipal_code: user.municipal_code ?? undefined,
@@ -151,7 +143,7 @@ export class UserModel {
       // Remove user_id from updates as it's not updatable
       const { user_id, ...updateData } = updates;
 
-      const user = await prisma.user.update({
+      const user = await prisma.users.update({
         where: { user_id: id },
         data: {
           ...updateData,
@@ -306,7 +298,7 @@ export class UserModel {
     try {
       const prisma = getPrismaClient();
       
-      await prisma.user.update({
+      await prisma.users.update({
         where: { user_id: userId },
         data: {
           last_login_at: new Date(),
@@ -325,7 +317,7 @@ export class UserModel {
     try {
       const prisma = getPrismaClient();
       
-      await prisma.user.update({
+      await prisma.users.update({
         where: { user_id: userId },
         data: {
           failed_login_attempts: {

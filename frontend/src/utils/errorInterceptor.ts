@@ -45,11 +45,11 @@ const EXCLUDED_ROUTES = [
 ] as const;
 
 // Error types that should not trigger redirects
-const EXCLUDED_ERROR_TYPES = [
-  'validation',
-  'authentication',
-  'authorization',
-] as const;
+// const _EXCLUDED_ERROR_TYPES = [
+//   'validation',
+//   'authentication',
+//   'authorization',
+// ] as const;
 
 interface ErrorInterceptorOptions {
   enableAutoRedirect?: boolean;
@@ -123,13 +123,13 @@ class ErrorInterceptor {
     const errorRoute = this.getErrorPageRoute(statusCode);
 
     // Redirect to error page with error details
-    const errorState = {
-      statusCode,
-      message: error.response?.data?.message || error.message,
-      details: error.response?.data?.details || '',
-      timestamp: new Date(),
-      originalUrl: url,
-    };
+    // const _errorState = {
+    //   statusCode,
+    //   message: error.response?.data?.message || error.message,
+    //   details: error.response?.data?.details || '',
+    //   timestamp: new Date(),
+    //   originalUrl: url,
+    // };
 
     // Use setTimeout to avoid navigation during render
     setTimeout(() => {
@@ -155,7 +155,7 @@ class ErrorInterceptor {
     );
 
     // Response interceptor (for handling errors)
-    this.responseInterceptorId = axios.interceptors.response.use(
+    this.responseInterceptorId = (axios.interceptors.response.use as any)(
       (response: AxiosResponse) => {
         // Log successful responses in development
         if (this.options.enableLogging && process.env.NODE_ENV === 'development') {
@@ -230,14 +230,14 @@ export const getErrorInterceptor = (): ErrorInterceptor | null => {
 };
 
 // Utility function to manually trigger error page navigation
-export const navigateToErrorPage = (statusCode: number, message?: string, details?: string): void => {
+export const navigateToErrorPage = (statusCode: number, _message?: string, _details?: string): void => {
   const errorRoute = ERROR_ROUTES[statusCode as keyof typeof ERROR_ROUTES] || '/error/generic';
-  const errorState = {
-    statusCode,
-    message: message || 'An error occurred',
-    details: details || '',
-    timestamp: new Date(),
-  };
+  // const _errorState = {
+  //   statusCode,
+  //   message: message || 'An error occurred',
+  //   details: details || '',
+  //   timestamp: new Date(),
+  // };
 
   // Navigate to error page
   window.location.href = `${errorRoute}?code=${statusCode}`;

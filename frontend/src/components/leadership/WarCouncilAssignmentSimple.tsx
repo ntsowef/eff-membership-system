@@ -20,11 +20,10 @@ import {
   ListItemAvatar,
   ListItemText,
   ListItemSecondaryAction,
-  IconButton,
-  Tooltip,
+
 } from '@mui/material';
 import {
-  Person as PersonIcon,
+
   LocationOn as LocationIcon,
   Assignment as AssignmentIcon,
   CheckCircle as CheckCircleIcon,
@@ -59,7 +58,7 @@ interface AssignmentDialogData {
 }
 
 const WarCouncilAssignmentSimple: React.FC = () => {
-  const { showNotification } = useUI();
+  const { addNotification } = useUI();
   const [positions, setPositions] = useState<WarCouncilStructureView[]>([]);
   const [loading, setLoading] = useState(true);
   const [assignmentDialog, setAssignmentDialog] = useState<AssignmentDialogData | null>(null);
@@ -79,7 +78,10 @@ const WarCouncilAssignmentSimple: React.FC = () => {
       setPositions(structureData.structure.all_positions);
     } catch (error) {
       console.error('Error loading War Council data:', error);
-      showNotification('Failed to load War Council data', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to load War Council data'
+      });
     } finally {
       setLoading(false);
     }
@@ -106,7 +108,10 @@ const WarCouncilAssignmentSimple: React.FC = () => {
       });
     } catch (error) {
       console.error('Error loading eligible members:', error);
-      showNotification('Failed to load eligible members', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to load eligible members'
+      });
     } finally {
       setLoading(false);
     }
@@ -120,13 +125,10 @@ const WarCouncilAssignmentSimple: React.FC = () => {
       setValidating(true);
       
       // Validate the appointment
-      const validation = await LeadershipAPI.validateWarCouncilAppointment({
-        position_id: assignmentDialog.position.position_id,
-        member_id: member.member_id,
-        appointment_type: 'Appointment',
-        hierarchy_level: 'National',
-        entity_id: 1
-      });
+      const validation = await LeadershipAPI.validateWarCouncilAppointment(
+        assignmentDialog.position.position_id,
+        member.member_id
+      );
 
       setAssignmentDialog({
         ...assignmentDialog,
@@ -135,7 +137,10 @@ const WarCouncilAssignmentSimple: React.FC = () => {
       });
     } catch (error) {
       console.error('Error validating appointment:', error);
-      showNotification('Failed to validate appointment', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to validate appointment'
+      });
     } finally {
       setValidating(false);
     }
@@ -151,26 +156,29 @@ const WarCouncilAssignmentSimple: React.FC = () => {
       const appointmentData: CreateAppointmentData = {
         position_id: assignmentDialog.position.position_id,
         member_id: assignmentDialog.selectedMember.member_id,
-        appointment_type: 'Appointment',
+        appointment_type: 'Appointed',
         hierarchy_level: 'National',
         entity_id: 1,
         start_date: new Date().toISOString().split('T')[0],
-        notes: `War Council appointment: ${assignmentDialog.position.position_name}`
+        appointment_notes: `War Council appointment: ${assignmentDialog.position.position_name}`
       };
 
       await LeadershipAPI.createWarCouncilAppointment(appointmentData);
-      
-      showNotification(
-        `Successfully appointed ${assignmentDialog.selectedMember.firstname} ${assignmentDialog.selectedMember.surname} as ${assignmentDialog.position.position_name}`,
-        'success'
-      );
+
+      addNotification({
+        type: 'success',
+        message: `Successfully appointed ${assignmentDialog.selectedMember.firstname} ${assignmentDialog.selectedMember.surname} as ${assignmentDialog.position.position_name}`
+      });
 
       // Refresh data and close dialog
       await loadData();
       setAssignmentDialog(null);
     } catch (error) {
       console.error('Error creating appointment:', error);
-      showNotification('Failed to create appointment', 'error');
+      addNotification({
+        type: 'error',
+        message: 'Failed to create appointment'
+      });
     } finally {
       setAssigning(false);
     }

@@ -42,11 +42,11 @@ export class RoleModel {
   static async getAllRoles(): Promise<Role[]> {
     try {
       const query = `
-        SELECT id, name, description, created_at, updated_at
+        SELECT role_id as id, role_name as name, description, created_at, updated_at
         FROM roles
-        ORDER BY name
+        ORDER BY role_name
       `;
-      
+
       return await executeQuery<Role>(query);
     } catch (error) {
       throw createDatabaseError('Failed to fetch roles', error);
@@ -57,11 +57,11 @@ export class RoleModel {
   static async getRoleById(id: number): Promise<Role | null> {
     try {
       const query = `
-        SELECT id, name, description, created_at, updated_at
+        SELECT role_id as id, role_name as name, description, created_at, updated_at
         FROM roles
-        WHERE id = ?
+        WHERE role_id = $1
       `;
-      
+
       return await executeQuerySingle<Role>(query, [id]);
     } catch (error) {
       throw createDatabaseError('Failed to fetch role', error);
@@ -72,12 +72,12 @@ export class RoleModel {
   static async getRoleByName(name: string): Promise<Role | null> {
     try {
       const query = `
-        SELECT id, name, description, created_at, updated_at
+        SELECT role_id as id, role_name as name, description, created_at, updated_at
         FROM roles
-        WHERE name = ?
+        WHERE role_name = $1 OR role_code = $2
       `;
-      
-      return await executeQuerySingle<Role>(query, [name]);
+
+      return await executeQuerySingle<Role>(query, [name, name.toUpperCase()]);
     } catch (error) {
       throw createDatabaseError('Failed to fetch role by name', error);
     }

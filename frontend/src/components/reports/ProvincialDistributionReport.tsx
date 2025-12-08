@@ -36,9 +36,7 @@ import {
   Download,
   Refresh,
   Sort,
-  Clear,
-  BarChart,
-  PieChart,
+
   TrendingUp,
   TrendingDown,
 } from '@mui/icons-material';

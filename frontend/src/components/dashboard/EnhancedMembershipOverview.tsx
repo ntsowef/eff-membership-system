@@ -20,11 +20,8 @@ import {
   Error,
   Schedule,
   PersonOff,
-  TrendingUp,
   Refresh,
-  Notifications,
   Send,
-  Visibility,
   Assessment
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';

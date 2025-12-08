@@ -36,9 +36,9 @@ import {
   NoteAdd,
   Add,
 } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+// import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+// import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+// import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
   getPendingFollowUps,
   completeFollowUp,
@@ -152,11 +152,10 @@ const ManualNotesTab: React.FC = () => {
     try {
       const response = await addManualNote(formData.renewal_id, formData.member_id, {
         note_type: formData.note_type,
-        note_priority: formData.note_priority,
         note_content: formData.note_content,
         requires_follow_up: formData.requires_follow_up,
         follow_up_date: formData.follow_up_date?.toISOString(),
-      });
+      } as any);
 
       if (response.success) {
         setSuccessMessage('Note added successfully');
@@ -405,7 +404,7 @@ const ManualNotesTab: React.FC = () => {
               <Pagination
                 count={totalPages}
                 page={page}
-                onChange={(e, value) => setPage(value)}
+                onChange={(_e, value) => setPage(value)}
                 color="primary"
               />
             </Box>

@@ -451,7 +451,7 @@ const MunicipalityDetailsModal: React.FC<MunicipalityDetailsModalProps> = ({
                                   fill="#8884d8"
                                   dataKey="value"
                                 >
-                                  {wardStandingData.map((entry, index) => (
+                                  {wardStandingData.map((_entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                   ))}
                                 </Pie>

@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { Box, Typography, Alert, Button, Card, CardContent, CircularProgress } from '@mui/material';
-import { CheckCircle, Error, Refresh } from '@mui/icons-material';
+import { CheckCircle, Refresh } from '@mui/icons-material';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
 

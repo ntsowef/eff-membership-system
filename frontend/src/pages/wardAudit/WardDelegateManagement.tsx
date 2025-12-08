@@ -24,7 +24,7 @@ import {
   Alert,
   Tooltip,
   Autocomplete,
-  Badge,
+  // Badge,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -88,7 +88,7 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
   });
 
   // Fetch assembly types
-  const { data: assemblyTypes = [] } = useQuery({
+  const { data: _assemblyTypes = [] } = useQuery({
     queryKey: ['assembly-types'],
     queryFn: () => wardAuditApi.getAssemblyTypes(),
   });
@@ -98,6 +98,22 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
     queryKey: ['ward-members', wardCode],
     queryFn: () => wardAuditApi.getWardMembers(wardCode),
     enabled: openDialog || openReplaceDialog,
+  });
+
+  // Fetch delegate limits for each assembly type
+  const { data: srpaLimitInfo } = useQuery({
+    queryKey: ['delegate-limit', wardCode, 1], // 1 = SRPA
+    queryFn: () => wardAuditApi.checkDelegateLimit(wardCode, 1),
+  });
+
+  const { data: ppaLimitInfo } = useQuery({
+    queryKey: ['delegate-limit', wardCode, 2], // 2 = PPA
+    queryFn: () => wardAuditApi.checkDelegateLimit(wardCode, 2),
+  });
+
+  const { data: npaLimitInfo } = useQuery({
+    queryKey: ['delegate-limit', wardCode, 3], // 3 = NPA
+    queryFn: () => wardAuditApi.checkDelegateLimit(wardCode, 3),
   });
 
   // Assign delegate mutation
@@ -120,7 +136,7 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
       queryClient.invalidateQueries({ queryKey: ['ward-compliance-details', wardCode] });
       setOpenReplaceDialog(false);
       setSelectedDelegate(null);
-      setReplaceData({ new_member_id: '', reason: '' });
+      setReplaceData({ new_member_id: 0, reason: '' });
     },
   });
 
@@ -184,13 +200,17 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Get delegate limits from API (with fallback to 3 if not loaded yet)
+  const srpaLimit = srpaLimitInfo?.limit ?? 3;
+  const ppaLimit = ppaLimitInfo?.limit ?? 3;
+  const npaLimit = npaLimitInfo?.limit ?? 3;
+
   // Count delegates by assembly
-  const DELEGATE_LIMIT = 3;
   const srpaDelegates = delegates.filter((d: any) => d.assembly_code === 'SRPA' && d.delegate_status === 'Active').length;
   const ppaDelegates = delegates.filter((d: any) => d.assembly_code === 'PPA' && d.delegate_status === 'Active').length;
   const npaDelegates = delegates.filter((d: any) => d.assembly_code === 'NPA' && d.delegate_status === 'Active').length;
 
-  // Check if current assembly has reached limit
+  // Get current assembly count and limit
   const currentAssemblyCount = useMemo(() => {
     if (formData.assembly_code === 'SRPA') return srpaDelegates;
     if (formData.assembly_code === 'PPA') return ppaDelegates;
@@ -198,7 +218,14 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
     return 0;
   }, [formData.assembly_code, srpaDelegates, ppaDelegates, npaDelegates]);
 
-  const canAssignToCurrentAssembly = currentAssemblyCount < DELEGATE_LIMIT;
+  const currentAssemblyLimit = useMemo(() => {
+    if (formData.assembly_code === 'SRPA') return srpaLimit;
+    if (formData.assembly_code === 'PPA') return ppaLimit;
+    if (formData.assembly_code === 'NPA') return npaLimit;
+    return 3;
+  }, [formData.assembly_code, srpaLimit, ppaLimit, npaLimit]);
+
+  const canAssignToCurrentAssembly = currentAssemblyCount < currentAssemblyLimit;
 
   // Filter available members (not already assigned to the selected assembly)
   const availableMembers = useMemo(() => {
@@ -228,25 +255,25 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
 
           {/* Delegate Summary */}
           <Box display="flex" gap={2} mb={3}>
-            <Tooltip title={srpaDelegates >= DELEGATE_LIMIT ? 'Maximum delegates reached' : `${DELEGATE_LIMIT - srpaDelegates} slots remaining`}>
+            <Tooltip title={srpaDelegates >= srpaLimit ? 'Maximum delegates reached' : `${srpaLimit - srpaDelegates} slots remaining`}>
               <Chip
-                label={`SRPA: ${srpaDelegates}/${DELEGATE_LIMIT}`}
-                color={srpaDelegates >= DELEGATE_LIMIT ? 'error' : srpaDelegates > 0 ? 'success' : 'default'}
-                icon={srpaDelegates >= DELEGATE_LIMIT ? <WarningIcon /> : undefined}
+                label={`SRPA: ${srpaDelegates}/${srpaLimit}`}
+                color={srpaDelegates >= srpaLimit ? 'error' : srpaDelegates > 0 ? 'success' : 'default'}
+                icon={srpaDelegates >= srpaLimit ? <WarningIcon /> : undefined}
               />
             </Tooltip>
-            <Tooltip title={ppaDelegates >= DELEGATE_LIMIT ? 'Maximum delegates reached' : `${DELEGATE_LIMIT - ppaDelegates} slots remaining`}>
+            <Tooltip title={ppaDelegates >= ppaLimit ? 'Maximum delegates reached' : `${ppaLimit - ppaDelegates} slots remaining`}>
               <Chip
-                label={`PPA: ${ppaDelegates}/${DELEGATE_LIMIT}`}
-                color={ppaDelegates >= DELEGATE_LIMIT ? 'error' : ppaDelegates > 0 ? 'success' : 'default'}
-                icon={ppaDelegates >= DELEGATE_LIMIT ? <WarningIcon /> : undefined}
+                label={`PPA: ${ppaDelegates}/${ppaLimit}`}
+                color={ppaDelegates >= ppaLimit ? 'error' : ppaDelegates > 0 ? 'success' : 'default'}
+                icon={ppaDelegates >= ppaLimit ? <WarningIcon /> : undefined}
               />
             </Tooltip>
-            <Tooltip title={npaDelegates >= DELEGATE_LIMIT ? 'Maximum delegates reached' : `${DELEGATE_LIMIT - npaDelegates} slots remaining`}>
+            <Tooltip title={npaDelegates >= npaLimit ? 'Maximum delegates reached' : `${npaLimit - npaDelegates} slots remaining`}>
               <Chip
-                label={`NPA: ${npaDelegates}/${DELEGATE_LIMIT}`}
-                color={npaDelegates >= DELEGATE_LIMIT ? 'error' : npaDelegates > 0 ? 'success' : 'default'}
-                icon={npaDelegates >= DELEGATE_LIMIT ? <WarningIcon /> : undefined}
+                label={`NPA: ${npaDelegates}/${npaLimit}`}
+                color={npaDelegates >= npaLimit ? 'error' : npaDelegates > 0 ? 'success' : 'default'}
+                icon={npaDelegates >= npaLimit ? <WarningIcon /> : undefined}
               />
             </Tooltip>
           </Box>
@@ -337,7 +364,7 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
         <DialogContent>
           {!canAssignToCurrentAssembly && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              Maximum limit of {DELEGATE_LIMIT} delegates reached for {formData.assembly_code}.
+              Maximum limit of {currentAssemblyLimit} delegates reached for {formData.assembly_code}.
               Please select a different assembly or remove an existing delegate first.
             </Alert>
           )}
@@ -357,13 +384,13 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
                 required
               >
                 <MenuItem value="SRPA">
-                  SRPA (Sub-Regional) - {srpaDelegates}/{DELEGATE_LIMIT} assigned
+                  SRPA (Sub-Regional) - {srpaDelegates}/{srpaLimit} assigned
                 </MenuItem>
                 <MenuItem value="PPA">
-                  PPA (Provincial) - {ppaDelegates}/{DELEGATE_LIMIT} assigned
+                  PPA (Provincial) - {ppaDelegates}/{ppaLimit} assigned
                 </MenuItem>
                 <MenuItem value="NPA">
-                  NPA (National) - {npaDelegates}/{DELEGATE_LIMIT} assigned
+                  NPA (National) - {npaDelegates}/{npaLimit} assigned
                 </MenuItem>
               </TextField>
             </Grid>

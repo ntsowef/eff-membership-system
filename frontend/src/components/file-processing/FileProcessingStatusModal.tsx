@@ -55,11 +55,11 @@ const FileProcessingStatusModal: React.FC<FileProcessingStatusModalProps> = ({
   onClose,
   wardCode,
   wardName,
-  initialJobData
+  initialJobData: _initialJobData
 }) => {
   const {
     jobs = [],
-    currentJob,
+    currentJob: _currentJob,
     queueStatus,
     connectWebSocket,
     disconnectWebSocket,

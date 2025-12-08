@@ -41,7 +41,7 @@ export class SMSDeliveryTrackingService {
         INSERT INTO sms_delivery_tracking (
           message_id, provider_message_id, status, delivery_timestamp,
           error_code, error_message, retry_count, cost, created_at
-        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
         ON CONFLICT (message_id) DO UPDATE SET
           status = EXCLUDED.status,
           delivery_timestamp = EXCLUDED.delivery_timestamp,

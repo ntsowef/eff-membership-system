@@ -10,7 +10,6 @@ import {
   InputAdornment,
   IconButton,
   Divider,
-  Link,
   CircularProgress,
   Stepper,
   Step,
@@ -39,7 +38,7 @@ const mfaSchema = yup.object({
   mfaToken: yup.string().length(6, 'MFA token must be 6 digits').required('MFA token is required')
 }).required();
 
-// Infer types from schemas to ensure compatibility with yupResolver
+// Infer types from yup schemas
 type LoginFormData = yup.InferType<typeof loginSchema>;
 type MFAFormData = yup.InferType<typeof mfaSchema>;
 
@@ -55,7 +54,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
   const [loginData, setLoginData] = useState<LoginFormData | null>(null);
   const [mfaRequired, setMfaRequired] = useState(false);
 
-  const loginForm = useForm<LoginFormData>({
+  const loginForm = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: {
       email: '',
@@ -63,14 +62,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
     }
   });
 
-  const mfaForm = useForm<MFAFormData>({
+  const mfaForm = useForm({
     resolver: yupResolver(mfaSchema),
     defaultValues: {
       mfaToken: ''
     }
   });
 
-  const handleLogin = async (data: LoginFormData) => {
+  const handleLogin = async (data: any) => {
     setLoading(true);
     setError(null);
 
@@ -101,7 +100,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleMFAVerification = async (data: MFAFormData) => {
+  const handleMFAVerification = async (data: any) => {
     if (!loginData) return;
 
     setLoading(true);

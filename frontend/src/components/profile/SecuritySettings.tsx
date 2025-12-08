@@ -9,7 +9,7 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Divider,
+
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,8 +20,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Switch,
-  FormControlLabel,
+
   Paper,
 } from '@mui/material';
 import {
@@ -31,7 +30,7 @@ import {
   Security as SecurityIcon,
   VpnKey as VpnKeyIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
+
   QrCode2 as QrCodeIcon,
   Shield as ShieldIcon,
 } from '@mui/icons-material';
@@ -79,7 +78,7 @@ const SecuritySettings: React.FC = () => {
   const { data: securitySettings, isLoading: settingsLoading } = useQuery({
     queryKey: ['security-settings'],
     queryFn: async () => {
-      const response = await apiGet('/security/settings');
+      const response: any = await apiGet('/security/settings');
       return response.data.data.settings;
     },
   });
@@ -87,7 +86,7 @@ const SecuritySettings: React.FC = () => {
   // Password Change Mutation
   const changePasswordMutation = useMutation({
     mutationFn: async (data: PasswordFormData) => {
-      const response = await apiPost('/profile/me/change-password', {
+      const response: any = await apiPost('/profile/me/change-password', {
         current_password: data.current_password,
         new_password: data.new_password,
       });
@@ -113,7 +112,7 @@ const SecuritySettings: React.FC = () => {
   // MFA Setup Mutation
   const setupMFAMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiPost('/mfa/setup');
+      const response: any = await apiPost('/mfa/setup');
       return response.data.data;
     },
     onSuccess: (data) => {
@@ -129,7 +128,7 @@ const SecuritySettings: React.FC = () => {
   // MFA Enable Mutation
   const enableMFAMutation = useMutation({
     mutationFn: async (token: string) => {
-      const response = await apiPost('/mfa/enable', { token });
+      const response: any = await apiPost('/mfa/enable', { token });
       return response.data.data;
     },
     onSuccess: (data) => {
@@ -148,7 +147,7 @@ const SecuritySettings: React.FC = () => {
   // MFA Disable Mutation
   const disableMFAMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiPost('/mfa/disable');
+      const response: any = await apiPost('/mfa/disable');
       return response.data;
     },
     onSuccess: () => {

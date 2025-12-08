@@ -7,7 +7,7 @@ import {
   Typography,
   Button,
   Chip,
-  Alert,
+  // Alert,
   CircularProgress,
   useTheme,
   Container,
@@ -39,7 +39,7 @@ import {
   Refresh,
   FilterList,
   Person,
-  LocationOn,
+  // LocationOn,
   HowToVote,
   NavigateNext
 } from '@mui/icons-material';
@@ -78,7 +78,7 @@ interface AuditFilters {
 const MemberAuditReport: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);

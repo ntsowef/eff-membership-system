@@ -37,7 +37,7 @@ function a11yProps(index: number) {
 const MemberBulkUploadPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 

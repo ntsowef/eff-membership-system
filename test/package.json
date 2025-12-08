@@ -1,17 +1,37 @@
 {
-  "name": "test",
+  "name": "membership-upload-tests",
   "version": "1.0.0",
-  "main": "create_admin_users.js",
+  "description": "Testing infrastructure for high-volume concurrent file uploads",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "generate:applications": "node sample-data/generate-member-applications.js",
+    "generate:renewals": "node sample-data/generate-renewals.js",
+    "generate:all": "npm run generate:applications && npm run generate:renewals",
+    "test:5-concurrent": "node concurrent-uploads/test-5-concurrent.js",
+    "test:10-concurrent": "node concurrent-uploads/test-10-concurrent.js",
+    "test:15-concurrent": "node concurrent-uploads/test-15-concurrent.js",
+    "test:20-concurrent": "node concurrent-uploads/test-20-concurrent.js",
+    "test:all-concurrent": "npm run test:5-concurrent && npm run test:10-concurrent && npm run test:15-concurrent && npm run test:20-concurrent",
+    "scenario:1": "node scenarios/scenario-1-small-files.js",
+    "scenario:2": "node scenarios/scenario-2-medium-files.js",
+    "scenario:3": "node scenarios/scenario-3-large-files.js",
+    "scenario:4": "node scenarios/scenario-4-mixed-files.js",
+    "scenario:5": "node scenarios/scenario-5-stress-test.js",
+    "scenario:all": "npm run scenario:1 && npm run scenario:2 && npm run scenario:3 && npm run scenario:4 && npm run scenario:5"
   },
-  "keywords": [],
+  "keywords": [
+    "testing",
+    "load-testing",
+    "file-upload",
+    "concurrent",
+    "performance"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "dotenv": "^17.2.2",
-    "pg": "^8.16.3"
+    "axios": "^1.6.0",
+    "exceljs": "^4.4.0",
+    "form-data": "^4.0.0"
   }
 }
+

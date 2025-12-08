@@ -20,6 +20,7 @@ import { useUI } from '../../store';
 import Sidebar from './Sidebar';
 import LogoutButton from '../auth/LogoutButton';
 import MaintenanceIndicator from '../common/MaintenanceIndicator';
+import ConnectionStatusIndicator from '../common/ConnectionStatusIndicator';
 
 const DRAWER_WIDTH = 280;
 
@@ -60,10 +61,15 @@ const MainLayout: React.FC = () => {
           >
             <MenuIcon />
           </IconButton>
-          
+
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             EFF Membership Management System
           </Typography>
+
+          {/* Connection Status Indicator */}
+          <Box sx={{ mr: 2 }}>
+            <ConnectionStatusIndicator />
+          </Box>
 
           <IconButton color="inherit" onClick={handleThemeToggle}>
             {currentTheme === 'dark' ? <Brightness7 /> : <Brightness4 />}

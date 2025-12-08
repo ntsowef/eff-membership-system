@@ -15,7 +15,6 @@ import {
   Chip,
   IconButton,
   Button,
-  TextField,
   Grid,
   FormControl,
   InputLabel,
@@ -35,13 +34,9 @@ import {
 } from '@mui/material';
 import {
   FilterList,
-  ExpandMore,
-  ExpandLess,
   Download,
   Refresh,
   Visibility,
-  Search,
-  Clear,
   AttachMoney,
   Receipt,
   TrendingUp,
@@ -166,10 +161,11 @@ const FinancialTransactionHistory: React.FC<FinancialTransactionHistoryProps> = 
   }, []);
 
   // Clear all filters
-  const handleClearFilters = useCallback(() => {
-    setFilters(defaultFilters);
-    setPage(0);
-  }, []);
+  // Clear filters handler (currently unused but kept for future use)
+  // const handleClearFilters = useCallback(() => {
+  //   setFilters(defaultFilters);
+  //   setPage(0);
+  // }, []);
 
   // Handle sorting
   const handleSort = useCallback((property: string) => {
@@ -180,7 +176,7 @@ const FinancialTransactionHistory: React.FC<FinancialTransactionHistoryProps> = 
   }, [orderBy, order]);
 
   // Handle pagination
-  const handleChangePage = useCallback((event: unknown, newPage: number) => {
+  const handleChangePage = useCallback((_event: unknown, newPage: number) => {
     setPage(newPage);
   }, []);
 

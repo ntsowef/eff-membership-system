@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -82,7 +82,6 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
   entity,
   entityType,
   payments,
-  approvalStatus,
   canReview
 }) => {
   const { showNotification } = useNotification();
@@ -168,7 +167,7 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
     }
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
@@ -458,7 +457,7 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
           </Typography>
           {auditLoading ? (
             <Typography>Loading audit trail...</Typography>
-          ) : auditTrail && auditTrail.length > 0 ? (
+          ) : auditTrail && Array.isArray(auditTrail) && auditTrail.length > 0 ? (
             <TableContainer component={Paper} variant="outlined">
               <Table>
                 <TableHead>
@@ -510,7 +509,7 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
           <Collapse in={showTransactionHistory}>
             {transactionsLoading ? (
               <Typography>Loading transaction history...</Typography>
-            ) : memberTransactions?.transactions && memberTransactions.transactions.length > 0 ? (
+            ) : (memberTransactions as any)?.data?.transactions && (memberTransactions as any).data.transactions.length > 0 ? (
               <Box>
                 <Typography variant="subtitle1" gutterBottom>
                   Recent Transactions for {entity.member_name || entity.first_name + ' ' + entity.last_name}
@@ -526,14 +525,14 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {memberTransactions.transactions.map((transaction: any, index: number) => (
+                      {(memberTransactions as any).data.transactions.map((transaction: any, index: number) => (
                         <TableRow key={index}>
                           <TableCell>{transaction.transaction_type}</TableCell>
                           <TableCell align="right">{formatCurrency(transaction.amount)}</TableCell>
                           <TableCell>
-                            <Chip 
-                              label={transaction.overall_status} 
-                              size="small" 
+                            <Chip
+                              label={transaction.overall_status}
+                              size="small"
                               color={transaction.overall_status === 'Complete' ? 'success' : 'warning'}
                             />
                           </TableCell>
@@ -543,8 +542,8 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
                     </TableBody>
                   </Table>
                 </TableContainer>
-                
-                {memberTransactions.summary && (
+
+                {(memberTransactions as any)?.data?.summary && (
                   <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Summary Statistics
@@ -552,19 +551,19 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
                     <Grid container spacing={2}>
                       <Grid item xs={6} md={3}>
                         <Typography variant="body2" color="text.secondary">Total Transactions</Typography>
-                        <Typography variant="h6">{memberTransactions.summary.status_breakdown.approved + memberTransactions.summary.status_breakdown.pending}</Typography>
+                        <Typography variant="h6">{(memberTransactions as any).data.summary.status_breakdown.approved + (memberTransactions as any).data.summary.status_breakdown.pending}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="body2" color="text.secondary">Total Amount</Typography>
-                        <Typography variant="h6">{formatCurrency(memberTransactions.summary.total_amount)}</Typography>
+                        <Typography variant="h6">{formatCurrency((memberTransactions as any).data.summary.total_amount)}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="body2" color="text.secondary">Completed</Typography>
-                        <Typography variant="h6">{formatCurrency(memberTransactions.summary.completed_amount)}</Typography>
+                        <Typography variant="h6">{formatCurrency((memberTransactions as any).data.summary.completed_amount)}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="body2" color="text.secondary">Average</Typography>
-                        <Typography variant="h6">{formatCurrency(memberTransactions.summary.avg_amount)}</Typography>
+                        <Typography variant="h6">{formatCurrency((memberTransactions as any).data.summary.avg_amount)}</Typography>
                       </Grid>
                     </Grid>
                   </Box>

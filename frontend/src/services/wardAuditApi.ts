@@ -48,6 +48,7 @@ export const wardAuditApi = {
 
   /**
    * Get members filtered by province for presiding officer/secretary selection
+   * @deprecated Use searchMembersByProvince instead for better performance
    */
   getMembersByProvince: async (provinceCode: string): Promise<any[]> => {
     try {
@@ -55,6 +56,36 @@ export const wardAuditApi = {
       return response.data.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch members by province');
+    }
+  },
+
+  /**
+   * Search members by province with autocomplete (for presiding officer)
+   * Only loads members as user types - much faster than loading all province members
+   */
+  searchMembersByProvince: async (provinceCode: string, searchTerm: string): Promise<any[]> => {
+    try {
+      const response = await api.get(`/ward-audit/members/province/${provinceCode}/search`, {
+        params: { q: searchTerm, limit: 50 }
+      });
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to search members by province');
+    }
+  },
+
+  /**
+   * Search members by ward with autocomplete (for secretary)
+   * Only loads members from the specific ward as user types
+   */
+  searchMembersByWard: async (wardCode: string, searchTerm: string): Promise<any[]> => {
+    try {
+      const response = await api.get(`/ward-audit/ward/${wardCode}/members/search`, {
+        params: { q: searchTerm, limit: 50 }
+      });
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to search members by ward');
     }
   },
   
@@ -75,7 +106,22 @@ export const wardAuditApi = {
   },
   
   /**
-   * Approve ward compliance
+   * Submit ward as compliant (only when criteria 1-4 pass)
+   */
+  submitWardCompliance: async (
+    wardCode: string,
+    data?: { notes?: string }
+  ): Promise<{ ward_code: string; approved: boolean; message: string }> => {
+    try {
+      const response = await api.post(`/ward-audit/ward/${wardCode}/submit-compliance`, data);
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to submit ward compliance');
+    }
+  },
+
+  /**
+   * Approve ward compliance (legacy - kept for backward compatibility)
    */
   approveWardCompliance: async (
     wardCode: string,
@@ -220,6 +266,17 @@ export const wardAuditApi = {
       await api.put(`/ward-audit/meeting/${recordId}`, data);
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to update meeting record');
+    }
+  },
+
+  /**
+   * Delete a meeting record
+   */
+  deleteMeetingRecord: async (recordId: number): Promise<void> => {
+    try {
+      await api.delete(`/ward-audit/meeting/${recordId}`);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to delete meeting record');
     }
   },
 

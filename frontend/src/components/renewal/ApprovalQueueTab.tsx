@@ -33,7 +33,7 @@ import {
   CheckCircle,
   Cancel,
   Refresh,
-  HourglassEmpty,
+
 } from '@mui/icons-material';
 import {
   getPendingApprovals,
@@ -130,7 +130,7 @@ const ApprovalQueueTab: React.FC = () => {
     }
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

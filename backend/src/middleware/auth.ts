@@ -4,11 +4,12 @@ import { config } from '../config/config';
 import { AuthenticationError, AuthorizationError } from './errorHandler';
 import { UserModel, UserDetails } from '../models/users';
 import { RoleModel } from '../models/roles';
-import { executeQuery } from '../config/database';
+import { executeQuery } from '../config/database-hybrid';
 
 import { logAuthentication, logLogout, logPasswordReset, logPasswordChange } from './auditLogger';
 import bcrypt from 'bcrypt';
 import { SessionManagementService } from '../services/sessionManagementService';
+import { OTPService } from '../services/otpService';
 
 // Rate limiting storage for login attempts
 interface LoginAttempt {
@@ -147,7 +148,7 @@ export const generateToken = (user: UserDetails): string => {
     {
       id: user.id,
       email: user.email,
-      role_name: user.role_name,
+      role_name: (user as any).role_code || user.role_name, // Use role_code for middleware checks
       admin_level: user.admin_level,
       province_code: (user as any).province_code,
       district_code: (user as any).district_code,
@@ -166,6 +167,11 @@ export const generateToken = (user: UserDetails): string => {
 // Verify JWT token
 export const verifyToken = (token: string): JWTPayload => {
   try {
+    // Debug: Log the JWT secret being used (first 10 chars only for security)
+    console.log('🔑 JWT_SECRET (first 10 chars):', config.security.jwtSecret.substring(0, 10));
+    console.log('🎫 Token (first 50 chars):', token.substring(0, 50) + '...');
+    console.log('📏 Token length:', token.length);
+
     // First try with issuer/audience validation
     try {
       return jwt.verify(token, config.security.jwtSecret, {
@@ -175,9 +181,11 @@ export const verifyToken = (token: string): JWTPayload => {
     } catch (audienceError) {
       // If audience validation fails, try without it (for backward compatibility)
       console.log('JWT audience validation failed, trying without audience validation');
+      console.log('Audience error:', audienceError instanceof jwt.JsonWebTokenError ? audienceError.message : 'Unknown error');
       return jwt.verify(token, config.security.jwtSecret) as JWTPayload;
     }
   } catch (error) {
+    console.log('❌ Token verification failed:', error instanceof jwt.JsonWebTokenError ? error.message : 'Unknown error');
     if (error instanceof jwt.TokenExpiredError) {
       throw new AuthenticationError('Token has expired');
     } else if (error instanceof jwt.JsonWebTokenError) {
@@ -193,9 +201,44 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   try {
     // Skip authentication in development mode
     if (process.env.NODE_ENV === 'development' || process.env.SKIP_AUTH === 'true') {
-      // Create a mock user for development
+      // Get the first active admin user from the database for development
+      try {
+        const devUserQuery = `
+          SELECT
+            u.user_id as id,
+            u.name,
+            u.email,
+            u.password,
+            u.role_id,
+            r.name as role_name,
+            u.admin_level,
+            u.failed_login_attempts,
+            u.mfa_enabled,
+            u.is_active,
+            u.created_at,
+            u.updated_at
+          FROM users u
+          LEFT JOIN roles r ON u.role_id = r.id
+          WHERE u.is_active = TRUE
+            AND r.name LIKE '%Admin%'
+          ORDER BY u.user_id
+          LIMIT 1
+        `;
+
+        const devUserResult = await executeQuery<UserDetails>(devUserQuery, []);
+
+        if (devUserResult && devUserResult.length > 0) {
+          req.user = devUserResult[0];
+          console.log(`🔓 Development mode: Using user ${devUserResult[0].name} (ID: ${devUserResult[0].id})`);
+          return next();
+        }
+      } catch (dbError) {
+        console.error('❌ Failed to get development user from database:', dbError);
+      }
+
+      // Fallback to mock user if database query fails
       const mockUser: UserDetails = {
-        id: 1,
+        id: 8571, // Use a valid user_id that exists in the database
         name: 'Development User',
         email: 'dev@example.com',
         password: '',
@@ -210,6 +253,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       };
 
       req.user = mockUser;
+      console.log(`🔓 Development mode: Using fallback mock user (ID: ${mockUser.id})`);
       return next();
     }
 
@@ -235,7 +279,42 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       throw new AuthenticationError('User not found or inactive');
     }
 
-    req.user = user;
+    // Check if user requires MFA and has valid OTP session
+    const requiresMFA = OTPService.requiresMFA(user.admin_level || '', user.role_code);
+
+    if (requiresMFA) {
+      // Check for OTP session token in headers
+      const otpSessionToken = req.headers['x-otp-session'] as string;
+
+      if (otpSessionToken) {
+        // Verify OTP session token
+        const isValidSession = await OTPService.verifySession(user.id, otpSessionToken);
+
+        if (!isValidSession) {
+          console.log(`❌ Invalid or expired OTP session for user ${user.id}`);
+          throw new AuthenticationError('OTP session expired. Please login again.');
+        }
+
+        console.log(`✅ Valid OTP session for user ${user.id}`);
+      } else {
+        // Check if user has any valid OTP session
+        const hasValidSession = await OTPService.hasValidSession(user.id);
+
+        if (!hasValidSession) {
+          console.log(`❌ No valid OTP session for user ${user.id}`);
+          throw new AuthenticationError('MFA verification required. Please login again.');
+        }
+
+        console.log(`✅ User ${user.id} has valid OTP session`);
+      }
+    }
+
+    // Use role_code from JWT payload for authorization checks
+    // The JWT contains role_code in the role_name field for consistency with middleware checks
+    req.user = {
+      ...user,
+      role_name: payload.role_name // This is actually the role_code from the JWT
+    };
     next();
   } catch (error) {
     next(error);
@@ -248,6 +327,17 @@ export const authorize = (...allowedRoles: string[]) => {
     try {
       if (!req.user) {
         throw new AuthenticationError('User not authenticated');
+      }
+
+      // National Admin has all privileges - bypass role check
+      if (req.user.admin_level === 'national') {
+        console.log(`🔒 National Admin bypass: User ${req.user.email} granted access (National Admin has all privileges)`);
+        return next();
+      }
+
+      // Super admin also has all privileges
+      if (req.user.role_name === 'super_admin') {
+        return next();
       }
 
       if (!allowedRoles.includes(req.user.role_name)) {
@@ -437,9 +527,6 @@ export const createAuthRoutes = () => {
       }
 
       // Authenticate user using user management service
-      const bcrypt = require('bcrypt');
-      const { executeQuery } = require('../config/database');
-
       // Get user from database
       console.log(`🔍 Login attempt - NODE_ENV: ${process.env.NODE_ENV}, Email: ${email}`);
 
@@ -459,7 +546,8 @@ export const createAuthRoutes = () => {
             u.is_active,
             u.mfa_enabled,
             u.failed_login_attempts,
-            r.role_name as role_name
+            r.role_name as role_name,
+            r.role_code as role_code
           FROM users u
           LEFT JOIN roles r ON u.role_id = r.role_id
           WHERE u.email = $1 AND u.is_active = TRUE
@@ -497,23 +585,94 @@ export const createAuthRoutes = () => {
 
         console.log(`✅ Password verified for user: ${user.name}`);
 
-        // User authenticated successfully
+        // User authenticated successfully - now check if MFA is required
+        const requiresMFA = OTPService.requiresMFA(user.admin_level || '', user.role_code);
 
-        // Generate JWT token with province context
-        const token = jwt.sign(
-          {
-            id: user.id,
-            email: user.email,
-            role_name: user.role_name,
-            admin_level: user.admin_level,
-            province_code: user.province_code,
-            district_code: user.district_code,
-            municipal_code: user.municipal_code,
-            ward_code: user.ward_code
-          },
-          config.security.jwtSecret,
-          { expiresIn: '24h' }
-        );
+        if (requiresMFA) {
+          console.log(`🔐 MFA required for user: ${user.name} (${user.admin_level})`);
+
+          // Check if user has a valid OTP session
+          const hasValidSession = await OTPService.hasValidSession(user.id);
+
+          if (hasValidSession) {
+            console.log(`✅ User has valid OTP session, proceeding with login`);
+            // User has valid OTP session, proceed with normal login
+          } else {
+            console.log(`📱 No valid OTP session, generating and sending OTP`);
+
+            // Get user's cell number - check both users.cell_number and members_consolidated.cell_number
+            const cellNumberQuery = `
+              SELECT COALESCE(u.cell_number, m.cell_number) as cell_number
+              FROM users u
+              LEFT JOIN members_consolidated m ON u.member_id = m.member_id
+              WHERE u.user_id = $1
+              LIMIT 1
+            `;
+
+            const cellResult = await executeQuery(cellNumberQuery, [user.id]);
+            const cellNumber = cellResult[0]?.cell_number;
+
+            // If no cell number, use a placeholder for email-only OTP
+            if (!cellNumber) {
+              console.log(`⚠️ No cell number found for user ${user.id}, will send OTP via email only`);
+            }
+
+            // Generate and send OTP via SMS and Email (or email only if no phone number)
+            const otpResult = await OTPService.generateAndSendOTP(
+              user.id,
+              user.name,
+              cellNumber || 'N/A', // Use placeholder if no phone number
+              user.email,
+              clientIP,
+              req.headers['user-agent'] || 'Unknown'
+            );
+
+            if (!otpResult.success) {
+              console.error(`❌ Failed to send OTP: ${otpResult.message}`);
+              return res.status(500).json({
+                success: false,
+                error: {
+                  code: 'OTP_SEND_FAILED',
+                  message: otpResult.message
+                }
+              });
+            }
+
+            // Record successful password verification (but not full login yet)
+            recordLoginAttempt(clientIP, true);
+
+            // Build response message based on whether OTP is new or existing
+            const responseMessage = otpResult.is_existing
+              ? 'You have an active OTP. Please check your SMS and Email for the code sent earlier.'
+              : 'OTP sent to your registered phone number and email address';
+
+            // Mask phone number if available
+            const phoneMasked = cellNumber && cellNumber !== 'N/A'
+              ? cellNumber.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')
+              : null;
+
+            // Return response indicating OTP is required
+            return res.json({
+              success: true,
+              message: responseMessage,
+              data: {
+                requires_otp: true,
+                user_id: user.id,
+                email: user.email,
+                phone_number_masked: phoneMasked,
+                email_masked: user.email.replace(/(.{2})(.*)(@.*)/, '$1****$3'),
+                otp_expires_at: otpResult.expires_at,
+                is_existing_otp: otpResult.is_existing || false
+              }
+            });
+          }
+        }
+
+        // No MFA required or user has valid OTP session - proceed with normal login
+        console.log(`✅ Proceeding with normal login for user: ${user.name}`);
+
+        // Generate JWT token with province context using the generateToken function
+        const token = generateToken(user as any);
 
         // Update last login information
         await executeQuery(
@@ -552,7 +711,7 @@ export const createAuthRoutes = () => {
               district_code: user.district_code,
               municipal_code: user.municipal_code,
               ward_code: user.ward_code,
-              role: user.role_name,
+              role: user.role_code || user.role_name, // Use role_code for frontend authorization checks
               is_active: user.is_active,
               created_at: user.created_at,
               updated_at: user.updated_at
@@ -577,6 +736,276 @@ export const createAuthRoutes = () => {
       // Record failed login attempt for any authentication error
       const clientIP = getClientIP(req);
       recordLoginAttempt(clientIP, false);
+      return next(error);
+    }
+  });
+
+  // OTP Verification endpoint
+  router.post('/verify-otp', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user_id, otp_code } = req.body;
+
+      if (!user_id || !otp_code) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_PARAMETERS',
+            message: 'User ID and OTP code are required'
+          }
+        });
+      }
+
+      // Apply rate limiting
+      const clientIP = getClientIP(req);
+      const rateLimitCheck = checkRateLimit(clientIP);
+
+      if (!rateLimitCheck.allowed) {
+        return res.status(429).json({
+          success: false,
+          message: rateLimitCheck.message || 'Too many OTP verification attempts',
+          error: 'RATE_LIMIT_EXCEEDED',
+          retryAfter: rateLimitCheck.retryAfter,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      console.log(`🔐 OTP verification attempt for user ${user_id}`);
+
+      // Validate OTP
+      const validationResult = await OTPService.validateOTP(user_id, otp_code, clientIP);
+
+      if (!validationResult.success) {
+        console.log(`❌ OTP validation failed: ${validationResult.message}`);
+        recordLoginAttempt(clientIP, false);
+
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'INVALID_OTP',
+            message: validationResult.message,
+            attempts_remaining: validationResult.attempts_remaining
+          }
+        });
+      }
+
+      console.log(`✅ OTP validated successfully for user ${user_id}`);
+
+      // Get user details
+      const userQuery = `
+        SELECT
+          u.user_id as id,
+          u.name,
+          u.email,
+          u.admin_level,
+          u.province_code,
+          u.district_code,
+          u.municipal_code,
+          u.ward_code,
+          u.is_active,
+          r.role_name as role_name,
+          r.role_code as role_code
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        WHERE u.user_id = $1 AND u.is_active = TRUE
+      `;
+
+      const userResults = await executeQuery(userQuery, [user_id]);
+
+      if (userResults.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found or inactive'
+          }
+        });
+      }
+
+      const user = userResults[0];
+
+      // Generate JWT token
+      const token = generateToken(user as any);
+
+      // Update last login information
+      await executeQuery(
+        'UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $1 WHERE user_id = $2',
+        [clientIP, user.id]
+      );
+
+      // Create user session in database
+      const sessionData = await SessionManagementService.createSession(
+        user.id,
+        clientIP,
+        req.headers['user-agent'] || 'Unknown'
+      );
+
+      // Log successful authentication
+      await logAuthentication(user.email, true, req);
+
+      // Record successful login attempt
+      recordLoginAttempt(clientIP, true);
+
+      return res.json({
+        success: true,
+        message: 'OTP verified successfully. Login complete.',
+        data: {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            admin_level: user.admin_level,
+            province_code: user.province_code,
+            district_code: user.district_code,
+            municipal_code: user.municipal_code,
+            ward_code: user.ward_code,
+            role: user.role_code || user.role_name, // Use role_code for frontend authorization checks
+            is_active: user.is_active
+          },
+          token,
+          session_id: sessionData.session_id,
+          session_token: validationResult.session_token,
+          expires_in: '24h'
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error in OTP verification:', error);
+      const clientIP = getClientIP(req);
+      recordLoginAttempt(clientIP, false);
+      return next(error);
+    }
+  });
+
+  // Resend OTP endpoint
+  router.post('/resend-otp', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user_id } = req.body;
+
+      if (!user_id) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_PARAMETERS',
+            message: 'User ID is required'
+          }
+        });
+      }
+
+      // Apply rate limiting
+      const clientIP = getClientIP(req);
+      const rateLimitCheck = checkRateLimit(clientIP);
+
+      if (!rateLimitCheck.allowed) {
+        return res.status(429).json({
+          success: false,
+          message: rateLimitCheck.message || 'Too many OTP requests',
+          error: 'RATE_LIMIT_EXCEEDED',
+          retryAfter: rateLimitCheck.retryAfter,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      console.log(`📱 Resend OTP request for user ${user_id}`);
+
+      // Get user details
+      const userQuery = `
+        SELECT
+          u.user_id as id,
+          u.name,
+          u.email,
+          u.admin_level,
+          r.role_name,
+          r.role_code
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        WHERE u.user_id = $1 AND u.is_active = TRUE
+      `;
+
+      const userResults = await executeQuery(userQuery, [user_id]);
+
+      if (userResults.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found or inactive'
+          }
+        });
+      }
+
+      const user = userResults[0];
+
+      // Check if user requires MFA
+      if (!OTPService.requiresMFA(user.admin_level || '', user.role_code)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'MFA_NOT_REQUIRED',
+            message: 'MFA is not required for this user'
+          }
+        });
+      }
+
+      // Get user's cell number - check both users.cell_number and members_consolidated.cell_number
+      const cellNumberQuery = `
+        SELECT COALESCE(u.cell_number, m.cell_number) as cell_number
+        FROM users u
+        LEFT JOIN members_consolidated m ON u.member_id = m.member_id
+        WHERE u.user_id = $1
+        LIMIT 1
+      `;
+
+      const cellResult = await executeQuery(cellNumberQuery, [user_id]);
+      const cellNumber = cellResult[0]?.cell_number;
+
+      // If no cell number, use a placeholder for email-only OTP
+      if (!cellNumber) {
+        console.log(`⚠️ No cell number found for user ${user_id}, will send OTP via email only`);
+      }
+
+      // Generate and send new OTP via SMS and Email (or email only if no phone number)
+      const otpResult = await OTPService.generateAndSendOTP(
+        user.id,
+        user.name,
+        cellNumber || 'N/A', // Use placeholder if no phone number
+        user.email,
+        clientIP,
+        req.headers['user-agent'] || 'Unknown'
+      );
+
+      if (!otpResult.success) {
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'OTP_SEND_FAILED',
+            message: otpResult.message
+          }
+        });
+      }
+
+      // Build response message based on whether OTP is new or existing
+      const responseMessage = otpResult.is_existing
+        ? 'You already have an active OTP. Please check your SMS and Email.'
+        : 'OTP resent successfully via SMS and Email';
+
+      // Mask phone number if available
+      const phoneMasked = cellNumber && cellNumber !== 'N/A'
+        ? cellNumber.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')
+        : null;
+
+      return res.json({
+        success: true,
+        message: responseMessage,
+        data: {
+          phone_number_masked: phoneMasked,
+          email_masked: user.email.replace(/(.{2})(.*)(@.*)/, '$1****$3'),
+          otp_expires_at: otpResult.expires_at,
+          is_existing_otp: otpResult.is_existing || false
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error in resend OTP:', error);
       return next(error);
     }
   });
@@ -757,6 +1186,18 @@ export const requirePermission = (permissionName: string, targetLocationCode?: s
 
       if (!req.user) {
         throw new AuthenticationError('User not authenticated');
+      }
+
+      // National Admin has all permissions - bypass permission check
+      if (req.user.admin_level === 'national') {
+        console.log(`🔒 National Admin bypass: User ${req.user.email} granted permission ${permissionName} (National Admin has all privileges)`);
+        return next();
+      }
+
+      // Super admin has all permissions
+      if (req.user.role_name === 'super_admin') {
+        console.log(`🔒 Super Admin bypass: User ${req.user.email} granted permission ${permissionName}`);
+        return next();
       }
 
       // Simplified permission checking - allow all authenticated users for now
@@ -1107,7 +1548,7 @@ export const requireNationalAdminOnly = () => {
   };
 };
 
-// Super Admin Only restriction middleware - For the most sensitive features
+// Super Admin Only restriction middleware - For super admin interface
 export const requireSuperAdminOnly = () => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
@@ -1115,12 +1556,17 @@ export const requireSuperAdminOnly = () => {
         throw new AuthenticationError('User not authenticated');
       }
 
-      // Only Super Admin can access
-      if (req.user.role_name !== 'super_admin') {
+      // Debug logging
+      console.log(`🔍 Super Admin Check - User: ${req.user.email}, Role: ${req.user.role_name}`);
+
+      // ONLY Super Admin role can access - no exceptions
+      // Check for both 'super_admin' (lowercase) and 'SUPER_ADMIN' (uppercase) for compatibility
+      if (req.user.role_name !== 'super_admin' && req.user.role_name !== 'SUPER_ADMIN') {
+        console.log(`❌ Access denied - Expected: super_admin or SUPER_ADMIN, Got: ${req.user.role_name}`);
         throw new AuthorizationError('This feature is restricted to Super Admin users only');
       }
 
-      console.log(`🔒 Super Admin Permission granted: User ${req.user.email} accessing super-admin-only features`);
+      console.log(`🔒 Super Admin Permission granted: User ${req.user.email} (${req.user.role_name}) accessing super admin features`);
       next();
     } catch (error) {
       next(error);
@@ -1202,6 +1648,12 @@ export const requireSpecificPermissions = (permissions: string[], requireAll: bo
         throw new AuthenticationError('User not authenticated');
       }
 
+      // National Admin has all permissions - bypass permission check
+      if (req.user.admin_level === 'national') {
+        console.log(`🔒 National Admin bypass: User ${req.user.email} granted permissions ${permissions.join(', ')} (National Admin has all privileges)`);
+        return next();
+      }
+
       // Super admin has all permissions
       if (req.user.role_name === 'super_admin') {
         return next();
@@ -1276,3 +1728,4 @@ export const logProvinceAccess = async (req: Request, action: string, targetProv
     console.error('Failed to log province access:', error);
   }
 };
+

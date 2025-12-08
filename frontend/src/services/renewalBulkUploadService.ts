@@ -5,11 +5,11 @@
 import axios, { AxiosError } from 'axios';
 import type {
   ApiResponse,
-  BulkUpload,
-  BulkUploadRecord,
-  FraudCase,
-  ApprovalRequest,
-  AuditTrailEntry,
+  // BulkUpload,
+  // BulkUploadRecord,
+  // FraudCase,
+  // ApprovalRequest,
+  // AuditTrailEntry,
   ManualNote,
   UploadResponse,
   StatusResponse,
@@ -32,12 +32,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 // =====================================================================================
 
 export class RenewalBulkUploadError extends Error {
+  statusCode?: number;
+  details?: any;
+
   constructor(
     message: string,
-    public statusCode?: number,
-    public details?: any
+    statusCode?: number,
+    details?: any
   ) {
     super(message);
+    this.statusCode = statusCode;
+    this.details = details;
     this.name = 'RenewalBulkUploadError';
   }
 }
@@ -76,6 +81,7 @@ export const uploadFile = async (
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 120000, // 2 minutes timeout for file uploads
       }
     );
 

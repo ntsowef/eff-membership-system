@@ -13,7 +13,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
+
   Chip,
   IconButton,
   Dialog,
@@ -61,7 +61,7 @@ const SessionManagement: React.FC = () => {
   const { data: sessionsData, isLoading, refetch } = useQuery({
     queryKey: ['active-sessions'],
     queryFn: async () => {
-      const response = await apiGet('/session/active');
+      const response: any = await apiGet('/session/active');
       return response.data.data.sessions;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -72,7 +72,7 @@ const SessionManagement: React.FC = () => {
   // Terminate single session mutation
   const terminateSessionMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      const response = await apiDelete(`/session/${sessionId}`);
+      const response: any = await apiDelete(`/session/${sessionId}`);
       return response.data;
     },
     onSuccess: () => {
@@ -90,7 +90,7 @@ const SessionManagement: React.FC = () => {
   // Terminate all other sessions mutation
   const terminateAllMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiPost('/session/terminate-others');
+      const response: any = await apiPost('/session/terminate-others');
       return response.data;
     },
     onSuccess: (data) => {

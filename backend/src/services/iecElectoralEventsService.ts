@@ -1,7 +1,9 @@
 import axios, { AxiosInstance } from 'axios';
 import { config } from '../config/config';
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { getPrisma } from './prismaService';
 import { createDatabaseError } from '../middleware/errorHandler';
+
+const prisma = getPrisma();
 
 // IEC Electoral Event Types
 export interface IECElectoralEventType {
@@ -143,7 +145,7 @@ class IECElectoralEventsService {
     let errorMessage: string | undefined;
 
     try {
-      console.log('🔄 Syncing electoral event types from IEC API...');
+      console.log('Syncing electoral event types from IEC API...');
       
       const iecEventTypes = await this.fetchElectoralEventTypes();
       recordsProcessed = iecEventTypes.length;
@@ -151,17 +153,23 @@ class IECElectoralEventsService {
       for (const iecEventType of iecEventTypes) {
         try {
           const isMunicipalElection = iecEventType.Description.toLowerCase().includes('local government');
-          
-          const [result] = await executeQuery(`
-            INSERT INTO iec_electoral_event_types (iec_event_type_id, description, is_municipal_election)
-            EXCLUDED.?, ?, ?
-            ON CONFLICT DO UPDATE SET 
-              description = EXCLUDED.description,
-              is_municipal_election = EXCLUDED.is_municipal_election,
-              updated_at = CURRENT_TIMESTAMP
-          `, [iecEventType.ID, iecEventType.Description, isMunicipalElection]);
 
-          if ((result as any).insertId > 0) {
+          const result = await prisma.iec_electoral_event_types.upsert({
+            where: { iec_event_type_id: iecEventType.ID },
+            update: {
+              description: iecEventType.Description,
+              is_municipal_election: isMunicipalElection,
+              updated_at: new Date()
+            },
+            create: {
+              iec_event_type_id: iecEventType.ID,
+              description: iecEventType.Description,
+              is_municipal_election: isMunicipalElection
+            }
+          });
+
+          // Check if it was created or updated by checking if created_at equals updated_at
+          if (result.created_at?.getTime() === result.updated_at?.getTime()) {
             recordsCreated++;
           } else {
             recordsUpdated++;
@@ -173,7 +181,7 @@ class IECElectoralEventsService {
       }
 
       const duration = Date.now() - startTime;
-      console.log('✅ Synced ${recordsProcessed} electoral event types in ' + duration + 'ms');
+      console.log('Synced ' + recordsProcessed + ' electoral event types in ' + duration + 'ms');
 
       return {
         success: true,
@@ -186,7 +194,7 @@ class IECElectoralEventsService {
 
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Failed to sync electoral event types:', errorMessage);
+      console.error('Failed to sync electoral event types:', errorMessage);
       
       return {
         success: false,
@@ -212,7 +220,7 @@ class IECElectoralEventsService {
     let errorMessage: string | undefined;
 
     try {
-      console.log('🔄 Syncing electoral events from IEC API' + eventTypeId ? ' for type ' + eventTypeId + '' : '' + '...');
+      console.log('Syncing electoral events from IEC API' + (eventTypeId ? ' for type ' + eventTypeId : '') + '...');
       
       // Get event types to sync
       const eventTypesToSync = eventTypeId ? [eventTypeId] : [1, 2, 3, 4]; // All known types
@@ -224,32 +232,33 @@ class IECElectoralEventsService {
 
           for (const iecEvent of iecEvents) {
             try {
-              // Extract year from description
               const yearMatch = iecEvent.Description.match(/(\d{4})/);
               const electionYear = yearMatch ? parseInt(yearMatch[1]) : null;
 
-              const [result] = await executeQuery(`
-                INSERT INTO iec_electoral_events (
-                  iec_event_id, iec_event_type_id, description, is_active, 
-                  election_year, last_synced_at, sync_status
-                )
-                EXCLUDED.? , , $3, $4, $5, CURRENT_TIMESTAMP, 'completed'
-                ON CONFLICT DO UPDATE SET 
-                  description = EXCLUDED.description,
-                  is_active = EXCLUDED.is_active,
-                  election_year = EXCLUDED.election_year,
-                  last_synced_at = CURRENT_TIMESTAMP,
-                  sync_status = 'completed',
-                  updated_at = CURRENT_TIMESTAMP
-              `, [iecEvent.ID, typeId, iecEvent.Description, iecEvent.IsActive, electionYear]);
+              await prisma.iec_electoral_events.upsert({
+                where: { iec_event_id: iecEvent.ID },
+                update: {
+                  description: iecEvent.Description,
+                  is_active: iecEvent.IsActive,
+                  election_year: electionYear,
+                  last_synced_at: new Date(),
+                  sync_status: 'completed',
+                  updated_at: new Date()
+                },
+                create: {
+                  iec_event_id: iecEvent.ID,
+                  iec_event_type_id: typeId,
+                  description: iecEvent.Description,
+                  is_active: iecEvent.IsActive,
+                  election_year: electionYear,
+                  last_synced_at: new Date(),
+                  sync_status: 'completed'
+                }
+              });
 
-              if ((result as any).insertId > 0) {
-                recordsCreated++;
-              } else {
-                recordsUpdated++;
-              }
+              recordsCreated++;
             } catch (error) {
-              console.error('Failed to sync event ' + iecEvent.ID + ' : ', error);
+              console.error('Failed to sync event ' + iecEvent.ID + ':', error);
               recordsFailed++;
             }
           }
@@ -260,7 +269,7 @@ class IECElectoralEventsService {
       }
 
       const duration = Date.now() - startTime;
-      console.log('✅ Synced ${recordsProcessed} electoral events in ' + duration + 'ms');
+      console.log('Synced ' + recordsProcessed + ' electoral events in ' + duration + 'ms');
 
       return {
         success: true,
@@ -273,7 +282,7 @@ class IECElectoralEventsService {
 
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Failed to sync electoral events:', errorMessage);
+      console.error('Failed to sync electoral events:', errorMessage);
       
       return {
         success: false,
@@ -294,18 +303,21 @@ class IECElectoralEventsService {
     const startTime = Date.now();
     
     try {
-      console.log('🚀 Starting full IEC electoral events synchronization...');
+      console.log('Starting full IEC electoral events synchronization...');
       
       // Log sync start
-      await executeQuery(`
-        INSERT INTO iec_electoral_event_sync_logs (
-          sync_type, sync_status, started_at, triggered_by
-        ) EXCLUDED.'full_sync', 'started', CURRENT_TIMESTAMP, 'manual'
-      `);
+      const syncLog = await prisma.iec_electoral_event_sync_logs.create({
+        data: {
+          sync_type: 'full_sync',
+          sync_status: 'started',
+          started_at: new Date(),
+          triggered_by: 'manual'
+        }
+      });
 
       // Sync event types first
       const eventTypesResult = await this.syncElectoralEventTypes();
-      
+
       // Sync events
       const eventsResult = await this.syncElectoralEvents();
 
@@ -319,38 +331,48 @@ class IECElectoralEventsService {
       };
 
       // Log sync completion
-      await executeQuery(`
-        UPDATE iec_electoral_event_sync_logs 
-        SET sync_status = ? , completed_at = CURRENT_TIMESTAMP, 
-            records_processed = ?, records_created = ?, 
-            records_updated = ?, records_failed = ?,
-            sync_duration_ms = ?
-        WHERE sync_type = 'full_sync' AND sync_status = 'started'
-        ORDER BY started_at DESC LIMIT 1
-      `, [
-        totalResult.success ? 'completed'  : 'failed',
-        totalResult.records_processed,
-        totalResult.records_created,
-        totalResult.records_updated,
-        totalResult.records_failed,
-        totalResult.duration_ms
-      ]);
+      await prisma.iec_electoral_event_sync_logs.update({
+        where: { id: syncLog.id },
+        data: {
+          sync_status: totalResult.success ? 'completed' : 'failed',
+          completed_at: new Date(),
+          records_processed: totalResult.records_processed,
+          records_created: totalResult.records_created,
+          records_updated: totalResult.records_updated,
+          records_failed: totalResult.records_failed,
+          sync_duration_ms: totalResult.duration_ms
+        }
+      });
 
-      console.log('🎉 Full sync completed in ' + totalResult.duration_ms + 'ms');
+      console.log('Full sync completed in ' + totalResult.duration_ms + 'ms');
       return totalResult;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Full sync failed:', errorMessage);
+      console.error('Full sync failed:', errorMessage);
       
-      // Log sync failure
-      await executeQuery(`
-        UPDATE iec_electoral_event_sync_logs 
-        SET sync_status = 'failed', completed_at = CURRENT_TIMESTAMP, 
-            error_message = ?, sync_duration_ms = ?
-        WHERE sync_type = 'full_sync' AND sync_status = 'started'
-        ORDER BY started_at DESC LIMIT 1
-      `, [errorMessage, Date.now() - startTime]);
+      // Log sync failure - find the most recent started sync
+      const recentSync = await prisma.iec_electoral_event_sync_logs.findFirst({
+        where: {
+          sync_type: 'full_sync',
+          sync_status: 'started'
+        },
+        orderBy: {
+          started_at: 'desc'
+        }
+      });
+
+      if (recentSync) {
+        await prisma.iec_electoral_event_sync_logs.update({
+          where: { id: recentSync.id },
+          data: {
+            sync_status: 'failed',
+            completed_at: new Date(),
+            error_message: errorMessage,
+            sync_duration_ms: Date.now() - startTime
+          }
+        });
+      }
 
       return {
         success: false,
@@ -369,11 +391,12 @@ class IECElectoralEventsService {
    */
   async getElectoralEventTypes(): Promise<ElectoralEventType[]> {
     try {
-      const results = await executeQuery(`
-        SELECT * FROM iec_electoral_event_types 
-        ORDER BY iec_event_type_id
-      `);
-      return results as ElectoralEventType[];
+      const results = await prisma.iec_electoral_event_types.findMany({
+        orderBy: {
+          iec_event_type_id: 'asc'
+        }
+      });
+      return results as any[];
     } catch (error) {
       throw createDatabaseError('Failed to fetch electoral event types', error);
     }
@@ -384,12 +407,15 @@ class IECElectoralEventsService {
    */
   async getMunicipalElectionTypes(): Promise<ElectoralEventType[]> {
     try {
-      const results = await executeQuery(`
-        SELECT * FROM iec_electoral_event_types 
-        WHERE is_municipal_election = TRUE
-        ORDER BY iec_event_type_id
-      `);
-      return results as ElectoralEventType[];
+      const results = await prisma.iec_electoral_event_types.findMany({
+        where: {
+          is_municipal_election: true
+        },
+        orderBy: {
+          iec_event_type_id: 'asc'
+        }
+      });
+      return results as any[];
     } catch (error) {
       throw createDatabaseError('Failed to fetch municipal election types', error);
     }
@@ -400,11 +426,16 @@ class IECElectoralEventsService {
    */
   async getElectoralEventsByType(eventTypeId: number): Promise<ElectoralEvent[]> {
     try {
-      const results = await executeQuery(`
-        SELECT * FROM iec_electoral_events 
-        WHERE iec_event_type_id = ? ORDER BY election_year DESC, iec_event_id DESC
-      `, [eventTypeId]);
-      return results as ElectoralEvent[];
+      const results = await prisma.iec_electoral_events.findMany({
+        where: {
+          iec_event_type_id: eventTypeId
+        },
+        orderBy: [
+          { election_year: 'desc' },
+          { iec_event_id: 'desc' }
+        ]
+      });
+      return results as any[];
     } catch (error) {
       throw createDatabaseError('Failed to fetch electoral events by type', error);
     }
@@ -415,13 +446,18 @@ class IECElectoralEventsService {
    */
   async getActiveMunicipalElections() : Promise<ElectoralEvent[]> {
     try {
-      const results = await executeQuery(`
-        SELECT iee.* FROM iec_electoral_events iee
-        JOIN iec_electoral_event_types ieet ON iee.iec_event_type_id = ieet.iec_event_type_id
-        WHERE ieet.is_municipal_election = TRUE AND iee.is_active = TRUE
-        ORDER BY iee.election_year DESC
-      `);
-      return results as ElectoralEvent[];
+      const results = await prisma.iec_electoral_events.findMany({
+        where: {
+          is_active: true,
+          iec_electoral_event_types: {
+            is_municipal_election: true
+          }
+        },
+        orderBy: {
+          election_year: 'desc'
+        }
+      });
+      return results as any[];
     } catch (error) {
       throw createDatabaseError('Failed to fetch active municipal elections', error);
     }
@@ -432,13 +468,18 @@ class IECElectoralEventsService {
    */
   async getMunicipalElectionHistory(): Promise<ElectoralEvent[]> {
     try {
-      const results = await executeQuery(`
-        SELECT iee.* FROM iec_electoral_events iee
-        JOIN iec_electoral_event_types ieet ON iee.iec_event_type_id = ieet.iec_event_type_id
-        WHERE ieet.is_municipal_election = TRUE
-        ORDER BY iee.election_year DESC, iee.iec_event_id DESC
-      `);
-      return results as ElectoralEvent[];
+      const results = await prisma.iec_electoral_events.findMany({
+        where: {
+          iec_electoral_event_types: {
+            is_municipal_election: true
+          }
+        },
+        orderBy: [
+          { election_year: 'desc' },
+          { iec_event_id: 'desc' }
+        ]
+      });
+      return results as any[];
     } catch (error) {
       throw createDatabaseError('Failed to fetch municipal election history', error);
     }
@@ -449,14 +490,19 @@ class IECElectoralEventsService {
    */
   async getCurrentMunicipalElection(): Promise<ElectoralEvent | null> {
     try {
-      const result = await executeQuerySingle(`
-        SELECT iee.* FROM iec_electoral_events iee
-        JOIN iec_electoral_event_types ieet ON iee.iec_event_type_id = ieet.iec_event_type_id
-        WHERE ieet.is_municipal_election = TRUE AND iee.is_active = TRUE
-        ORDER BY iee.election_year DESC, iee.iec_event_id DESC
-        LIMIT 1
-      `);
-      return result as ElectoralEvent | null;
+      const result = await prisma.iec_electoral_events.findFirst({
+        where: {
+          is_active: true,
+          iec_electoral_event_types: {
+            is_municipal_election: true
+          }
+        },
+        orderBy: [
+          { election_year: 'desc' },
+          { iec_event_id: 'desc' }
+        ]
+      });
+      return result as any;
     } catch (error) {
       throw createDatabaseError('Failed to fetch current municipal election', error);
     }
@@ -467,11 +513,12 @@ class IECElectoralEventsService {
    */
   async getSyncLogs(limit: number = 10): Promise<any[]> {
     try {
-      const results = await executeQuery(`
-        SELECT * FROM iec_electoral_event_sync_logs
-        ORDER BY started_at DESC
-        LIMIT ?
-      `, [limit]);
+      const results = await prisma.iec_electoral_event_sync_logs.findMany({
+        orderBy: {
+          started_at: 'desc'
+        },
+        take: limit
+      });
       return results as any[];
     } catch (error) {
       throw createDatabaseError('Failed to fetch sync logs', error);

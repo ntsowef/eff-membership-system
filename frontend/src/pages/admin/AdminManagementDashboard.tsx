@@ -13,7 +13,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
+  // Paper,
   Chip,
   Alert,
   CircularProgress,
@@ -176,7 +176,7 @@ const AdminManagementDashboard: React.FC = () => {
   const workflows = workflowsData?.data || [];
   const roles = rolesData?.data?.roles || [];
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
   };
 

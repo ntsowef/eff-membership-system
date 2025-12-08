@@ -13,9 +13,9 @@ import {
   Select,
   MenuItem,
   Button,
-  Box,
+
 } from '@mui/material';
-import { Search, FilterList, Clear } from '@mui/icons-material';
+import { Search, Clear } from '@mui/icons-material';
 
 export interface FilterOption {
   value: string;

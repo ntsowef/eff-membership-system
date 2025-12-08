@@ -184,7 +184,7 @@ export class PDFExportService {
         vd.voting_district_name,
         'VD ' || vd.voting_district_number as voting_district_display,
         m.created_at
-      FROM members m
+      FROM members_consolidated m
       LEFT JOIN genders g ON m.gender_id = g.id
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -239,7 +239,7 @@ export class PDFExportService {
       LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
       LEFT JOIN districts d ON mu.district_code = d.district_code
       LEFT JOIN provinces p ON d.province_code = p.province_code
-      LEFT JOIN members m ON vd.voting_district_code = m.voting_district_code
+      LEFT JOIN members_consolidated m ON vd.voting_district_code = m.voting_district_code
       WHERE 1= TRUE
     `;
 
@@ -2949,5 +2949,203 @@ export class PDFExportService {
              doc.page.margins.left,
              doc.page.height - doc.page.margins.bottom + 10,
              { align: 'center' });
+  }
+
+  /**
+   * Generate Ward Attendance Register in PDF format
+   */
+  static async generateWardAttendanceRegisterPDF(
+    wardInfo: any,
+    members: any[]
+  ): Promise<Buffer> {
+    try {
+      console.log('🔄 Starting PDF Ward Attendance Register generation...');
+
+      // Group members by voting district
+      const membersByDistrict = members.reduce((acc: any, member: any) => {
+        const district = member.voting_district_name || 'Unknown Voting District';
+        if (!acc[district]) {
+          acc[district] = [];
+        }
+        acc[district].push(member);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      // Sort districts alphabetically
+      const sortedDistricts = Object.keys(membersByDistrict).sort();
+
+      // Calculate statistics
+      const totalMembers = members.length;
+      const quorum = Math.floor(totalMembers / 2) + 1;
+      const totalVotingStations = new Set(
+        members.map((m: any) => m.voting_district_name).filter(Boolean)
+      ).size;
+
+      // Create PDF document in landscape mode for better table display
+      const doc = new PDFDocument({
+        size: 'A4',
+        layout: 'landscape',
+        margins: { top: 40, bottom: 40, left: 30, right: 30 }
+      });
+
+      const buffers: Buffer[] = [];
+      doc.on('data', buffers.push.bind(buffers));
+
+      // Add logo if exists
+      const logoPath = require('path').join(process.cwd(), '..', 'frontend', 'src', 'assets', 'images', 'EFF_Reglogo.png');
+      if (require('fs').existsSync(logoPath)) {
+        doc.image(logoPath, doc.page.width / 2 - 40, 50, { width: 80, height: 80 });
+        doc.moveDown(6);
+      }
+
+      // Title
+      doc.fontSize(16)
+         .font('Helvetica-Bold')
+         .text('FORM A: ATTENDANCE REGISTER', { align: 'center' });
+      doc.moveDown(1);
+
+      // Ward Information (Two columns)
+      const leftX = doc.page.margins.left;
+      const rightX = doc.page.width / 2 + 20;
+      const infoY = doc.y;
+
+      doc.fontSize(10).font('Helvetica-Bold');
+
+      // Left column
+      doc.text(`PROVINCE: ${wardInfo.province_name}`, leftX, infoY);
+      doc.text(`REGION: ${wardInfo.district_name}`, leftX, infoY + 15);
+      doc.text(`WARD: ${wardInfo.ward_code}`, leftX, infoY + 30);
+      doc.text(`TOTAL MEMBERS: ${totalMembers}`, leftX, infoY + 45);
+
+      // Right column
+      doc.text(`SUB REGION: ${wardInfo.municipality_code} - ${wardInfo.municipality_name}`, rightX, infoY);
+      doc.text(`WARD NAME: ${wardInfo.ward_name}`, rightX, infoY + 15);
+      doc.text(`QUORUM: ${quorum}`, rightX, infoY + 30);
+      doc.text(`TOTAL VDs: ${totalVotingStations}`, rightX, infoY + 45);
+
+      doc.y = infoY + 65;
+      doc.moveDown(1);
+
+      // Process each voting district
+      let districtNumber = 1;
+      for (const district of sortedDistricts) {
+        const districtMembers = membersByDistrict[district];
+
+        // Check if we need a new page
+        if (doc.y > doc.page.height - 200) {
+          doc.addPage();
+        }
+
+        // Voting District Header
+        doc.fontSize(11)
+           .font('Helvetica-Bold')
+           .text(`${districtNumber}. VOTING DISTRICT: ${district}`, { underline: true });
+        doc.moveDown(0.5);
+
+        // Table setup
+        const tableTop = doc.y;
+        const colWidths = [30, 150, 60, 90, 80, 150, 80, 80]; // Column widths
+        const rowHeight = 20;
+        let currentY = tableTop;
+
+        // Table header
+        doc.fontSize(8).font('Helvetica-Bold');
+        let currentX = doc.page.margins.left;
+
+        const headers = ['NUM', 'NAME', 'WARD', 'ID NUMBER', 'CELL', 'REGISTERED VD', 'SIGNATURE', 'NEW CELL'];
+        headers.forEach((header, i) => {
+          doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+          doc.text(header, currentX + 2, currentY + 5, { width: colWidths[i] - 4, align: 'center' });
+          currentX += colWidths[i];
+        });
+
+        currentY += rowHeight;
+
+        // Table rows
+        doc.fontSize(7).font('Helvetica');
+        districtMembers.forEach((member: any, index: number) => {
+          // Check if we need a new page
+          if (currentY > doc.page.height - 60) {
+            doc.addPage();
+            currentY = doc.page.margins.top;
+
+            // Redraw header on new page
+            doc.fontSize(8).font('Helvetica-Bold');
+            currentX = doc.page.margins.left;
+            headers.forEach((header, i) => {
+              doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+              doc.text(header, currentX + 2, currentY + 5, { width: colWidths[i] - 4, align: 'center' });
+              currentX += colWidths[i];
+            });
+            currentY += rowHeight;
+            doc.fontSize(7).font('Helvetica');
+          }
+
+          currentX = doc.page.margins.left;
+
+          const rowData = [
+            (index + 1).toString(),
+            member.full_name || `${member.firstname} ${member.surname}`,
+            member.ward_code || '',
+            member.id_number || '',
+            member.cell_number || '',
+            member.voting_district_name || '',
+            '', // Signature column (empty)
+            '' // New cell column (empty)
+          ];
+
+          rowData.forEach((data, i) => {
+            doc.rect(currentX, currentY, colWidths[i], rowHeight).stroke();
+            doc.text(data, currentX + 2, currentY + 5, {
+              width: colWidths[i] - 4,
+              align: i === 0 ? 'center' : 'left',
+              ellipsis: true
+            });
+            currentX += colWidths[i];
+          });
+
+          currentY += rowHeight;
+        });
+
+        // District total
+        doc.fontSize(9).font('Helvetica-Bold');
+        doc.text(`TOTAL: ${districtMembers.length}`, doc.page.margins.left, currentY + 5);
+        doc.moveDown(2);
+
+        districtNumber++;
+      }
+
+      // Grand Total
+      doc.addPage();
+      doc.fontSize(12).font('Helvetica-Bold');
+      doc.text('GRAND TOTAL', { align: 'center' });
+      doc.moveDown(1);
+      doc.fontSize(10);
+      doc.text(`Total Members: ${totalMembers}`, { align: 'center' });
+      doc.text(`Quorum: ${quorum}`, { align: 'center' });
+      doc.text(`Total Voting Districts: ${totalVotingStations}`, { align: 'center' });
+
+      // Footer
+      doc.fontSize(8).font('Helvetica');
+      doc.text(`Generated on ${new Date().toLocaleDateString()}`,
+               doc.page.margins.left,
+               doc.page.height - 30,
+               { align: 'center' });
+
+      doc.end();
+
+      return new Promise((resolve, reject) => {
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          console.log('✅ PDF Ward Attendance Register generated successfully');
+          resolve(pdfBuffer);
+        });
+        doc.on('error', reject);
+      });
+
+    } catch (error: any) {
+      console.error('❌ Failed to generate PDF Ward Attendance Register:', error);
+      throw new Error(`Failed to generate PDF document: ${error.message}`);
+    }
   }
 }

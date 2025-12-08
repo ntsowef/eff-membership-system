@@ -81,8 +81,8 @@ export class SessionManagementService {
       await executeQuery(`
         INSERT INTO user_sessions (
           session_id, user_id, ip_address, user_agent, expires_at, is_active
-        ) VALUES (?, ?, ?, ?, ?, TRUE)
-      `, [sessionId, userId, ipAddress, userAgent, expiresAt]);
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+      `, [sessionId, userId, ipAddress, userAgent, expiresAt, true]);
 
       // Cache session data in Redis
       if (redisService.isRedisConnected()) {
@@ -250,7 +250,7 @@ export class SessionManagementService {
         await executeQuery(`
           INSERT INTO security_events (
             user_id, event_type, ip_address, details, severity
-          ) VALUES (?, 'logout', '0.0.0.0', ?, 'low')
+          ) VALUES ($1, 'logout', '0.0.0.0', $2, 'low')
         `, [session.user_id, JSON.stringify({ reason, session_id : sessionId })]);
       }
 
@@ -289,7 +289,7 @@ export class SessionManagementService {
         await executeQuery(`
           INSERT INTO security_events (
             user_id, event_type, ip_address, details, severity
-          ) VALUES (?, 'logout', '0.0.0.0', ?, 'medium')
+          ) VALUES ($1, 'logout', '0.0.0.0', $2, 'medium')
         `, [userId, JSON.stringify({ reason, terminated_sessions : result.affectedRows })]);
       }
 

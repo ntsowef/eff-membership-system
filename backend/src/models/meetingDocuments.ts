@@ -285,7 +285,7 @@ export class MeetingDocumentModel {
       const query = `
         SELECT a.*, m.firstname, m.surname, u.name as created_by_name
         FROM meeting_action_items a
-        LEFT JOIN members m ON a.assigned_to = m.member_id
+        LEFT JOIN members_consolidated m ON a.assigned_to = m.member_id
         LEFT JOIN users u ON a.created_by = u.id
         WHERE a.meeting_id = ?
         ORDER BY a.priority DESC, a.due_date ASC
@@ -335,8 +335,8 @@ export class MeetingDocumentModel {
                s.firstname as seconded_by_firstname, s.surname as seconded_by_surname,
                u.name as created_by_name
         FROM meeting_decisions d
-        LEFT JOIN members p ON d.proposed_by = p.member_id
-        LEFT JOIN members s ON d.seconded_by = s.member_id
+        LEFT JOIN members_consolidated p ON d.proposed_by = p.member_id
+        LEFT JOIN members_consolidated s ON d.seconded_by = s.member_id
         LEFT JOIN users u ON d.created_by = u.id
         WHERE d.meeting_id = ?
         ORDER BY d.created_at DESC

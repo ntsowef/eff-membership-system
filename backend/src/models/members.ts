@@ -7,6 +7,7 @@ export interface Member {
   id_number: string;
   firstname: string;
   surname?: string;
+  middle_name?: string;
   age?: number;
   date_of_birth?: string;
   gender_id: number;
@@ -17,16 +18,40 @@ export interface Member {
   voting_district_code?: string;
   voting_station_id?: number;
   residential_address?: string;
+  postal_address?: string;
   cell_number?: string;
   landline_number?: string;
+  alternative_contact?: string;
   email?: string;
   occupation_id?: number;
   qualification_id?: number;
   voter_status_id?: number;
   voter_registration_number?: string;
   voter_registration_date?: string;
+  voter_verified_at?: string;
+  membership_type?: string;
+  application_id?: number;
   created_at: string;
   updated_at: string;
+  voter_district_code?: string;
+  province_code?: string;
+  province_name?: string;
+  district_code?: string;
+  district_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+  // New membership fields from consolidated schema
+  current_membership_id?: number;
+  membership_number?: string;
+  date_joined?: string;
+  last_payment_date?: string;
+  expiry_date?: string;
+  subscription_type_id?: number;
+  membership_amount?: number;
+  membership_status_id?: number;
+  payment_method?: string;
+  payment_reference?: string;
+  payment_status?: string;
 }
 
 export interface MemberDetails extends Member {
@@ -36,47 +61,35 @@ export interface MemberDetails extends Member {
   race_name?: string;
   citizenship_name?: string;
   language_name?: string;
-  voter_status: string;
+  voter_status?: string;
   is_eligible_to_vote?: boolean;
-  ward_number: string;
-  ward_name: string;
-  municipality_code: string;
-  municipality_name: string;
-  district_code: string;
-  district_name: string;
-  province_code: string;
-  province_name: string;
+  ward_number?: string;
+  ward_name?: string;
   voting_station_name?: string;
   voting_station_code?: string;
   occupation_name?: string;
   occupation_category?: string;
   qualification_name?: string;
   qualification_level?: string;
-  member_created_at: string;
-  member_updated_at: string;
-  // From vw_membership_details (when available)
-  membership_id?: number;
-  date_joined?: string;
-  last_payment_date?: string;
-  expiry_date?: string;
-  subscription_name?: string;
-  membership_amount?: string;
+  member_created_at?: string;
+  member_updated_at?: string;
+  // From membership_statuses table (when joined)
   status_name?: string;
-  is_active?: number;
+  is_active?: number | boolean;
   days_until_expiry?: number;
   membership_status_calculated?: string;
-  payment_method?: string;
-  payment_reference?: string;
-  membership_created_at?: string;
-  membership_updated_at?: string;
-  // Computed fields for compatibility
+  // From subscription_types table (when joined)
+  subscription_name?: string;
+  // Computed fields for frontend compatibility
   id: number; // alias for member_id
   first_name: string; // alias for firstname
   last_name: string; // alias for surname
-  membership_number: string; // computed from member_id
-  membership_status: string; // alias for membership_status_calculated or status_name
+  membership_status: string; // computed from membership_status_id or status_name
   membership_expiry: string; // alias for expiry_date
   region_name: string; // alias for district_name
+  phone?: string; // alias for cell_number
+  municipal_code?: string; // alias for municipality_code
+  municipal_name?: string; // alias for municipality_name
 }
 
 export interface CreateMemberData {
@@ -132,6 +145,7 @@ export interface UpdateMemberProfileData {
 
 export interface MemberFilters {
   ward_code?: string;
+  voting_district_code?: string;
   municipality_code?: string;
   district_code?: string;
   province_code?: string;
@@ -139,6 +153,7 @@ export interface MemberFilters {
   race_id?: number;
   age_min?: number;
   age_max?: number;
+  membership_type?: string;
   has_email?: boolean;
   has_cell_number?: boolean;
   search?: string;
@@ -155,12 +170,18 @@ export class MemberModel {
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<MemberDetails[]> {
     try {
-      let whereClause = 'WHERE 1=1';
+      // Filter by active members only (not expired OR in grace period)
+      let whereClause = 'WHERE expiry_date >= CURRENT_DATE - INTERVAL \'90 days\'';
       const params: any[] = [];
 
       // Apply filters (using column names without alias since we're querying a view)
+      if (filters.voting_district_code) {
+        whereClause += ' AND voting_district_code = $' + (params.length + 1);
+        params.push(filters.voting_district_code);
+      }
+
       if (filters.ward_code) {
-        whereClause += ' AND ward_code = ?';
+        whereClause += ' AND ward_code = $' + (params.length + 1);
         params.push(filters.ward_code);
       }
 
@@ -173,7 +194,7 @@ export class MemberModel {
           WHERE parent_municipality_id = (
             SELECT municipality_id
             FROM municipalities
-            WHERE municipality_code = ?
+            WHERE municipality_code = $1
           )
         `;
         const subregions = await executeQuery<{ municipality_code: string }>(subregionsQuery, [filters.municipality_code]);
@@ -181,43 +202,43 @@ export class MemberModel {
         if (subregions.length > 0) {
           // This is a metro with subregions - include both the metro and all its subregions
           const municipalityCodes = [filters.municipality_code, ...subregions.map(s => s.municipality_code)];
-          const placeholders = municipalityCodes.map(() => '?').join(',');
+          const placeholders = municipalityCodes.map((_, i) => `$${params.length + i + 1}`).join(',');
           whereClause += ` AND municipality_code IN (${placeholders})`;
           params.push(...municipalityCodes);
         } else {
           // Regular municipality or subregion - filter directly
-          whereClause += ' AND municipality_code = ?';
+          whereClause += ' AND municipality_code = $' + (params.length + 1);
           params.push(filters.municipality_code);
         }
       }
 
       if (filters.district_code) {
-        whereClause += ' AND district_code = ?';
+        whereClause += ' AND district_code = $' + (params.length + 1);
         params.push(filters.district_code);
       }
 
       if (filters.province_code) {
-        whereClause += ' AND province_code = ?';
+        whereClause += ' AND province_code = $' + (params.length + 1);
         params.push(filters.province_code);
       }
 
       if (filters.gender_id) {
-        whereClause += ' AND gender_id = ?';
+        whereClause += ' AND gender_id = $' + (params.length + 1);
         params.push(filters.gender_id);
       }
 
       if (filters.race_id) {
-        whereClause += ' AND race_id = ?';
+        whereClause += ' AND race_id = $' + (params.length + 1);
         params.push(filters.race_id);
       }
 
       if (filters.age_min) {
-        whereClause += ' AND age >= ?';
+        whereClause += ' AND age >= $' + (params.length + 1);
         params.push(filters.age_min);
       }
 
       if (filters.age_max) {
-        whereClause += ' AND age <= ?';
+        whereClause += ' AND age <= $' + (params.length + 1);
         params.push(filters.age_max);
       }
 
@@ -229,8 +250,14 @@ export class MemberModel {
         whereClause += filters.has_cell_number ? ' AND cell_number IS NOT NULL' : ' AND cell_number IS NULL';
       }
 
+      if (filters.membership_type) {
+        whereClause += ' AND membership_type_name = $' + (params.length + 1);
+        params.push(filters.membership_type);
+      }
+
       if (filters.search) {
-        whereClause += ' AND (firstname LIKE ? OR surname LIKE ? OR id_number LIKE ?)';
+        const searchIndex = params.length + 1;
+        whereClause += ` AND (firstname ILIKE $${searchIndex} OR surname ILIKE $${searchIndex + 1} OR id_number ILIKE $${searchIndex + 2})`;
         const searchTerm = `%${filters.search}%`;
         params.push(searchTerm, searchTerm, searchTerm);
       }
@@ -239,12 +266,16 @@ export class MemberModel {
       const allowedSortColumns = ['firstname', 'surname', 'age', 'id_number', 'member_id', 'date_joined', 'created_at'];
       const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : 'member_id';
 
-      // Use vw_enhanced_member_search which has both membership data and geographic columns
+      // Use members_with_voting_districts view which has voting_district_code
+      // Fall back to vw_enhanced_member_search if voting_district_code is not needed
+      const viewName = filters.voting_district_code ? 'members_with_voting_districts' : 'vw_enhanced_member_search';
+      const limitIndex = params.length + 1;
+      const offsetIndex = params.length + 2;
       const query = `
-        SELECT * FROM vw_enhanced_member_search
+        SELECT * FROM ${viewName}
         ${whereClause}
         ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}
-        LIMIT ? OFFSET ?
+        LIMIT $${limitIndex} OFFSET $${offsetIndex}
       `;
 
       params.push(limit, offset);
@@ -257,12 +288,18 @@ export class MemberModel {
   // Get total count of members with filters
   static async getMembersCount(filters: MemberFilters = {}): Promise<number> {
     try {
-      let whereClause = 'WHERE 1=1';
+      // Filter by active members only (not expired OR in grace period)
+      let whereClause = 'WHERE expiry_date >= CURRENT_DATE - INTERVAL \'90 days\'';
       const params: any[] = [];
 
       // Apply same filters as getAllMembers
+      if (filters.voting_district_code) {
+        whereClause += ' AND voting_district_code = $' + (params.length + 1);
+        params.push(filters.voting_district_code);
+      }
+
       if (filters.ward_code) {
-        whereClause += ' AND ward_code = ?';
+        whereClause += ' AND ward_code = $' + (params.length + 1);
         params.push(filters.ward_code);
       }
 
@@ -275,7 +312,7 @@ export class MemberModel {
           WHERE parent_municipality_id = (
             SELECT municipality_id
             FROM municipalities
-            WHERE municipality_code = ?
+            WHERE municipality_code = $1
           )
         `;
         const subregions = await executeQuery<{ municipality_code: string }>(subregionsQuery, [filters.municipality_code]);
@@ -283,43 +320,43 @@ export class MemberModel {
         if (subregions.length > 0) {
           // This is a metro with subregions - include both the metro and all its subregions
           const municipalityCodes = [filters.municipality_code, ...subregions.map(s => s.municipality_code)];
-          const placeholders = municipalityCodes.map(() => '?').join(',');
+          const placeholders = municipalityCodes.map((_, i) => `$${params.length + i + 1}`).join(',');
           whereClause += ` AND municipality_code IN (${placeholders})`;
           params.push(...municipalityCodes);
         } else {
           // Regular municipality or subregion - filter directly
-          whereClause += ' AND municipality_code = ?';
+          whereClause += ' AND municipality_code = $' + (params.length + 1);
           params.push(filters.municipality_code);
         }
       }
 
       if (filters.district_code) {
-        whereClause += ' AND district_code = ?';
+        whereClause += ' AND district_code = $' + (params.length + 1);
         params.push(filters.district_code);
       }
 
       if (filters.province_code) {
-        whereClause += ' AND province_code = ?';
+        whereClause += ' AND province_code = $' + (params.length + 1);
         params.push(filters.province_code);
       }
 
       if (filters.gender_id) {
-        whereClause += ' AND gender_id = ?';
+        whereClause += ' AND gender_id = $' + (params.length + 1);
         params.push(filters.gender_id);
       }
 
       if (filters.race_id) {
-        whereClause += ' AND race_id = ?';
+        whereClause += ' AND race_id = $' + (params.length + 1);
         params.push(filters.race_id);
       }
 
       if (filters.age_min) {
-        whereClause += ' AND age >= ?';
+        whereClause += ' AND age >= $' + (params.length + 1);
         params.push(filters.age_min);
       }
 
       if (filters.age_max) {
-        whereClause += ' AND age <= ?';
+        whereClause += ' AND age <= $' + (params.length + 1);
         params.push(filters.age_max);
       }
 
@@ -331,13 +368,21 @@ export class MemberModel {
         whereClause += filters.has_cell_number ? ' AND cell_number IS NOT NULL' : ' AND cell_number IS NULL';
       }
 
+      if (filters.membership_type) {
+        whereClause += ' AND membership_type_name = $' + (params.length + 1);
+        params.push(filters.membership_type);
+      }
+
       if (filters.search) {
-        whereClause += ' AND (firstname LIKE ? OR surname LIKE ? OR id_number LIKE ?)';
+        const searchIndex = params.length + 1;
+        whereClause += ` AND (firstname ILIKE $${searchIndex} OR surname ILIKE $${searchIndex + 1} OR id_number ILIKE $${searchIndex + 2})`;
         const searchTerm = `%${filters.search}%`;
         params.push(searchTerm, searchTerm, searchTerm);
       }
 
-      const query = `SELECT COUNT(*) as count FROM vw_enhanced_member_search ${whereClause}`;
+      // Use members_with_voting_districts view if voting_district_code filter is present
+      const viewName = filters.voting_district_code ? 'members_with_voting_districts' : 'vw_enhanced_member_search';
+      const query = `SELECT COUNT(*) as count FROM ${viewName} ${whereClause}`;
       const result = await executeQuerySingle<{ count: number }>(query, params);
       return result?.count || 0;
     } catch (error) {
@@ -348,36 +393,42 @@ export class MemberModel {
   // Get member by ID with membership details
   static async getMemberById(id: number): Promise<MemberDetails | null> {
     try {
-      // Use enhanced member search view which has both membership and geographic data
-      let query = 'SELECT * FROM vw_enhanced_member_search WHERE member_id = ?';
-      let member = await executeQuerySingle<any>(query, [id]);
+      // Query member directly - membership fields are now in the members table
+      const query = `
+        SELECT
+          m.*,
+          g.gender_name,
+          ms.status_name,
+          st.subscription_name
+        FROM members_consolidated m
+        LEFT JOIN genders g ON m.gender_id = g.gender_id
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+        LEFT JOIN subscription_types st ON m.subscription_type_id = st.subscription_type_id
+        WHERE m.member_id = $1
+      `;
 
-      // If not found in enhanced view, try membership details view
-      if (!member) {
-        query = 'SELECT * FROM vw_membership_details WHERE member_id = ?';
-        member = await executeQuerySingle<any>(query, [id]);
-      }
-
-      // If still not found, try member details view
-      if (!member) {
-        query = 'SELECT * FROM vw_member_details WHERE member_id = ?';
-        member = await executeQuerySingle<any>(query, [id]);
-      }
+      const member = await executeQuerySingle<any>(query, [id]);
 
       if (!member) {
         return null;
       }
 
-      // Add computed fields for compatibility
+      // Add computed fields for frontend compatibility
       const memberDetails: MemberDetails = {
         ...member,
         id: member.member_id,
         first_name: member.firstname,
         last_name: member.surname || '',
-        membership_number: `M${String(member.member_id).padStart(6, '0')}`,
-        membership_status: member.membership_status_calculated || member.status_name || 'Unknown',
+        full_name: `${member.firstname} ${member.surname || ''}`.trim(),
+        membership_number: member.membership_number || `M${String(member.member_id).padStart(6, '0')}`,
+        membership_status: member.status_name || 'Unknown',
         membership_expiry: member.expiry_date || '',
-        region_name: member.district_name
+        region_name: member.district_name || '',
+        phone: member.cell_number,
+        municipal_code: member.municipality_code,
+        municipal_name: member.municipality_name,
+        ward_number: member.ward_code,
+        ward_name: member.ward_code
       };
 
       return memberDetails;
@@ -400,7 +451,7 @@ export class MemberModel {
   static async createMember(memberData: CreateMemberData): Promise<number> {
     try {
       const query = `
-        INSERT INTO members (
+        INSERT INTO members_consolidated (
           id_number, firstname, surname, gender_id, race_id, citizenship_id,
           language_id, ward_code, voting_station_id, residential_address,
           cell_number, landline_number, email, occupation_id, qualification_id
@@ -491,7 +542,7 @@ export class MemberModel {
   // Delete member
   static async deleteMember(id: number): Promise<boolean> {
     try {
-      const query = 'DELETE FROM members WHERE member_id = ?';
+      const query = 'DELETE FROM members_consolidated WHERE member_id = ?';
       const result = await executeQuery(query, [id]);
       return (result as any).affectedRows > 0;
     } catch (error) {
@@ -499,10 +550,70 @@ export class MemberModel {
     }
   }
 
+  // Bulk delete members
+  static async bulkDeleteMembers(ids: number[]): Promise<{ deleted: number; failed: number; errors: Array<{ id: number; error: string }> }> {
+    try {
+      if (ids.length === 0) {
+        return { deleted: 0, failed: 0, errors: [] };
+      }
+
+      const results = {
+        deleted: 0,
+        failed: 0,
+        errors: [] as Array<{ id: number; error: string }>
+      };
+
+      // Delete members one by one to track individual failures
+      for (const id of ids) {
+        try {
+          const deleted = await this.deleteMember(id);
+          if (deleted) {
+            results.deleted++;
+          } else {
+            results.failed++;
+            results.errors.push({ id, error: 'Member not found' });
+          }
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push({ id, error: error.message || 'Unknown error' });
+        }
+      }
+
+      return results;
+    } catch (error) {
+      throw createDatabaseError('Failed to bulk delete members', error);
+    }
+  }
+
+  // Get related records count for a member (for delete warnings)
+  static async getRelatedRecordsCount(id: number): Promise<{
+    memberships: number;
+    applications: number;
+    hasUserAccount: boolean;
+  }> {
+    try {
+      const queries = [
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM memberships WHERE member_id = ?', [id]),
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM membership_applications WHERE id_number = (SELECT id_number FROM members_consolidated WHERE member_id = ?)', [id]),
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM users WHERE member_id = ?', [id])
+      ];
+
+      const [memberships, applications, users] = await Promise.all(queries);
+
+      return {
+        memberships: memberships?.count || 0,
+        applications: applications?.count || 0,
+        hasUserAccount: (users?.count || 0) > 0
+      };
+    } catch (error) {
+      throw createDatabaseError('Failed to get related records count', error);
+    }
+  }
+
   // Check if ID number exists
   static async idNumberExists(idNumber: string, excludeMemberId?: number): Promise<boolean> {
     try {
-      let query = 'SELECT COUNT(*) as count FROM members WHERE id_number = ?';
+      let query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE id_number = ?';
       const params: any[] = [idNumber];
 
       if (excludeMemberId) {

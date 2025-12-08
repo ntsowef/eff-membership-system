@@ -36,7 +36,7 @@ import {
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Delete,
+
   Person,
   FilterList,
   ViewModule,
@@ -62,7 +62,7 @@ const LeadershipRoster: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   // Get province context for provincial admin restrictions
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
 
   // Action menu state
   const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);

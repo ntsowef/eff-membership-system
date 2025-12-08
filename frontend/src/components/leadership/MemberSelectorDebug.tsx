@@ -24,10 +24,10 @@ import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
 
 const { LeadershipAPI } = LeadershipService;
-type MemberFilters = LeadershipService.MemberFilters;
+// type MemberFilters = LeadershipService.MemberFilters;
 
 const MemberSelectorDebug: React.FC = () => {
-  const { addNotification } = useUI();
+  useUI();
   const [open, setOpen] = useState(false);
 
   // Simple API call

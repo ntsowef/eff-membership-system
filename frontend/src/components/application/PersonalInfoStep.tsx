@@ -9,13 +9,12 @@ import {
   Typography,
   Box,
   Alert,
-  Chip,
   CircularProgress,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { CheckCircle, Error, Info } from '@mui/icons-material';
 import { useApplication } from '../../store';
-import { parseIdNumber, formatIdNumber } from '../../utils/idNumberParser';
+import { parseIdNumber } from '../../utils/idNumberParser';
 import { useQuery } from '@tanstack/react-query';
 import { referenceApi } from '../../services/api';
 

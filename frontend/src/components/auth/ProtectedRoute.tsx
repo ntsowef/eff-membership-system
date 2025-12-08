@@ -7,6 +7,7 @@ import { useAuth } from '../../store';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAuth?: boolean;
+  requireRole?: string; // New prop for role-based access
   requireAdminLevel?: 'national' | 'province' | 'district' | 'municipality' | 'ward';
   requirePermission?: string;
   requireUserManagement?: boolean;
@@ -17,6 +18,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAuth = true, // Require authentication by default
+  requireRole,
   requireAdminLevel,
   requirePermission,
   requireUserManagement = false,
@@ -62,6 +64,52 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               sx={{ mt: 2 }}
             >
               Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
+
+  // Check role requirement
+  if (requireRole && user?.role !== requireRole) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+        bgcolor="grey.100"
+        p={2}
+      >
+        <Card sx={{ maxWidth: 500, width: '100%' }}>
+          <CardContent sx={{ textAlign: 'center', p: 4 }}>
+            <AdminIcon sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
+            <Typography variant="h5" component="h1" gutterBottom color="error">
+              Access Denied
+            </Typography>
+            <Typography variant="body1" color="textSecondary" paragraph>
+              This feature is restricted to <strong>{requireRole}</strong> users only.
+            </Typography>
+            <Typography variant="body2" color="textSecondary" paragraph>
+              Your current role: <strong>{user?.role || 'none'}</strong>
+            </Typography>
+            <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+              You don't have the required role to access this feature.
+            </Alert>
+            <Button
+              variant="outlined"
+              onClick={() => window.history.back()}
+              sx={{ mt: 2, mr: 1 }}
+            >
+              Go Back
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => window.location.href = '/admin/dashboard'}
+              sx={{ mt: 2 }}
+            >
+              Go to Dashboard
             </Button>
           </CardContent>
         </Card>

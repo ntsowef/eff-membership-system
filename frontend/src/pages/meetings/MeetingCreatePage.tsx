@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Button,
   TextField,
   Grid,
@@ -15,7 +13,7 @@ import {
   CircularProgress,
   Paper,
 } from '@mui/material';
-import { Event, Save, Cancel } from '@mui/icons-material';
+import { Save, Cancel } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
@@ -183,9 +181,9 @@ const MeetingCreatePage: React.FC = () => {
                   onChange={(e) => handleInputChange('hierarchy_level', e.target.value)}
                 >
                   <MenuItem value="National">National</MenuItem>
-                  <MenuItem value="Province">Province</MenuItem>
-                  <MenuItem value="Region">Region</MenuItem>
-                  <MenuItem value="Municipality">Municipality</MenuItem>
+                  <MenuItem value="Provincial">Provincial</MenuItem>
+                  <MenuItem value="Regional">Regional</MenuItem>
+                  <MenuItem value="Municipal">Municipal</MenuItem>
                   <MenuItem value="Ward">Ward</MenuItem>
                 </Select>
               </FormControl>

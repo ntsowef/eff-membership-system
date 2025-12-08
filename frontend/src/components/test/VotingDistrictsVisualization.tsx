@@ -29,7 +29,7 @@ const VotingDistrictsVisualization: React.FC = () => {
   });
 
   // Fetch wards for eThekwini to show options
-  const { data: wards } = useQuery({
+  const { data: _wards } = useQuery({
     queryKey: ['wards-eth'],
     queryFn: () => geographicApi.getWards('ETH'),
   });
@@ -75,6 +75,7 @@ const VotingDistrictsVisualization: React.FC = () => {
                     onClick={() => setSelectedWard(wardCode)}
                     color={selectedWard === wardCode ? 'primary' : 'default'}
                     variant={selectedWard === wardCode ? 'filled' : 'outlined'}
+                    sx={{ borderRadius: '50px' }} // Pill shape
                   />
                 ))}
               </Box>
@@ -129,11 +130,11 @@ const VotingDistrictsVisualization: React.FC = () => {
                                   <Typography variant="caption" display="block">
                                     Members: {vd.member_count || 0}
                                   </Typography>
-                                  <Chip 
-                                    label={vd.is_active ? 'Active' : 'Inactive'} 
-                                    size="small" 
+                                  <Chip
+                                    label={vd.is_active ? 'Active' : 'Inactive'}
+                                    size="small"
                                     color={vd.is_active ? 'success' : 'default'}
-                                    sx={{ mt: 0.5 }}
+                                    sx={{ mt: 0.5, borderRadius: '50px' }} // Pill shape
                                   />
                                 </Box>
                               }
@@ -170,7 +171,7 @@ const VotingDistrictsVisualization: React.FC = () => {
                     fill="#8884d8"
                     dataKey="votingDistricts"
                   >
-                    {sampleWards.map((entry, index) => (
+                    {sampleWards.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

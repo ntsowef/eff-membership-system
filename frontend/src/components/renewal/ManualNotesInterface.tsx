@@ -26,8 +26,7 @@ import {
   Card,
   CardContent,
   CardActions,
-  IconButton,
-  Tooltip,
+
   FormControlLabel,
   Checkbox,
 } from '@mui/material';
@@ -37,7 +36,7 @@ import {
   CheckCircle,
   Warning,
   Info,
-  Error as ErrorIcon,
+
   Refresh,
   CalendarToday,
 } from '@mui/icons-material';
@@ -47,7 +46,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
   addManualNote,
   getRenewalNotes,
-  getPendingFollowUps,
+
   completeFollowUp,
 } from '../../services/renewalBulkUploadService';
 import type { ManualNote } from '../../types/renewalBulkUpload';
@@ -150,12 +149,11 @@ const ManualNotesInterface: React.FC<ManualNotesInterfaceProps> = ({
         formData.member_id,
         {
           note_type: formData.note_type,
-          note_priority: formData.note_priority,
           note_content: formData.note_content,
           is_internal: formData.is_internal,
           requires_follow_up: formData.requires_follow_up,
           follow_up_date: formData.follow_up_date?.toISOString(),
-        }
+        } as any
       );
 
       if (response.success) {
@@ -184,7 +182,7 @@ const ManualNotesInterface: React.FC<ManualNotesInterfaceProps> = ({
     });
   };
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 

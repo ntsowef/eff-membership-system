@@ -15,7 +15,9 @@ const auditLogFiltersSchema = Joi.object({
   ip_address: Joi.string().ip().optional(),
   created_after: Joi.date().iso().optional(),
   created_before: Joi.date().iso().optional(),
-  search: Joi.string().max(255).optional()
+  search: Joi.string().max(255).optional(),
+  page: Joi.number().integer().positive().optional(),
+  limit: Joi.number().integer().positive().max(200).optional()
 });
 
 // Get all audit logs (admin only)

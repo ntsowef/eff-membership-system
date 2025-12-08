@@ -78,7 +78,15 @@ export class MemberApplicationBulkUploadService {
   }): Promise<string> {
     try {
       const upload_uuid = uuidv4();
-      
+
+      console.log('📝 Creating bulk upload with data:', {
+        upload_uuid,
+        file_name: data.file_name,
+        file_type: data.file_type,
+        file_size: data.file_size,
+        uploaded_by: data.uploaded_by
+      });
+
       const query = `
         INSERT INTO member_application_bulk_uploads (
           upload_uuid, file_name, file_path, file_type, file_size, uploaded_by, status
@@ -95,9 +103,15 @@ export class MemberApplicationBulkUploadService {
         data.uploaded_by
       ];
 
-      await executeQuerySingle<{ upload_id: number }>(query, params);
+      console.log('📝 Executing query with params:', params);
+
+      const result = await executeQuerySingle<{ upload_id: number }>(query, params);
+
+      console.log('✅ Bulk upload created successfully, result:', result);
+
       return upload_uuid;
     } catch (error) {
+      console.error('❌ Error in createBulkUpload:', error);
       throw createDatabaseError('Failed to create bulk upload', error);
     }
   }
@@ -406,7 +420,7 @@ export class MemberApplicationBulkUploadService {
           m.member_id,
           ms.status_name,
           ms.status_code
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN memberships mb ON m.member_id = mb.member_id
         LEFT JOIN membership_statuses ms ON mb.status_id = ms.status_id
         WHERE m.id_number = $1

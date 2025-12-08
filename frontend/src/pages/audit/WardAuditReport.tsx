@@ -18,7 +18,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  TextField,
+  // TextField,
   IconButton,
   Tooltip,
   Avatar,
@@ -28,8 +28,8 @@ import {
 } from '@mui/material';
 import {
   LocationCity,
-  People,
-  HowToVote,
+  // People,
+  // HowToVote,
   Warning,
   CheckCircle,
   Download,
@@ -37,7 +37,7 @@ import {
   FilterList,
   NavigateNext,
   TrendingUp,
-  TrendingDown
+  // TrendingDown
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -95,13 +95,13 @@ const WardAuditReport: React.FC = () => {
   const pagination = auditData?.pagination || { total: 0, totalPages: 0 };
   const summary = auditData?.summary || {};
 
-  const handleFilterChange = (field: keyof AuditFilters, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [field]: value || undefined
-    }));
-    setPage(0);
-  };
+  // const _handleFilterChange = (field: keyof AuditFilters, value: string) => {
+  //   setFilters(prev => ({
+  //     ...prev,
+  //     [field]: value || undefined
+  //   }));
+  //   setPage(0);
+  // };
 
   const handleProvinceChange = (provinceCode: string) => {
     setFilters(prev => ({

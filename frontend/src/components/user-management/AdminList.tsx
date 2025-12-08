@@ -35,7 +35,7 @@ import {
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../../store/reduxStore';
 import { fetchAdmins, setFilters, toggleUserSelection, clearUserSelection } from '../../store/userManagementSlice';
-import { User } from '../../lib/userManagementApi';
+// import { type User } from '../../lib/userManagementApi';
 
 const AdminList: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -52,20 +52,20 @@ const AdminList: React.FC = () => {
   const [localFilters, setLocalFilters] = useState(filters);
 
   useEffect(() => {
-    dispatch(fetchAdmins({ ...filters, page: adminsPagination.page, limit: adminsPagination.limit }));
+    dispatch(fetchAdmins({ ...filters, page: adminsPagination.page, limit: adminsPagination.limit }) as any);
   }, [dispatch, filters, adminsPagination.page, adminsPagination.limit]);
 
-  const handlePageChange = (event: unknown, newPage: number) => {
-    dispatch(fetchAdmins({ ...filters, page: newPage + 1, limit: adminsPagination.limit }));
+  const handlePageChange = (_event: unknown, newPage: number) => {
+    dispatch(fetchAdmins({ ...filters, page: newPage + 1, limit: adminsPagination.limit }) as any);
   };
 
   const handleRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLimit = parseInt(event.target.value, 10);
-    dispatch(fetchAdmins({ ...filters, page: 1, limit: newLimit }));
+    dispatch(fetchAdmins({ ...filters, page: 1, limit: newLimit }) as any);
   };
 
   const handleFilterChange = (field: string, value: string) => {
-    setLocalFilters(prev => ({ ...prev, [field]: value }));
+    setLocalFilters((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const applyFilters = () => {
@@ -81,9 +81,9 @@ const AdminList: React.FC = () => {
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      const allIds = admins.map(admin => admin.id);
+      const allIds = admins.map((admin: any) => admin.id);
       dispatch(clearUserSelection());
-      allIds.forEach(id => dispatch(toggleUserSelection(id)));
+      allIds.forEach((id: any) => dispatch(toggleUserSelection(id)));
     } else {
       dispatch(clearUserSelection());
     }
@@ -135,7 +135,7 @@ const AdminList: React.FC = () => {
               <Button
                 variant="outlined"
                 startIcon={<RefreshIcon />}
-                onClick={() => dispatch(fetchAdmins(filters))}
+                onClick={() => dispatch(fetchAdmins(filters) as any)}
                 disabled={adminsLoading}
               >
                 Refresh
@@ -257,7 +257,7 @@ const AdminList: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  admins.map((admin) => (
+                  admins.map((admin: any) => (
                     <TableRow key={admin.id} hover>
                       <TableCell padding="checkbox">
                         <Checkbox
@@ -281,10 +281,10 @@ const AdminList: React.FC = () => {
                       <TableCell>{admin.role_name}</TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {admin.province_code && `P: ${admin.province_code}`}
-                          {admin.district_code && `, D: ${admin.district_code}`}
-                          {admin.municipal_code && `, M: ${admin.municipal_code}`}
-                          {admin.ward_code && `, W: ${admin.ward_code}`}
+                          {(admin as any).province_code && `P: ${(admin as any).province_code}`}
+                          {(admin as any).district_code && `, D: ${(admin as any).district_code}`}
+                          {(admin as any).municipal_code && `, M: ${(admin as any).municipal_code}`}
+                          {(admin as any).ward_code && `, W: ${(admin as any).ward_code}`}
                         </Typography>
                       </TableCell>
                       <TableCell>

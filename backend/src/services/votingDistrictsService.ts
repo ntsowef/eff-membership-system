@@ -15,18 +15,17 @@ export class VotingDistrictsService {
     try {
       let query = `
         SELECT
-          vd.id,
-          vd.vd_code as voting_district_code,
-          vd.vd_name as voting_district_name,
-          vd.voting_district_number,
+          vd.voting_district_id as id,
+          vd.voting_district_code,
+          vd.voting_district_name,
           vd.ward_code,
           vd.is_active,
           vd.created_at,
           vd.updated_at,
           w.ward_name,
           w.ward_number,
-          m.municipal_code,
-          m.municipal_name,
+          m.municipality_code,
+          m.municipality_name,
           d.district_code,
           d.district_name,
           p.province_code,
@@ -34,11 +33,11 @@ export class VotingDistrictsService {
           COUNT(mem.member_id) as member_count
         FROM voting_districts vd
         JOIN wards w ON vd.ward_code = w.ward_code
-        JOIN municipalities m ON w.municipal_code = m.municipal_code
+        JOIN municipalities m ON w.municipality_code = m.municipality_code
         JOIN districts d ON m.district_code = d.district_code
         JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN members mem ON vd.vd_code = mem.voting_district_code
-        WHERE 1= TRUE
+        LEFT JOIN members_consolidated mem ON vd.voting_district_code = mem.voting_district_code
+        WHERE TRUE
       `;
 
       const params: any[] = [];
@@ -54,7 +53,7 @@ export class VotingDistrictsService {
       }
 
       if (filters.municipal_code) {
-        query += ' AND m.municipal_code = $1';
+        query += ' AND m.municipality_code = $1';
         params.push(filters.municipal_code);
       }
 
@@ -80,8 +79,8 @@ export class VotingDistrictsService {
       }
 
       query += `
-        GROUP BY vd.id
-        ORDER BY p.province_name, d.district_name, m.municipal_name, w.ward_number, vd.voting_district_number
+        GROUP BY vd.voting_district_id, vd.voting_district_code, vd.voting_district_name, vd.ward_code, vd.is_active, vd.created_at, vd.updated_at, w.ward_name, w.ward_number, m.municipality_code, m.municipality_name, d.district_code, d.district_name, p.province_code, p.province_name
+        ORDER BY p.province_name, d.district_name, m.municipality_name, w.ward_number, vd.voting_district_code
       `;
 
       return await executeQuery(query, params);
@@ -121,9 +120,9 @@ export class VotingDistrictsService {
     try {
       const query = `
         SELECT
+          vd.voting_district_id as id,
           vd.voting_district_code,
           vd.voting_district_name,
-          vd.voting_district_number,
           vd.ward_code,
           vd.is_active,
           vd.created_at,
@@ -142,8 +141,9 @@ export class VotingDistrictsService {
         JOIN municipalities mu ON w.municipality_code = mu.municipality_code
         JOIN districts d ON mu.district_code = d.district_code
         JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN members m ON vd.voting_district_code = m.voting_district_code
-        WHERE vd.voting_district_code = ? GROUP BY vd.voting_district_code
+        LEFT JOIN members_consolidated m ON vd.voting_district_code = m.voting_district_code
+        WHERE vd.voting_district_code = $1
+        GROUP BY vd.voting_district_id, vd.voting_district_code, vd.voting_district_name, vd.ward_code, vd.is_active, vd.created_at, vd.updated_at, w.ward_name, w.ward_number, mu.municipality_code, mu.municipality_name, d.district_code, d.district_name, p.province_code, p.province_name
       `;
 
       return await executeQuerySingle(query, [votingDistrictCode]);
@@ -259,7 +259,7 @@ export class VotingDistrictsService {
         FROM provinces p
         LEFT JOIN districts d ON p.province_code = d.province_code
         LEFT JOIN municipalities m ON d.district_code = m.district_code
-        LEFT JOIN wards w ON m.municipal_code = w.municipal_code
+        LEFT JOIN wards w ON m.municipality_code = w.municipality_code
         LEFT JOIN voting_districts vd ON w.ward_code = vd.ward_code AND vd.is_active = TRUE
         WHERE p.is_active = TRUE
         GROUP BY p.province_code, p.province_name
@@ -290,7 +290,7 @@ export class VotingDistrictsService {
           vd.vd_name as voting_district_name,
           COUNT(m.member_id) as member_count
         FROM voting_districts vd
-        LEFT JOIN members m ON vd.vd_code = m.voting_district_code
+        LEFT JOIN members_consolidated m ON vd.vd_code = m.voting_district_code
         WHERE vd.is_active = TRUE
         GROUP BY vd.vd_code, vd.vd_name
         ORDER BY member_count DESC

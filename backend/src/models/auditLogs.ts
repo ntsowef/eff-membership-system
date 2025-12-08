@@ -53,6 +53,17 @@ export enum AuditAction {
   PASSWORD_RESET = 'password_reset',
   PASSWORD_CHANGED = 'password_changed',
 
+  // MFA/OTP actions
+  OTP_GENERATED = 'otp_generated',
+  OTP_SENT = 'otp_sent',
+  OTP_SEND_FAILED = 'otp_send_failed',
+  OTP_VALIDATED = 'otp_validated',
+  OTP_VALIDATION_FAILED = 'otp_validation_failed',
+  OTP_RESENT = 'otp_resent',
+  OTP_EXPIRED = 'otp_expired',
+  OTP_SESSION_CREATED = 'otp_session_created',
+  OTP_SESSION_EXPIRED = 'otp_session_expired',
+
   // CRUD actions
   CREATE = 'create',
   READ = 'read',
@@ -87,7 +98,13 @@ export enum AuditAction {
   USER_DELETED = 'user_deleted',
   ROLE_ASSIGNED = 'role_assigned',
   PERMISSION_GRANTED = 'permission_granted',
-  PERMISSION_REVOKED = 'permission_revoked'
+  PERMISSION_REVOKED = 'permission_revoked',
+
+  // Delegate actions
+  DELEGATE_ASSIGNED = 'delegate_assigned',
+  DELEGATE_UPDATED = 'delegate_updated',
+  DELEGATE_REMOVED = 'delegate_removed',
+  DELEGATE_STATUS_CHANGED = 'delegate_status_changed'
 }
 
 // Entity types
@@ -104,6 +121,8 @@ export enum EntityType {
   REGION = 'region',
   MUNICIPALITY = 'municipality',
   WARD = 'ward',
+  DELEGATE = 'delegate',
+  OTP = 'otp',
   SYSTEM = 'system'
 }
 

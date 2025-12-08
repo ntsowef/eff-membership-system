@@ -1,8 +1,10 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { getPrisma } from './prismaService';
 import { createDatabaseError, ValidationError } from '../middleware/errorHandler';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import crypto from 'crypto';
+
+const prisma = getPrisma();
 
 export interface MFASetup {
   secret: string;
@@ -49,16 +51,23 @@ export class MFAService {
       // Generate QR code
       const qrCode = await QRCode.toDataURL(secret.otpauth_url!);
 
-      // Store in database (but don't enable yet)
-      await executeQuery(`
-        INSERT INTO user_mfa_settings (user_id, secret_key, backup_codes, is_enabled)
-        VALUES (?, ?, ?, FALSE)
-        ON DUPLICATE KEY UPDATE
-        secret_key = VALUES(secret_key),
-        backup_codes = VALUES(backup_codes),
-        is_enabled = FALSE,
-        disabled_at = NOW()
-      `, [userId, secret.base32, JSON.stringify(backupCodes)]);
+      // Store in database (but don't enable yet) - UPSERT operation
+      await prisma.user_mfa_settings.upsert({
+        where: { user_id: userId },
+        update: {
+          secret_key: secret.base32,
+          backup_codes: backupCodes,
+          is_enabled: false,
+          disabled_at: new Date(),
+          updated_at: new Date()
+        },
+        create: {
+          user_id: userId,
+          secret_key: secret.base32,
+          backup_codes: backupCodes,
+          is_enabled: false
+        }
+      });
 
       return {
         secret: secret.base32,
@@ -75,9 +84,9 @@ export class MFAService {
   static async enableMFA(userId: number, token: string): Promise<{ success: boolean; backup_codes: string[] }> {
     try {
       // Get user's MFA settings
-      const mfaSettings = await executeQuerySingle(`
-        SELECT * FROM user_mfa_settings WHERE user_id = ?
-      `, [userId]);
+      const mfaSettings = await prisma.user_mfa_settings.findUnique({
+        where: { user_id: userId }
+      });
 
       if (!mfaSettings) {
         throw new ValidationError('MFA setup not found. Please generate setup first.');
@@ -95,19 +104,26 @@ export class MFAService {
         throw new ValidationError('Invalid MFA token. Please try again.');
       }
 
-      // Enable MFA
-      await executeQuery(`
-        UPDATE user_mfa_settings 
-        SET is_enabled = TRUE, enabled_at = NOW(), disabled_at = NULL
-        WHERE user_id = ?
-      `, [userId]);
+      // Enable MFA in both tables using transaction
+      await prisma.$transaction([
+        prisma.user_mfa_settings.update({
+          where: { user_id: userId },
+          data: {
+            is_enabled: true,
+            enabled_at: new Date(),
+            disabled_at: null,
+            updated_at: new Date()
+          }
+        }),
+        prisma.users.update({
+          where: { user_id: userId },
+          data: { mfa_enabled: true }
+        })
+      ]);
 
-      // Update user table
-      await executeQuery(`
-        UPDATE users SET mfa_enabled = TRUE WHERE id = ?
-      `, [userId]);
-
-      const backupCodes = JSON.parse(mfaSettings.backup_codes);
+      const backupCodes = Array.isArray(mfaSettings.backup_codes)
+        ? mfaSettings.backup_codes
+        : JSON.parse(mfaSettings.backup_codes as string);
 
       return {
         success: true,
@@ -123,22 +139,26 @@ export class MFAService {
     try {
       // Verify current token before disabling
       const isValid = await this.verifyMFAToken(userId, token);
-      
+
       if (!isValid.valid) {
         throw new ValidationError('Invalid MFA token. Cannot disable MFA.');
       }
 
-      // Disable MFA
-      await executeQuery(`
-        UPDATE user_mfa_settings 
-        SET is_enabled = FALSE, disabled_at = NOW()
-        WHERE user_id = ?
-      `, [userId]);
-
-      // Update user table
-      await executeQuery(`
-        UPDATE users SET mfa_enabled = FALSE WHERE id = ?
-      `, [userId]);
+      // Disable MFA in both tables using transaction
+      await prisma.$transaction([
+        prisma.user_mfa_settings.update({
+          where: { user_id: userId },
+          data: {
+            is_enabled: false,
+            disabled_at: new Date(),
+            updated_at: new Date()
+          }
+        }),
+        prisma.users.update({
+          where: { user_id: userId },
+          data: { mfa_enabled: false }
+        })
+      ]);
 
       return { success: true };
     } catch (error) {
@@ -149,10 +169,12 @@ export class MFAService {
   // Verify MFA token
   static async verifyMFAToken(userId: number, token: string): Promise<MFAVerification> {
     try {
-      const mfaSettings = await executeQuerySingle(`
-        SELECT * FROM user_mfa_settings 
-        WHERE user_id = ? AND is_enabled = TRUE
-      `, [userId]);
+      const mfaSettings = await prisma.user_mfa_settings.findFirst({
+        where: {
+          user_id: userId,
+          is_enabled: true
+        }
+      });
 
       if (!mfaSettings) {
         return { valid: false };
@@ -171,23 +193,28 @@ export class MFAService {
       }
 
       // If TOTP fails, try backup codes
-      const backupCodes = JSON.parse(mfaSettings.backup_codes || '[]');
+      const backupCodes = Array.isArray(mfaSettings.backup_codes)
+        ? mfaSettings.backup_codes
+        : JSON.parse((mfaSettings.backup_codes as string) || '[]');
+
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-      
-      const backupCodeIndex = backupCodes.findIndex((code: string) => 
+
+      const backupCodeIndex = backupCodes.findIndex((code: string) =>
         crypto.createHash('sha256').update(code).digest('hex') === hashedToken
       );
 
       if (backupCodeIndex !== -1) {
         // Remove used backup code
         backupCodes.splice(backupCodeIndex, 1);
-        
+
         // Update backup codes in database
-        await executeQuery(`
-          UPDATE user_mfa_settings 
-          SET backup_codes = ?
-          WHERE user_id = ?
-        `, [JSON.stringify(backupCodes), userId]);
+        await prisma.user_mfa_settings.update({
+          where: { user_id: userId },
+          data: {
+            backup_codes: backupCodes,
+            updated_at: new Date()
+          }
+        });
 
         return {
           valid: true,
@@ -207,7 +234,7 @@ export class MFAService {
     try {
       // Verify current token
       const isValid = await this.verifyMFAToken(userId, currentToken);
-      
+
       if (!isValid.valid) {
         throw new ValidationError('Invalid MFA token. Cannot generate new backup codes.');
       }
@@ -215,11 +242,13 @@ export class MFAService {
       const newBackupCodes = this.generateBackupCodes();
 
       // Update backup codes
-      await executeQuery(`
-        UPDATE user_mfa_settings 
-        SET backup_codes = ?
-        WHERE user_id = ? AND is_enabled = TRUE
-      `, [JSON.stringify(newBackupCodes), userId]);
+      await prisma.user_mfa_settings.update({
+        where: { user_id: userId },
+        data: {
+          backup_codes: newBackupCodes,
+          updated_at: new Date()
+        }
+      });
 
       return newBackupCodes;
     } catch (error) {
@@ -234,22 +263,27 @@ export class MFAService {
     enabled_at?: string;
   }> {
     try {
-      const mfaSettings = await executeQuerySingle(`
-        SELECT is_enabled, backup_codes, enabled_at
-        FROM user_mfa_settings 
-        WHERE user_id = ?
-      `, [userId]);
+      const mfaSettings = await prisma.user_mfa_settings.findUnique({
+        where: { user_id: userId },
+        select: {
+          is_enabled: true,
+          backup_codes: true,
+          enabled_at: true
+        }
+      });
 
       if (!mfaSettings) {
         return { enabled: false };
       }
 
-      const backupCodes = JSON.parse(mfaSettings.backup_codes || '[]');
+      const backupCodes = Array.isArray(mfaSettings.backup_codes)
+        ? mfaSettings.backup_codes
+        : JSON.parse((mfaSettings.backup_codes as string) || '[]');
 
       return {
-        enabled: mfaSettings.is_enabled,
+        enabled: mfaSettings.is_enabled || false,
         backup_codes_remaining: mfaSettings.is_enabled ? backupCodes.length : undefined,
-        enabled_at: mfaSettings.enabled_at
+        enabled_at: mfaSettings.enabled_at?.toISOString()
       };
     } catch (error) {
       throw createDatabaseError('Failed to get MFA status', error);
@@ -260,24 +294,24 @@ export class MFAService {
   static async isMFARequired(userId: number): Promise<boolean> {
     try {
       // Check system configuration
-      const config = await executeQuerySingle(`
-        SELECT config_value 
-        FROM system_configuration 
-        WHERE config_key = 'mfa_required_for_admins'
-      `);
+      const config = await prisma.system_configuration.findUnique({
+        where: { config_key: 'mfa_required_for_admins' },
+        select: { config_value: true }
+      });
 
-      const mfaRequiredForAdmins = config ? JSON.parse(config.config_value) : false;
+      const mfaRequiredForAdmins = config ? JSON.parse(config.config_value as string) : false;
 
       if (!mfaRequiredForAdmins) {
         return false;
       }
 
       // Check if user is admin
-      const user = await executeQuerySingle(`
-        SELECT admin_level FROM users WHERE id = ?
-      `, [userId]);
+      const user = await prisma.users.findUnique({
+        where: { user_id: userId },
+        select: { admin_level: true }
+      });
 
-      return user && user.admin_level !== 'none';
+      return user !== null && user.admin_level !== 'none';
     } catch (error) {
       return false;
     }
@@ -309,23 +343,32 @@ export class MFAService {
     mfa_adoption_rate: number;
   }> {
     try {
-      const stats = await executeQuerySingle(`
-        SELECT 
-          COUNT(*) as total_users,
-          COUNT(CASE WHEN mfa_enabled = TRUE THEN 1 END) as mfa_enabled_users,
-          COUNT(CASE WHEN admin_level != 'none' THEN 1 END) as mfa_required_users
-        FROM users
-        WHERE is_active = TRUE
-      `);
+      const [totalUsers, mfaEnabledUsers, mfaRequiredUsers] = await Promise.all([
+        prisma.users.count({
+          where: { is_active: true }
+        }),
+        prisma.users.count({
+          where: {
+            is_active: true,
+            mfa_enabled: true
+          }
+        }),
+        prisma.users.count({
+          where: {
+            is_active: true,
+            admin_level: { not: 'none' }
+          }
+        })
+      ]);
 
-      const mfaAdoptionRate = stats.mfa_required_users > 0 
-        ? (stats.mfa_enabled_users / stats.mfa_required_users) * 100 
+      const mfaAdoptionRate = mfaRequiredUsers > 0
+        ? (mfaEnabledUsers / mfaRequiredUsers) * 100
         : 0;
 
       return {
-        total_users: stats.total_users,
-        mfa_enabled_users: stats.mfa_enabled_users,
-        mfa_required_users: stats.mfa_required_users,
+        total_users: totalUsers,
+        mfa_enabled_users: mfaEnabledUsers,
+        mfa_required_users: mfaRequiredUsers,
         mfa_adoption_rate: Math.round(mfaAdoptionRate * 100) / 100
       };
     } catch (error) {

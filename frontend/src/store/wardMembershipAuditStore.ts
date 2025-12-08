@@ -54,7 +54,7 @@ const initialUIState: WardAuditUIState = {
 export const useWardMembershipAuditStore = create<WardMembershipAuditStore>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set, _get) => ({
         // Data
         auditOverview: null,
         wardAuditData: [],

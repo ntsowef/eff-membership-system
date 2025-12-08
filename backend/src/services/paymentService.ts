@@ -290,8 +290,16 @@ export class PaymentService {
   static async getApplicationPayments(applicationId: number): Promise<PaymentTransaction[]> {
     try {
       const query = `
-        SELECT * FROM payment_transactions 
-        WHERE application_id = ? ORDER BY created_at DESC
+        SELECT
+          application_id,
+          payment_amount as amount,
+          payment_method,
+          payment_reference as transaction_id,
+          payment_status as status,
+          created_at,
+          updated_at
+        FROM membership_applications
+        WHERE application_id = $1
       `;
       const results = await executeQuery(query, [applicationId]);
       return results as PaymentTransaction[];

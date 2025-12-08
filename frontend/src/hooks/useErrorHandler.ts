@@ -18,8 +18,8 @@ interface ErrorInfo {
 export const useErrorHandler = (options: ErrorHandlerOptions = {}) => {
   const navigate = useNavigate();
   const {
-    showNotification = true,
-    redirectOnError = true,
+    showNotification: _showNotification = true,
+    redirectOnError: _redirectOnError = true,
     logError = true,
   } = options;
 

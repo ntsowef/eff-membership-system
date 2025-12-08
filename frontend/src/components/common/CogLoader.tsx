@@ -18,7 +18,7 @@ const rotateBottom = keyframes`
 `;
 
 // Styled components
-const LoaderContainer = styled(Box)(({ theme }) => ({
+const LoaderContainer = styled(Box)(() => ({
   position: 'relative',
   width: '120px',
   height: '120px',
@@ -48,7 +48,7 @@ const CogsContainer = styled(Box)({
   zIndex: 0,
 });
 
-const TopCog = styled(Box)(({ theme }) => ({
+const TopCog = styled(Box)(() => ({
   position: 'absolute',
   width: '80px',
   height: '80px',
@@ -58,7 +58,7 @@ const TopCog = styled(Box)(({ theme }) => ({
   left: '0px',
 }));
 
-const LeftCog = styled(Box)(({ theme }) => ({
+const LeftCog = styled(Box)(() => ({
   position: 'absolute',
   width: '64px',
   height: '64px',
@@ -69,7 +69,7 @@ const LeftCog = styled(Box)(({ theme }) => ({
   animation: `${rotateLeft} 8s 0.1s infinite reverse linear`,
 }));
 
-const BottomCog = styled(Box)(({ theme }) => ({
+const BottomCog = styled(Box)(() => ({
   position: 'absolute',
   width: '48px',
   height: '48px',

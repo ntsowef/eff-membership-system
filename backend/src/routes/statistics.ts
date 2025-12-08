@@ -302,28 +302,47 @@ router.get('/expired-members',
           SELECT
             m.municipality_code,
             mu.municipality_name,
-            COUNT(CASE WHEN ms.expiry_date < CURDATE() THEN 1 END) as expired_count,
-            COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as expiring_soon_count,
-            COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as expiring_urgent_count,
-            COUNT(m.member_id) as total_members
-          FROM vw_member_details m
-          LEFT JOIN memberships ms ON m.member_id = ms.member_id
+            CAST(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) AS INTEGER) as expired_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS INTEGER) as expiring_soon_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) AS INTEGER) as expiring_urgent_count,
+            CAST(COUNT(m.member_id) AS INTEGER) as total_members
+          FROM members_consolidated m
           JOIN municipalities mu ON m.municipality_code = mu.municipality_code
-          WHERE m.municipality_code = ?
+          WHERE m.municipality_code = $1
           GROUP BY m.municipality_code, mu.municipality_name
         `;
 
         const [municipalityData] = await executeQuery(municipalityExpiredQuery, [municipalCode]);
 
+        // Get ward breakdown within the municipality
+        const wardBreakdownQuery = `
+          SELECT
+            w.ward_code,
+            w.ward_name,
+            CAST(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) AS INTEGER) as expired_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS INTEGER) as expiring_soon_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) AS INTEGER) as expiring_urgent_count,
+            CAST(COUNT(m.member_id) AS INTEGER) as total_members,
+            ROUND(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) * 100.0 / NULLIF(COUNT(m.member_id), 0), 2) as expired_percentage
+          FROM wards w
+          LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
+          WHERE w.municipality_code = $1
+          GROUP BY w.ward_code, w.ward_name
+          ORDER BY expired_count DESC
+        `;
+
+        const wardBreakdown = await executeQuery(wardBreakdownQuery, [municipalCode]);
+
         expiredMembersData = {
           national_summary: {
-            total_expired: municipalityData?.expired_count || 0,
-            total_expiring_soon: municipalityData?.expiring_soon_count || 0,
-            total_expiring_urgent: municipalityData?.expiring_urgent_count || 0,
-            total_members: municipalityData?.total_members || 0
+            total_expired: Number(municipalityData?.expired_count || 0),
+            total_expiring_soon: Number(municipalityData?.expiring_soon_count || 0),
+            total_expiring_urgent: Number(municipalityData?.expiring_urgent_count || 0),
+            total_members: Number(municipalityData?.total_members || 0)
           },
           province_breakdown: [], // Empty for municipality admin
           municipality_breakdown: municipalityData ? [municipalityData] : [],
+          ward_breakdown: wardBreakdown, // Add ward breakdown for Municipality Admin
           filtered_by_municipality: true,
           municipality_code: municipalCode
         };
@@ -334,27 +353,47 @@ router.get('/expired-members',
           SELECT
             p.province_code,
             p.province_name,
-            COUNT(CASE WHEN ms.expiry_date < CURDATE() THEN 1 END) as expired_count,
-            COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as expiring_soon_count,
-            COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as expiring_urgent_count,
-            COUNT(m.member_id) as total_members
-          FROM vw_member_details m
-          LEFT JOIN memberships ms ON m.member_id = ms.member_id
+            CAST(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) AS INTEGER) as expired_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS INTEGER) as expiring_soon_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) AS INTEGER) as expiring_urgent_count,
+            CAST(COUNT(m.member_id) AS INTEGER) as total_members
+          FROM members_consolidated m
           JOIN provinces p ON m.province_code = p.province_code
-          WHERE m.province_code = ?
+          WHERE m.province_code = $1
           GROUP BY p.province_code, p.province_name
         `;
 
         const [provinceData] = await executeQuery(provinceExpiredQuery, [provinceCode]);
 
+        // Get sub-regional breakdown (municipalities) within the province
+        const subregionalBreakdownQuery = `
+          SELECT
+            mu.municipality_code,
+            mu.municipality_name,
+            CAST(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) AS INTEGER) as expired_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS INTEGER) as expiring_soon_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) AS INTEGER) as expiring_urgent_count,
+            CAST(COUNT(m.member_id) AS INTEGER) as total_members,
+            ROUND(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) * 100.0 / NULLIF(COUNT(m.member_id), 0), 2) as expired_percentage
+          FROM municipalities mu
+          LEFT JOIN members_consolidated m ON mu.municipality_code = m.municipality_code
+          WHERE mu.province_code = $1
+            AND COALESCE(mu.municipality_type, 'Local') != 'Metropolitan'
+          GROUP BY mu.municipality_code, mu.municipality_name
+          ORDER BY expired_count DESC
+        `;
+
+        const subregionalBreakdown = await executeQuery(subregionalBreakdownQuery, [provinceCode]);
+
         expiredMembersData = {
           national_summary: {
-            total_expired: provinceData?.expired_count || 0,
-            total_expiring_soon: provinceData?.expiring_soon_count || 0,
-            total_expiring_urgent: provinceData?.expiring_urgent_count || 0,
-            total_members: provinceData?.total_members || 0
+            total_expired: Number(provinceData?.expired_count || 0),
+            total_expiring_soon: Number(provinceData?.expiring_soon_count || 0),
+            total_expiring_urgent: Number(provinceData?.expiring_urgent_count || 0),
+            total_members: Number(provinceData?.total_members || 0)
           },
           province_breakdown: provinceData ? [provinceData] : [],
+          subregional_breakdown: subregionalBreakdown, // Add sub-regional breakdown for Province Admin
           filtered_by_province: true,
           province_code: provinceCode
         };
@@ -365,26 +404,25 @@ router.get('/expired-members',
           SELECT
             p.province_code,
             p.province_name,
-            COUNT(CASE WHEN ms.expiry_date < CURDATE() THEN 1 END) as expired_count,
-            COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as expiring_soon_count,
-            COUNT(CASE WHEN ms.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as expiring_urgent_count,
-            COUNT(m.member_id) as total_members,
-            ROUND(COUNT(CASE WHEN ms.expiry_date < CURDATE() THEN 1 END) * 100.0 / NULLIF(COUNT(m.member_id), 0), 2) as expired_percentage
+            CAST(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) AS INTEGER) as expired_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS INTEGER) as expiring_soon_count,
+            CAST(COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) AS INTEGER) as expiring_urgent_count,
+            CAST(COUNT(m.member_id) AS INTEGER) as total_members,
+            ROUND(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) * 100.0 / NULLIF(COUNT(m.member_id), 0), 2) as expired_percentage
           FROM provinces p
-          LEFT JOIN vw_member_details m ON p.province_code = m.province_code
-          LEFT JOIN memberships ms ON m.member_id = ms.member_id
+          LEFT JOIN members_consolidated m ON p.province_code = m.province_code
           GROUP BY p.province_code, p.province_name
           ORDER BY expired_count DESC
         `;
 
         const provinceBreakdown = await executeQuery(nationalExpiredQuery);
 
-        // Calculate national totals
+        // Calculate national totals - ensure all values are proper numbers
         const nationalTotals = provinceBreakdown.reduce((acc: any, province: any) => ({
-          total_expired: acc.total_expired + (province.expired_count || 0),
-          total_expiring_soon: acc.total_expiring_soon + (province.expiring_soon_count || 0),
-          total_expiring_urgent: acc.total_expiring_urgent + (province.expiring_urgent_count || 0),
-          total_members: acc.total_members + (province.total_members || 0)
+          total_expired: acc.total_expired + Number(province.expired_count || 0),
+          total_expiring_soon: acc.total_expiring_soon + Number(province.expiring_soon_count || 0),
+          total_expiring_urgent: acc.total_expiring_urgent + Number(province.expiring_urgent_count || 0),
+          total_members: acc.total_members + Number(province.total_members || 0)
         }), { total_expired: 0, total_expiring_soon: 0, total_expiring_urgent: 0, total_members: 0 });
 
         expiredMembersData = {
@@ -404,11 +442,168 @@ router.get('/expired-members',
   })
 );
 
+// Get membership status breakdown with detailed analytics
+router.get('/membership-status-breakdown',
+  authenticate,
+  requirePermission('statistics.read'),
+  applyGeographicFilter,
+  cacheMiddleware({
+    ttl: 300, // 5 minutes cache
+    keyGenerator: (req) => {
+      const baseKey = 'membership-status-breakdown';
+      const filters = [
+        req.query.province_code,
+        req.query.municipality_code,
+        req.query.ward_code
+      ].filter(Boolean).join(':');
+      return `${baseKey}:${filters || 'all'}`;
+    }
+  }),
+  asyncHandler(async (req, res) => {
+    try {
+      // Get geographic context from middleware
+      const geographicContext = (req as any).provinceContext || (req as any).municipalityContext || (req as any).wardContext;
+      const provinceCode = geographicContext?.province_code;
+      const municipalCode = geographicContext?.municipal_code;
+      const wardCode = geographicContext?.ward_code;
+
+      // Build WHERE clause based on geographic filters
+      let whereClause = 'WHERE 1=1';
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (wardCode) {
+        whereClause += ` AND m.ward_code = $${paramIndex}`;
+        params.push(wardCode);
+        paramIndex++;
+      } else if (municipalCode) {
+        whereClause += ` AND m.municipality_code = $${paramIndex}`;
+        params.push(municipalCode);
+        paramIndex++;
+      } else if (provinceCode) {
+        whereClause += ` AND m.province_code = $${paramIndex}`;
+        params.push(provinceCode);
+        paramIndex++;
+      }
+
+      // Get detailed breakdown by expiry status (business logic based)
+      const expiryBreakdownQuery = `
+        SELECT
+          CASE
+            WHEN m.expiry_date IS NULL THEN 'No Expiry Date'
+            WHEN m.expiry_date >= CURRENT_DATE THEN 'Active (Good Standing)'
+            WHEN m.expiry_date < CURRENT_DATE AND m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+            WHEN m.expiry_date < CURRENT_DATE - INTERVAL '90 days' THEN 'Inactive (Expired > 90 days)'
+          END as status_category,
+          CASE
+            WHEN m.expiry_date IS NULL THEN 4
+            WHEN m.expiry_date >= CURRENT_DATE THEN 1
+            WHEN m.expiry_date < CURRENT_DATE AND m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 2
+            WHEN m.expiry_date < CURRENT_DATE - INTERVAL '90 days' THEN 3
+          END as sort_order,
+          COUNT(*) as member_count,
+          ROUND(COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM members_consolidated m2 ${whereClause.replace(/m\./g, 'm2.')}), 0), 2) as percentage
+        FROM members_consolidated m
+        ${whereClause}
+        GROUP BY
+          CASE
+            WHEN m.expiry_date IS NULL THEN 'No Expiry Date'
+            WHEN m.expiry_date >= CURRENT_DATE THEN 'Active (Good Standing)'
+            WHEN m.expiry_date < CURRENT_DATE AND m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+            WHEN m.expiry_date < CURRENT_DATE - INTERVAL '90 days' THEN 'Inactive (Expired > 90 days)'
+          END,
+          CASE
+            WHEN m.expiry_date IS NULL THEN 4
+            WHEN m.expiry_date >= CURRENT_DATE THEN 1
+            WHEN m.expiry_date < CURRENT_DATE AND m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 2
+            WHEN m.expiry_date < CURRENT_DATE - INTERVAL '90 days' THEN 3
+          END
+        ORDER BY sort_order
+      `;
+
+      const breakdown = await executeQuery(expiryBreakdownQuery, params);
+
+      // Calculate summary statistics based on expiry_date
+      const summaryQuery = `
+        SELECT
+          COUNT(*) as total_members,
+          COUNT(CASE WHEN expiry_date >= CURRENT_DATE THEN 1 END) as active_count,
+          COUNT(CASE WHEN expiry_date < CURRENT_DATE AND expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) as grace_period_count,
+          COUNT(CASE WHEN expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) as total_active_with_grace,
+          COUNT(CASE WHEN expiry_date < CURRENT_DATE - INTERVAL '90 days' THEN 1 END) as inactive_count
+        FROM members_consolidated m
+        ${whereClause}
+      `;
+
+      const summaryResult = await executeQuerySingle(summaryQuery, params);
+      const totalMembers = parseInt(summaryResult?.total_members || 0);
+      const activeCount = parseInt(summaryResult?.active_count || 0);
+      const gracePeriodCount = parseInt(summaryResult?.grace_period_count || 0);
+      const totalActiveWithGrace = parseInt(summaryResult?.total_active_with_grace || 0);
+      const inactiveCount = parseInt(summaryResult?.inactive_count || 0);
+
+      // Calculate good_standing (active + grace period) for frontend compatibility
+      const goodStandingCount = activeCount + gracePeriodCount;
+      const goodStandingPercentage = totalMembers > 0 ? ((goodStandingCount / totalMembers) * 100).toFixed(2) : '0.00';
+
+      const response = {
+        summary: {
+          total_members: totalMembers,
+          // Good Standing = Active + Grace Period (for frontend compatibility)
+          good_standing_count: goodStandingCount,
+          good_standing_percentage: goodStandingPercentage,
+          // Active members (not expired)
+          active_count: activeCount,
+          active_percentage: totalMembers > 0 ? ((activeCount / totalMembers) * 100).toFixed(2) : '0.00',
+          // Grace period members (expired < 90 days)
+          grace_period_count: gracePeriodCount,
+          grace_period_percentage: totalMembers > 0 ? ((gracePeriodCount / totalMembers) * 100).toFixed(2) : '0.00',
+          // Total active with grace (same as good_standing for backward compatibility)
+          total_active_with_grace: totalActiveWithGrace,
+          total_active_with_grace_percentage: totalMembers > 0 ? ((totalActiveWithGrace / totalMembers) * 100).toFixed(2) : '0.00',
+          // Inactive members (expired > 90 days)
+          inactive_count: inactiveCount,
+          inactive_percentage: totalMembers > 0 ? ((inactiveCount / totalMembers) * 100).toFixed(2) : '0.00'
+        },
+        breakdown_by_expiry: breakdown.map((row: any) => ({
+          status_category: row.status_category,
+          member_count: parseInt(row.member_count),
+          percentage: parseFloat(row.percentage) || 0
+        })),
+        filters_applied: {
+          province_code: provinceCode || null,
+          municipality_code: municipalCode || null,
+          ward_code: wardCode || null
+        },
+        note: 'Status based on expiry_date: Good Standing (not expired OR expired < 90 days), Active (not expired), Grace Period (expired < 90 days), Inactive (expired > 90 days)'
+      };
+
+      sendSuccess(res, response, 'Membership status breakdown retrieved successfully');
+    } catch (error) {
+      console.error('Error fetching membership status breakdown:', error);
+      throw createDatabaseError('Failed to fetch membership status breakdown', error);
+    }
+  })
+);
+
 // Get dashboard summary (combines multiple statistics including expired members)
 router.get('/dashboard',
   authenticate,
   requirePermission('statistics.read'),
   applyGeographicFilter,
+  cacheMiddleware({
+    ttl: 300, // 5 minutes cache
+    keyGenerator: (req) => {
+      const baseKey = 'dashboard';
+      const filters = [
+        req.query.province_code,
+        req.query.municipality_code,
+        req.query.ward_code,
+        req.query.membership_status
+      ].filter(Boolean).join(':');
+      return `${baseKey}:${filters || 'all'}`;
+    }
+  }),
   asyncHandler(async (req, res) => {
     // Get geographic context from middleware
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext || (req as any).wardContext;
@@ -416,14 +611,26 @@ router.get('/dashboard',
     const municipalCode = geographicContext?.municipal_code;
     const wardCode = geographicContext?.ward_code;
 
+    // Get membership status filter from query params
+    const { membership_status } = req.query;
+    let statusFilter = '';
+
+    if (membership_status === 'good_standing') {
+      statusFilter = ' AND m.membership_status_id = 1'; // Status ID 1 = Active/Good Standing
+    } else if (membership_status === 'active') {
+      statusFilter = ' AND ms.is_active = TRUE';
+    } else if (membership_status === 'expired') {
+      statusFilter = ' AND m.expiry_date < CURRENT_DATE';
+    }
+
     // Log access for audit
     if (wardCode) {
-      console.log(`🔒 Loading dashboard data for ward: ${wardCode}`);
+      console.log(`🔒 Loading dashboard data for ward: ${wardCode}${membership_status ? ` (filter: ${membership_status})` : ''}`);
     } else if (municipalCode) {
-      console.log(`🔒 Loading dashboard data for municipality: ${municipalCode}`);
+      console.log(`🔒 Loading dashboard data for municipality: ${municipalCode}${membership_status ? ` (filter: ${membership_status})` : ''}`);
     } else if (provinceCode) {
       await logProvinceAccess(req, 'dashboard_access', provinceCode);
-      console.log(`🔒 Loading dashboard data for province: ${provinceCode}`);
+      console.log(`🔒 Loading dashboard data for province: ${provinceCode}${membership_status ? ` (filter: ${membership_status})` : ''}`);
     }
 
     let systemStats: any, trends: any, demographics: any;
@@ -433,16 +640,16 @@ router.get('/dashboard',
       const municipalityStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
-        FROM vw_member_details m
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE m.municipality_code = $1
+          COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN DATE(m.created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN DATE(m.created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN DATE(m.created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM members_consolidated m
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+        WHERE m.municipality_code = $1${statusFilter}
       `;
 
       const [municipalityStats] = await executeQuery(municipalityStatsQuery, [municipalCode]);
@@ -513,16 +720,16 @@ router.get('/dashboard',
       const wardStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
-        FROM vw_member_details m
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE m.ward_code = $1
+          COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN DATE(m.created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN DATE(m.created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN DATE(m.created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM members_consolidated m
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+        WHERE m.ward_code = $1${statusFilter}
       `;
 
       const [wardStats] = await executeQuery(wardStatsQuery, [wardCode]);
@@ -593,16 +800,16 @@ router.get('/dashboard',
       const provinceStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
-        FROM vw_member_details m
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        WHERE m.province_code = $1
+          COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN DATE(m.created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN DATE(m.created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN DATE(m.created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM members_consolidated m
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+        WHERE m.province_code = $1${statusFilter}
       `;
 
       const [provinceStats] = await executeQuery(provinceStatsQuery, [provinceCode]);
@@ -708,6 +915,12 @@ router.get('/dashboard',
         municipality_code: municipalCode || null,
         ward_code: wardCode || null
       },
+      filters_applied: {
+        membership_status: membership_status || 'all',
+        province_code: provinceCode || null,
+        municipality_code: municipalCode || null,
+        ward_code: wardCode || null
+      },
       province_context: provinceCode ? {
         province_code: provinceCode,
         filtered_by_province: true
@@ -740,7 +953,7 @@ router.get('/dashboard',
   })
 );
 
-// Get top performing wards by member count
+// Get top performing wards by member count (Good Standing members only)
 router.get('/top-wards',
   authenticate,
   requirePermission('statistics.read'),
@@ -751,6 +964,8 @@ router.get('/top-wards',
     const provinceCode = (req as any).provinceContext?.province_code;
     const municipalityCode = (req as any).municipalityContext?.municipal_code;
 
+    // Updated query to count only active members based on expiry_date
+    // Active = not expired OR in grace period (expired < 90 days)
     let query = `
       SELECT
         w.ward_code,
@@ -759,9 +974,13 @@ router.get('/top-wards',
         m.municipality_code,
         d.district_name,
         p.province_name,
-        COUNT(mem.member_id) as member_count,
-        COUNT(CASE WHEN mem.is_eligible_to_vote = 1 THEN 1 END) as active_members,
-        ROUND(COUNT(CASE WHEN mem.is_eligible_to_vote = 1 THEN 1 END) * 100.0 / COUNT(mem.member_id), 2) as active_percentage
+        COUNT(CASE WHEN mem.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) as member_count,
+        COUNT(CASE WHEN mem.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mem.membership_active = true THEN 1 END) as active_members,
+        ROUND(
+          COUNT(CASE WHEN mem.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mem.membership_active = true THEN 1 END) * 100.0 /
+          NULLIF(COUNT(CASE WHEN mem.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END), 0),
+          2
+        ) as active_percentage
       FROM wards w
       LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
       LEFT JOIN districts d ON m.district_code = d.district_code
@@ -801,7 +1020,8 @@ router.get('/top-wards',
       data: topWards,
       province_filter: provinceCode,
       municipality_filter: municipalityCode,
-      limit: limit
+      limit: limit,
+      note: 'Member counts reflect only active members (not expired OR expired < 90 days)'
     }, 'Top performing wards retrieved successfully');
   })
 );

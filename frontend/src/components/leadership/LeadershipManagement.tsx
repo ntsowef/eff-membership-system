@@ -113,11 +113,11 @@ const LeadershipManagement: React.FC = () => {
   const { user } = useAuth();
 
   // Get province context for provincial admin restrictions
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const pageTitle = useProvincePageTitle('Leadership Management');
 
   // Check War Council permissions
-  const warCouncilUIConfig = WarCouncilPermissions.getUIConfig(user);
+  const warCouncilUIConfig = WarCouncilPermissions.getUIConfig(user as any);
 
   // ==================== API Queries ====================
   

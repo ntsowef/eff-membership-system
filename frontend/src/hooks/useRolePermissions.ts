@@ -6,23 +6,23 @@ export interface RolePermissions {
   canAccessSMS: boolean;
   canAccessEmail: boolean;
   canAccessCommunication: boolean;
-  
+
   // Election management permissions
   canAccessElectionManagement: boolean;
   canCreateElections: boolean;
   canManageElections: boolean;
-  
+
   // Administrative permissions
   canAccessNationalFeatures: boolean;
   canAccessProvincialFeatures: boolean;
   canAccessDistrictFeatures: boolean;
   canAccessMunicipalFeatures: boolean;
   canAccessWardFeatures: boolean;
-  
+
   // Data access permissions
   canViewAllProvinces: boolean;
   canViewAssignedProvinceOnly: boolean;
-  
+
   // System permissions
   canManageUsers: boolean;
   canViewSystemSettings: boolean;
@@ -33,6 +33,11 @@ export interface RolePermissions {
 
   // SMS Communication permissions
   canAccessSMSManagement: boolean;
+
+  // Ward Audit & Delegates Management permissions
+  canAccessWardAudit: boolean;
+  canAccessDelegatesManagement: boolean;
+  canManageDelegates: boolean;
 }
 
 export const useRolePermissions = (): RolePermissions => {
@@ -58,7 +63,10 @@ export const useRolePermissions = (): RolePermissions => {
         canViewSystemSettings: false,
         canAccessAuditLogs: false,
         canManageLeadership: false,
-        canAccessSMSManagement: false
+        canAccessSMSManagement: false,
+        canAccessWardAudit: false,
+        canAccessDelegatesManagement: false,
+        canManageDelegates: false
       };
     }
 
@@ -76,23 +84,23 @@ export const useRolePermissions = (): RolePermissions => {
       canAccessSMS: isNationalAdmin, // SMS restricted to National Admin only
       canAccessEmail: true, // Email available to all admin levels
       canAccessCommunication: true, // General communication available to all
-      
+
       // Election management permissions
       canAccessElectionManagement: isNationalAdmin || isProvincialAdmin, // National and Provincial only
       canCreateElections: isNationalAdmin || isProvincialAdmin,
       canManageElections: isNationalAdmin || isProvincialAdmin,
-      
+
       // Administrative permissions
       canAccessNationalFeatures: isNationalAdmin,
       canAccessProvincialFeatures: isNationalAdmin || isProvincialAdmin,
       canAccessDistrictFeatures: isNationalAdmin || isProvincialAdmin || isDistrictAdmin,
       canAccessMunicipalFeatures: isNationalAdmin || isProvincialAdmin || isDistrictAdmin || isMunicipalAdmin,
       canAccessWardFeatures: true, // All admin levels can access ward features
-      
+
       // Data access permissions
       canViewAllProvinces: isNationalAdmin,
       canViewAssignedProvinceOnly: isProvincialAdmin || isDistrictAdmin || isMunicipalAdmin || isWardAdmin,
-      
+
       // System permissions
       canManageUsers: isNationalAdmin || isProvincialAdmin, // Municipality admin cannot manage users
       canViewSystemSettings: isNationalAdmin,
@@ -102,7 +110,12 @@ export const useRolePermissions = (): RolePermissions => {
       canManageLeadership: isNationalAdmin || isProvincialAdmin, // Municipality admin cannot manage leadership (except meetings)
 
       // SMS Communication permissions
-      canAccessSMSManagement: isNationalAdmin // Only National Admin can access SMS management
+      canAccessSMSManagement: isNationalAdmin, // Only National Admin can access SMS management
+
+      // Ward Audit & Delegates Management permissions
+      canAccessWardAudit: isNationalAdmin || isProvincialAdmin || isDistrictAdmin || isMunicipalAdmin, // All admin levels except ward
+      canAccessDelegatesManagement: isNationalAdmin || isProvincialAdmin || isDistrictAdmin || isMunicipalAdmin, // All admin levels except ward
+      canManageDelegates: isNationalAdmin || isProvincialAdmin || isDistrictAdmin || isMunicipalAdmin // All admin levels except ward
     };
   }, [user]);
 

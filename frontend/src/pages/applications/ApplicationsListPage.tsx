@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
+  // Card,
+  // CardContent,
   Grid,
   Container,
   useTheme,
@@ -29,13 +29,13 @@ import {
 } from '@mui/material';
 import {
   Assignment,
-  PersonAdd,
+  // PersonAdd,
   CheckCircle,
   Schedule,
   Cancel,
   MoreVert,
   Search,
-  FilterList,
+  // FilterList,
   Refresh,
   Download,
   Visibility,
@@ -77,6 +77,7 @@ const ApplicationsListPage: React.FC = () => {
   // Tab configurations
   const tabs = [
     { label: 'All Applications', status: '', color: 'primary' },
+    { label: 'Draft', status: 'draft', color: 'default' },
     { label: 'Pending Review', status: 'submitted', color: 'warning' },
     { label: 'Under Review', status: 'under_review', color: 'info' },
     { label: 'Ready for Approval', status: 'payment_approved', color: 'secondary' },
@@ -85,18 +86,19 @@ const ApplicationsListPage: React.FC = () => {
   ];
 
   // Fetch real applications data with proper error handling
-  const { data: applicationsData, isLoading, error, refetch } = useQuery({
+  const { data: applicationsData, isLoading, error } = useQuery({
     queryKey: ['applications'],
     queryFn: async () => {
       try {
-        const response = await apiGet('/membership-applications');
+        // Fetch with a high limit to get all applications (or implement proper pagination later)
+        const response = await apiGet('/membership-applications?limit=5000');
         console.log('✅ Applications API response:', response);
 
         // Handle the actual API response structure
-        const apps = response.data?.applications || response.applications || [];
-        const total = response.data?.total || response.total || apps.length;
+        const apps = (response as any).data?.applications || (response as any).applications || [];
+        const total = (response as any).data?.pagination?.total_count || (response as any).data?.total || (response as any).total || apps.length;
 
-        console.log(`📊 Found ${apps.length} applications`);
+        console.log(`📊 Found ${apps.length} applications out of ${total} total`);
 
         return {
           applications: apps,
@@ -136,56 +138,10 @@ const ApplicationsListPage: React.FC = () => {
 
   console.log(`📊 Transformed ${realApplications.length} real applications`);
 
-  // Add some sample applications with "Payment Approved" status for testing
-  const mockApplications: Application[] = [
-    {
-      application_id: 1001,
-      firstname: 'Thabo',
-      surname: 'Mthembu',
-      email: 'thabo.mthembu@email.com',
-      cell_number: '0821234567',
-      id_number: '9001015800083',
-      status: 'submitted',
-      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      membership_type: 'Regular',
-      province_name: 'Gauteng',
-      municipality_name: 'City of Johannesburg',
-      ward_name: 'Ward 123',
-    },
-    {
-      application_id: 1002,
-      firstname: 'Nomsa',
-      surname: 'Dlamini',
-      email: 'nomsa.dlamini@email.com',
-      cell_number: '0837654321',
-      id_number: '9505128900084',
-      status: 'payment_approved',
-      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      membership_type: 'Student',
-      province_name: 'KwaZulu-Natal',
-      municipality_name: 'eThekwini',
-      ward_name: 'Ward 456',
-    },
-    {
-      application_id: 1003,
-      firstname: 'Sipho',
-      surname: 'Ndlovu',
-      email: 'sipho.ndlovu@email.com',
-      cell_number: '0769876543',
-      id_number: '8712094500085',
-      status: 'payment_approved',
-      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      membership_type: 'Regular',
-      province_name: 'Western Cape',
-      municipality_name: 'City of Cape Town',
-      ward_name: 'Ward 789',
-    },
-  ];
+  // Use only real applications (no mock data needed)
+  const allApplications = realApplications;
 
-  // Combine real applications with mock data for testing
-  const allApplications = [...realApplications, ...mockApplications];
-
-  console.log(`📊 Total applications: ${allApplications.length} (${realApplications.length} real + ${mockApplications.length} mock)`);
+  console.log(`📊 Total applications: ${allApplications.length}`);
 
   // Filter applications based on current tab
   const filteredApplications = allApplications.filter(app => {

@@ -1,7 +1,8 @@
 // War Council Structure Validation Utilities
 // Provides comprehensive validation for War Council appointments and structure management
 
-import type { WarCouncilStructureView, WarCouncilValidation } from '../services/leadershipApi';
+import type { WarCouncilStructureView } from '../services/leadershipApi';
+// import type { WarCouncilValidation } from '../services/leadershipApi';
 
 export interface ValidationResult {
   isValid: boolean;

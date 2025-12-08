@@ -1,4 +1,4 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { executeQuery, executeQuerySingle, executeUpdate } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -28,6 +28,7 @@ export interface User {
 
 export interface UserDetails extends User {
   role_name: string;
+  role_code?: string;
   role_description?: string;
   member_first_name?: string;
   member_last_name?: string;
@@ -106,7 +107,7 @@ export class UserModel {
     try {
       const query = `
         SELECT
-          u.id,
+          u.user_id as id,
           u.name,
           u.email,
           u.password,
@@ -137,7 +138,7 @@ export class UserModel {
           r.description as role_description
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.role_id
-        WHERE u.user_id = ?
+        WHERE u.user_id = $1
       `;
 
       return await executeQuerySingle<UserDetails>(query, [id]);
@@ -152,15 +153,15 @@ export class UserModel {
       const query = `
         SELECT
           u.*,
-          r.name as role_name,
+          r.role_name as role_name,
           r.description as role_description,
           m.firstname as member_first_name,
           m.surname as member_last_name,
           m.id_number as member_id_number
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
-        LEFT JOIN members m ON u.member_id = m.member_id
-        WHERE u.email = ?
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        LEFT JOIN members_consolidated m ON u.member_id = m.member_id
+        WHERE u.email = $1
       `;
 
       return await executeQuerySingle<UserDetails>(query, [email]);
@@ -217,7 +218,7 @@ export class UserModel {
         fields.push('email = ?');
         params.push(userData.email);
       }
-      
+
       if (userData.role_id !== undefined) {
         fields.push('role_id = ?');
         params.push(userData.role_id);
@@ -261,13 +262,25 @@ export class UserModel {
       if (fields.length === 0) {
         return false;
       }
-      
-      fields.push('updated_at = CURRENT_TIMESTAMP');
+
+      // Build SET clause with PostgreSQL parameter placeholders ($1, $2, etc.)
+      const setClause = fields.map((field, index) => {
+        const parts = field.split(' = ');
+        return `${parts[0]} = $${index + 1}`;
+      }).join(', ');
+
+      // Add user_id parameter for WHERE clause
       params.push(id);
-      
-      const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
-      const result = await executeQuery(query, params);
-      
+
+      // Build complete query with updated_at using CURRENT_TIMESTAMP
+      const query = `UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE user_id = $${params.length}`;
+
+      console.log('🔍 UPDATE USER DEBUG (FIXED):', { query, params, id });
+
+      const result = await executeUpdate(query, params);
+
+      console.log('🔍 UPDATE RESULT:', { affectedRows: result.affectedRows });
+
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to update user', error);
@@ -481,14 +494,14 @@ export class UserModel {
       const query = `
         SELECT
           u.*,
-          r.name as role_name,
+          r.role_name as role_name,
           r.description as role_description,
           m.first_name as member_first_name,
           m.last_name as member_last_name,
           m.id_number as member_id_number
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
-        LEFT JOIN members m ON u.member_id = m.id
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        LEFT JOIN members_consolidated m ON u.member_id = m.id
         ${whereClause}
         ORDER BY u.created_at DESC
         LIMIT ? OFFSET ?
@@ -540,6 +553,58 @@ export class UserModel {
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to delete user', error);
+    }
+  }
+
+  // Hard delete user (permanent removal from database)
+  static async hardDeleteUser(id: number): Promise<boolean> {
+    try {
+      // Delete related records first to avoid foreign key constraints
+
+      // Delete OTP codes
+      await executeQuery('DELETE FROM user_otp_codes WHERE user_id = ?', [id]);
+
+      // Delete user creation workflows
+      await executeQuery('DELETE FROM user_creation_workflows WHERE user_id = ?', [id]);
+
+      // Note: Audit logs are kept for compliance purposes
+      // If you need to delete audit logs, uncomment the line below:
+      // await executeQuery('DELETE FROM audit_logs WHERE user_id = ?', [id]);
+
+      // Finally, delete the user
+      const query = 'DELETE FROM users WHERE id = ?';
+      const result = await executeQuery(query, [id]);
+
+      return result.affectedRows > 0;
+    } catch (error) {
+      throw createDatabaseError('Failed to hard delete user', error);
+    }
+  }
+
+  // Hard delete user by email
+  static async hardDeleteUserByEmail(email: string): Promise<{ success: boolean; userId?: number; userName?: string }> {
+    try {
+      // First, get the user details
+      const user = await this.getUserByEmail(email);
+      if (!user) {
+        return { success: false };
+      }
+
+      // Delete related records
+      await executeQuery('DELETE FROM user_otp_codes WHERE user_id = ?', [user.id]);
+      await executeQuery('DELETE FROM user_creation_workflows WHERE user_id = ?', [user.id]);
+
+      // Delete the user
+      const query = 'DELETE FROM users WHERE id = ?';
+      const result = await executeQuery(query, [user.id]);
+
+      return {
+        success: result.affectedRows > 0,
+        userId: user.id,
+        userName: user.name
+      };
+    } catch (error) {
+      throw createDatabaseError('Failed to hard delete user by email', error);
     }
   }
 

@@ -35,7 +35,7 @@ const GenericError: React.FC<ErrorPageProps> = ({
   details,
   onRetry,
   onGoHome,
-  onGoBack,
+  onGoBack: _onGoBack,
 }) => {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -56,13 +56,13 @@ const GenericError: React.FC<ErrorPageProps> = ({
     }
   };
 
-  const handleGoBack = () => {
-    if (onGoBack) {
-      onGoBack();
-    } else {
-      navigate(-1);
-    }
-  };
+  // const _handleGoBack = () => {
+  //   if (onGoBack) {
+  //     onGoBack();
+  //   } else {
+  //     navigate(-1);
+  //   }
+  // };
 
   const getErrorColor = (code: number) => {
     if (code >= 400 && code < 500) return theme.palette.warning.main;

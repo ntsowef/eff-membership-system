@@ -18,21 +18,16 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
   IconButton,
-  Divider,
   Alert
 } from '@mui/material';
 import {
   Close,
   Download,
-  TrendingUp,
-  TrendingDown,
-  TrendingFlat,
   CheckCircle,
   Warning,
   Error,
@@ -42,7 +37,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { wardMembershipAuditApi, downloadBlob } from '../../services/wardMembershipAuditApi';
 import { WARD_STANDING_COLORS } from '../../types/wardMembershipAudit';
-import type { WardStanding, GrowthTrend } from '../../types/wardMembershipAudit';
+import type { WardStanding } from '../../types/wardMembershipAudit';
 
 // No registration needed for Recharts
 
@@ -103,18 +98,19 @@ const WardDetailsModal: React.FC<WardDetailsModalProps> = ({
     return WARD_STANDING_COLORS[standing] as 'success' | 'warning' | 'error';
   };
 
-  const getTrendIcon = (trend: GrowthTrend) => {
-    switch (trend) {
-      case 'Growing':
-        return <TrendingUp color="success" />;
-      case 'Declining':
-        return <TrendingDown color="error" />;
-      case 'Stable':
-        return <TrendingFlat color="info" />;
-      default:
-        return <TrendingFlat />;
-    }
-  };
+  // Helper function to get trend icon (currently unused but kept for future use)
+  // const getTrendIcon = (trend: GrowthTrend) => {
+  //   switch (trend) {
+  //     case 'Growing':
+  //       return <TrendingUp color="success" />;
+  //     case 'Declining':
+  //       return <TrendingDown color="error" />;
+  //     case 'Stable':
+  //       return <TrendingFlat color="info" />;
+  //     default:
+  //       return <TrendingFlat />;
+  //   }
+  // };
 
   const getRecommendationIcon = (recommendation: string) => {
     if (recommendation.toLowerCase().includes('priority') || recommendation.toLowerCase().includes('alert')) {

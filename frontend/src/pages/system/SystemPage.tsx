@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect } from 'react';
+import React, { useState, Fragment } from 'react';
 import {
   Box,
   Typography,
@@ -64,7 +64,8 @@ import {
   Lock,
   Visibility,
   Save,
-  RestartAlt
+  RestartAlt,
+  Download
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { systemApi } from '../../services/api';
@@ -105,6 +106,7 @@ interface SystemSetting {
 
 interface SystemLog {
   id: string;
+  source?: string;
   timestamp: string;
   level: 'info' | 'warning' | 'error' | 'debug';
   category: string;
@@ -116,14 +118,26 @@ const SystemPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [logDetailsDialogOpen, setLogDetailsDialogOpen] = useState(false);
+  const [logDetailData, setLogDetailData] = useState<any>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [selectedSetting, setSelectedSetting] = useState<SystemSetting | null>(null);
   const [settingValue, setSettingValue] = useState<string | boolean | number>('');
   const { showSuccess, showError } = useNotification();
   const queryClient = useQueryClient();
 
+  // Fetch system overview with real data
+  const { data: overviewData, isLoading: overviewLoading } = useQuery({
+    queryKey: ['system-overview'],
+    queryFn: async () => {
+      const response = await systemApi.getSystemOverview();
+      return response.data;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   // Fetch system settings from API
-  const { data: settingsData, isLoading: settingsLoading, refetch: refetchSettings } = useQuery({
+  const { data: settingsData, isLoading: settingsLoading } = useQuery({
     queryKey: ['system-settings'],
     queryFn: async () => {
       const response = await systemApi.getSettings();
@@ -222,24 +236,24 @@ const SystemPage: React.FC = () => {
     },
   });
 
-  // Mock data - in real implementation, these would come from APIs
+  // Extract real data from API response
   const systemInfo: SystemInfo = {
-    version: '2.1.0',
-    environment: 'Production',
-    uptime: '15 days, 8 hours',
-    lastRestart: '2025-08-11T10:30:00Z',
-    status: 'healthy'
+    version: overviewData?.system_info?.version || '2.1.0',
+    environment: overviewData?.system_info?.environment || 'Production',
+    uptime: overviewData?.system_info?.uptime || 'Loading...',
+    lastRestart: overviewData?.system_info?.last_restart || new Date().toISOString(),
+    status: overviewData?.system_info?.status || 'healthy'
   };
 
   const systemMetrics: SystemMetrics = {
-    cpu: 45,
-    memory: 68,
-    disk: 32,
-    network: 12,
-    activeUsers: 1247,
-    totalRequests: 89432,
-    errorRate: 0.02,
-    responseTime: 145
+    cpu: overviewData?.system_metrics?.cpu || 0,
+    memory: overviewData?.system_metrics?.memory || 0,
+    disk: overviewData?.system_metrics?.disk || 0,
+    network: overviewData?.system_metrics?.network || 0,
+    activeUsers: overviewData?.system_metrics?.active_users || 0,
+    totalRequests: overviewData?.system_metrics?.total_requests || 0,
+    errorRate: overviewData?.system_metrics?.error_rate || 0,
+    responseTime: overviewData?.system_metrics?.response_time || 0
   };
 
   // Map database settings to UI format
@@ -286,6 +300,7 @@ const SystemPage: React.FC = () => {
   // Map real logs from API
   const systemLogs: SystemLog[] = (logsData?.logs || []).map((log: any) => ({
     id: String(log.id),
+    source: log.source,
     timestamp: log.timestamp,
     level: log.level,
     category: log.category,
@@ -304,7 +319,30 @@ const SystemPage: React.FC = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedLog(null);
+  };
+
+  const handleViewDetails = async () => {
+    if (!selectedLog) return;
+
+    try {
+      const response = await systemApi.getLogDetail(selectedLog.source || 'audit', selectedLog.id);
+      setLogDetailData(response.data);
+      setLogDetailsDialogOpen(true);
+      handleMenuClose();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Failed to fetch log details');
+    }
+  };
+
+  const handleExportLogs = () => {
+    try {
+      const exportUrl = systemApi.exportLogsCSV();
+      window.open(exportUrl, '_blank');
+      showSuccess('Logs export started. Download will begin shortly.');
+      handleMenuClose();
+    } catch (error: any) {
+      showError('Failed to export logs');
+    }
   };
 
   const handleSettingEdit = (setting: SystemSetting) => {
@@ -386,89 +424,180 @@ const SystemPage: React.FC = () => {
       </Box>
 
       {/* System Status Overview */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>
-                  <Computer />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" color="primary.main">
-                    {systemInfo.version}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    System Version
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+      {overviewLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4, mb: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'primary.main' }}>
+                      <Computer />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="primary.main">
+                        {systemInfo.version}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        System Version
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <CheckCircle />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" color="success.main">
-                    {systemInfo.uptime}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    System Uptime
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'success.main' }}>
+                      <CheckCircle />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="success.main">
+                        {systemInfo.uptime}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        System Uptime
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'info.main' }}>
-                  <People />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" color="info.main">
-                    {systemMetrics.activeUsers.toLocaleString()}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Active Users
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'info.main' }}>
+                      <People />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="info.main">
+                        {systemMetrics.activeUsers.toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Active Sessions
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: getStatusColor(systemInfo.status) === 'success' ? 'success.main' : 'warning.main' }}>
-                  {systemInfo.status === 'healthy' ? <CheckCircle /> : <Warning />}
-                </Avatar>
-                <Box>
-                  <Chip
-                    label={systemInfo.status.toUpperCase()}
-                    color={getStatusColor(systemInfo.status) as any}
-                    size="small"
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    System Status
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: getStatusColor(systemInfo.status) === 'success' ? 'success.main' : 'warning.main' }}>
+                      {systemInfo.status === 'healthy' ? <CheckCircle /> : <Warning />}
+                    </Avatar>
+                    <Box>
+                      <Chip
+                        label={systemInfo.status.toUpperCase()}
+                        color={getStatusColor(systemInfo.status) as any}
+                        size="small"
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        System Status
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Database Statistics */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                      <People />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="secondary.main">
+                        {overviewData?.database_stats?.total_members?.toLocaleString() || '0'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Members
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'success.main' }}>
+                      <CheckCircle />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="success.main">
+                        {overviewData?.database_stats?.active_members?.toLocaleString() || '0'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Active Members
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'info.main' }}>
+                      <People />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="info.main">
+                        {overviewData?.database_stats?.new_members_30d?.toLocaleString() || '0'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        New Members (30d)
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: 'warning.main' }}>
+                      <Security />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" color="warning.main">
+                        {overviewData?.database_stats?.total_users?.toLocaleString() || '0'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        System Users
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </>
+      )}
 
       {/* System Metrics */}
       <Card sx={{ mb: 4 }}>
@@ -477,103 +606,117 @@ const SystemPage: React.FC = () => {
             <Monitor />
             System Performance Metrics
           </Typography>
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">CPU Usage</Typography>
-                  <Typography variant="body2" fontWeight="bold">{systemMetrics.cpu}%</Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={systemMetrics.cpu}
-                  color={systemMetrics.cpu > 80 ? 'error' : systemMetrics.cpu > 60 ? 'warning' : 'primary'}
-                />
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">Memory Usage</Typography>
-                  <Typography variant="body2" fontWeight="bold">{systemMetrics.memory}%</Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={systemMetrics.memory}
-                  color={systemMetrics.memory > 80 ? 'error' : systemMetrics.memory > 60 ? 'warning' : 'primary'}
-                />
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">Disk Usage</Typography>
-                  <Typography variant="body2" fontWeight="bold">{systemMetrics.disk}%</Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={systemMetrics.disk}
-                  color={systemMetrics.disk > 80 ? 'error' : systemMetrics.disk > 60 ? 'warning' : 'primary'}
-                />
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">Network I/O</Typography>
-                  <Typography variant="body2" fontWeight="bold">{systemMetrics.network} MB/s</Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={systemMetrics.network}
-                  color="info"
-                />
-              </Box>
-            </Grid>
-          </Grid>
+          {overviewLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">CPU Usage</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {systemMetrics.cpu > 0 ? `${systemMetrics.cpu}%` : 'N/A'}
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant={systemMetrics.cpu > 0 ? 'determinate' : 'indeterminate'}
+                      value={systemMetrics.cpu}
+                      color={systemMetrics.cpu > 80 ? 'error' : systemMetrics.cpu > 60 ? 'warning' : 'primary'}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Memory Usage</Typography>
+                      <Typography variant="body2" fontWeight="bold">{systemMetrics.memory}%</Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={systemMetrics.memory}
+                      color={systemMetrics.memory > 80 ? 'error' : systemMetrics.memory > 60 ? 'warning' : 'primary'}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Disk Usage</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {systemMetrics.disk > 0 ? `${systemMetrics.disk}%` : 'N/A'}
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant={systemMetrics.disk > 0 ? 'determinate' : 'indeterminate'}
+                      value={systemMetrics.disk}
+                      color={systemMetrics.disk > 80 ? 'error' : systemMetrics.disk > 60 ? 'warning' : 'primary'}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Cache Hit Rate</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {overviewData?.cache_stats?.hit_rate?.toFixed(1) || '0'}%
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={overviewData?.cache_stats?.hit_rate || 0}
+                      color="info"
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
 
-          <Grid container spacing={3} sx={{ mt: 2 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="primary.main">
-                  {systemMetrics.totalRequests.toLocaleString()}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Requests
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="error.main">
-                  {systemMetrics.errorRate}%
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Error Rate
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="success.main">
-                  {systemMetrics.responseTime}ms
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Avg Response Time
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="info.main">
-                  {systemInfo.environment}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Environment
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
+              <Grid container spacing={3} sx={{ mt: 2 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="primary.main">
+                      {systemMetrics.totalRequests.toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Requests (24h)
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="error.main">
+                      {systemMetrics.errorRate.toFixed(2)}%
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Error Rate
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="success.main">
+                      {overviewData?.database_stats?.active_sessions?.toLocaleString() || '0'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Active Sessions
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" color="info.main">
+                      {systemInfo.environment}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Environment
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -794,13 +937,22 @@ const SystemPage: React.FC = () => {
                   View and monitor system activity logs
                 </Typography>
               </Box>
-              <Button
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={() => window.location.reload()}
-              >
-                Refresh
-              </Button>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Download />}
+                  onClick={handleExportLogs}
+                >
+                  Export Logs
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['system-logs'] })}
+                >
+                  Refresh
+                </Button>
+              </Box>
             </Box>
 
             {/* Loading State */}
@@ -872,6 +1024,26 @@ const SystemPage: React.FC = () => {
                 </Table>
               </TableContainer>
             )}
+
+            {/* Log Actions Menu */}
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={handleViewDetails}>
+                <ListItemIcon>
+                  <Visibility fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>View Details</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleExportLogs}>
+                <ListItemIcon>
+                  <Download fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Export All Logs</ListItemText>
+              </MenuItem>
+            </Menu>
           </CardContent>
         </Card>
       )}
@@ -1024,78 +1196,172 @@ const SystemPage: React.FC = () => {
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Api />
-              API Management
+              API Management & System Statistics
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Monitor API usage, manage keys, and configure endpoints
+              Monitor API usage and system statistics
             </Typography>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined">
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" color="primary.main">
-                      {systemMetrics.totalRequests.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total API Requests
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined">
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" color="success.main">
-                      {systemMetrics.responseTime}ms
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Average Response Time
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined">
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" color="error.main">
-                      {systemMetrics.errorRate}%
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Error Rate
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+            {overviewLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined">
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography variant="h4" color="primary.main">
+                          {systemMetrics.totalRequests.toLocaleString()}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Total Requests (24h)
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined">
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography variant="h4" color="success.main">
+                          {overviewData?.database_stats?.active_sessions?.toLocaleString() || '0'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Active Sessions
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined">
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography variant="h4" color="error.main">
+                          {systemMetrics.errorRate.toFixed(2)}%
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Error Rate
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
 
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                API Endpoints Status
-              </Typography>
-              <List>
-                {[
-                  { endpoint: '/api/v1/members', status: 'healthy', requests: 45230 },
-                  { endpoint: '/api/v1/leadership', status: 'healthy', requests: 12450 },
-                  { endpoint: '/api/v1/elections', status: 'healthy', requests: 8920 },
-                  { endpoint: '/api/v1/analytics', status: 'warning', requests: 3210 }
-                ].map((api, index) => (
-                  <ListItem key={index}>
-                    <ListItemText
-                      primary={api.endpoint}
-                      secondary={`${api.requests.toLocaleString()} requests`}
-                    />
-                    <ListItemSecondaryAction>
-                      <Chip
-                        label={api.status}
-                        color={api.status === 'healthy' ? 'success' : 'warning'}
-                        size="small"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Database Statistics
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="primary.main">
+                            {overviewData?.database_stats?.total_members?.toLocaleString() || '0'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Members
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="success.main">
+                            {overviewData?.database_stats?.active_members?.toLocaleString() || '0'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Active Members
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="info.main">
+                            {overviewData?.database_stats?.new_members_30d?.toLocaleString() || '0'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            New Members (30d)
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="warning.main">
+                            {overviewData?.database_stats?.total_users?.toLocaleString() || '0'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            System Users
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Cache Statistics
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Chip
+                            label={overviewData?.cache_stats?.connected ? 'Connected' : 'Disconnected'}
+                            color={overviewData?.cache_stats?.connected ? 'success' : 'error'}
+                            sx={{ mb: 1 }}
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            Cache Status
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="primary.main">
+                            {overviewData?.cache_stats?.hit_rate?.toFixed(1) || '0'}%
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Hit Rate
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="info.main">
+                            {overviewData?.cache_stats?.total_keys?.toLocaleString() || '0'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Keys
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card variant="outlined">
+                        <CardContent sx={{ textAlign: 'center' }}>
+                          <Typography variant="h5" color="success.main">
+                            {overviewData?.cache_stats?.memory_usage?.toFixed(1) || '0'} MB
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Memory Usage
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1127,6 +1393,240 @@ const SystemPage: React.FC = () => {
           Delete Log
         </MenuItem>
       </Menu>
+
+      {/* Log Details Dialog */}
+      <Dialog
+        open={logDetailsDialogOpen}
+        onClose={() => {
+          setLogDetailsDialogOpen(false);
+          setLogDetailData(null);
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Info />
+          Log Details
+        </DialogTitle>
+        <DialogContent dividers>
+          {logDetailData ? (
+            <Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Log ID
+                  </Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {logDetailData.id}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Source
+                  </Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {logDetailData.source?.toUpperCase()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Timestamp
+                  </Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {new Date(logDetailData.timestamp).toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Level
+                  </Typography>
+                  <Box sx={{ mt: 0.5 }}>
+                    <Chip
+                      label={logDetailData.level?.toUpperCase()}
+                      color={getLogLevelColor(logDetailData.level) as any}
+                      size="small"
+                    />
+                  </Box>
+                </Grid>
+                {logDetailData.user_name && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      User
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.user_name}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.user_email && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      User Email
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.user_email}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.ip_address && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      IP Address
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.ip_address}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.category && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Category
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.category}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.action && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Action
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.action}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.entity_type && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Entity Type
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.entity_type}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.entity_id && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Entity ID
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.entity_id}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.session_id && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Session ID
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium" sx={{ wordBreak: 'break-all' }}>
+                      {logDetailData.session_id}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.message && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Message
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.message}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.description && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Description
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {logDetailData.description}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.user_agent && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      User Agent
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium" sx={{ wordBreak: 'break-all' }}>
+                      {logDetailData.user_agent}
+                    </Typography>
+                  </Grid>
+                )}
+                {logDetailData.old_values && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Old Values
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50' }}>
+                      <pre style={{ margin: 0, fontSize: '0.875rem', overflow: 'auto' }}>
+                        {JSON.stringify(logDetailData.old_values, null, 2)}
+                      </pre>
+                    </Paper>
+                  </Grid>
+                )}
+                {logDetailData.new_values && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      New Values
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50' }}>
+                      <pre style={{ margin: 0, fontSize: '0.875rem', overflow: 'auto' }}>
+                        {JSON.stringify(logDetailData.new_values, null, 2)}
+                      </pre>
+                    </Paper>
+                  </Grid>
+                )}
+                {logDetailData.details && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Additional Details
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50' }}>
+                      <pre style={{ margin: 0, fontSize: '0.875rem', overflow: 'auto' }}>
+                        {typeof logDetailData.details === 'object'
+                          ? JSON.stringify(logDetailData.details, null, 2)
+                          : logDetailData.details}
+                      </pre>
+                    </Paper>
+                  </Grid>
+                )}
+                {logDetailData.metadata && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Metadata
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50' }}>
+                      <pre style={{ margin: 0, fontSize: '0.875rem', overflow: 'auto' }}>
+                        {JSON.stringify(logDetailData.metadata, null, 2)}
+                      </pre>
+                    </Paper>
+                  </Grid>
+                )}
+              </Grid>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setLogDetailsDialogOpen(false);
+              setLogDetailData(null);
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Settings Edit Dialog */}
       <Dialog

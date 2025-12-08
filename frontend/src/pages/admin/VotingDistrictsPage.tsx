@@ -40,7 +40,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { geographicApi } from '../../services/api';
 import GeographicSelector from '../../components/common/GeographicSelector';
-import { VotingDistrict, VotingDistrictCreateRequest } from '../../types/votingDistricts';
+import type { VotingDistrict, VotingDistrictCreateRequest } from '../../types/votingDistricts';
 
 const VotingDistrictsPage: React.FC = () => {
   const [selectedFilters, setSelectedFilters] = useState({
@@ -491,8 +491,8 @@ const VotingDistrictsPage: React.FC = () => {
                     value={selectedDistrict.is_active}
                     onChange={(e) => setSelectedDistrict(prev => prev ? ({ ...prev, is_active: e.target.value as boolean }) : null)}
                   >
-                    <MenuItem value={true}>Active</MenuItem>
-                    <MenuItem value={false}>Inactive</MenuItem>
+                    <MenuItem value={true as any}>Active</MenuItem>
+                    <MenuItem value={false as any}>Inactive</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>

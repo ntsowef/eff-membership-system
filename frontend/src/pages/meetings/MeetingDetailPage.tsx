@@ -30,7 +30,7 @@ import {
   LocationOn,
   VideoCall,
   People,
-  Schedule,
+  // Schedule,
   ArrowBack,
   Description,
   CheckCircle,
@@ -108,11 +108,11 @@ const MeetingDetailPage: React.FC = () => {
       console.log('✅ Response structure:', JSON.stringify(result, null, 2));
       return result;
     },
-    enabled: isValidId,
+    enabled: isValidId as any,
   });
 
   // Fetch meeting attendance/invitees
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+  const { data: attendanceData } = useQuery({
     queryKey: ['meeting-attendance', id],
     queryFn: async () => {
       try {
@@ -122,7 +122,7 @@ const MeetingDetailPage: React.FC = () => {
         return { data: { attendance: [], summary: { total_attendees: 0, present: 0, absent: 0, excused: 0, late: 0 } } };
       }
     },
-    enabled: isValidId,
+    enabled: isValidId as any,
   });
 
   // Delete meeting mutation

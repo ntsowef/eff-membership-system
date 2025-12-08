@@ -12,7 +12,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Paper,
+
   Button,
   TextField,
   Select,
@@ -29,23 +29,22 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
-  Stack,
+
 } from '@mui/material';
 import {
   Search,
-  FilterList,
-  Download,
+
   Send,
   Refresh,
   Warning,
   Error,
   CheckCircle,
   Schedule,
-  PersonOff,
+
   Edit,
   Sms,
   PictureAsPdf,
-  GetApp,
+
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -74,7 +73,7 @@ const ExpirationManagement: React.FC<ExpirationManagementProps> = ({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [sortBy, setSortBy] = useState('expiration_date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const [renewalDialogOpen, setRenewalDialogOpen] = useState(false);
@@ -226,7 +225,7 @@ const ExpirationManagement: React.FC<ExpirationManagementProps> = ({
     }
   };
 
-  const getStatusChip = (status: string, daysUntilExpiration: number) => {
+  const getStatusChip = (status: string, _daysUntilExpiration: number) => {
     switch (status) {
       case 'Urgent':
         return <Chip label="URGENT" color="error" size="small" icon={<Error />} />;

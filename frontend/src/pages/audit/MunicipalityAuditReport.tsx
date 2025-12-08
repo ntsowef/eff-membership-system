@@ -29,9 +29,9 @@ import {
 } from '@mui/material';
 import {
   Business,
-  LocationCity,
-  People,
-  TrendingUp,
+  // LocationCity,
+  // People,
+  // TrendingUp,
   Warning,
   CheckCircle,
   Download,

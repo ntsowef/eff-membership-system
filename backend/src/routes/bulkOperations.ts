@@ -299,7 +299,7 @@ router.post('/notifications/send', authenticate, requirePermission('notification
     const notificationData: BulkNotificationSend = value;
 
     // Determine recipients based on criteria
-    let recipientQuery = 'SELECT member_id FROM members WHERE 1=1';
+    let recipientQuery = 'SELECT member_id FROM members_consolidated WHERE 1=1';
     const queryParams: any[] = [];
 
     if (notificationData.recipient_type === 'specific_members' && notificationData.recipient_criteria?.member_ids) {

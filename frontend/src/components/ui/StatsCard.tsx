@@ -114,18 +114,18 @@ const StatsCard: React.FC<StatsCardProps> = ({
             sx={{
               width: 56,
               height: 56,
-              borderRadius: '16px',
-              background: `linear-gradient(135deg, ${selectedColor} 0%, ${alpha(selectedColor, 0.8)} 100%)`,
+              borderRadius: '50px', // Oval/pill shape
+              background: `linear-gradient(135deg, ${alpha(selectedColor, 0.15)} 0%, ${alpha(selectedColor, 0.08)} 100%)`, // Lighter background
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: `0px 8px 24px ${alpha(selectedColor, 0.3)}`,
+              boxShadow: `0px 4px 12px ${alpha(selectedColor, 0.15)}`, // Softer shadow
             }}
           >
             <Icon
               sx={{
                 fontSize: 28,
-                color: 'white',
+                color: selectedColor, // Use the main color instead of white for better contrast
               }}
             />
           </Box>
@@ -139,13 +139,13 @@ const StatsCard: React.FC<StatsCardProps> = ({
                 alignItems: 'center',
                 px: 1.5,
                 py: 0.5,
-                borderRadius: '12px',
-                backgroundColor: trend.isPositive 
-                  ? alpha(theme.palette.success.main, 0.1)
-                  : alpha(theme.palette.error.main, 0.1),
-                border: `1px solid ${trend.isPositive 
-                  ? alpha(theme.palette.success.main, 0.2)
-                  : alpha(theme.palette.error.main, 0.2)}`,
+                borderRadius: '50px', // Pill shape for trend badge
+                backgroundColor: trend.isPositive
+                  ? alpha(theme.palette.success.main, 0.08) // Lighter background
+                  : alpha(theme.palette.error.main, 0.08), // Lighter background
+                border: `1px solid ${trend.isPositive
+                  ? alpha(theme.palette.success.main, 0.15) // Lighter border
+                  : alpha(theme.palette.error.main, 0.15)}`, // Lighter border
               }}
             >
               <Typography
@@ -153,7 +153,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
                 sx={{
                   fontWeight: 600,
                   fontSize: '0.75rem',
-                  color: trend.isPositive 
+                  color: trend.isPositive
                     ? theme.palette.success.main
                     : theme.palette.error.main,
                 }}

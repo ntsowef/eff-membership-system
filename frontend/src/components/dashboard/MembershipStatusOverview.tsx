@@ -58,7 +58,7 @@ const MembershipStatusOverview: React.FC<MembershipStatusOverviewProps> = ({
         return response.data.data.membership_status as MembershipStatusData;
       }
 
-      throw new Error('Invalid membership status data structure');
+      throw new (Error as any)('Invalid membership status data structure');
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 10 * 60 * 1000, // 10 minutes

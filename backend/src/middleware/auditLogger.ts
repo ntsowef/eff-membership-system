@@ -133,6 +133,7 @@ const inferEntityTypeFromPath = (path: string): string => {
   if (path.includes('/provinces')) return EntityType.PROVINCE;
   if (path.includes('/regions')) return EntityType.REGION;
   if (path.includes('/municipalities')) return EntityType.MUNICIPALITY;
+  if (path.includes('/delegates-management') || path.includes('/delegate')) return EntityType.DELEGATE;
   if (path.includes('/wards')) return EntityType.WARD;
   
   return 'unknown';
@@ -197,6 +198,126 @@ export const logPasswordReset = async (userId: number | undefined, req: Request)
 
 export const logPasswordChange = async (userId: number, req: Request): Promise<void> => {
   await logAudit(userId, AuditAction.PASSWORD_CHANGED, EntityType.USER, userId, undefined, undefined, req);
+};
+
+// MFA/OTP audit logging
+export const logOTPGenerated = async (
+  userId: number,
+  otpId: number,
+  phoneNumber: string,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_GENERATED,
+    EntityType.OTP,
+    otpId,
+    undefined,
+    { phone_number_masked: phoneNumber.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2') },
+    req
+  );
+};
+
+export const logOTPSent = async (
+  userId: number,
+  otpId: number,
+  phoneNumber: string,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_SENT,
+    EntityType.OTP,
+    otpId,
+    undefined,
+    { phone_number_masked: phoneNumber.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2') },
+    req
+  );
+};
+
+export const logOTPSendFailed = async (
+  userId: number,
+  otpId: number,
+  error: string,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_SEND_FAILED,
+    EntityType.OTP,
+    otpId,
+    undefined,
+    { error },
+    req
+  );
+};
+
+export const logOTPValidated = async (
+  userId: number,
+  otpId: number,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_VALIDATED,
+    EntityType.OTP,
+    otpId,
+    undefined,
+    { success: true },
+    req
+  );
+};
+
+export const logOTPValidationFailed = async (
+  userId: number,
+  otpId: number | undefined,
+  reason: string,
+  attemptsRemaining: number,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_VALIDATION_FAILED,
+    EntityType.OTP,
+    otpId,
+    undefined,
+    { reason, attempts_remaining: attemptsRemaining },
+    req
+  );
+};
+
+export const logOTPResent = async (
+  userId: number,
+  oldOtpId: number,
+  newOtpId: number,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_RESENT,
+    EntityType.OTP,
+    newOtpId,
+    { old_otp_id: oldOtpId },
+    { new_otp_id: newOtpId },
+    req
+  );
+};
+
+export const logOTPSessionCreated = async (
+  userId: number,
+  otpId: number,
+  sessionExpiresAt: Date,
+  req?: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.OTP_SESSION_CREATED,
+    EntityType.OTP,
+    otpId,
+    undefined,
+    { session_expires_at: sessionExpiresAt },
+    req
+  );
 };
 
 // Application audit logging
@@ -353,6 +474,78 @@ export const logSystemAction = async (
   req?: Request
 ): Promise<void> => {
   await logAudit(userId, action, EntityType.SYSTEM, undefined, undefined, details, req);
+};
+
+// Delegate audit logging
+export const logDelegateAssignment = async (
+  userId: number,
+  delegateId: number,
+  delegateData: any,
+  req: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.DELEGATE_ASSIGNED,
+    EntityType.DELEGATE,
+    delegateId,
+    undefined,
+    delegateData,
+    req
+  );
+};
+
+export const logDelegateUpdate = async (
+  userId: number,
+  delegateId: number,
+  oldData: any,
+  newData: any,
+  req: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.DELEGATE_UPDATED,
+    EntityType.DELEGATE,
+    delegateId,
+    oldData,
+    newData,
+    req
+  );
+};
+
+export const logDelegateRemoval = async (
+  userId: number,
+  delegateId: number,
+  delegateData: any,
+  reason: string,
+  req: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.DELEGATE_REMOVED,
+    EntityType.DELEGATE,
+    delegateId,
+    delegateData,
+    { reason, removed_at: new Date().toISOString() },
+    req
+  );
+};
+
+export const logDelegateStatusChange = async (
+  userId: number,
+  delegateId: number,
+  oldStatus: string,
+  newStatus: string,
+  req: Request
+): Promise<void> => {
+  await logAudit(
+    userId,
+    AuditAction.DELEGATE_STATUS_CHANGED,
+    EntityType.DELEGATE,
+    delegateId,
+    { status: oldStatus },
+    { status: newStatus },
+    req
+  );
 };
 
 // Middleware to set audit data on request

@@ -23,12 +23,19 @@ export interface MemberCreationData {
   postal_address?: string;
   membership_type?: string;
   application_id: number;
+  province_code?: string;
+  province_name?: string;
+  district_code?: string;
+  district_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
 }
 
 export interface MembershipCreationData {
   member_id: number;
   date_joined: string;
   last_payment_date?: string;
+  expiry_date?: string | null;
   subscription_type_id: number;
   membership_amount: number;
   status_id: number;
@@ -63,43 +70,38 @@ export class MembershipApprovalService {
       }
 
       // Start transaction
-      await executeQuery('START TRANSACTION');
+      await executeQuery('BEGIN');
 
       try {
-        // 1. Create member record
-        const memberId = await this.createMemberFromApplication(application);
+        // 1. Create member record with membership fields (consolidated schema)
+        const result = await this.createMemberWithMembershipFromApplication(application);
 
-        // 2. Create membership record
-        const membershipId = await this.createMembershipFromApplication(application, memberId);
-
-        // 3. Generate membership number
-        const membershipNumber = await this.generateMembershipNumber(memberId);
-        await this.updateMembershipNumber(memberId, membershipNumber);
-
-        // 4. Update application status
+        // 2. Update application status
         await this.updateApplicationStatus(applicationId, 'Approved', approvedBy, adminNotes);
 
-        // 5. Create approval history record
-        await this.createApprovalHistory(applicationId, memberId, approvedBy, 'approved', adminNotes);
+        // 3. Create approval history record
+        await this.createApprovalHistory(applicationId, result.member_id, approvedBy, 'approved', adminNotes);
 
         // Commit transaction
         await executeQuery('COMMIT');
 
         return {
           success: true,
-          member_id: memberId,
-          membership_id: membershipId,
-          membership_number: membershipNumber,
+          member_id: result.member_id,
+          membership_id: result.member_id, // In consolidated schema, member_id serves as membership reference
+          membership_number: result.membership_number,
           message: 'Application approved successfully and member created'
         };
 
       } catch (error) {
         // Rollback transaction
+        console.error('❌ Transaction error:', error);
         await executeQuery('ROLLBACK');
         throw error;
       }
 
     } catch (error) {
+      console.error('❌ Approval error:', error);
       throw createDatabaseError('Failed to approve membership application', error);
     }
   }
@@ -108,15 +110,15 @@ export class MembershipApprovalService {
    * Check if a member already exists with the given ID number
    */
   private static async checkExistingMember(idNumber: string): Promise<boolean> {
-    const query = 'SELECT member_id FROM members WHERE id_number = $1';
+    const query = 'SELECT member_id FROM members_consolidated WHERE id_number = $1';
     const result = await executeQuerySingle(query, [idNumber]);
     return !!result;
   }
 
   /**
-   * Create a member record from approved application
+   * Create a member record with membership fields from approved application (consolidated schema)
    */
-  private static async createMemberFromApplication(application : any): Promise<number> {
+  private static async createMemberWithMembershipFromApplication(application: any): Promise<{ member_id: number; membership_number: string }> {
     // Map gender to gender_id (assuming: 1=Male, 2=Female, 3=Other)
     const genderMap: { [key: string]: number } = {
       'Male': 1,
@@ -125,86 +127,188 @@ export class MembershipApprovalService {
       'Prefer not to say': 3
     };
 
-    const memberData: MemberCreationData = {
-      id_number: application.id_number,
-      firstname: application.first_name,
-      surname: application.last_name,
-      date_of_birth: application.date_of_birth,
-      gender_id: genderMap[application.gender] || 3,
-      ward_code: application.ward_code,
-      cell_number: application.cell_number,
-      email: application.email,
-      residential_address: application.residential_address,
-      postal_address: application.postal_address,
-      membership_type: application.membership_type || 'Regular',
-      application_id: application.id
-    };
+    // ========================================
+    // VOTER STATUS DETERMINATION
+    // ========================================
+    // Determine voter_status_id and voting_district_code based on IEC verification
+    let voter_status_id: number | null = null;
+    let voting_district_code: string | null = application.voting_district_code;
 
-    const query = `
-      INSERT INTO members (
-        id_number, firstname, surname, date_of_birth, gender_id,
-        ward_code, cell_number, email, residential_address, postal_address,
-        membership_type, application_id, created_at, updated_at
-      ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    `;
+    console.log('🔍 Determining voter status from IEC data:', {
+      iec_is_registered: application.iec_is_registered,
+      voting_district_code: application.voting_district_code
+    });
 
-    const params = [
-      memberData.id_number,
-      memberData.firstname,
-      memberData.surname,
-      memberData.date_of_birth,
-      memberData.gender_id,
-      memberData.ward_code,
-      memberData.cell_number,
-      memberData.email,
-      memberData.residential_address,
-      memberData.postal_address,
-      memberData.membership_type,
-      memberData.application_id
-    ];
+    if (application.iec_is_registered === true) {
+      // Voter is registered with IEC
+      voter_status_id = 1; // Registered
 
-    const result = await executeQuery(query, params);
-    return result.insertId;
-  }
-
-  /**
-   * Create a membership record from approved application
-   */
-  private static async createMembershipFromApplication(application: any, memberId: number): Promise<number> {
-    // Use payment information from application if available
-    const membershipData: MembershipCreationData = {
-      member_id: memberId,
-      date_joined: new Date().toISOString().split('T')[0], // Today's date
-      subscription_type_id: 1, // Default subscription type
-      membership_amount: application.payment_amount || 10.00, // Use application amount or default
-      status_id: 1, // Active status
-      payment_method: application.payment_method || 'Pending' // Use application method or default
-    };
-
-    // If payment information is provided, use the payment date as last_payment_date
-    if (application.last_payment_date) {
-      membershipData.last_payment_date = application.last_payment_date;
+      // If no VD code from IEC, assign special code for registered voters without VD data
+      if (!voting_district_code) {
+        voting_district_code = '222222222'; // Special code: Registered but no VD data
+        console.log('⚠️ Registered voter without VD code - assigning special code: 222222222');
+      } else {
+        console.log('✅ Registered voter with VD code:', voting_district_code);
+      }
+    } else if (application.iec_is_registered === false) {
+      // Voter is NOT registered with IEC
+      voter_status_id = 2; // Not Registered
+      voting_district_code = '999999999'; // Special code: Not registered
+      console.log('ℹ️ Not registered voter - assigning special code: 999999999');
+    } else {
+      // IEC verification failed, pending, or not performed
+      voter_status_id = 4; // Verification Failed
+      voting_district_code = '888888888'; // Special code: Verification failed/pending
+      console.log('⚠️ IEC verification failed/pending - assigning special code: 888888888');
     }
 
+    // ========================================
+    // MUNICIPALITY CODE MAPPING
+    // ========================================
+    // Get correct municipality_code from ward table (sub-region, not metro-level code)
+    const wardMunicipalityQuery = `
+      SELECT municipality_code FROM wards WHERE ward_code = $1
+    `;
+    const wardMunicipalityResult = await executeQuery(wardMunicipalityQuery, [
+      application.ward_code
+    ]);
+
+    // Use ward's municipality code if available, otherwise fall back to application's municipal_code
+    const correctMunicipalityCode = (Array.isArray(wardMunicipalityResult) && wardMunicipalityResult.length > 0)
+      ? wardMunicipalityResult[0].municipality_code
+      : application.municipal_code;
+
+    console.log('🗺️ Municipality code mapping:', {
+      application_municipal_code: application.municipal_code,
+      ward_municipality_code: correctMunicipalityCode,
+      ward_code: application.ward_code
+    });
+
+    // Get geographic names from related tables
+    const geographicQuery = `
+      SELECT
+        p.province_name,
+        d.district_name,
+        m.municipality_name
+      FROM provinces p
+      LEFT JOIN districts d ON d.province_code = p.province_code AND d.district_code = $2
+      LEFT JOIN municipalities m ON m.district_code = d.district_code AND m.municipality_code = $3
+      WHERE p.province_code = $1
+      LIMIT 1
+    `;
+
+    const geographicResult = await executeQuery(geographicQuery, [
+      application.province_code,
+      application.district_code,
+      correctMunicipalityCode  // Use correct municipality code
+    ]);
+
+    const geographicData = Array.isArray(geographicResult) && geographicResult.length > 0
+      ? geographicResult[0]
+      : { province_name: null, district_name: null, municipality_name: null };
+
+    // Calculate membership dates
+    const dateJoined = application.created_at
+      ? new Date(application.created_at).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    // Calculate expiry_date as 24 months (2 years) after date_joined or last_payment_date
+    const baseDate = application.last_payment_date
+      ? new Date(application.last_payment_date)
+      : new Date(dateJoined);
+    const expiryDate = new Date(baseDate);
+    expiryDate.setMonth(expiryDate.getMonth() + 24); // Add 24 months
+    const expiryDateStr = expiryDate.toISOString().split('T')[0];
+
+    // Generate membership number (will be updated after member_id is known)
+    const tempMembershipNumber = `TEMP${Date.now()}`;
+
+    // Insert member with membership fields (consolidated schema)
     const query = `
-      INSERT INTO memberships (
-        member_id, date_joined, last_payment_date, subscription_type_id,
-        membership_amount, status_id, payment_method, created_at, updated_at
-      ) EXCLUDED.?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      INSERT INTO members_consolidated (
+        id_number, firstname, surname, date_of_birth, gender_id,
+        ward_code, voting_district_code, voter_status_id,
+        cell_number, email, residential_address, postal_address,
+        membership_type, application_id,
+        province_code, province_name, district_code, district_name,
+        municipality_code, municipality_name,
+        membership_number, date_joined, last_payment_date, expiry_date,
+        subscription_type_id, membership_amount, membership_status_id,
+        payment_method, payment_status,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27, $28, $29,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      )
+      RETURNING member_id
     `;
 
     const params = [
-      membershipData.member_id,
-      membershipData.date_joined,
-      membershipData.last_payment_date || null,
-      membershipData.subscription_type_id,
-      membershipData.membership_amount,
-      membershipData.status_id,
-      membershipData.payment_method
+      application.id_number,
+      application.first_name,
+      application.last_name,
+      application.date_of_birth,
+      genderMap[application.gender] || 3,
+      application.ward_code,
+      voting_district_code,        // $7: Special code or IEC VD code
+      voter_status_id,             // $8: 1=Registered, 2=Not Registered, 4=Verification Failed
+      application.cell_number,
+      application.email,
+      application.residential_address,
+      application.postal_address,
+      application.membership_type || 'Regular',
+      application.id,
+      application.province_code,
+      geographicData.province_name,
+      application.district_code,
+      geographicData.district_name,
+      correctMunicipalityCode,     // Use ward's municipality code (sub-region, not metro)
+      geographicData.municipality_name,
+      tempMembershipNumber, // Will be updated below
+      dateJoined,
+      application.last_payment_date || null,
+      expiryDateStr,
+      1, // Default subscription_type_id
+      application.payment_amount || 10.00,
+      1, // Active membership_status_id (1 = Good Standing)
+      application.payment_method || 'Pending',
+      application.payment_status || 'Pending'
     ];
 
+    console.log('🔍 Creating member with membership fields (consolidated schema):', {
+      date_joined: dateJoined,
+      last_payment_date: application.last_payment_date,
+      expiry_date: expiryDateStr,
+      membership_amount: application.payment_amount || 10.00,
+      voter_status_id: voter_status_id,
+      voting_district_code: voting_district_code,
+      municipality_code: correctMunicipalityCode
+    });
+
     const result = await executeQuery(query, params);
-    return result.insertId;
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error('Failed to create member: No member_id returned');
+    }
+
+    const memberId = result[0].member_id;
+
+    // Generate proper membership number based on member_id
+    const membershipNumber = await this.generateMembershipNumber(memberId);
+
+    // Update member with proper membership number
+    await executeQuery(
+      'UPDATE members_consolidated SET membership_number = $1 WHERE member_id = $2',
+      [membershipNumber, memberId]
+    );
+
+    console.log('✅ Member created successfully with membership fields:', {
+      member_id: memberId,
+      membership_number: membershipNumber
+    });
+
+    return { member_id: memberId, membership_number: membershipNumber };
   }
 
   /**
@@ -214,16 +318,6 @@ export class MembershipApprovalService {
     const year = new Date().getFullYear();
     const membershipNumber = `EFF${year}${memberId.toString().padStart(6, '0')}`;
     return membershipNumber;
-  }
-
-  /**
-   * Update member record with membership number
-   */
-  private static async updateMembershipNumber(memberId: number, membershipNumber: string): Promise<void> {
-    // Note: The members table doesn't have a membership_number field in the current schema
-    // This would need to be added to the members table if required
-    // For now, we'll skip this step
-    console.log(`Generated membership number ${membershipNumber} for member ${memberId}`);
   }
 
   /**
@@ -238,7 +332,7 @@ export class MembershipApprovalService {
     const query = `
       UPDATE membership_applications
       SET status = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP, admin_notes = $3
-      WHERE id = $4
+      WHERE application_id = $4
     `;
 
     await executeQuery(query, [status, reviewedBy, adminNotes, applicationId]);
@@ -255,23 +349,33 @@ export class MembershipApprovalService {
     notes?: string
   ): Promise<void> {
     // Create a simple approval history table if it doesn't exist
+    // FIXED: Reference members_consolidated instead of members
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS application_approval_history (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         application_id INT NOT NULL,
         member_id INT NULL,
-        action ENUM('approved', 'rejected', 'under_review') NOT NULL,
+        action VARCHAR(50) CHECK (action IN ('approved', 'rejected', 'under_review')) NOT NULL,
         performed_by INT NOT NULL,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (application_id) REFERENCES membership_applications(id) ON DELETE CASCADE,
-        FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE SET NULL,
-        INDEX idx_application_history_application (application_id),
-        INDEX idx_application_history_member (member_id)
+        FOREIGN KEY (application_id) REFERENCES membership_applications(application_id) ON DELETE CASCADE,
+        FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL,
+        FOREIGN KEY (performed_by) REFERENCES users(user_id) ON DELETE CASCADE
       )
     `;
 
+    // Create indexes if they don't exist
+    const createIndexQueries = [
+      `CREATE INDEX IF NOT EXISTS idx_application_history_application ON application_approval_history(application_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_application_history_member ON application_approval_history(member_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_application_history_performed_by ON application_approval_history(performed_by)`
+    ];
+
     await executeQuery(createTableQuery);
+    for (const indexQuery of createIndexQueries) {
+      await executeQuery(indexQuery);
+    }
 
     const insertQuery = `
       INSERT INTO application_approval_history (
@@ -307,7 +411,7 @@ export class MembershipApprovalService {
         UPDATE membership_applications
         SET status = 'Rejected', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP,
             rejection_reason = $2, admin_notes = $3
-        WHERE id = $4
+        WHERE application_id = $4
       `;
 
       await executeQuery(query, [rejectedBy, rejectionReason, adminNotes, applicationId]);

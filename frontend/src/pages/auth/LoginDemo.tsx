@@ -25,7 +25,7 @@ import { useAuth } from '../../store';
 
 const LoginDemo: React.FC = () => {
   const { user, isAuthenticated, login, logout } = useAuth();
-  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [_loginSuccess, setLoginSuccess] = useState(false);
 
   const handleLoginSuccess = (userData: any, token: string) => {
     login(userData, token);

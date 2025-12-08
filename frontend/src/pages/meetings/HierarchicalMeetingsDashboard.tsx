@@ -13,7 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   IconButton,
   Menu,
   MenuItem,
@@ -21,10 +20,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
   Alert,
   CircularProgress,
   Tabs,
@@ -35,10 +30,9 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
+  FormControl,
+  InputLabel,
+  Select,
   Divider,
 } from '@mui/material';
 import {
@@ -48,22 +42,17 @@ import {
   Edit,
   Delete,
   Visibility,
-  People,
   Schedule,
   LocationOn,
   VideoCall,
-  FilterList,
   Refresh,
   CalendarToday,
-  Groups,
   ExpandMore,
-  Person,
-  HowToVote,
-  Email,
-  Phone,
   AccountTree,
-  TrendingUp,
   Assessment,
+  Star,
+  Groups,
+  People,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiDelete } from '../../lib/api';
@@ -137,7 +126,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // Fetch hierarchical meetings
-  const { data: meetingsData, isLoading: meetingsLoading, error: meetingsError, refetch } = useQuery({
+  const { data: meetingsData, isLoading: meetingsLoading, refetch } = useQuery({
     queryKey: ['hierarchical-meetings', filterHierarchy, filterStatus, filterCategory],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -155,7 +144,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
   });
 
   // Fetch meeting statistics
-  const { data: statisticsData, isLoading: statisticsLoading } = useQuery({
+  const { data: statisticsData } = useQuery({
     queryKey: ['hierarchical-meeting-statistics'],
     queryFn: async () => {
       const result = await apiGet('/hierarchical-meetings/statistics');
@@ -180,7 +169,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
     },
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
@@ -319,7 +308,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="This Week"
-              value={statistics.reduce((sum, stat) => sum + (parseInt(stat.this_week_meetings, 10) || 0), 0)}
+              value={statistics.reduce((sum, stat) => sum + (parseInt(String(stat.this_week_meetings), 10) || 0), 0)}
               icon={CalendarToday}
               color="success"
               trend={{ value: 8, isPositive: true }}
@@ -328,7 +317,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="Avg Attendance"
-              value={`${Math.round(statistics.reduce((sum, stat) => sum + (parseFloat(stat.avg_attendance) || 0), 0) / statistics.length || 0)}%`}
+              value={`${Math.round(statistics.reduce((sum, stat) => sum + (parseFloat(String(stat.avg_attendance)) || 0), 0) / statistics.length || 0)}%`}
               icon={People}
               color="info"
               trend={{ value: 5, isPositive: true }}
@@ -362,11 +351,11 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
                       size="small"
                     />
                     <Typography variant="body1">
-                      {stats.reduce((sum, stat) => sum + (parseInt(stat.total_meetings, 10) || 0), 0)} meetings
+                      {stats.reduce((sum, stat) => sum + (parseInt(String(stat.total_meetings), 10) || 0), 0)} meetings
                     </Typography>
                     <Box sx={{ ml: 'auto' }}>
                       <Typography variant="caption" color="text.secondary">
-                        {stats.reduce((sum, stat) => sum + (parseInt(stat.completed_meetings, 10) || 0), 0)} completed
+                        {stats.reduce((sum, stat) => sum + (parseInt(String(stat.completed_meetings), 10) || 0), 0)} completed
                       </Typography>
                     </Box>
                   </Box>
@@ -417,7 +406,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
                   <InputLabel>Hierarchy Level</InputLabel>
                   <Select
                     value={filterHierarchy}
-                    onChange={(e) => setFilterHierarchy(e.target.value)}
+                    onChange={(e: any) => setFilterHierarchy(e.target.value)}
                     label="Hierarchy Level"
                   >
                     <MenuItem value="all">All Levels</MenuItem>
@@ -435,7 +424,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
                   <InputLabel>Status</InputLabel>
                   <Select
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
+                    onChange={(e: any) => setFilterStatus(e.target.value)}
                     label="Status"
                   >
                     <MenuItem value="all">All Status</MenuItem>

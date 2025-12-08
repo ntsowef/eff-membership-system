@@ -16,7 +16,7 @@ import {
   MenuItem,
   CircularProgress 
 } from '@mui/material';
-import { CheckCircle, LocationOn, Search } from '@mui/icons-material';
+import { LocationOn, Search } from '@mui/icons-material';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
 
@@ -131,7 +131,7 @@ const GeographicFilterTest: React.FC = () => {
           testResults.push({
             ...testCase,
             success: false,
-            error: error.message
+            error: (error as any).message
           });
         }
       }

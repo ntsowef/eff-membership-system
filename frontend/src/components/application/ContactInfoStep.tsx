@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Grid,
   TextField,
   Typography,
   Box,
+  Alert,
 } from '@mui/material';
 import { useApplication } from '../../store';
 import GeographicSelector from '../common/GeographicSelector';
@@ -19,15 +20,61 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
     updateApplicationData({ [field]: value });
   };
 
+  // Auto-populate geographic fields from IEC verification data
+  useEffect(() => {
+    const iecData = (applicationData as any).iec_verification;
+
+    if (iecData && iecData.is_registered) {
+      console.log('🗺️ Auto-populating geographic fields from IEC data:', iecData);
+
+      const updates: any = {};
+
+      // Only populate if fields are empty
+      if (iecData.province_code && !applicationData.province_code) {
+        updates.province_code = iecData.province_code;
+      }
+      if (iecData.district_code && !applicationData.district_code) {
+        updates.district_code = iecData.district_code;
+      }
+      if (iecData.municipality_code && !applicationData.municipal_code) {
+        updates.municipal_code = iecData.municipality_code;
+      }
+      if (iecData.ward_code && !applicationData.ward_code) {
+        updates.ward_code = iecData.ward_code;
+      }
+      if (iecData.voting_district_code && !applicationData.voting_district_code) {
+        updates.voting_district_code = iecData.voting_district_code;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        console.log('✅ Auto-populating fields:', updates);
+        updateApplicationData(updates);
+      }
+    }
+  }, []); // Run once on mount
+
+  // Check if IEC data was used
+  const iecData = (applicationData as any).iec_verification;
+  const hasIecData = iecData && iecData.is_registered && iecData.province_code;
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
         Contact Information
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please provide your current contact details. This information will be used 
+        Please provide your current contact details. This information will be used
         to communicate with you regarding your application and membership.
       </Typography>
+
+      {hasIecData && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            ✅ Your geographic information has been pre-filled from your IEC voter registration.
+            You can modify these fields if needed.
+          </Typography>
+        </Alert>
+      )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6}>

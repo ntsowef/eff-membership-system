@@ -15,7 +15,7 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Stack,
+
   Dialog,
   DialogTitle,
   DialogContent,
@@ -28,7 +28,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Divider,
+
 } from '@mui/material';
 import {
   PictureAsPdf,
@@ -229,14 +229,14 @@ const MonthlySummaryReport: React.FC = () => {
   const handleGeneratePDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      const params = new URLSearchParams({
-        month: selectedMonth.toString(),
-        year: selectedYear.toString(),
-        title: pdfOptions.title,
-        include_charts: pdfOptions.include_charts.toString(),
-        report_format: reportFormat,
-        include_comparisons: includeComparisons.toString(),
-      });
+      // const _params = new URLSearchParams({
+      //   month: selectedMonth.toString(),
+      //   year: selectedYear.toString(),
+      //   title: pdfOptions.title,
+      //   include_charts: pdfOptions.include_charts.toString(),
+      //   report_format: reportFormat,
+      //   include_comparisons: includeComparisons.toString(),
+      // });
 
       // Show message that PDF generation is being implemented
       alert('PDF generation for Monthly Summary is being implemented. The summary data is available in the interface above. Please check back soon for PDF export functionality.');

@@ -111,7 +111,7 @@ export class VoterVerificationModel {
           d.district_name,
           p.province_name
         FROM voter_verifications vv
-        LEFT JOIN members m ON vv.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON vv.member_id = m.member_id
         LEFT JOIN users verifier ON vv.verified_by = verifier.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -207,7 +207,7 @@ export class VoterVerificationModel {
           d.district_name,
           p.province_name
         FROM voter_verifications vv
-        LEFT JOIN members m ON vv.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON vv.member_id = m.member_id
         LEFT JOIN users verifier ON vv.verified_by = verifier.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -294,7 +294,7 @@ export class VoterVerificationModel {
       const query = `
         SELECT COUNT(*) as count
         FROM voter_verifications vv
-        LEFT JOIN members m ON vv.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON vv.member_id = m.member_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
       `;
@@ -377,7 +377,7 @@ export class VoterVerificationModel {
           d.district_name,
           p.province_name
         FROM voter_verifications vv
-        LEFT JOIN members m ON vv.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON vv.member_id = m.member_id
         LEFT JOIN users verifier ON vv.verified_by = verifier.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -408,7 +408,7 @@ export class VoterVerificationModel {
           d.district_name,
           p.province_name
         FROM voter_verifications vv
-        LEFT JOIN members m ON vv.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON vv.member_id = m.member_id
         LEFT JOIN users verifier ON vv.verified_by = verifier.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -464,7 +464,7 @@ export class VoterVerificationModel {
           COUNT(CASE WHEN vv.verification_method = 'Document' THEN 1 END) as document_verifications,
           COUNT(CASE WHEN vv.next_verification_date <= CURDATE() THEN 1 END) as due_for_verification
         FROM voter_verifications vv
-        LEFT JOIN members m ON vv.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON vv.member_id = m.member_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
       `;

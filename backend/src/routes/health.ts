@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { checkDatabaseHealth } from '../config/database';
 import { asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { config } from '../config/config';
+import { cacheService } from '../services/cacheService';
 
 const router = Router();
 
-// Basic health check
+// Basic health check (lightweight, no external dependencies)
 router.get('/', asyncHandler(async (req, res) => {
   const healthData = {
     status: 'healthy',

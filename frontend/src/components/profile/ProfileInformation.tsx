@@ -12,7 +12,7 @@ import {
   Alert,
   CircularProgress,
   Divider,
-  IconButton,
+
   InputAdornment,
 } from '@mui/material';
 import {
@@ -23,7 +23,7 @@ import {
   Email as EmailIcon,
   Phone as PhoneIcon,
   AdminPanelSettings as AdminIcon,
-  LocationOn as LocationIcon,
+
   Verified as VerifiedIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../store';
@@ -33,7 +33,7 @@ import { apiPut } from '../../lib/api';
 interface ProfileFormData {
   name: string;
   email: string;
-  phone: string;
+  // Note: phone is not editable here as it's not in users table
 }
 
 const ProfileInformation: React.FC = () => {
@@ -42,15 +42,14 @@ const ProfileInformation: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
+    email: user?.email || ''
   });
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormData) => {
-      const response = await apiPut('/profile/me', data);
+      const response: any = await apiPut('/user/me', data);
       return response.data;
     },
     onSuccess: () => {
@@ -79,8 +78,7 @@ const ProfileInformation: React.FC = () => {
   const handleCancel = () => {
     setFormData({
       name: user?.name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
+      email: user?.email || ''
     });
     setIsEditing(false);
     setErrorMessage('');
@@ -240,14 +238,14 @@ const ProfileInformation: React.FC = () => {
               />
             </Grid>
 
-            {/* Phone */}
+            {/* Phone - Disabled: Not available in users table */}
+            {/*
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Phone Number"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                disabled={!isEditing || updateProfileMutation.isPending}
+                value={user?.phone || 'N/A'}
+                disabled
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -255,8 +253,10 @@ const ProfileInformation: React.FC = () => {
                     </InputAdornment>
                   ),
                 }}
+                helperText="Phone number is managed in member profile"
               />
             </Grid>
+            */}
 
             {/* Admin Level (Read-only) */}
             <Grid item xs={12} md={6}>

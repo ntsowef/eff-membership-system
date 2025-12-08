@@ -102,7 +102,7 @@ export class ViewsService {
             ELSE '65+'
           END as age_group
 
-        FROM members m
+        FROM members_consolidated m
 
         -- Geographic joins (complete hierarchy)
         LEFT JOIN voting_districts vd ON REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(vd.voting_district_code AS CHAR), '.0', '')
@@ -135,7 +135,7 @@ export class ViewsService {
           MIN(m.created_at) as first_member_joined,
           MAX(m.created_at) as latest_member_joined
         FROM voting_districts vd
-        LEFT JOIN members m ON REPLACE(CAST(vd.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '')
+        LEFT JOIN members_consolidated m ON REPLACE(CAST(vd.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '')
         LEFT JOIN wards w ON vd.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipal_code = mu.municipal_code
         LEFT JOIN districts d ON mu.district_code = d.district_code
@@ -162,90 +162,185 @@ export class ViewsService {
   }
 
   // Get members with voting district information
-  static async getMembersWithVotingDistricts(filters: any = {}): Promise<any[]> {
+  static async getMembersWithVotingDistricts(filters: any = {}): Promise<any> {
     try {
-      let query = 'SELECT * FROM members_with_voting_districts WHERE 1= TRUE';
+      // Build query directly from members_consolidated table
+      // UPDATED: Include ALL members (active and inactive) when include_all_members=true
+      // Otherwise, filter by active members only (90-day grace period)
+      // members_consolidated already has expiry_date column
+      let query = `
+        SELECT
+          m.member_id,
+          m.id_number,
+          m.firstname,
+          m.surname,
+          m.firstname || ' ' || COALESCE(m.surname, '') as full_name,
+          m.age,
+          m.date_of_birth,
+          m.gender_id,
+          m.cell_number,
+          m.landline_number,
+          m.email,
+          m.residential_address,
+          m.voter_registration_number,
+          m.voter_registration_date,
+          m.voter_status_id,
+          m.membership_status_id,
+          m.voting_station_id,
+          m.voting_district_code,
+          m.ward_code,
+          m.province_code,
+          m.province_name,
+          m.district_code,
+          m.district_name,
+          m.municipality_code,
+          m.municipality_name,
+          m.expiry_date,
+          m.membership_number,
+          m.date_joined,
+          w.ward_name,
+          w.ward_number,
+          vd.voting_district_name,
+          vd.voting_district_id as voting_district_number,
+          vs.station_name as voting_station_name,
+          CASE
+            WHEN m.expiry_date IS NULL THEN 'Inactive'
+            WHEN m.expiry_date >= CURRENT_DATE THEN 'Active'
+            WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+            ELSE 'Expired'
+          END as membership_status
+        FROM members_consolidated m
+        LEFT JOIN wards w ON m.ward_code = w.ward_code
+        LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
+        LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
+        WHERE 1=1
+      `;
       const params: any[] = [];
+
+      // Apply active member filter only if:
+      // 1. include_all_members is NOT set, AND
+      // 2. membership_status is NOT provided (default behavior)
+      // If membership_status is provided ('all', 'active', 'expired'), it will be handled later (lines 301-309)
+      if (!filters.include_all_members && !filters.membership_status) {
+        // Default behavior when no membership_status filter: show only active members (not expired OR in grace period)
+        query += ` AND m.expiry_date >= CURRENT_DATE - INTERVAL '90 days'`;
+      }
 
       let paramIndex = 1;
 
       if (filters.province_code) {
-        query += ` AND province_code = $${paramIndex}`;
+        query += ` AND m.province_code = $${paramIndex}`;
         params.push(filters.province_code);
         paramIndex++;
       }
 
       if (filters.district_code) {
-        query += ` AND district_code = $${paramIndex}`;
+        query += ` AND m.district_code = $${paramIndex}`;
         params.push(filters.district_code);
         paramIndex++;
       }
 
       if (filters.municipal_code) {
-        query += ` AND municipality_code = $${paramIndex}`;
+        query += ` AND m.municipality_code = $${paramIndex}`;
         params.push(filters.municipal_code);
         paramIndex++;
       }
 
       if (filters.ward_code) {
-        query += ` AND ward_code = $${paramIndex}`;
+        query += ` AND m.ward_code = $${paramIndex}`;
         params.push(filters.ward_code);
         paramIndex++;
       }
 
       if (filters.voting_district_code) {
-        query += ` AND REPLACE(CAST(voting_district_code AS TEXT), '.0', '') = REPLACE(CAST($${paramIndex} AS TEXT), '.0', '')`;
+        query += ` AND REPLACE(CAST(m.voting_district_code AS TEXT), '.0', '') = REPLACE(CAST($${paramIndex} AS TEXT), '.0', '')`;
         params.push(filters.voting_district_code);
         paramIndex++;
       }
 
       if (filters.voting_station_id) {
-        query += ` AND voting_station_id = $${paramIndex}`;
+        query += ` AND m.voting_station_id = $${paramIndex}`;
         params.push(filters.voting_station_id);
         paramIndex++;
       }
 
       if (filters.voting_station_name) {
-        query += ` AND EXISTS (SELECT 1 FROM voting_stations vs WHERE vs.voting_station_id = voting_station_id AND vs.station_name ILIKE $${paramIndex})`;
+        query += ` AND vs.station_name ILIKE $${paramIndex}`;
         params.push('%' + filters.voting_station_name + '%');
         paramIndex++;
       }
 
       if (filters.has_voting_district) {
-        query += ` AND has_voting_district = $${paramIndex}`;
-        params.push(filters.has_voting_district);
-        paramIndex++;
+        const hasVD = filters.has_voting_district === 'true' || filters.has_voting_district === true;
+        if (hasVD) {
+          query += ` AND m.voting_district_code IS NOT NULL`;
+        } else {
+          query += ` AND m.voting_district_code IS NULL`;
+        }
       }
 
       if (filters.age_group) {
-        query += ` AND age_group = $${paramIndex}`;
-        params.push(filters.age_group);
-        paramIndex++;
+        // Age group filtering logic
+        if (filters.age_group === '18-25') {
+          query += ` AND m.age BETWEEN 18 AND 25`;
+        } else if (filters.age_group === '26-35') {
+          query += ` AND m.age BETWEEN 26 AND 35`;
+        } else if (filters.age_group === '36-50') {
+          query += ` AND m.age BETWEEN 36 AND 50`;
+        } else if (filters.age_group === '51+') {
+          query += ` AND m.age >= 51`;
+        }
       }
 
       if (filters.gender_id) {
-        query += ` AND gender_id = $${paramIndex}`;
+        query += ` AND m.gender_id = $${paramIndex}`;
         params.push(filters.gender_id);
         paramIndex++;
       }
 
+      // Membership status filter
+      if (filters.membership_status && filters.membership_status !== 'all') {
+        if (filters.membership_status === 'active') {
+          // Active members: membership_status_id = 1 (Active/Good Standing)
+          query += ` AND m.membership_status_id = 1`;
+        } else if (filters.membership_status === 'expired') {
+          // Expired/Inactive members: membership_status_id IN (2, 3, 4) (Expired, Inactive, Grace Period)
+          query += ` AND m.membership_status_id IN (2, 3, 4)`;
+        }
+      }
+
       if (filters.search) {
-        query += ` AND (id_number LIKE $${paramIndex} OR full_name ILIKE $${paramIndex} OR membership_number LIKE $${paramIndex} OR cell_number LIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+        query += ` AND (m.id_number LIKE $${paramIndex} OR (m.firstname || ' ' || COALESCE(m.surname, '')) ILIKE $${paramIndex} OR m.membership_number LIKE $${paramIndex} OR m.cell_number LIKE $${paramIndex} OR m.email ILIKE $${paramIndex})`;
         params.push('%' + filters.search + '%');
         paramIndex++;
       }
 
-      query += ' ORDER BY full_name';
+      // Get total count before pagination
+      const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');
+      const countResult = await executeQuery(countQuery, params);
+      const total = countResult[0]?.total || 0;
 
-      if (filters.limit) {
-        query += ` LIMIT $${paramIndex}`;
-        params.push(parseInt(filters.limit));
-        paramIndex++;
-      } else {
-        query += ' LIMIT 100'; // Default limit
-      }
+      query += ' ORDER BY m.firstname, m.surname';
 
-      return await executeQuery(query, params);
+      // Pagination support
+      const page = filters.page ? parseInt(filters.page) : 1;
+      const limit = filters.limit ? parseInt(filters.limit) : 100;
+      const offset = (page - 1) * limit;
+
+      query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
+
+      const members = await executeQuery(query, params);
+
+      return {
+        members,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
     } catch (error) {
       throw createDatabaseError('Failed to fetch members with voting districts', error);
     }

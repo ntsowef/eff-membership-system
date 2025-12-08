@@ -9,7 +9,6 @@ import {
   TextField,
   Button,
   Alert,
-  Divider,
   Paper,
   Tabs,
   Tab,
@@ -148,7 +147,7 @@ I understand that membership in the EFF requires dedication, discipline, and unw
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         updateApplicationData({
-          signature_type: '',
+          signature_type: undefined,
           signature_data: '',
         });
       }

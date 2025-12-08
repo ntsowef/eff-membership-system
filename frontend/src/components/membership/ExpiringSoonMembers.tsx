@@ -35,7 +35,7 @@ import {
   Email,
   LocationOn,
   Schedule,
-  Warning
+
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
@@ -45,7 +45,7 @@ import {
   RENEWAL_PRIORITIES, 
   PRIORITY_COLORS,
   type ExpiringSoonFilters,
-  type ExpiringSoonMember
+  // type ExpiringSoonMember
 } from '../../types/membershipExpiration';
 
 interface ExpiringSoonMembersProps {
@@ -114,7 +114,7 @@ const ExpiringSoonMembers: React.FC<ExpiringSoonMembersProps> = ({
     }
   };
 
-  const handlePageChange = (event: unknown, newPage: number) => {
+  const handlePageChange = (_event: unknown, newPage: number) => {
     handleFilterChange('page', newPage + 1);
   };
 
@@ -430,7 +430,7 @@ const ExpiringSoonMembers: React.FC<ExpiringSoonMembersProps> = ({
             count={expiringSoonPagination.total_records}
             page={(expiringSoonPagination.current_page || 1) - 1}
             onPageChange={handlePageChange}
-            rowsPerPage={expiringSoonPagination.records_per_page}
+            rowsPerPage={Number(expiringSoonPagination.records_per_page)}
             onRowsPerPageChange={handleRowsPerPageChange}
             rowsPerPageOptions={[10, 25, 50, 100]}
           />

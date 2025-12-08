@@ -12,7 +12,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
   Alert,
   CircularProgress
 } from '@mui/material';
@@ -21,7 +20,6 @@ import {
   TrendingDown,
   Warning,
   CheckCircle,
-  LocationCity,
   Assessment,
   Refresh
 } from '@mui/icons-material';
@@ -29,9 +27,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import { useSecureApi } from '../../hooks/useSecureApi';
-import { wardMembershipAuditApi } from '../../services/wardMembershipAuditApi';
 import { useWardMembershipAuditStore } from '../../store/wardMembershipAuditStore';
-import { WARD_STANDING_COLORS, MUNICIPALITY_PERFORMANCE_COLORS } from '../../types/wardMembershipAudit';
+import { WARD_STANDING_COLORS } from '../../types/wardMembershipAudit';
 
 interface WardAuditOverviewProps {
   onViewWardDetails: (standing: string) => void;
@@ -53,7 +50,7 @@ const WardAuditOverview: React.FC<WardAuditOverviewProps> = ({
     overviewError
   } = useWardMembershipAuditStore();
 
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const municipalityContext = useMunicipalityContext();
   const { secureGet, getProvinceFilter } = useSecureApi();
 
@@ -136,11 +133,12 @@ const WardAuditOverview: React.FC<WardAuditOverviewProps> = ({
     }
   };
 
-  const getPerformanceIcon = (performance: string) => {
-    return performance === 'Performing Municipality' 
-      ? <TrendingUp color="success" />
-      : <TrendingDown color="error" />;
-  };
+  // Helper function to get performance icon (currently unused but kept for future use)
+  // const getPerformanceIcon = (performance: string) => {
+  //   return performance === 'Performing Municipality'
+  //     ? <TrendingUp color="success" />
+  //     : <TrendingDown color="error" />;
+  // };
 
   return (
     <Box sx={{ p: 3 }}>

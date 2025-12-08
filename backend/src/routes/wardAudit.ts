@@ -4,9 +4,10 @@ import { GeographicModel } from '../models/geographic';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, requirePermission } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
-import { executeQuery } from '../config/database';
+import { executeQuery, executeQuerySingle } from '../config/database';
 import Joi from 'joi';
 import { validate } from '../middleware/validation';
+import { logDelegateAssignment, logDelegateRemoval } from '../middleware/auditLogger';
 
 const router = Router();
 
@@ -190,13 +191,14 @@ router.get('/ward/:ward_code/compliance',
 );
 
 /**
- * POST /api/v1/ward-audit/ward/:ward_code/approve
- * Approve ward compliance
+ * POST /api/v1/ward-audit/ward/:ward_code/submit-compliance
+ * Submit ward as compliant (only when criteria 1-4 pass)
+ * This replaces the old approve endpoint with stricter validation
  */
-router.post('/ward/:ward_code/approve',
+router.post('/ward/:ward_code/submit-compliance',
   authenticate,
   requirePermission('ward_audit.approve'),
-  validate({ 
+  validate({
     params: wardCodeSchema,
     body: approveComplianceSchema
   }),
@@ -204,25 +206,98 @@ router.post('/ward/:ward_code/approve',
     const { ward_code } = req.params;
     const { notes } = req.body;
     const userId = (req as any).user.id || (req as any).user.user_id;
-    
-    // First check if ward meets compliance criteria
-    const complianceSummary = await WardAuditModel.getWardComplianceSummary(ward_code);
-    
-    if (!complianceSummary) {
+
+    // Get full ward compliance details (includes all 5 criteria)
+    const wardDetails = await WardAuditModel.getWardComplianceDetails(ward_code);
+
+    if (!wardDetails) {
       return sendError(res, 'Ward not found', 404);
     }
-    
-    // Check criterion 1: >= 200 members AND all VDs have >= 5 members
-    if (!complianceSummary.criterion_1_compliant) {
-      return sendError(res, 
-        'Ward does not meet compliance criteria. Must have 200+ members and all voting districts must have 5+ members each.',
+
+    // Check that criteria 1-4 are all passing
+    const failedCriteria: string[] = [];
+
+    if (!wardDetails.criterion_1_compliant) {
+      failedCriteria.push('Criterion 1: Membership & Voting District Compliance');
+    }
+    if (!wardDetails.criterion_2_passed) {
+      failedCriteria.push('Criterion 2: Meeting Quorum Verification');
+    }
+    if (!wardDetails.criterion_3_passed) {
+      failedCriteria.push('Criterion 3: Meeting Attendance');
+    }
+    if (!wardDetails.criterion_4_passed) {
+      failedCriteria.push('Criterion 4: Presiding Officer Information');
+    }
+
+    if (failedCriteria.length > 0) {
+      return sendError(res,
+        `Cannot submit ward as compliant. The following criteria are not met:\n${failedCriteria.join('\n')}`,
         400
       );
     }
-    
+
+    // All criteria 1-4 passed, approve the ward
+    await WardAuditModel.approveWardCompliance(ward_code, userId, notes);
+
+    sendSuccess(res, {
+      ward_code,
+      approved: true,
+      message: 'Ward submitted as compliant successfully. Delegate assignment is now available.'
+    }, 'Ward compliance submitted successfully');
+  })
+);
+
+/**
+ * POST /api/v1/ward-audit/ward/:ward_code/approve
+ * Legacy endpoint - kept for backward compatibility
+ * Redirects to submit-compliance
+ */
+router.post('/ward/:ward_code/approve',
+  authenticate,
+  requirePermission('ward_audit.approve'),
+  validate({
+    params: wardCodeSchema,
+    body: approveComplianceSchema
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { ward_code } = req.params;
+    const { notes } = req.body;
+    const userId = (req as any).user.id || (req as any).user.user_id;
+
+    // Get full ward compliance details
+    const wardDetails = await WardAuditModel.getWardComplianceDetails(ward_code);
+
+    if (!wardDetails) {
+      return sendError(res, 'Ward not found', 404);
+    }
+
+    // Check that criteria 1-4 are all passing
+    const failedCriteria: string[] = [];
+
+    if (!wardDetails.criterion_1_compliant) {
+      failedCriteria.push('Criterion 1');
+    }
+    if (!wardDetails.criterion_2_passed) {
+      failedCriteria.push('Criterion 2');
+    }
+    if (!wardDetails.criterion_3_passed) {
+      failedCriteria.push('Criterion 3');
+    }
+    if (!wardDetails.criterion_4_passed) {
+      failedCriteria.push('Criterion 4');
+    }
+
+    if (failedCriteria.length > 0) {
+      return sendError(res,
+        `Cannot approve ward. Criteria ${failedCriteria.join(', ')} not met.`,
+        400
+      );
+    }
+
     // Approve the ward
     await WardAuditModel.approveWardCompliance(ward_code, userId, notes);
-    
+
     sendSuccess(res, { ward_code, approved: true }, 'Ward compliance approved successfully');
   })
 );
@@ -247,6 +322,7 @@ router.get('/ward/:ward_code/voting-districts',
 /**
  * GET /api/v1/ward-audit/members/province/:province_code
  * Get members filtered by province for presiding officer selection (Criterion 4)
+ * @deprecated Use /members/province/:province_code/search instead for better performance
  */
 router.get('/members/province/:province_code',
   authenticate,
@@ -258,6 +334,60 @@ router.get('/members/province/:province_code',
     const members = await WardAuditModel.getMembersByProvince(province_code);
 
     sendSuccess(res, members, `Members from province ${province_code} retrieved successfully`);
+  })
+);
+
+/**
+ * GET /api/v1/ward-audit/members/province/:province_code/search
+ * Search members by province with autocomplete (for presiding officer)
+ * Query params: q (search term), limit (default: 50)
+ */
+router.get('/members/province/:province_code/search',
+  authenticate,
+  requirePermission('ward_audit.read'),
+  validate({ params: provinceCodeSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { province_code } = req.params;
+    const { q: searchTerm = '', limit = 50 } = req.query;
+
+    if (!searchTerm || (searchTerm as string).length < 2) {
+      return sendSuccess(res, [], 'Search term must be at least 2 characters');
+    }
+
+    const members = await WardAuditModel.searchMembersByProvince(
+      province_code,
+      searchTerm as string,
+      Math.min(Number(limit), 100) // Max 100 results
+    );
+
+    sendSuccess(res, members, `Found ${members.length} members matching "${searchTerm}"`);
+  })
+);
+
+/**
+ * GET /api/v1/ward-audit/ward/:ward_code/members/search
+ * Search members by ward with autocomplete (for secretary)
+ * Query params: q (search term), limit (default: 50)
+ */
+router.get('/ward/:ward_code/members/search',
+  authenticate,
+  requirePermission('ward_audit.read'),
+  validate({ params: wardCodeSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { ward_code } = req.params;
+    const { q: searchTerm = '', limit = 50 } = req.query;
+
+    if (!searchTerm || (searchTerm as string).length < 2) {
+      return sendSuccess(res, [], 'Search term must be at least 2 characters');
+    }
+
+    const members = await WardAuditModel.searchMembersByWard(
+      ward_code,
+      searchTerm as string,
+      Math.min(Number(limit), 100) // Max 100 results
+    );
+
+    sendSuccess(res, members, `Found ${members.length} members in ward matching "${searchTerm}"`);
   })
 );
 
@@ -278,15 +408,19 @@ router.post('/ward/:ward_code/meeting',
   }),
   asyncHandler(async (req: Request, res: Response) => {
     const { ward_code } = req.params;
-    const userId = (req as any).user?.user_id;
+    const userId = (req as any).user?.id; // Changed from user_id to id
 
     // Convert empty strings to null for optional numeric fields
+    // Truncate meeting_outcome to 50 characters (database limit)
+    const meetingOutcome = req.body.meeting_outcome === '' ? null :
+      (req.body.meeting_outcome ? req.body.meeting_outcome.substring(0, 50) : null);
+
     const meetingData = {
       ...req.body,
       ward_code,
       presiding_officer_id: req.body.presiding_officer_id === '' ? null : req.body.presiding_officer_id,
       secretary_id: req.body.secretary_id === '' ? null : req.body.secretary_id,
-      meeting_outcome: req.body.meeting_outcome === '' ? null : req.body.meeting_outcome,
+      meeting_outcome: meetingOutcome,
       action_items: req.body.action_items === '' ? null : req.body.action_items,
       quorum_verified_by: req.body.quorum_verified_manually ? userId : null,
       meeting_verified_by: req.body.meeting_took_place_verified ? userId : null,
@@ -355,6 +489,23 @@ router.put('/meeting/:record_id',
     await WardAuditModel.updateMeetingRecord(parseInt(record_id), req.body);
 
     sendSuccess(res, { record_id }, 'Meeting record updated successfully');
+  })
+);
+
+/**
+ * DELETE /api/v1/ward-audit/meeting/:record_id
+ * Delete a meeting record
+ */
+router.delete('/meeting/:record_id',
+  authenticate,
+  requirePermission('ward_audit.manage_delegates'),
+  validate({ params: recordIdSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { record_id } = req.params;
+
+    await WardAuditModel.deleteMeetingRecord(parseInt(record_id));
+
+    sendSuccess(res, { record_id }, 'Meeting record deleted successfully');
   })
 );
 
@@ -445,21 +596,36 @@ router.get('/ward/:ward_code/delegate-limit/:assembly_type_id',
 /**
  * POST /api/v1/ward-audit/delegates
  * Assign a delegate to a ward for an assembly
+ * SECURITY: Ward must be marked as compliant before delegates can be assigned
  */
 router.post('/delegates',
   authenticate,
   requirePermission('ward_audit.manage_delegates'),
   validate({ body: assignDelegateSchema }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { 
-      ward_code, 
-      member_id, 
-      assembly_code, 
-      selection_method, 
-      term_start_date, 
-      term_end_date, 
-      notes 
+    const {
+      ward_code,
+      member_id,
+      assembly_code,
+      selection_method,
+      term_start_date,
+      term_end_date,
+      notes
     } = req.body;
+
+    // SECURITY CHECK: Verify ward is compliant before allowing delegate assignment
+    const wardCompliance = await WardAuditModel.getWardComplianceSummary(ward_code);
+
+    if (!wardCompliance) {
+      return sendError(res, 'Ward not found', 404);
+    }
+
+    if (!wardCompliance.is_compliant) {
+      return sendError(res,
+        'Ward must be submitted as compliant before delegates can be assigned. Please complete the ward compliance submission process first.',
+        403
+      );
+    }
     
     // Get user_id from authenticated user. The user object should have user_id from getUserById.
     // If not present, fall back to id field, then to null to avoid FK violation.
@@ -505,14 +671,91 @@ router.post('/delegates',
       notes,
       selected_by: validatedUserId || undefined
     });
-    
+
+    // Log audit trail for delegate assignment (only if userId is available)
+    if (validatedUserId) {
+      await logDelegateAssignment(
+        validatedUserId,
+        delegateId,
+        {
+          ward_code,
+          member_id,
+          assembly_code,
+          selection_method,
+          term_start_date,
+          term_end_date,
+          notes
+        },
+        req
+      );
+    }
+
     sendSuccess(res, { delegate_id: delegateId }, 'Delegate assigned successfully');
+  })
+);
+
+/**
+ * PUT /api/v1/ward-audit/delegate/:delegateId/replace
+ * Replace a delegate assignment with a new member
+ * SECURITY: Ward must be compliant to manage delegates
+ */
+router.put('/delegate/:delegateId/replace',
+  authenticate,
+  requirePermission('ward_audit.manage_delegates'),
+  validate({
+    params: Joi.object({
+      delegateId: Joi.number().integer().required()
+    }),
+    body: Joi.object({
+      new_member_id: Joi.number().integer().required(),
+      reason: Joi.string().required().min(3).max(500)
+    })
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { delegateId } = req.params;
+    const { new_member_id, reason } = req.body;
+    const userId = (req as any).user?.user_id;
+
+    // Get delegate info to find ward_code
+    const delegateQuery = `
+      SELECT ward_code FROM ward_delegates WHERE delegate_id = $1
+    `;
+    const delegateResult = await executeQuerySingle<{ ward_code: string }>(delegateQuery, [delegateId]);
+
+    if (!delegateResult) {
+      return sendError(res, 'Delegate not found', 404);
+    }
+
+    // SECURITY CHECK: Verify ward is compliant before allowing delegate replacement
+    const wardCompliance = await WardAuditModel.getWardComplianceSummary(delegateResult.ward_code);
+
+    if (!wardCompliance) {
+      return sendError(res, 'Ward not found', 404);
+    }
+
+    if (!wardCompliance.is_compliant) {
+      return sendError(res,
+        'Ward must be submitted as compliant before delegates can be managed. Please complete the ward compliance submission process first.',
+        403
+      );
+    }
+
+    // Replace the delegate
+    const newDelegateId = await WardAuditModel.replaceDelegateAssignment(
+      Number(delegateId),
+      new_member_id,
+      reason,
+      userId
+    );
+
+    sendSuccess(res, { delegate_id: newDelegateId }, 'Delegate replaced successfully');
   })
 );
 
 /**
  * DELETE /api/v1/ward-audit/delegate/:delegateId
  * Remove a delegate assignment
+ * SECURITY: Ward must be compliant to manage delegates
  */
 router.delete('/delegate/:delegateId',
   authenticate,
@@ -530,11 +773,66 @@ router.delete('/delegate/:delegateId',
     const { reason } = req.body;
     const userId = (req as any).user?.user_id;
 
+    // Get delegate info to find ward_code
+    const delegateQuery = `
+      SELECT ward_code FROM ward_delegates WHERE delegate_id = $1
+    `;
+    const delegateResult = await executeQuerySingle<{ ward_code: string }>(delegateQuery, [delegateId]);
+
+    if (!delegateResult) {
+      return sendError(res, 'Delegate not found', 404);
+    }
+
+    // SECURITY CHECK: Verify ward is compliant before allowing delegate removal
+    const wardCompliance = await WardAuditModel.getWardComplianceSummary(delegateResult.ward_code);
+
+    if (!wardCompliance) {
+      return sendError(res, 'Ward not found', 404);
+    }
+
+    if (!wardCompliance.is_compliant) {
+      return sendError(res,
+        'Ward must be submitted as compliant before delegates can be managed. Please complete the ward compliance submission process first.',
+        403
+      );
+    }
+
+    // Get delegate details before removal for audit trail
+    const delegateDetailsQuery = `
+      SELECT
+        wd.delegate_id,
+        wd.member_id,
+        wd.ward_code,
+        at.assembly_code,
+        CONCAT(m.firstname, ' ', m.surname) as member_name
+      FROM ward_delegates wd
+      JOIN assembly_types at ON wd.assembly_type_id = at.assembly_type_id
+      JOIN members_consolidated m ON wd.member_id = m.member_id
+      WHERE wd.delegate_id = $1
+    `;
+    const delegateDetails = await executeQuerySingle<any>(delegateDetailsQuery, [delegateId]);
+
     await WardAuditModel.removeDelegateAssignment(
       Number(delegateId),
       reason,
       userId
     );
+
+    // Log audit trail for delegate removal
+    if (delegateDetails) {
+      await logDelegateRemoval(
+        userId,
+        Number(delegateId),
+        {
+          member_id: delegateDetails.member_id,
+          member_name: delegateDetails.member_name,
+          ward_code: delegateDetails.ward_code,
+          assembly_code: delegateDetails.assembly_code
+        },
+        reason,
+        req
+      );
+    }
 
     sendSuccess(res, null, 'Delegate removed successfully');
   })
@@ -570,8 +868,30 @@ router.get('/assembly-types',
   requirePermission('ward_audit.read'),
   asyncHandler(async (req: Request, res: Response) => {
     const assemblyTypes = await WardAuditModel.getAllAssemblyTypes();
-    
+
     sendSuccess(res, assemblyTypes, 'Assembly types retrieved successfully');
+  })
+);
+
+/**
+ * Refresh materialized views for ward audit system
+ * This should be called periodically (e.g., every 15 minutes) or after bulk data changes
+ */
+router.post('/refresh-materialized-views',
+  authenticate,
+  requirePermission('ward_audit.admin'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const startTime = Date.now();
+
+    // Call the PostgreSQL function to refresh materialized views
+    await executeQuery('SELECT refresh_ward_audit_materialized_views()', []);
+
+    const duration = Date.now() - startTime;
+
+    sendSuccess(res, {
+      refreshed_at: new Date(),
+      duration_ms: duration
+    }, `Materialized views refreshed successfully in ${duration}ms`);
   })
 );
 

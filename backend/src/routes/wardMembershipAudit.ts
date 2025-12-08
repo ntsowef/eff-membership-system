@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validation';
 import { authenticate, requirePermission, applyGeographicFilter } from '../middleware/auth';
 import { PDFExportService } from '../services/pdfExportService';
+import { ExcelReportService } from '../services/excelReportService';
 import Joi from 'joi';
 
 const router = express.Router();
@@ -1139,8 +1140,25 @@ router.get('/export',
           res.setHeader('Content-Length', pdfBuffer.length);
 
           return res.send(pdfBuffer);
+        } else if (format === 'excel') {
+          // Generate Excel using ExcelReportService
+          const excelBuffer = await ExcelReportService.generateWardAuditReport({
+            standing: standing as string,
+            municipality_code: municipalityCode as string,
+            district_code: district_code as string,
+            province_code: province_code as string,
+            search: search as string,
+            limit: limit as number
+          });
+
+          // Set response headers for Excel download
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', `attachment; filename="ward-audit-report-${new Date().toISOString().split('T')[0]}.xlsx"`);
+          res.setHeader('Content-Length', excelBuffer.length);
+
+          return res.send(excelBuffer);
         } else {
-          // For Excel/CSV formats, return 501 for now
+          // For CSV format, return 501 for now
           return res.status(501).json({
             success: false,
             message: `Ward audit export in ${format} format is not yet implemented`,
@@ -1148,7 +1166,7 @@ router.get('/export',
               format: format,
               type: 'ward',
               total_records: wards.length,
-              note: 'PDF export is available. Excel/CSV formats will be available in a future update.'
+              note: 'PDF and Excel exports are available. CSV format will be available in a future update.'
             }
           });
         }

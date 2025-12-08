@@ -18,6 +18,10 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  TextField,
 } from '@mui/material';
 import {
   Assessment,
@@ -30,10 +34,12 @@ import {
   Download,
   Close,
   Dashboard,
-  Lightbulb,
+  // Lightbulb,
   Person,
   Compare,
   CalendarMonth,
+  Groups,
+  CalendarToday,
 } from '@mui/icons-material';
 import PerformanceDashboard from '../../components/reports/PerformanceDashboard';
 import StrategicInsights from '../../components/reports/StrategicInsights';
@@ -42,6 +48,7 @@ import DemographicsReport from '../../components/reports/DemographicsReport';
 import ProvincialDistributionReport from '../../components/reports/ProvincialDistributionReport';
 import RegionalComparisonReport from '../../components/reports/RegionalComparisonReport';
 import MonthlySummaryReport from '../../components/reports/MonthlySummaryReport';
+import { reportsApi } from '../../services/reportsApi';
 
 const ReportsPage: React.FC = () => {
   const [dashboardOpen, setDashboardOpen] = useState(false);
@@ -51,6 +58,80 @@ const ReportsPage: React.FC = () => {
   const [provincialDistributionOpen, setProvincialDistributionOpen] = useState(false);
   const [regionalComparisonOpen, setRegionalComparisonOpen] = useState(false);
   const [monthlySummaryOpen, setMonthlySummaryOpen] = useState(false);
+
+  // Excel Reports State
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [selectedExcelReport, setSelectedExcelReport] = useState<string | null>(null);
+  const [reportFilters, setReportFilters] = useState({
+    date: new Date().toISOString().split('T')[0],
+    province_code: '',
+    municipality_code: '',
+    ward_code: '',
+  });
+
+  // Excel Report Download Handler
+  const handleDownloadExcelReport = async (reportType: string) => {
+    setIsDownloading(true);
+    setDownloadingReport(reportType);
+
+    try {
+      let result;
+      switch (reportType) {
+        case 'ward-audit':
+          result = await reportsApi.downloadWardAuditReport({
+            province_code: reportFilters.province_code,
+            municipality_code: reportFilters.municipality_code,
+          });
+          break;
+        case 'daily-report':
+          result = await reportsApi.downloadDailyReport({
+            date: reportFilters.date,
+          });
+          break;
+        case 'srpa-delegates':
+          result = await reportsApi.downloadSRPADelegatesReport({
+            province_code: reportFilters.province_code,
+            municipality_code: reportFilters.municipality_code,
+            ward_code: reportFilters.ward_code,
+          });
+          break;
+        default:
+          throw new Error('Unknown report type');
+      }
+
+      setSnackbar({
+        open: true,
+        message: result.message,
+        severity: 'success',
+      });
+      setFilterDialogOpen(false);
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to download report',
+        severity: 'error',
+      });
+    } finally {
+      setIsDownloading(false);
+      setDownloadingReport(null);
+    }
+  };
+
+  const handleOpenFilterDialog = (reportType: string) => {
+    setSelectedExcelReport(reportType);
+    setFilterDialogOpen(true);
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const reportCategories = [
     {
@@ -155,6 +236,88 @@ const ReportsPage: React.FC = () => {
           Generate comprehensive reports and export data for analysis and decision-making.
         </Typography>
       </Box>
+
+      {/* Excel Reports Section */}
+      <Paper sx={{ p: 3, mb: 4, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TableChart />
+          Excel Reports (Professional Format)
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 3, opacity: 0.9 }}>
+          Download professionally formatted Excel reports with multiple worksheets, borders, and styling
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Assessment color="primary" />
+                  <Typography variant="h6">Ward Audit Report</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Provincial and municipality-level membership audit with detailed statistics (2 sheets)
+                </Typography>
+                <Chip label="2 Worksheets" size="small" color="primary" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={isDownloading && downloadingReport === 'ward-audit' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('ward-audit')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <CalendarToday color="primary" />
+                  <Typography variant="h6">Daily Report</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Ward-level membership compliance analysis by municipality/district with IEC wards master list (2 sheets)
+                </Typography>
+                <Chip label="2 Worksheets" size="small" color="primary" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={isDownloading && downloadingReport === 'daily-report' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('daily-report')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Groups color="primary" />
+                  <Typography variant="h6">SRPA Delegates</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Sub-Regional People's Assembly delegates organized by province with national summary (10 sheets)
+                </Typography>
+                <Chip label="10 Worksheets" size="small" color="primary" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={isDownloading && downloadingReport === 'srpa-delegates' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('srpa-delegates')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Quick Actions */}
       <Paper sx={{ p: 3, mb: 4 }}>
@@ -473,6 +636,82 @@ const ReportsPage: React.FC = () => {
           <Button onClick={() => setMonthlySummaryOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Excel Report Filter Dialog */}
+      <Dialog
+        open={filterDialogOpen}
+        onClose={() => setFilterDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {selectedExcelReport === 'ward-audit' && 'Ward Audit Report Filters'}
+          {selectedExcelReport === 'daily-report' && 'Daily Report Filters'}
+          {selectedExcelReport === 'srpa-delegates' && 'SRPA Delegates Report Filters'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(selectedExcelReport === 'ward-audit' || selectedExcelReport === 'srpa-delegates') && (
+              <>
+                <TextField
+                  label="Province Code (Optional)"
+                  value={reportFilters.province_code}
+                  onChange={(e) => setReportFilters({ ...reportFilters, province_code: e.target.value })}
+                  fullWidth
+                  placeholder="e.g., GP, WC, EC"
+                  helperText="Leave empty for all provinces"
+                />
+                <TextField
+                  label="Municipality Code (Optional)"
+                  value={reportFilters.municipality_code}
+                  onChange={(e) => setReportFilters({ ...reportFilters, municipality_code: e.target.value })}
+                  fullWidth
+                  placeholder="e.g., JHB, CPT"
+                  helperText="Leave empty for all municipalities"
+                />
+              </>
+            )}
+            {selectedExcelReport === 'srpa-delegates' && (
+              <TextField
+                label="Ward Code (Optional)"
+                value={reportFilters.ward_code}
+                onChange={(e) => setReportFilters({ ...reportFilters, ward_code: e.target.value })}
+                fullWidth
+                placeholder="e.g., 79790001"
+                helperText="Leave empty for all wards"
+              />
+            )}
+            <Alert severity="info">
+              {selectedExcelReport === 'ward-audit' && 'This report contains 2 worksheets: Provincial Summary and Municipality Detail'}
+              {selectedExcelReport === 'daily-report' && 'This report contains 2 worksheets: Municipality/District Analysis and IEC Wards Master List (~4,400 wards)'}
+              {selectedExcelReport === 'srpa-delegates' && 'This report contains 10 worksheets: 9 provinces + National Summary'}
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFilterDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => selectedExcelReport && handleDownloadExcelReport(selectedExcelReport)}
+            disabled={isDownloading}
+            startIcon={isDownloading ? <CircularProgress size={16} /> : <Download />}
+          >
+            Download Excel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

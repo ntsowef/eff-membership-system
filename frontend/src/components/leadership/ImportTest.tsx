@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Box, Typography, Alert, Button } from '@mui/material';
-import { CheckCircle, Error } from '@mui/icons-material';
+import { CheckCircle } from '@mui/icons-material';
 import { useUI } from '../../store';
 
 // Test imports
@@ -123,7 +123,7 @@ const ImportTest: React.FC = () => {
 
     // Test component imports
     try {
-      if (MemberSelector && LeadershipAssignment && LeadershipManagement) {
+      if (typeof MemberSelector !== 'undefined' && typeof LeadershipAssignment !== 'undefined' && typeof LeadershipManagement !== 'undefined') {
         results.push({ name: 'Components', status: 'success', message: 'All components imported successfully' });
       } else {
         results.push({ name: 'Components', status: 'error', message: 'Some components failed to import' });

@@ -31,20 +31,20 @@ export class MembershipApprovalWorkflow {
       
       // Check payment status
       const payments = await PaymentService.getApplicationPayments(applicationId);
-      const completedPayment = payments.find(p => p.status === 'completed');
-      const pendingPayment = payments.find(p => p.status === 'verification_required');
-      
+      const completedPayment = payments.find(p => p.status?.toLowerCase() === 'completed');
+      const pendingPayment = payments.find(p => p.status?.toLowerCase() === 'verification_required' || p.status?.toLowerCase() === 'pending');
+
       let paymentStatus: 'none' | 'pending' | 'verified' | 'failed' = 'none';
-      
+
       if (completedPayment) {
         paymentStatus = 'verified';
       } else if (pendingPayment) {
         paymentStatus = 'pending';
         blockingIssues.push('Payment verification pending');
-      } else if (payments.some(p => p.status === 'failed')) {
+      } else if (payments.some(p => p.status?.toLowerCase() === 'failed')) {
         paymentStatus = 'failed';
         blockingIssues.push('Payment failed - requires new payment');
-      } else {
+      } else if (payments.length === 0 || !payments[0].status) {
         blockingIssues.push('No payment recorded');
       }
 
@@ -57,7 +57,7 @@ export class MembershipApprovalWorkflow {
         const requiredFields = [
           'first_name', 'last_name', 'id_number', 'date_of_birth',
           'gender', 'cell_number', 'email', 'residential_address',
-          'province_code', 'district_code', 'municipality_code', 'ward_code'
+          'province_code', 'district_code', 'municipal_code', 'ward_code'
         ];
 
         requiredFields.forEach(field => {
@@ -67,7 +67,7 @@ export class MembershipApprovalWorkflow {
         });
 
         // Check party declaration
-        if (!application.party_declaration_accepted) {
+        if (!application.declaration_accepted) {
           blockingIssues.push('Party declaration not accepted');
         }
 
@@ -75,7 +75,7 @@ export class MembershipApprovalWorkflow {
           blockingIssues.push('Constitution not accepted');
         }
 
-        if (!application.digital_signature) {
+        if (!application.signature_data) {
           blockingIssues.push('Digital signature missing');
         }
       }
@@ -111,20 +111,20 @@ export class MembershipApprovalWorkflow {
   static async getApplicationsReadyForApproval(): Promise<any[]> {
     try {
       const query = `
-        SELECT 
+        SELECT
           ma.*,
-          pt.status as payment_status,
-          pt.amount as payment_amount,
-          pt.payment_method,
-          pt.verified_at as payment_verified_at
+          p.payment_status as payment_status,
+          p.amount as payment_amount,
+          p.payment_method,
+          p.verified_at as payment_verified_at
         FROM membership_applications ma
-        LEFT JOIN payment_transactions pt ON ma.id = pt.application_id 
-          AND pt.status = 'completed'
+        LEFT JOIN payments p ON ma.application_id = p.member_id
+          AND p.payment_status = 'Completed'
         WHERE ma.status IN ('Submitted', 'Under Review')
-        AND ma.party_declaration_accepted = TRUE
+        AND ma.declaration_accepted = TRUE
         AND ma.constitution_accepted = TRUE
-        AND ma.digital_signature IS NOT NULL
-        AND pt.id IS NOT NULL
+        AND ma.signature_data IS NOT NULL
+        AND p.payment_id IS NOT NULL
         ORDER BY ma.submitted_at ASC
       `;
 
@@ -261,7 +261,7 @@ export class MembershipApprovalWorkflow {
    */
   private static async getApplicationDetails(applicationId: number): Promise<any> {
     try {
-      const query = 'SELECT * FROM membership_applications WHERE id = $1';
+      const query = 'SELECT * FROM membership_applications WHERE application_id = $1';
       const result = await executeQuerySingle(query, [applicationId]);
       return result;
     } catch (error) {

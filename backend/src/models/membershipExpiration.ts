@@ -414,23 +414,23 @@ export class MembershipExpirationModel {
 
       // Get members expiring within 30 days
       const expiring30Query = `
-        SELECT 
+        SELECT
           member_id,
-          first_name,
-          last_name,
+          firstname,
+          surname,
           email,
-          phone_number,
+          cell_number as phone_number,
           membership_expiry_date,
           DATEDIFF(membership_expiry_date, CURDATE()) as days_until_expiration
-        FROM vw_member_details 
+        FROM vw_member_details
         WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
         ORDER BY membership_expiry_date ASC
         LIMIT 100
       `;
       const expiring30Days = await executeQuery<{
         member_id: string;
-        first_name: string;
-        last_name: string;
+        firstname: string;
+        surname: string;
         email: string;
         phone_number: string;
         membership_expiry_date: string;
@@ -439,23 +439,23 @@ export class MembershipExpirationModel {
 
       // Get members expiring within 7 days (urgent)
       const expiring7Query = `
-        SELECT 
+        SELECT
           member_id,
-          first_name,
-          last_name,
+          firstname,
+          surname,
           email,
-          phone_number,
+          cell_number as phone_number,
           membership_expiry_date,
           DATEDIFF(membership_expiry_date, CURDATE()) as days_until_expiration
-        FROM vw_member_details 
+        FROM vw_member_details
         WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
         ORDER BY membership_expiry_date ASC
         LIMIT 50
       `;
       const expiring7Days = await executeQuery<{
         member_id: string;
-        first_name: string;
-        last_name: string;
+        firstname: string;
+        surname: string;
         email: string;
         phone_number: string;
         membership_expiry_date: string;
@@ -464,23 +464,23 @@ export class MembershipExpirationModel {
 
       // Get recently expired members (within last 30 days)
       const recentlyExpiredQuery = `
-        SELECT 
+        SELECT
           member_id,
-          first_name,
-          last_name,
+          firstname,
+          surname,
           email,
-          phone_number,
+          cell_number as phone_number,
           membership_expiry_date,
           ABS(DATEDIFF(CURDATE(), membership_expiry_date)) as days_since_expiration
-        FROM vw_member_details 
+        FROM vw_member_details
         WHERE membership_expiry_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND CURDATE()
         ORDER BY membership_expiry_date DESC
         LIMIT 100
       `;
       const recentlyExpired = await executeQuery<{
         member_id: string;
-        first_name: string;
-        last_name: string;
+        firstname: string;
+        surname: string;
         email: string;
         phone_number: string;
         membership_expiry_date: string;
@@ -489,16 +489,16 @@ export class MembershipExpirationModel {
 
       // Get inactive members (no activity for 90+ days) - simplified version
       const inactiveMembersQuery = `
-        SELECT 
+        SELECT
           member_id,
-          first_name,
-          last_name,
+          firstname,
+          surname,
           email,
-          phone_number,
+          cell_number as phone_number,
           membership_expiry_date,
           created_at as last_activity_date,
           DATEDIFF(CURDATE(), created_at) as days_since_activity
-        FROM vw_member_details 
+        FROM vw_member_details
         WHERE created_at < DATE_SUB(CURDATE(), INTERVAL 90 DAY)
           AND membership_expiry_date > CURDATE()
         ORDER BY created_at ASC
@@ -506,8 +506,8 @@ export class MembershipExpirationModel {
       `;
       const inactiveMembers = await executeQuery<{
         member_id: string;
-        first_name: string;
-        last_name: string;
+        firstname: string;
+        surname: string;
         email: string;
         phone_number: string;
         membership_expiry_date: string;
@@ -592,7 +592,7 @@ export class MembershipExpirationModel {
       let orderByClause = '';
       switch (sort_by) {
         case 'member_name':
-          orderByClause = `ORDER BY first_name ${sort_order.toUpperCase()}, last_name ${sort_order.toUpperCase()}`;
+          orderByClause = `ORDER BY firstname ${sort_order.toUpperCase()}, surname ${sort_order.toUpperCase()}`;
           break;
         case 'days_until_expiration':
           orderByClause = `ORDER BY DATEDIFF(membership_expiry_date, CURDATE()) ${sort_order.toUpperCase()}`;
@@ -603,27 +603,27 @@ export class MembershipExpirationModel {
 
       // Get members with expiration details
       const membersQuery = `
-        SELECT 
+        SELECT
           member_id,
-          first_name,
-          last_name,
+          firstname,
+          surname,
           email,
-          phone_number,
+          cell_number as phone_number,
           membership_expiry_date,
           created_at,
           province_name,
-          CASE 
+          CASE
             WHEN membership_expiry_date < CURDATE() THEN 'Expired'
             WHEN membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 'Urgent'
             WHEN membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'Expiring Soon'
             ELSE 'Active'
           END as status,
-          CASE 
+          CASE
             WHEN membership_expiry_date < CURDATE() THEN ABS(DATEDIFF(CURDATE(), membership_expiry_date))
             ELSE DATEDIFF(membership_expiry_date, CURDATE())
           END as days_until_expiration,
           DATEDIFF(CURDATE(), created_at) as days_since_activity
-        FROM vw_member_details 
+        FROM vw_member_details
         ${whereClause}
         ${orderByClause}
         LIMIT ${limit} OFFSET ${offset}
@@ -631,8 +631,8 @@ export class MembershipExpirationModel {
 
       const members = await executeQuery<{
         member_id: string;
-        first_name: string;
-        last_name: string;
+        firstname: string;
+        surname: string;
         email: string;
         phone_number: string;
         membership_expiry_date: string;

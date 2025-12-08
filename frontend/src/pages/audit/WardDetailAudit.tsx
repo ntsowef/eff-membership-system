@@ -25,7 +25,7 @@ import {
   Divider
 } from '@mui/material';
 import {
-  LocationCity,
+  // LocationCity,
   People,
   HowToVote,
   Warning,
@@ -33,7 +33,7 @@ import {
   Error,
   Info,
   NavigateNext,
-  Person,
+  // Person,
   Assessment
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';

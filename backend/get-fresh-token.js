@@ -1,6 +1,11 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+const path = require('path');
+
+// Load environment variables from the root .env file
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const pool = new Pool({
   host: 'localhost',
@@ -60,12 +65,20 @@ async function getFreshToken() {
 
     console.log('✅ Password verified!\n');
 
-    // Generate JWT token
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
-    
+    // Generate JWT token with the correct secret from .env
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      console.log('❌ JWT_SECRET not found in environment variables!');
+      console.log('   Make sure .env file exists and contains JWT_SECRET');
+      process.exit(1);
+    }
+
+    console.log(`🔑 Using JWT_SECRET from .env file\n`);
+
     const token = jwt.sign(
       {
-        id: user.user_id,  // This will be 8571
+        id: user.user_id,
         email: user.email,
         role_name: user.role_name,
         admin_level: user.admin_level,
@@ -75,7 +88,11 @@ async function getFreshToken() {
         ward_code: user.ward_code
       },
       jwtSecret,
-      { expiresIn: '24h' }
+      {
+        expiresIn: '24h',
+        issuer: 'geomaps-api',
+        audience: 'geomaps-client'
+      }
     );
 
     console.log('🎫 Fresh JWT Token Generated:\n');

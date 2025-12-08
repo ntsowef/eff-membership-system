@@ -1,9 +1,12 @@
 import { redisService } from './redisService';
 import { WebSocketService } from './websocketService';
 import { VoterVerificationService } from './voterVerificationService';
-import { executeQuery } from '../config/database';
+import { getPrisma } from './prismaService';
+import { createDatabaseError } from '../middleware/errorHandler';
 import { FileProcessingJob } from './fileWatcherService';
 import fs from 'fs/promises';
+
+const prisma = getPrisma();
 
 export class FileProcessingQueueManager {
   private static instance: FileProcessingQueueManager;
@@ -185,26 +188,30 @@ export class FileProcessingQueueManager {
   }
 
   private async updateJob(job: FileProcessingJob): Promise<void> {
-    // Update in Redis - properly stringify the result field
-    await redisService.hset(`job:${job.id}`, {
-      ...job,
-      result: job.result ? JSON.stringify(job.result) : null
-    });
+    try {
+      // Update in Redis - properly stringify the result field
+      await redisService.hset(`job:${job.id}`, {
+        ...job,
+        result: job.result ? JSON.stringify(job.result) : null
+      });
 
-    // Update in database
-    await executeQuery(`
-      UPDATE file_processing_jobs
-      SET status = $1, progress = $2, started_at = $3, completed_at = $4, error = $5, result = $6
-      WHERE job_id = $7
-    `, [
-      job.status,
-      job.progress,
-      job.startedAt || null,
-      job.completedAt || null,
-      job.error || null,
-      job.result ? JSON.stringify(job.result) : null,
-      job.id
-    ]);
+      // Update in database using Prisma - use job_uuid field, not job_id
+      await prisma.file_processing_jobs.update({
+        where: { job_uuid: job.id },
+        data: {
+          status: job.status || 'queued',
+          progress: job.progress || 0,
+          started_at: job.startedAt ? new Date(job.startedAt) : null,
+          completed_at: job.completedAt ? new Date(job.completedAt) : null,
+          error: job.error || null,
+          result: job.result || null,
+          updated_at: new Date()
+        }
+      });
+    } catch (error) {
+      console.error('Error updating job:', error);
+      throw createDatabaseError('Failed to update job in database', error);
+    }
   }
 
   private async updateJobProgress(jobId: string, progress: number, message: string): Promise<void> {
@@ -239,40 +246,50 @@ export class FileProcessingQueueManager {
   }
 
   async getJobHistory(limit: number = 50): Promise<FileProcessingJob[]> {
-    const query = `
-      SELECT
-        fpj.*,
-        u.email,
-        u.name
-      FROM file_processing_jobs fpj
-      LEFT JOIN users u ON fpj.user_id = u.id
-      ORDER BY fpj.created_at DESC
-      LIMIT $1
-    `;
+    try {
+      const jobs = await prisma.file_processing_jobs.findMany({
+        where: {},
+        include: {
+          users: {
+            select: {
+              user_id: true,
+              email: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          created_at: 'desc'
+        },
+        take: limit
+      });
 
-    const jobs = await executeQuery(query, [limit]);
-    return jobs.map((job: any) => ({
-      id: job.job_id,
-      fileName: job.file_name,
-      filePath: job.file_path,
-      fileSize: job.file_size,
-      wardNumber: job.ward_number,
-      status: job.status,
-      progress: job.progress || 0,
-      error: job.error,
-      result: job.result ? JSON.parse(job.result) : null,
-      createdAt: job.created_at,
-      updatedAt: job.updated_at,
-      startedAt: job.started_at,
-      completedAt: job.completed_at,
-      userId: job.user_id,
-      priority: job.priority || 1,
-      user: job.email ? {
-        id: job.user_id,
-        email: job.email,
-        name: job.name
-      } : null
-    }));
+      return jobs.map((job) => ({
+        id: job.job_id.toString(),
+        fileName: job.file_name,
+        filePath: job.file_path,
+        fileSize: Number(job.file_size),
+        wardNumber: job.ward_number || undefined,
+        status: job.status || 'queued',
+        progress: job.progress || 0,
+        error: job.error || undefined,
+        result: job.result || undefined,
+        createdAt: job.created_at?.toISOString() || new Date().toISOString(),
+        updatedAt: job.updated_at?.toISOString(),
+        startedAt: job.started_at?.toISOString(),
+        completedAt: job.completed_at?.toISOString(),
+        userId: job.user_id || undefined,
+        priority: job.priority || 1,
+        user: job.users ? {
+          id: job.users.user_id,
+          email: job.users.email,
+          name: job.users.name || undefined
+        } : null
+      })) as FileProcessingJob[];
+    } catch (error) {
+      console.error('Error getting job history:', error);
+      throw createDatabaseError('Failed to get job history from database', error);
+    }
   }
 
   async cancelJob(jobId: string): Promise<boolean> {
@@ -281,12 +298,14 @@ export class FileProcessingQueueManager {
       if (job && (job.status === 'queued' || job.status === 'processing')) {
         await redisService.hset(`job:${jobId}`, 'status', 'cancelled');
 
-        // Update database
-        await executeQuery(`
-          UPDATE file_processing_jobs
-          SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-          WHERE job_id = $1
-        `, [jobId]);
+        // Update database using Prisma - use job_uuid field
+        await prisma.file_processing_jobs.update({
+          where: { job_uuid: jobId },
+          data: {
+            status: 'cancelled',
+            updated_at: new Date()
+          }
+        });
 
         // If it's the currently processing job, clear the timeout
         if (this.currentJob && this.currentJob.id === jobId) {
@@ -323,12 +342,14 @@ export class FileProcessingQueueManager {
       // Remove all items from the queue
       await redisService.del('excel_processing_queue');
 
-      // Update database to mark all queued jobs as cancelled
-      await executeQuery(`
-        UPDATE file_processing_jobs
-        SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-        WHERE status = 'queued'
-      `);
+      // Update database to mark all queued jobs as cancelled using Prisma
+      await prisma.file_processing_jobs.updateMany({
+        where: { status: 'queued' },
+        data: {
+          status: 'cancelled',
+          updated_at: new Date()
+        }
+      });
 
       console.log(`🧹 Cleared ${queueLength} jobs from Redis queue`);
       return queueLength;

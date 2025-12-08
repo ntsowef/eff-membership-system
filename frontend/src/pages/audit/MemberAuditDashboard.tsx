@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -6,15 +6,15 @@ import {
   CardContent,
   Typography,
   Button,
-  ButtonGroup,
+  // ButtonGroup,
   Chip,
   Alert,
   CircularProgress,
   useTheme,
   Container,
   Paper,
-  Tabs,
-  Tab,
+  // Tabs,
+  // Tab,
   FormControl,
   InputLabel,
   Select,
@@ -26,7 +26,7 @@ import {
 import {
   Assessment,
   Warning,
-  CheckCircle,
+  // CheckCircle,
   Error,
   Info,
   Download,
@@ -68,7 +68,7 @@ interface AuditFilters {
 const MemberAuditDashboard: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(0);
+  const [_activeTab, _setActiveTab] = useState(0);
   const [filters, setFilters] = useState<AuditFilters>({});
   const [showFilters, setShowFilters] = useState(false);
 
@@ -103,9 +103,9 @@ const MemberAuditDashboard: React.FC = () => {
     low_issues: 0
   };
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
+  // const _handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  //   _setActiveTab(newValue);
+  // };
 
   const handleFilterChange = (field: keyof AuditFilters, value: string) => {
     setFilters(prev => ({
@@ -159,8 +159,8 @@ const MemberAuditDashboard: React.FC = () => {
     subtitle?: string;
     onClick?: () => void;
   }> = ({ title, value, icon, color, subtitle, onClick }) => (
-    <Card 
-      sx={{ 
+    <Card
+      sx={{
         cursor: onClick ? 'pointer' : 'default',
         '&:hover': onClick ? { elevation: 4 } : {}
       }}
@@ -181,7 +181,21 @@ const MemberAuditDashboard: React.FC = () => {
               </Typography>
             )}
           </Box>
-          <Box sx={{ color, fontSize: 40 }}>
+          <Box
+            sx={{
+              color,
+              fontSize: 40,
+              width: 56,
+              height: 56,
+              borderRadius: '50px', // Oval/pill shape
+              backgroundColor: (theme) => theme.palette.mode === 'light'
+                ? `${color}15` // Lighter background (15% opacity)
+                : `${color}25`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             {icon}
           </Box>
         </Box>

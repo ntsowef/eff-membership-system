@@ -16,14 +16,12 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
-  Divider
+  ListItemIcon
 } from '@mui/material';
 import {
   Person,
   CheckCircle,
   Cancel,
-  Warning,
   AccountBalance,
   Gavel,
   Assignment
@@ -170,6 +168,7 @@ const FinalReviewPanel: React.FC<FinalReviewPanelProps> = ({
                     size="small"
                   />
                 }
+                secondaryTypographyProps={{ component: 'div' }}
               />
             </ListItem>
             

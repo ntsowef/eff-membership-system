@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SessionWarningDialog } from './SessionWarningDialog';
 import { useSessionManagement } from '../../hooks/useSessionManagement';
@@ -24,6 +24,7 @@ describe('SessionWarningDialog Auto-Extension', () => {
         needsWarning: true,
         canExtend: true
       },
+      showWarning: true,
       isExtending: false,
       extendSession: mockExtendSession,
       dismissWarning: mockDismissWarning,

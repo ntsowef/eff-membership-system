@@ -1,375 +1,217 @@
-# EFF Membership System - Admin Users Test Suite
+# File Upload Testing Infrastructure
 
-This directory contains scripts for creating, verifying, and testing admin users in the EFF Membership Management System with PostgreSQL database.
+This directory contains comprehensive testing infrastructure for the high-volume concurrent file upload system.
 
-## 📁 Files Overview
+## 📁 Directory Structure
 
-### Core Scripts
-- **`create_admin_users.js`** - Creates admin users across all administrative levels
-- **`verify_admin_users.js`** - Verifies admin user creation and data integrity
-- **`test_admin_login.js`** - Tests authentication functionality for admin users
-- **`admin_users_summary.md`** - Comprehensive documentation of created admin users
-
-### Configuration
-- **`package.json`** - Node.js dependencies for test scripts
-- **`README.md`** - This documentation file
+```
+test/
+├── README.md                           # This file
+├── sample-data/                        # Sample data generation scripts
+│   ├── generate-member-applications.js # Generate member application Excel files
+│   └── generate-renewals.js            # Generate renewal Excel files
+├── concurrent-uploads/                 # Concurrent upload test scripts
+│   ├── test-5-concurrent.js            # Test with 5 concurrent uploads
+│   ├── test-10-concurrent.js           # Test with 10 concurrent uploads
+│   ├── test-15-concurrent.js           # Test with 15 concurrent uploads
+│   └── test-20-concurrent.js           # Test with 20 concurrent uploads
+├── scenarios/                          # Test scenario scripts
+│   ├── scenario-1-small-files.js       # 5 users, small files (100-500 rows)
+│   ├── scenario-2-medium-files.js      # 10 users, medium files (1000-2000 rows)
+│   ├── scenario-3-large-files.js       # 5 users, large files (5000-10000 rows)
+│   ├── scenario-4-mixed-files.js       # 20 users, mixed file sizes
+│   └── scenario-5-stress-test.js       # Continuous uploads for 10 minutes
+└── results/                            # Test results documentation
+    └── test-results-template.md        # Template for documenting results
+```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-1. PostgreSQL database running on localhost:5432
-2. Database: `eff_membership_db`
-3. User: `eff_admin` with password: `Frames!123`
-4. Node.js installed
+
+1. **Backend server running** on `http://localhost:5000`
+2. **Redis server running** on `localhost:6379`
+3. **PostgreSQL database** running on `localhost:5432`
+4. **Node.js** installed (v16 or higher)
+5. **npm packages** installed in backend directory
 
 ### Installation
+
 ```bash
 cd test
 npm install
 ```
 
-### Usage
+### Running Tests
 
-#### 1. Create Admin Users
+#### 1. Generate Sample Data
+
 ```bash
-node create_admin_users.js
-```
-Creates 95 admin users:
-- 1 National administrator
-- 9 Provincial administrators (all provinces)
-- 83 Municipal administrators (3 per district)
-- 2 Ward administrators (sample wards)
+# Generate member application files
+node sample-data/generate-member-applications.js
 
-#### 2. Verify Admin Users
+# Generate renewal files
+node sample-data/generate-renewals.js
+```
+
+This will create Excel files in `test/sample-data/output/`:
+- `member-applications-100.xlsx` (100 rows)
+- `member-applications-1000.xlsx` (1000 rows)
+- `member-applications-5000.xlsx` (5000 rows)
+- `member-applications-10000.xlsx` (10000 rows)
+- `renewals-100.xlsx` (100 rows)
+- `renewals-1000.xlsx` (1000 rows)
+- `renewals-5000.xlsx` (5000 rows)
+
+#### 2. Run Concurrent Upload Tests
+
 ```bash
-node verify_admin_users.js
-```
-Performs comprehensive verification:
-- User statistics by level
-- Geographic coverage analysis
-- Duplicate email detection
-- Geographic hierarchy validation
-- Sample user display
+# Test with 5 concurrent uploads
+node concurrent-uploads/test-5-concurrent.js
 
-#### 3. Test Authentication
+# Test with 10 concurrent uploads
+node concurrent-uploads/test-10-concurrent.js
+
+# Test with 15 concurrent uploads
+node concurrent-uploads/test-15-concurrent.js
+
+# Test with 20 concurrent uploads
+node concurrent-uploads/test-20-concurrent.js
+```
+
+#### 3. Run Test Scenarios
+
 ```bash
-node test_admin_login.js
-```
-Tests login functionality:
-- Specific admin user logins
-- Password validation
-- Security checks
-- Random user testing
+# Scenario 1: Small files
+node scenarios/scenario-1-small-files.js
 
-## 📊 Admin User Structure
+# Scenario 2: Medium files
+node scenarios/scenario-2-medium-files.js
 
-### Administrative Hierarchy
-```
-National (1 user)
-├── Provinces (9 users)
-│   ├── Eastern Cape
-│   ├── Free State
-│   ├── Gauteng
-│   ├── KwaZulu-Natal
-│   ├── Limpopo
-│   ├── Mpumalanga
-│   ├── Northern Cape
-│   ├── North West
-│   └── Western Cape
-│
-├── Municipalities (83 users)
-│   └── 3 users per district across all provinces
-│
-└── Wards (2 users)
-    ├── Ward 3 (Cederberg Municipality)
-    └── Ward 5 (Cederberg Municipality)
+# Scenario 3: Large files
+node scenarios/scenario-3-large-files.js
+
+# Scenario 4: Mixed files
+node scenarios/scenario-4-mixed-files.js
+
+# Scenario 5: Stress test
+node scenarios/scenario-5-stress-test.js
 ```
 
-### Email Naming Convention
-- **National**: `national.admin@eff.org.za`
-- **Provincial**: `{province_code}.admin@eff.org.za`
-- **Municipal**: `{municipal_code}.admin@eff.org.za`
-- **Ward**: `{ward_code}.admin@eff.org.za`
+## 📊 Test Metrics
 
-## 🔐 Security Information
+Each test script tracks and reports the following metrics:
 
-### Default Credentials
-- **Password**: `EFF@2025!`
-- **Hashing**: bcrypt with 12 rounds
-- **Status**: All accounts active and email-verified
+### Upload Metrics
+- **Total uploads**: Number of files uploaded
+- **Successful uploads**: Files accepted by the server
+- **Failed uploads**: Files rejected or errored
+- **Average upload time**: Time to upload and receive response
+- **Peak upload time**: Longest upload time
+- **Throughput**: Files per second
 
-### Security Features
-- Secure password hashing
-- Geographic scope restrictions
-- Account lockout protection
-- Email verification
-- Multi-factor authentication support (disabled by default)
+### Processing Metrics
+- **Total processing time**: Time from upload to completion
+- **Average processing time**: Average time per file
+- **Peak processing time**: Longest processing time
+- **Records processed**: Total number of records
+- **Processing rate**: Records per second
 
-## 📈 Test Results Summary
+### System Metrics
+- **Database connections**: Peak connection usage
+- **Memory usage**: Peak memory consumption
+- **Queue depth**: Maximum queue size
+- **Error rate**: Percentage of failed operations
 
-### Creation Results
-- ✅ **95 admin users** created successfully
-- ✅ **100% success rate** across all levels
-- ✅ **No duplicate emails**
-- ✅ **Valid geographic codes**
+### Rate Limiting Metrics
+- **Rate limit hits**: Number of requests blocked
+- **Concurrent limit hits**: Number of concurrent blocks
+- **System limit hits**: Number of system-wide blocks
 
-### Geographic Coverage
-- **Provinces**: 9/9 (100%)
-- **Districts**: 32/52 (61.5%)
-- **Municipalities**: 82/213 (38.5%)
-- **Wards**: 2/4478 (0.0%)
+## 🎯 Test Scenarios
 
-### Authentication Tests
-- ✅ **14/14 tests passed** (100% success rate)
-- ✅ **Password validation** working correctly
-- ✅ **Security checks** functioning properly
-- ✅ **Geographic scope** assignments correct
+### Scenario 1: Small Files (5 users, 100-500 rows)
+**Purpose**: Test basic concurrent upload handling with small files
+**Expected**: All uploads should complete quickly with minimal queuing
 
-## 🛠️ Database Schema Integration
+### Scenario 2: Medium Files (10 users, 1000-2000 rows)
+**Purpose**: Test moderate load with realistic file sizes
+**Expected**: Queue should manage load effectively, processing should be smooth
 
-### User Table Fields
-Each admin user includes:
-```sql
-user_id              -- Unique identifier
-name                 -- Full descriptive name
-email                -- Unique email address
-password             -- bcrypt hashed password
-admin_level          -- Geographic scope level
-province_code        -- Province assignment
-district_code        -- District assignment
-municipal_code       -- Municipality assignment
-ward_code           -- Ward assignment
-is_active           -- Account status
-email_verified_at   -- Email verification timestamp
-```
+### Scenario 3: Large Files (5 users, 5000-10000 rows)
+**Purpose**: Test system with large files that take significant time to process
+**Expected**: Queue should handle long-running jobs, no timeouts
 
-### Geographic Relationships
-- Foreign key constraints to geographic tables
-- Hierarchical validation
-- Scope-based access control
+### Scenario 4: Mixed Files (20 users, mixed sizes)
+**Purpose**: Test realistic scenario with varying file sizes
+**Expected**: Priority system should work, smaller files should complete faster
 
-## 🔧 Troubleshooting
+### Scenario 5: Stress Test (continuous uploads for 10 minutes)
+**Purpose**: Test system stability under sustained load
+**Expected**: System should remain stable, no memory leaks, consistent performance
 
-### Common Issues
+## 📝 Documenting Results
 
-#### Database Connection Failed
+After running tests, document results using the template in `results/test-results-template.md`:
+
 ```bash
-Error: connect ECONNREFUSED ::1:5432
+cp results/test-results-template.md results/test-results-YYYY-MM-DD.md
+# Edit the file with your test results
 ```
-**Solution**: Ensure PostgreSQL is running on localhost:5432
 
-#### Authentication Failed
+## 🔧 Configuration
+
+Test scripts can be configured via environment variables:
+
 ```bash
-Error: password authentication failed
-```
-**Solution**: Verify database credentials in `.env` file
+# Backend API URL
+export API_URL=http://localhost:5000
 
-#### Missing Tables
-```bash
-Error: relation "provinces" does not exist
-```
-**Solution**: Run database migrations first
+# Test user credentials
+export TEST_USER_ID=1
+export TEST_USER_ROLE=super_admin
 
-### Environment Variables
-Ensure these are set in `../backend/.env`:
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=eff_admin
-DB_PASSWORD=Frames!123
-DB_NAME=eff_membership_db
+# Test parameters
+export CONCURRENT_UPLOADS=10
+export TEST_DURATION_MINUTES=10
 ```
 
-## 📋 Next Steps
+## 📈 Performance Benchmarks
 
-### Production Deployment
-1. **Change Default Passwords**: Force password change on first login
-2. **Role Assignment**: Assign proper role IDs when roles system is active
-3. **Permission Mapping**: Configure specific permissions per admin level
-4. **Monitoring**: Set up admin activity logging
-5. **Backup**: Ensure admin user data is included in backups
+### Before Optimization (Baseline)
+- **Concurrent uploads**: 1-2 (no queue)
+- **Processing rate**: ~50 records/second
+- **Memory usage**: Spikes with each upload
+- **Database connections**: Exhausted at 5+ uploads
 
-### Security Enhancements
-1. **Password Policy**: Implement strong password requirements
-2. **MFA**: Enable multi-factor authentication
-3. **Session Management**: Configure secure session handling
-4. **Audit Logging**: Track admin user activities
+### After Optimization (Target)
+- **Concurrent uploads**: 20+ (with queue)
+- **Processing rate**: ~500 records/second (batch processing)
+- **Memory usage**: Stable under load
+- **Database connections**: Controlled, never exhausted
 
-### Training Materials
-1. **Admin Guides**: Create level-specific admin guides
-2. **Permission Matrix**: Document what each level can access
-3. **Workflow Documentation**: Standard operating procedures
-4. **Support Contacts**: Help desk information
+## 🐛 Troubleshooting
 
-## 🧪 Database Tests
+### Tests failing with "Connection refused"
+- Ensure backend server is running on port 5000
+- Check Redis is running on port 6379
 
-### Metro Member Search Tests
+### Tests failing with "Rate limit exceeded"
+- This is expected behavior - tests are designed to hit rate limits
+- Check rate limiting middleware is working correctly
 
-**Location**: `test/database/`
+### Tests failing with "Insufficient disk space"
+- Ensure at least 5GB free disk space
+- Run file cleanup: `node scripts/cleanup-test-files.js`
 
-#### test-metro-member-search.js
-Tests the metro member search fix to ensure members in metropolitan sub-regions are properly included in province-level searches.
+### Queue not processing jobs
+- Check Redis connection
+- Check queue workers are started in backend
+- Check backend logs for errors
 
-**Run**: `node test/database/test-metro-member-search.js`
+## 📚 Additional Resources
 
-**What it tests**:
-- Metro municipality structure validation
-- Members in metro sub-regions have proper geographic hierarchy
-- Province filtering includes all metro members
-- Verifies 73,279 metro members in Gauteng are searchable
+- [Bull Queue Documentation](https://github.com/OptimalBits/bull)
+- [Rate Limiting Best Practices](https://www.npmjs.com/package/express-rate-limit)
+- [Load Testing Guide](https://k6.io/docs/)
 
-#### test-member-api-endpoints.js
-Tests member API endpoints to ensure they work correctly with metro members.
-
-**Run**: `node test/database/test-member-api-endpoints.js`
-
-**What it tests**:
-- Member list with province filter
-- Member directory with province filter
-- Members by province endpoint
-- Member search functionality
-- Geographic hierarchy for metro members
-- Validation that no metro members have NULL provinces
-
-**Expected Results**:
-```
-✅ Total members in Gauteng: 100,765
-   🏙️  Metro members: 73,279 (72.7%)
-   🏘️  Regular members: 27,486 (27.3%)
-✅ All metro members have valid province and district codes!
-```
-
-#### test-ward-audit-member-search.js
-Tests the ward audit member search fix to ensure metro members appear in the "Select Member for" functionality.
-
-**Run**: `node test/database/test-ward-audit-member-search.js`
-
-**What it tests**:
-- Ward audit member selection by province
-- Metro members included in presiding officer selection
-- Metro members included in delegate selection
-- Comparison of old vs new query results
-- Validation of metro member data
-
-**Expected Results**:
-```
-Old query (without fix): 26,946 members
-New query (with fix): 99,622 members
-Difference: 72,676 members
-✅ Fix is working! Metro members are now included.
-```
-
-#### test-leadership-member-search.js
-Tests the leadership assignment member search to verify metro members are available for leadership positions.
-
-**Run**: `node test/database/test-leadership-member-search.js`
-
-**What it tests**:
-- Leadership member selection (all levels)
-- Metro members included in eligible members list
-- Province-specific filtering for War Council positions
-- Geographic filtering for all leadership levels
-- Validation of metro member data for leadership
-
-**Expected Results**:
-```
-✅ Eligible member counts by province:
-   Gauteng (GP): 100,765 members
-      🏙️  Metro: 73,279 (72.7%)
-      🏘️  Regular: 27,486 (27.3%)
-✅ All metro members have valid province codes for leadership selection!
-```
-
-#### test-ward-province-code.js
-Tests ward province code resolution in the vw_ward_compliance_summary view.
-
-**Run**: `node test/database/test-ward-province-code.js [ward_code]`
-
-**What it tests**:
-- Ward province_code resolution in vw_ward_compliance_summary view
-- Metro sub-region wards have province codes resolved through parent municipalities
-- Direct wards table province code resolution with COALESCE
-- Member availability for presiding officer selection
-- View column structure validation
-
-**Expected Results**:
-```
-✅ Test 1: vw_ward_compliance_summary - All wards have province_code
-✅ Test 2: Direct wards table - All wards have resolved_province_code
-✅ Test 3: Members available for province (e.g., 99,622 members in GP)
-✅ Test 4: province_code column exists in view
-```
-
-**Example**:
-```bash
-# Test specific Gauteng metro ward
-node test/database/test-ward-province-code.js 79800044
-
-# Test first 10 wards
-node test/database/test-ward-province-code.js
-```
-
-#### test-leadership-province-filter.js
-Tests leadership assignment province filtering to ensure metro members are included.
-
-**Run**: `node test/database/test-leadership-province-filter.js`
-
-**What it tests**:
-- Province ID resolution (province_id column)
-- vw_member_details includes metro members for province
-- Leadership query with province filter returns metro members
-- Total member counts with metro breakdown
-- NULL province_code detection for metro members
-- Sample metro members from Gauteng
-
-**Expected Results**:
-```
-✅ Total members in vw_member_details: 100,765
-   🏙️  Metro members: 73,279 (72.7%)
-   🏘️  Regular members: 27,486 (27.3%)
-✅ All metro members have province_code populated
-✅ Province filtering works correctly
-```
-
-#### test-war-council-eligible-members.js
-Tests War Council position eligible members to ensure metro members are included.
-
-**Run**: `node test/database/test-war-council-eligible-members.js`
-
-**What it tests**:
-- vw_member_details includes all members with province_code
-- Province filtering works correctly
-- Metro members have province_code populated
-- Sample member distribution (metro vs regular)
-- Gauteng member counts and breakdown
-
-**Expected Results**:
-```
-✅ Total Gauteng members: 100,765
-   🏙️  Metro members: 73,279 (72.7%)
-   🏘️  Regular members: 27,486 (27.3%)
-✅ All metro members have province_code populated
-✅ Province filtering works correctly
-✅ Metro members appear in War Council eligible list
-```
-
----
-
-## 📞 Support
-
-### Technical Issues
-- **Database**: PostgreSQL on localhost:5432
-- **Admin Interface**: pgAdmin on localhost:5050
-- **Logs**: Check application logs for errors
-
-### Contact Information
-- **System Administrator**: admin@eff.local
-- **Database Issues**: Check PostgreSQL logs
-- **Authentication Problems**: Verify user credentials
-
----
-
-**Last Updated**: 2025-01-23
-**Total Admin Users**: 95
-**Database**: eff_membership_db (PostgreSQL)
-**Status**: ✅ Production Ready

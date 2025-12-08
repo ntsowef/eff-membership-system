@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { requirePermission } from '../middleware/auth';
 import { iecApiService } from '../services/iecApiService';
+import { IECRateLimitService } from '../services/iecRateLimitService';
 import { createSuccessResponse, createErrorResponse } from '../utils/responseHelpers';
 import { validateRequest } from '../middleware/validation';
 import Joi from 'joi';
@@ -33,7 +34,7 @@ const votingDistrictSchema = Joi.object({
 router.get('/status', authenticate, async (req, res) => {
   try {
     const status = await iecApiService.getApiStatus();
-    
+
     res.json(createSuccessResponse(status, 'IEC API status retrieved successfully'));
   } catch (error) {
     console.error('Error getting IEC API status:', error);
@@ -42,11 +43,36 @@ router.get('/status', authenticate, async (req, res) => {
 });
 
 /**
+ * @route POST /api/v1/iec/verify-voter-public
+ * @desc Verify voter details by ID number (public endpoint for membership application)
+ * @access Public (no authentication required)
+ */
+router.post('/verify-voter-public',
+  validateRequest(verifyVoterSchema),
+  async (req, res) => {
+    try {
+      const { idNumber } = req.body;
+
+      const voterDetails = await iecApiService.verifyVoter(idNumber);
+
+      if (voterDetails) {
+        res.json(createSuccessResponse(voterDetails, 'Voter verified successfully'));
+      } else {
+        res.status(404).json(createErrorResponse('Voter not found in IEC database', 'VOTER_NOT_FOUND'));
+      }
+    } catch (error) {
+      console.error('Error verifying voter:', error);
+      res.status(500).json(createErrorResponse('Failed to verify voter', 'IEC_VERIFICATION_ERROR'));
+    }
+  }
+);
+
+/**
  * @route POST /api/v1/iec/verify-voter
  * @desc Verify voter details by ID number
  * @access Private (requires membership.verify permission)
  */
-router.post('/verify-voter', 
+router.post('/verify-voter',
   authenticate, 
   requirePermission('membership.verify'),
   validateRequest(verifyVoterSchema),
@@ -218,6 +244,71 @@ router.post('/bulk-verify',
     } catch (error) {
       console.error('Error in bulk verification:', error);
       res.status(500).json(createErrorResponse('Failed to perform bulk verification', 'IEC_BULK_VERIFY_ERROR'));
+    }
+  }
+);
+
+/**
+ * @route GET /api/v1/iec/rate-limit/status
+ * @desc Get current IEC API rate limit status
+ * @access Public (used by Python processor)
+ */
+router.get('/rate-limit/status', async (req, res) => {
+  try {
+    const status = await IECRateLimitService.getStatus();
+    res.json(createSuccessResponse(status, 'Rate limit status retrieved successfully'));
+  } catch (error) {
+    console.error('Error getting rate limit status:', error);
+    res.status(500).json(createErrorResponse('Failed to get rate limit status', 'RATE_LIMIT_ERROR'));
+  }
+});
+
+/**
+ * @route POST /api/v1/iec/rate-limit/increment
+ * @desc Increment IEC API rate limit counter and check status
+ * @access Public (used by Python processor)
+ */
+router.post('/rate-limit/increment', async (req, res) => {
+  try {
+    const status = await IECRateLimitService.incrementAndCheck();
+
+    if (status.is_limited) {
+      // Rate limit exceeded
+      return res.status(429).json({
+        success: false,
+        error: {
+          code: 'IEC_RATE_LIMIT_EXCEEDED',
+          message: `IEC API rate limit exceeded (${status.current_count}/${status.max_limit}). Resets in ${IECRateLimitService.formatResetTime(status.reset_time)}.`,
+          current_count: status.current_count,
+          max_limit: status.max_limit,
+          reset_time: status.reset_time,
+          remaining: status.remaining
+        }
+      });
+    }
+
+    res.json(createSuccessResponse(status, 'Rate limit checked successfully'));
+  } catch (error) {
+    console.error('Error checking rate limit:', error);
+    res.status(500).json(createErrorResponse('Failed to check rate limit', 'RATE_LIMIT_ERROR'));
+  }
+});
+
+/**
+ * @route POST /api/v1/iec/rate-limit/reset
+ * @desc Reset IEC API rate limit counter (for testing)
+ * @access Private (requires authentication and admin permission)
+ */
+router.post('/rate-limit/reset',
+  authenticate,
+  requirePermission('system.admin'),
+  async (req, res) => {
+    try {
+      await IECRateLimitService.reset();
+      res.json(createSuccessResponse({}, 'Rate limit counter reset successfully'));
+    } catch (error) {
+      console.error('Error resetting rate limit:', error);
+      res.status(500).json(createErrorResponse('Failed to reset rate limit', 'RATE_LIMIT_ERROR'));
     }
   }
 );

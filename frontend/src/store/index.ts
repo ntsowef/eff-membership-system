@@ -10,7 +10,8 @@ export interface User {
   surname?: string;
   phone?: string;
   admin_level: 'national' | 'province' | 'district' | 'municipality' | 'ward' | 'none';
-  role_name?: string;
+  role?: string; // Role code (e.g., "SUPER_ADMIN", "NATIONAL_ADMIN")
+  role_name?: string; // Role display name (e.g., "Super Administrator")
   province_code?: string;
   district_code?: string;
   municipal_code?: string;
@@ -111,8 +112,11 @@ export interface Member {
 export interface MembershipApplication {
   id: number;
   application_id: string;
-  firstname: string;
-  surname: string;
+  // Support both frontend and backend field names
+  firstname?: string;
+  surname?: string;
+  first_name?: string;
+  last_name?: string;
   email: string;
   phone: string;
   date_of_birth: string;
@@ -138,12 +142,23 @@ export interface MembershipApplication {
   reason_for_joining?: string;
   skills_experience?: string;
   referred_by?: string;
+  // Party Declaration fields
+  signature_type?: 'typed' | 'drawn';
+  signature_data?: string;
+  declaration_accepted?: boolean;
+  constitution_accepted?: boolean;
   // Payment Information fields
   payment_method?: string;
   payment_reference?: string;
   last_payment_date?: string;
   payment_amount?: number;
   payment_notes?: string;
+  // Geographic fields
+  province_code?: string;
+  district_code?: string;
+  municipal_code?: string;
+  ward_code?: string;
+  voting_district_code?: string;
   status: 'pending' | 'under_review' | 'approved' | 'rejected';
   documents?: any[];
   agree_terms?: boolean;
@@ -182,6 +197,14 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: false, // Require proper authentication
         provinceContext: null,
         login: (user, token, sessionId) => {
+          console.log('🔐 Zustand login called with:', {
+            user: user.email,
+            role: user.role,
+            hasToken: !!token,
+            tokenPreview: token ? token.substring(0, 30) + '...' : 'NULL',
+            sessionId: sessionId
+          });
+
           // Let Zustand persist middleware handle localStorage
           // No manual localStorage calls needed
 
@@ -195,6 +218,27 @@ export const useAuthStore = create<AuthState>()(
           };
 
           set({ user, token, sessionId, isAuthenticated: true, provinceContext });
+
+          // Verify the state was set
+          const currentState = get();
+          console.log('✅ Zustand state after login:', {
+            hasUser: !!currentState.user,
+            hasToken: !!currentState.token,
+            isAuthenticated: currentState.isAuthenticated,
+            tokenPreview: currentState.token ? currentState.token.substring(0, 30) + '...' : 'NULL'
+          });
+
+          // Verify localStorage
+          const authStorage = localStorage.getItem('auth-storage');
+          console.log('✅ localStorage auth-storage:', authStorage ? 'EXISTS' : 'NULL');
+          if (authStorage) {
+            try {
+              const parsed = JSON.parse(authStorage);
+              console.log('✅ localStorage parsed token:', parsed.state?.token ? parsed.state.token.substring(0, 30) + '...' : 'NULL');
+            } catch (e) {
+              console.error('❌ Failed to parse auth-storage:', e);
+            }
+          }
         },
         logout: () => {
           // Let Zustand persist middleware handle localStorage
@@ -215,7 +259,7 @@ export const useAuthStore = create<AuthState>()(
           if (!user || !user.is_active) return false;
 
           // Super admin has all permissions
-          if (user.role_name === 'super_admin' || user.admin_level === 'national') {
+          if (user.role === 'SUPER_ADMIN' || user.admin_level === 'national') {
             return true;
           }
 
@@ -250,7 +294,7 @@ export const useAuthStore = create<AuthState>()(
           if (!user || !user.is_active) return false;
 
           // Only national and province admins can access user management
-          return user.admin_level === 'national' || user.admin_level === 'province' || user.role_name === 'super_admin';
+          return user.admin_level === 'national' || user.admin_level === 'province' || user.role === 'SUPER_ADMIN';
         },
         getProvinceContext: () => {
           return get().provinceContext;
@@ -264,7 +308,7 @@ export const useAuthStore = create<AuthState>()(
           if (!user || !user.is_active) return false;
 
           // National admin and super admin can access all provinces
-          if (user.admin_level === 'national' || user.role_name === 'super_admin') {
+          if (user.admin_level === 'national' || user.role === 'SUPER_ADMIN') {
             return true;
           }
 
@@ -302,6 +346,13 @@ interface UIState {
     message: string;
     timestamp: number;
   }>;
+  // Connection status
+  connectionStatus: 'connected' | 'disconnected' | 'checking' | 'unknown';
+  serviceStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  lastHealthCheck: Date | null;
+  healthError: string | null;
+  showConnectionBanner: boolean;
+
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark') => void;
@@ -309,6 +360,13 @@ interface UIState {
   addNotification: (notification: Omit<UIState['notifications'][0], 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
   clearNotifications: () => void;
+
+  // Connection status actions
+  setConnectionStatus: (status: UIState['connectionStatus']) => void;
+  setServiceStatus: (status: UIState['serviceStatus']) => void;
+  setLastHealthCheck: (date: Date | null) => void;
+  setHealthError: (error: string | null) => void;
+  setShowConnectionBanner: (show: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -319,6 +377,12 @@ export const useUIStore = create<UIState>()(
         theme: 'light',
         loading: false,
         notifications: [],
+        connectionStatus: 'unknown',
+        serviceStatus: 'unknown',
+        lastHealthCheck: null,
+        healthError: null,
+        showConnectionBanner: false,
+
         toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
         setSidebarOpen: (open) => set({ sidebarOpen: open }),
         setTheme: (theme) => set({ theme }),
@@ -338,12 +402,19 @@ export const useUIStore = create<UIState>()(
           notifications: state.notifications.filter(n => n.id !== id)
         })),
         clearNotifications: () => set({ notifications: [] }),
+
+        // Connection status actions
+        setConnectionStatus: (status) => set({ connectionStatus: status }),
+        setServiceStatus: (status) => set({ serviceStatus: status }),
+        setLastHealthCheck: (date) => set({ lastHealthCheck: date }),
+        setHealthError: (error) => set({ healthError: error }),
+        setShowConnectionBanner: (show) => set({ showConnectionBanner: show }),
       }),
       {
         name: 'ui-storage',
-        partialize: (state) => ({ 
-          sidebarOpen: state.sidebarOpen, 
-          theme: state.theme 
+        partialize: (state) => ({
+          sidebarOpen: state.sidebarOpen,
+          theme: state.theme
         }),
       }
     ),

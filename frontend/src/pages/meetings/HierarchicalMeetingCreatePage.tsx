@@ -154,7 +154,7 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
   const meetingTypes: MeetingType[] = (meetingTypesData as any)?.meeting_types || [];
 
   // Fetch existing meeting data when in edit mode
-  const { data: existingMeetingData, isLoading: meetingLoading } = useQuery({
+  const { data: existingMeetingData } = useQuery({
     queryKey: ['hierarchical-meeting', id],
     queryFn: async () => {
       const result = await apiGet(`/hierarchical-meetings/${id}`);
@@ -205,7 +205,7 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
   // Update meeting mutation
   const updateMeetingMutation = useMutation({
     mutationFn: (data: CreateMeetingData) => apiPut(`/hierarchical-meetings/${id}`, data),
-    onSuccess: (response: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
       queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
       queryClient.invalidateQueries({ queryKey: ['hierarchical-meeting', id] });

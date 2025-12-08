@@ -1,94 +1,118 @@
-const mysql = require('mysql2/promise');
+/**
+ * Check membership_applications table structure
+ * This will help us identify the correct primary key column name
+ */
 
-async function checkMembershipApplicationsTable() {
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  host: 'localhost',
+  port: 5432,
+  user: 'eff_admin',
+  password: 'Frames!123',
+  database: 'eff_membership_db',
+  ssl: false,
+  connectionTimeoutMillis: 30000,
+});
+
+async function checkTable() {
+  const client = await pool.connect();
+  
   try {
-    const connection = await mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: '',
-      database: 'membership_new'
-    });
-
-    console.log('🔍 Checking membership_applications table...\n');
-
+    console.log('🔍 Checking membership_applications table structure...\n');
+    
     // Check if table exists
-    const [tableExists] = await connection.execute(`
-      SELECT COUNT(*) as count FROM information_schema.tables 
-      WHERE table_schema = 'membership_new' AND table_name = 'membership_applications'
+    const tableExists = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'membership_applications'
+      );
     `);
-
-    if (tableExists[0].count === 0) {
-      console.log('❌ membership_applications table does not exist');
-      await connection.end();
-      return;
+    
+    if (!tableExists.rows[0].exists) {
+      console.error('❌ membership_applications table does not exist!');
+      process.exit(1);
     }
-
-    console.log('✅ membership_applications table exists');
-
-    // Get table structure
-    const [columns] = await connection.execute(`DESCRIBE membership_applications`);
-    console.log('\n📋 Table structure:');
-    columns.forEach(col => {
-      console.log(`  • ${col.Field} (${col.Type}) - ${col.Null === 'YES' ? 'NULL' : 'NOT NULL'}`);
+    
+    console.log('✅ membership_applications table exists\n');
+    
+    // Get all columns
+    const columns = await client.query(`
+      SELECT 
+        column_name, 
+        data_type, 
+        is_nullable,
+        column_default
+      FROM information_schema.columns
+      WHERE table_name = 'membership_applications'
+      ORDER BY ordinal_position;
+    `);
+    
+    console.log('📋 Columns:');
+    columns.rows.forEach(col => {
+      const nullable = col.is_nullable === 'YES' ? 'NULL' : 'NOT NULL';
+      const defaultVal = col.column_default ? ` DEFAULT ${col.column_default}` : '';
+      console.log(`   - ${col.column_name} (${col.data_type}) ${nullable}${defaultVal}`);
     });
-
-    // Count total records
-    const [countResult] = await connection.execute(`SELECT COUNT(*) as total FROM membership_applications`);
-    console.log(`\n📊 Total records: ${countResult[0].total}`);
-
-    // Get sample data
-    const [sampleData] = await connection.execute(`SELECT * FROM membership_applications LIMIT 3`);
-    if (sampleData.length > 0) {
-      console.log('\n📋 Sample data:');
-      sampleData.forEach((row, index) => {
-        console.log(`  ${index + 1}. ID: ${row.id}, Name: ${row.first_name} ${row.last_name}, Status: ${row.status}, Email: ${row.email}`);
+    
+    // Get primary key
+    const primaryKey = await client.query(`
+      SELECT a.attname
+      FROM pg_index i
+      JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+      WHERE i.indrelid = 'membership_applications'::regclass
+      AND i.indisprimary;
+    `);
+    
+    console.log('\n🔑 Primary Key:');
+    if (primaryKey.rows.length > 0) {
+      primaryKey.rows.forEach(pk => {
+        console.log(`   - ${pk.attname}`);
       });
     } else {
-      console.log('\n❌ No data found in membership_applications table');
+      console.log('   ⚠️  No primary key found!');
     }
-
-    // Test the exact query from the model
-    console.log('\n🔍 Testing the exact query from the model...');
-    try {
-      const [testResults] = await connection.execute(`
-        SELECT 
-          id,
-          application_number,
-          first_name,
-          last_name,
-          email,
-          cell_number,
-          id_number,
-          status,
-          workflow_stage,
-          financial_status,
-          membership_type,
-          created_at,
-          submitted_at,
-          reviewed_at
-        FROM membership_applications 
-        ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
-      `, [20, 0]);
-
-      console.log(`✅ Query successful! Found ${testResults.length} records`);
-      if (testResults.length > 0) {
-        console.log('Sample result:', {
-          id: testResults[0].id,
-          name: `${testResults[0].first_name} ${testResults[0].last_name}`,
-          status: testResults[0].status,
-          email: testResults[0].email
-        });
-      }
-    } catch (queryError) {
-      console.log('❌ Query failed:', queryError.message);
+    
+    // Get foreign keys that reference this table
+    const foreignKeys = await client.query(`
+      SELECT
+        tc.constraint_name,
+        tc.table_name,
+        kcu.column_name,
+        ccu.table_name AS foreign_table_name,
+        ccu.column_name AS foreign_column_name
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.constraint_column_usage AS ccu
+        ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND ccu.table_name = 'membership_applications';
+    `);
+    
+    console.log('\n🔗 Foreign Keys referencing this table:');
+    if (foreignKeys.rows.length > 0) {
+      foreignKeys.rows.forEach(fk => {
+        console.log(`   - ${fk.table_name}.${fk.column_name} → ${fk.foreign_table_name}.${fk.foreign_column_name}`);
+      });
+    } else {
+      console.log('   None found');
     }
-
-    await connection.end();
-
+    
+    console.log('\n✅ Table structure check complete!');
+    
   } catch (error) {
     console.error('❌ Error:', error.message);
+    console.error(error);
+    process.exit(1);
+  } finally {
+    client.release();
+    await pool.end();
   }
 }
 
-checkMembershipApplicationsTable();
+checkTable();
+

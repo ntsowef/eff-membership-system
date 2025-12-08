@@ -9,10 +9,6 @@ import {
   Chip,
   Grid,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   List,
   ListItem,
   ListItemText,
@@ -47,8 +43,8 @@ const FileProcessingDashboard: React.FC = () => {
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const [jobHistory, setJobHistory] = useState<FileProcessingJob[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedWardNumber, setSelectedWardNumber] = useState<number | undefined>();
+  const [_selectedWardNumber, _setSelectedWardNumber] = useState<number | undefined>();
+  const [_uploadDialogOpen, _setUploadDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Initialize WebSocket connection
@@ -149,8 +145,8 @@ const FileProcessingDashboard: React.FC = () => {
 
     // Extract ward number from filename
     const extractedWard = FileProcessingService.extractWardNumber(file.name);
-    setSelectedWardNumber(extractedWard || undefined);
-    setUploadDialogOpen(true);
+    _setSelectedWardNumber(extractedWard || undefined);
+    _setUploadDialogOpen(true);
   }, [showNotification]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -162,20 +158,21 @@ const FileProcessingDashboard: React.FC = () => {
     multiple: false
   });
 
-  const handleUpload = async (file: File) => {
-    try {
-      setLoading(true);
-      await fileProcessingService.uploadFile(file, selectedWardNumber);
-      showNotification('File uploaded successfully', 'success');
-      setUploadDialogOpen(false);
-      refreshData();
-    } catch (error) {
-      console.error('Upload error:', error);
-      showNotification('Failed to upload file', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Upload handler (currently unused but kept for future use)
+  // const handleUpload = async (file: File) => {
+  //   try {
+  //     setLoading(true);
+  //     await fileProcessingService.uploadFile(file, selectedWardNumber);
+  //     showNotification('File uploaded successfully', 'success');
+  //     setUploadDialogOpen(false);
+  //     refreshData();
+  //   } catch (error) {
+  //     console.error('Upload error:', error);
+  //     showNotification('Failed to upload file', 'error');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleCancelJob = async (jobId: string) => {
     try {

@@ -4,6 +4,7 @@ import {
   initializeDatabase as initHybridDatabase,
   executeQuery as hybridExecuteQuery,
   executeQuerySingle as hybridExecuteQuerySingle,
+  executeUpdate as hybridExecuteUpdate,
   executeTransaction as hybridExecuteTransaction,
   checkDatabaseHealth as hybridCheckHealth,
   closeDatabaseConnections
@@ -47,6 +48,19 @@ export const executeQuerySingle = async <T = any>(
     return await SQLMigrationService.executeConvertedQuerySingle<T>(query, params);
   } catch (error) {
     console.error('❌ Database single query error (hybrid system):', error);
+    throw error;
+  }
+};
+
+// Execute UPDATE/DELETE query and return affected row count (now uses hybrid system)
+export const executeUpdate = async (
+  query: string,
+  params?: any[]
+): Promise<{ affectedRows: number }> => {
+  try {
+    return await hybridExecuteUpdate(query, params);
+  } catch (error) {
+    console.error('❌ Database update error (hybrid system):', error);
     throw error;
   }
 };

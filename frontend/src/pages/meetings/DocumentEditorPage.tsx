@@ -11,7 +11,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Alert,
   CircularProgress,
   Paper,
   Divider,
@@ -24,7 +23,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemButton,
 } from '@mui/material';
 import {
   Save,
@@ -34,10 +32,10 @@ import {
   Add,
   Remove,
   DragIndicator,
-  Article,
   Schedule,
   Person,
   LocationOn,
+  Article,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPut } from '../../lib/api';
@@ -96,7 +94,7 @@ const DocumentEditorPage: React.FC = () => {
   const isEditing = !!documentId;
 
   // Form setup
-  const { control, handleSubmit, watch, setValue, reset, formState: { errors, isDirty } } = useForm<DocumentFormData>({
+  const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<DocumentFormData>({
     defaultValues: {
       document_title: '',
       document_type: 'agenda',
@@ -120,7 +118,7 @@ const DocumentEditorPage: React.FC = () => {
     },
   });
 
-  const { fields: sectionFields, append: appendSection, remove: removeSection, move: moveSection } = useFieldArray({
+  const { fields: sectionFields, append: appendSection, remove: removeSection } = useFieldArray({
     control,
     name: 'document_content.sections',
   });
@@ -145,8 +143,8 @@ const DocumentEditorPage: React.FC = () => {
     enabled: !!meetingId,
   });
 
-  const templates = templatesData?.data?.templates || [];
-  const meeting = meetingData?.meeting || null;
+  const templates = (templatesData as any)?.data?.templates || [];
+  const meeting = (meetingData as any)?.data?.meeting || null;
 
   // Create/Update document mutation
   const saveDocumentMutation = useMutation({
@@ -157,7 +155,7 @@ const DocumentEditorPage: React.FC = () => {
         return apiPost('/meeting-documents', { ...data, meeting_id: parseInt(meetingId!) });
       }
     },
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['meeting-documents', meetingId] });
       const docId = isEditing ? documentId : response.data?.document_id;
       navigate(`/admin/meetings/${meetingId}/documents/${docId}`);
@@ -166,8 +164,8 @@ const DocumentEditorPage: React.FC = () => {
 
   // Load document data when editing
   useEffect(() => {
-    if (documentData?.document) {
-      const doc = documentData.document;
+    if ((documentData as any)?.data?.document) {
+      const doc = (documentData as any).data.document;
       reset({
         document_title: doc.document_title,
         document_type: doc.document_type,
@@ -508,7 +506,7 @@ const DocumentEditorPage: React.FC = () => {
                         </Box>
 
                         {/* Section Items */}
-                        {watch(`document_content.sections.${sectionIndex}.items`)?.map((item, itemIndex) => (
+                        {watch(`document_content.sections.${sectionIndex}.items`)?.map((_item, itemIndex) => (
                           <Box key={itemIndex} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                             <Controller
                               name={`document_content.sections.${sectionIndex}.items.${itemIndex}`}

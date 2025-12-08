@@ -665,48 +665,66 @@ router.get('/lookup/:type', async (req: Request, res: Response, next: NextFuncti
         break;
       case 'municipalities':
         if (req.query.district_code) {
-          query = 'SELECT DISTINCT m.municipality_code as id, m.municipality_name as name FROM municipalities m LEFT JOIN wards w ON m.municipality_code = w.municipality_code WHERE w.district_code = ? ORDER BY m.municipality_name';
+          query = 'SELECT DISTINCT m.municipality_code as id, m.municipality_name as name, m.municipality_code as code FROM municipalities m LEFT JOIN wards w ON m.municipality_code = w.municipality_code WHERE w.district_code = ?';
           params = [req.query.district_code];
+          if (search) {
+            query += ' AND (m.municipality_name LIKE ? OR m.municipality_code LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+          }
+          query += ' ORDER BY m.municipality_name LIMIT ?';
+          params.push(limit);
         } else if (req.query.province_code) {
-          query = 'SELECT DISTINCT m.municipality_code as id, m.municipality_name as name FROM municipalities m LEFT JOIN wards w ON m.municipality_code = w.municipality_code WHERE w.province_code = ? ORDER BY m.municipality_name';
+          query = 'SELECT DISTINCT m.municipality_code as id, m.municipality_name as name, m.municipality_code as code FROM municipalities m LEFT JOIN wards w ON m.municipality_code = w.municipality_code WHERE w.province_code = ?';
           params = [req.query.province_code];
+          if (search) {
+            query += ' AND (m.municipality_name LIKE ? OR m.municipality_code LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+          }
+          query += ' ORDER BY m.municipality_name LIMIT ?';
+          params.push(limit);
         } else {
-          query = 'SELECT municipality_code as id, municipality_name as name FROM municipalities ORDER BY municipality_name LIMIT ?';
-          params = [limit];
+          query = 'SELECT municipality_code as id, municipality_name as name, municipality_code as code FROM municipalities';
+          params = [];
+          if (search) {
+            query += ' WHERE (municipality_name LIKE ? OR municipality_code LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+          }
+          query += ' ORDER BY municipality_name LIMIT ?';
+          params.push(limit);
         }
         break;
       case 'wards':
         if (req.query.municipal_code) {
-          query = 'SELECT ward_code as id, CONCAT("Ward ", ward_number, " - ", ward_name) as name FROM wards WHERE municipality_code = ?';
+          query = 'SELECT ward_code as id, CONCAT(\'Ward \', ward_number, \' - \', ward_name) as name FROM wards WHERE municipality_code = ?';
           params = [req.query.municipal_code];
           if (search) {
-            query += ' AND (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS CHAR) LIKE ?)';
+            query += ' AND (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS TEXT) LIKE ?)';
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
           }
           query += ' ORDER BY ward_number LIMIT ?';
           params.push(limit);
         } else if (req.query.district_code) {
-          query = 'SELECT ward_code as id, CONCAT("Ward ", ward_number, " - ", ward_name) as name FROM wards WHERE district_code = ?';
+          query = 'SELECT ward_code as id, CONCAT(\'Ward \', ward_number, \' - \', ward_name) as name FROM wards WHERE district_code = ?';
           params = [req.query.district_code];
           if (search) {
-            query += ' AND (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS CHAR) LIKE ?)';
+            query += ' AND (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS TEXT) LIKE ?)';
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
           }
           query += ' ORDER BY ward_number LIMIT ?';
           params.push(limit);
         } else if (req.query.province_code) {
-          query = 'SELECT ward_code as id, CONCAT("Ward ", ward_number, " - ", ward_name) as name FROM wards WHERE province_code = ?';
+          query = 'SELECT ward_code as id, CONCAT(\'Ward \', ward_number, \' - \', ward_name) as name FROM wards WHERE province_code = ?';
           params = [req.query.province_code];
           if (search) {
-            query += ' AND (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS CHAR) LIKE ?)';
+            query += ' AND (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS TEXT) LIKE ?)';
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
           }
           query += ' ORDER BY ward_number LIMIT ?';
           params.push(limit);
         } else {
-          query = 'SELECT ward_code as id, CONCAT("Ward ", ward_number, " - ", ward_name) as name FROM wards';
+          query = 'SELECT ward_code as id, CONCAT(\'Ward \', ward_number, \' - \', ward_name) as name FROM wards';
           if (search) {
-            query += ' WHERE (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS CHAR) LIKE ?)';
+            query += ' WHERE (ward_name LIKE ? OR ward_code LIKE ? OR CAST(ward_number AS TEXT) LIKE ?)';
             params = [`%${search}%`, `%${search}%`, `%${search}%`];
           }
           query += ' ORDER BY ward_number LIMIT ?';
@@ -725,7 +743,7 @@ router.get('/lookup/:type', async (req: Request, res: Response, next: NextFuncti
               vs.ward_code,
               COUNT(m.member_id) as member_count
             FROM voting_stations vs
-            LEFT JOIN members m ON vs.voting_station_id = m.voting_station_id
+            LEFT JOIN members_consolidated m ON vs.voting_station_id = m.voting_station_id
             WHERE vs.is_active = TRUE
           `;
           if (req.query.ward_code) {
@@ -754,7 +772,7 @@ router.get('/lookup/:type', async (req: Request, res: Response, next: NextFuncti
               vd.ward_code,
               COUNT(m.member_id) as member_count
             FROM voting_districts vd
-            LEFT JOIN members m ON REPLACE(CAST(vd.voting_district_code AS TEXT), '.0', '') = REPLACE(CAST(m.voting_district_code AS TEXT), '.0', '')
+            LEFT JOIN members_consolidated m ON REPLACE(CAST(vd.voting_district_code AS TEXT), '.0', '') = REPLACE(CAST(m.voting_district_code AS TEXT), '.0', '')
             WHERE vd.is_active = TRUE
           `;
           if (req.query.ward_code) {
@@ -919,7 +937,7 @@ router.get('/members-by-voting-district/:votingDistrictCode', async (req: Reques
         m.district_name,
         m.province_name
       FROM members_with_voting_districts m
-      WHERE REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(? AS CHAR), '.0', '')
+      WHERE REPLACE(CAST(m.voting_district_code AS TEXT), '.0', '') = REPLACE(CAST(? AS TEXT), '.0', '')
       ORDER BY m.firstname, COALESCE(m.surname, '')
       LIMIT ? OFFSET ?
     `;
@@ -930,7 +948,7 @@ router.get('/members-by-voting-district/:votingDistrictCode', async (req: Reques
     const countQuery = `
       SELECT COUNT(*) as total
       FROM members_with_voting_districts m
-      WHERE REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(? AS CHAR), '.0', '')
+      WHERE REPLACE(CAST(m.voting_district_code AS TEXT), '.0', '') = REPLACE(CAST(? AS TEXT), '.0', '')
     `;
 
     const countResult = await executeQuerySingle(countQuery, [votingDistrictCode]);
@@ -948,7 +966,7 @@ router.get('/members-by-voting-district/:votingDistrictCode', async (req: Reques
         m.district_name,
         m.province_name
       FROM members_with_voting_districts m
-      WHERE REPLACE(CAST(m.voting_district_code AS CHAR), '.0', '') = REPLACE(CAST(? AS CHAR), '.0', '')
+      WHERE REPLACE(CAST(m.voting_district_code AS TEXT), '.0', '') = REPLACE(CAST(? AS TEXT), '.0', '')
       LIMIT 1
     `;
 
@@ -1006,13 +1024,12 @@ router.get('/members-by-voting-station/:votingStationId', async (req: Request, r
         mu.municipal_name,
         d.district_name,
         p.province_name
-      FROM members m
+      FROM members_consolidated m
       LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
       LEFT JOIN voting_districts vd ON vs.voting_district_code = vd.voting_district_code
       LEFT JOIN wards w ON m.ward_code = w.ward_code
-      LEFT JOIN municipalities mu ON w.municipal_code = mu.municipal_code
+      LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
       LEFT JOIN districts d ON mu.district_code = d.district_code
-      LEFT JOIN provinces p ON d.province_code = p.province_code
       WHERE m.voting_station_id = ?
       ORDER BY m.firstname, COALESCE(m.surname, '')
       LIMIT ? OFFSET ?
@@ -1023,7 +1040,7 @@ router.get('/members-by-voting-station/:votingStationId', async (req: Request, r
     // Get total count
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM members m
+      FROM members_consolidated m
       WHERE m.voting_station_id = ?
     `;
 

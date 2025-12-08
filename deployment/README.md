@@ -1,258 +1,425 @@
 # Deployment Scripts and Tools
-## EFF Membership Management System
+## EFF Membership Management System - Split Architecture
 
-This directory contains scripts and tools to help you deploy the EFF Membership System to an Ubuntu server with Docker.
+This directory contains comprehensive deployment scripts, configuration files, and documentation for deploying the EFF Membership System to Ubuntu 22.x servers in a **split architecture** (separate backend and frontend servers).
 
 ---
 
 ## 📁 Files Overview
 
-### Scripts
+### 🚀 Setup Scripts
 
-1. **`ubuntu-setup.sh`** - Automated Ubuntu server setup
-   - Installs Docker, Docker Compose, Node.js, PM2, Nginx
-   - Configures firewall and security
-   - Creates application directories
-   - Sets up fail2ban for SSH protection
+1. **`backend-server-setup.sh`** - Backend server automated setup
+   - Installs Docker, Docker Compose, Node.js, PM2
+   - Configures PostgreSQL, Redis, pgAdmin (via Docker)
+   - Sets up firewall, fail2ban, log rotation
+   - Creates application directories and health check scripts
+   - **Target:** Backend server (Ubuntu 22.x)
 
-2. **`verify-deployment.sh`** - Deployment verification
-   - Checks all services are running
-   - Verifies database connectivity
-   - Tests Redis connection
-   - Validates configuration
+2. **`frontend-server-setup.sh`** - Frontend server automated setup
+   - Installs Nginx, Node.js, Certbot
+   - Configures firewall, fail2ban, log rotation
+   - Creates Nginx configuration templates
+   - Sets up health check scripts
+   - **Target:** Frontend server (Ubuntu 22.x)
 
-3. **`windows-backup.ps1`** - Windows PowerShell backup script
-   - Creates PostgreSQL database backup
-   - Exports in both custom and SQL formats
-   - Verifies backup integrity
+3. **`ubuntu-setup.sh`** - Legacy single-server setup (deprecated)
+   - Use backend-server-setup.sh and frontend-server-setup.sh instead
 
-### Documentation
+### 🔐 Firewall Configuration Scripts
 
-- **`../docs/UBUNTU_DOCKER_DEPLOYMENT_GUIDE.md`** - Complete deployment guide
-- **`../docs/QUICK_DEPLOYMENT_REFERENCE.md`** - Quick reference guide
+4. **`configure-backend-firewall.sh`** - Backend firewall configuration
+   - Interactive firewall setup for backend server
+   - Configures access rules for API, PostgreSQL, Redis, pgAdmin
+   - Whitelists frontend server IP
+   - Creates helper scripts for firewall management
+
+5. **`configure-frontend-firewall.sh`** - Frontend firewall configuration
+   - Interactive firewall setup for frontend server
+   - Configures HTTP/HTTPS access
+   - Optional SSH IP whitelisting
+   - Creates helper scripts for common tasks
+
+### ⚙️ Configuration Files
+
+6. **`backend.env.production`** - Backend environment template
+   - Complete environment variable template for backend
+   - Includes database, Redis, security, API, SMS, email settings
+   - **Action Required:** Copy to `backend/.env` and update all values
+
+7. **`frontend.env.production`** - Frontend environment template
+   - Environment variables for frontend build
+   - API URLs, feature flags, application settings
+   - **Action Required:** Copy to `frontend/.env.production` and update
+
+8. **`nginx-frontend.conf`** - Nginx configuration for frontend
+   - Complete Nginx configuration with SSL, security headers
+   - API proxy configuration to backend server
+   - WebSocket support, rate limiting, caching
+   - **Action Required:** Update domain and backend IP
+
+9. **`ecosystem.config.js`** - PM2 process manager configuration
+   - PM2 configuration for backend API
+   - Cluster mode, auto-restart, logging
+   - Optional worker process configuration
+
+### 📚 Documentation
+
+10. **`PRODUCTION_DEPLOYMENT_GUIDE.md`** - **START HERE**
+    - Complete step-by-step deployment guide
+    - Architecture overview and diagrams
+    - Backend and frontend server setup procedures
+    - Security configuration and SSL setup
+
+11. **`DEPLOYMENT_CHECKLIST.md`** - Deployment checklist
+    - Comprehensive checklist for deployment
+    - Pre-deployment, deployment, and post-deployment tasks
+    - Security verification
+    - Sign-off sections
+
+12. **`MONITORING_SETUP.md`** - Monitoring and health checks
+    - Health check scripts and scheduling
+    - PM2 monitoring
+    - Log management
+    - System and database monitoring
+    - Alerting setup
+
+13. **`BACKUP_RECOVERY.md`** - Backup and recovery procedures
+    - Backup strategy and schedule
+    - Database, file, and configuration backups
+    - Automated backup setup
+    - Recovery procedures
+    - Disaster recovery plan
+
+14. **`TROUBLESHOOTING.md`** - Troubleshooting guide
+    - Common issues and solutions
+    - Backend, frontend, database issues
+    - Network and connectivity problems
+    - Performance troubleshooting
+    - Error message reference
+
+### 🔧 Legacy Files
+
+15. **`verify-deployment.sh`** - Deployment verification (legacy)
+16. **`windows-backup.ps1`** - Windows backup script
+17. **`windows-backup-enhanced.ps1`** - Enhanced Windows backup
+18. **`WINDOWS_BACKUP_USAGE.md`** - Windows backup documentation
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
-### On Windows (Backup Current Database)
+### Step 1: Prepare for Deployment
+
+**On your local Windows machine:**
 
 ```powershell
 # Navigate to project root
 cd C:\Development\NewProj\Membership-new
 
-# Run backup script
+# Create database backup
 .\deployment\windows-backup.ps1
 
-# Backup will be in: .\migration-backup\
+# Backup will be in: .\deployment\migration-backup\
 ```
 
-### On Ubuntu Server (Initial Setup)
+### Step 2: Setup Backend Server
+
+**Connect to backend server:**
 
 ```bash
-# Connect to server
-ssh username@your-server-ip
+ssh username@backend-server-ip
+```
 
+**Run backend setup script:**
+
+```bash
 # Download setup script
-wget https://raw.githubusercontent.com/ntsowef/eff-membership-system/main/deployment/ubuntu-setup.sh
+wget https://raw.githubusercontent.com/ntsowef/eff-membership-system/main/deployment/backend-server-setup.sh
 
 # Make executable
-chmod +x ubuntu-setup.sh
+chmod +x backend-server-setup.sh
 
 # Run setup
-./ubuntu-setup.sh
+./backend-server-setup.sh
 
 # Log out and back in for Docker group changes
 exit
-ssh username@your-server-ip
+ssh username@backend-server-ip
 ```
 
-### Transfer Files
-
-```powershell
-# From Windows PowerShell
-scp .\migration-backup\eff_membership_backup_*.dump username@server-ip:/opt/eff-membership/
-```
-
-### Deploy Application
+**Deploy backend application:**
 
 ```bash
-# On Ubuntu server
+# Clone repository
 cd /opt/eff-membership
-
-# Clone repository (if not already done)
 git clone https://github.com/ntsowef/eff-membership-system.git .
 
 # Configure environment
-cp .env.postgres .env
-nano .env  # Update passwords and settings
+cp deployment/backend.env.production backend/.env
+nano backend/.env  # Update all CHANGE_THIS_* values
 
-# Create Docker network
+# Start Docker services
 docker network create membership-network
-
-# Start services
 docker compose -f docker-compose.postgres.yml up -d
 
-# Restore database
+# Transfer and restore database backup
+# (Transfer backup file first using scp)
+./backup-scripts/restore.sh backups/eff_membership_backup_*.dump
+
+# Deploy API
+cd backend
+npm ci --production
+npm run build
+pm2 start ecosystem.config.js --env production
+pm2 save
+
+# Configure firewall
+cd /opt/eff-membership/deployment
+chmod +x configure-backend-firewall.sh
+sudo ./configure-backend-firewall.sh
+```
+
+### Step 3: Setup Frontend Server
+
+**Connect to frontend server:**
+
+```bash
+ssh username@frontend-server-ip
+```
+
+**Run frontend setup script:**
+
+```bash
+# Download setup script
+wget https://raw.githubusercontent.com/ntsowef/eff-membership-system/main/deployment/frontend-server-setup.sh
+
+# Make executable
+chmod +x frontend-server-setup.sh
+
+# Run setup
+./frontend-server-setup.sh
+```
+
+**Deploy frontend application:**
+
+```bash
+# Clone repository
 cd /opt/eff-membership
-chmod +x backup-scripts/restore.sh
-./backup-scripts/restore.sh eff_membership_backup_*.dump
+git clone https://github.com/ntsowef/eff-membership-system.git .
 
-# Verify deployment
-chmod +x deployment/verify-deployment.sh
-./deployment/verify-deployment.sh
+# Configure environment
+cp deployment/frontend.env.production frontend/.env.production
+nano frontend/.env.production  # Update API URLs
+
+# Build frontend
+cd frontend
+npm ci
+npm run build
+
+# Configure Nginx
+cd /opt/eff-membership
+cp deployment/nginx-frontend.conf nginx-config/eff-membership.conf
+nano nginx-config/eff-membership.conf  # Update domain and backend IP
+
+sudo cp nginx-config/eff-membership.conf /etc/nginx/sites-available/eff-membership
+sudo ln -s /etc/nginx/sites-available/eff-membership /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+# Setup SSL
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+
+# Configure firewall
+cd /opt/eff-membership/deployment
+chmod +x configure-frontend-firewall.sh
+sudo ./configure-frontend-firewall.sh
 ```
 
----
+### Step 4: Verify Deployment
 
-## 📋 Script Details
-
-### ubuntu-setup.sh
-
-**Purpose**: Automates the initial Ubuntu server setup
-
-**What it does**:
-- Updates system packages
-- Installs Docker and Docker Compose
-- Installs Node.js 18.x and PM2
-- Installs and configures Nginx
-- Configures UFW firewall
-- Sets up fail2ban for security
-- Creates application directories
-- Configures log rotation
-
-**Usage**:
+**Test backend:**
 ```bash
-chmod +x ubuntu-setup.sh
-./ubuntu-setup.sh
+# On backend server
+/opt/eff-membership/health-check-backend.sh
+curl http://localhost:5000/api/v1/health
 ```
 
-**Requirements**:
-- Ubuntu 20.04 or 22.04 LTS
-- Sudo privileges
-- Internet connection
-
-**Time**: ~10 minutes
-
----
-
-### verify-deployment.sh
-
-**Purpose**: Verifies that all components are properly deployed and running
-
-**What it checks**:
-- Docker installation and daemon status
-- Docker Compose installation
-- Docker network existence
-- Container status (PostgreSQL, pgAdmin, Redis)
-- Database connectivity and data
-- Redis connectivity
-- Node.js and PM2 installation
-- Nginx installation and status
-- Firewall configuration
-- Application files and directories
-
-**Usage**:
+**Test frontend:**
 ```bash
-chmod +x verify-deployment.sh
-./verify-deployment.sh
+# On frontend server
+/opt/eff-membership/health-check-frontend.sh
+curl http://localhost
 ```
 
-**Exit codes**:
-- `0` - All checks passed or only warnings
-- `1` - Critical failures detected
-
-**Time**: ~30 seconds
+**Test end-to-end:**
+- Open browser: `https://your-domain.com`
+- Login with test credentials
+- Verify all functionality works
 
 ---
 
-### windows-backup.ps1
+## 📖 Detailed Documentation
 
-**Purpose**: Creates a backup of your PostgreSQL database on Windows
+### Architecture Documentation
 
-**What it does**:
-- Checks Docker is running
-- Creates backup directory
-- Exports database in custom format (compressed)
-- Exports database in SQL format (plain text)
-- Verifies backup integrity
-- Shows backup file sizes and statistics
+**Read First:** `PRODUCTION_DEPLOYMENT_GUIDE.md`
+- Complete deployment guide for split architecture
+- Architecture diagrams and communication flow
+- Server requirements and specifications
+- Step-by-step setup for both servers
+- Security configuration
+- SSL/HTTPS setup
 
-**Usage**:
-```powershell
-# Basic usage
-.\deployment\windows-backup.ps1
+### Deployment Process
 
-# Custom backup directory
-.\deployment\windows-backup.ps1 -BackupDir "C:\Backups"
+**Follow This:** `DEPLOYMENT_CHECKLIST.md`
+- Comprehensive checklist for entire deployment
+- Pre-deployment preparation
+- Backend server deployment steps
+- Frontend server deployment steps
+- Security verification
+- Post-deployment testing
+- Sign-off sections
 
-# Custom container name
-.\deployment\windows-backup.ps1 -ContainerName "my-postgres-container"
-```
+### Operations & Maintenance
 
-**Parameters**:
-- `-BackupDir` - Backup directory (default: `.\migration-backup`)
-- `-ContainerName` - Docker container name (default: `eff-membership-postgres`)
-- `-DbUser` - Database user (default: `eff_admin`)
-- `-DbName` - Database name (default: `eff_membership_db`)
+**Monitoring:** `MONITORING_SETUP.md`
+- Health check scripts and scheduling
+- PM2 process monitoring
+- Log management and rotation
+- System resource monitoring
+- Database and Redis monitoring
+- Alerting setup (email, Slack)
+- Performance metrics
 
-**Time**: ~2-5 minutes (depends on database size)
+**Backups:** `BACKUP_RECOVERY.md`
+- Backup strategy and schedule
+- Database backup procedures
+- File system backups
+- Automated backup setup
+- Recovery procedures
+- Disaster recovery plan
+- Backup verification
+
+**Troubleshooting:** `TROUBLESHOOTING.md`
+- Common issues and solutions
+- Backend server problems
+- Frontend server problems
+- Database issues
+- Network connectivity
+- Performance problems
+- Error message reference
 
 ---
 
-## 🔧 Configuration
+## ⚙️ Configuration Files
 
-### Environment Variables
+### Backend Environment (`backend.env.production`)
 
-Before deploying, update these critical values in `.env`:
+**Critical settings to configure:**
 
 ```bash
-# Database passwords
-POSTGRES_PASSWORD=YourStrongPasswordHere123!
-DB_PASSWORD=YourStrongPasswordHere123!
-PGADMIN_DEFAULT_PASSWORD=YourStrongPasswordHere123!
+# Database
+POSTGRES_PASSWORD=CHANGE_THIS_SECURE_PASSWORD_123!
+DB_PASSWORD=CHANGE_THIS_SECURE_PASSWORD_123!
 
 # Security
-JWT_SECRET=your-production-jwt-secret-min-32-chars-random
+JWT_SECRET=CHANGE_THIS_TO_RANDOM_32_CHAR_STRING_OR_LONGER
+SESSION_SECRET=CHANGE_THIS_SESSION_SECRET_32_CHARS_MIN
 
-# Application
-NODE_ENV=production
-CORS_ORIGIN=https://your-domain.com
+# CORS (Frontend URL)
+CORS_ORIGIN=https://your-frontend-domain.com
 
-# Email
-MAIL_HOST=your-smtp-server.com
-MAIL_USERNAME=your-email@domain.com
-MAIL_PASSWORD=your-email-password
+# Redis
+REDIS_PASSWORD=CHANGE_THIS_REDIS_PASSWORD_123!
+
+# Email/SMS/Payment Gateway
+# See template for all required credentials
 ```
+
+**Action:** Copy to `backend/.env` and update all `CHANGE_THIS_*` values
+
+### Frontend Environment (`frontend.env.production`)
+
+**Critical settings to configure:**
+
+```bash
+# Backend API URL
+VITE_API_URL=https://api.your-backend-domain.com
+VITE_API_BASE_URL=https://api.your-backend-domain.com/api/v1
+
+# WebSocket
+VITE_WS_URL=wss://api.your-backend-domain.com
+```
+
+**Action:** Copy to `frontend/.env.production` and update URLs
+
+### Nginx Configuration (`nginx-frontend.conf`)
+
+**Update these values:**
+- `your-domain.com` → Your actual domain
+- `BACKEND_SERVER_IP` → Your backend server IP address
+- SSL certificate paths (after obtaining certificates)
+
+**Action:** Copy to `/etc/nginx/sites-available/eff-membership`
 
 ---
 
-## 🔐 Security Considerations
+## 🔐 Security Best Practices
 
-### Before Running Scripts
+### Before Deployment
 
-1. **Review scripts** - Always review scripts before running with sudo
-2. **Backup data** - Create backups before making changes
-3. **Test environment** - Test in a staging environment first
+1. **Review all scripts** before running with sudo
+2. **Create backups** of current system
+3. **Test in staging** environment first
+4. **Gather all credentials** securely
+5. **Plan maintenance window** for deployment
+
+### Password Requirements
+
+- **Minimum length:** 16 characters
+- **Complexity:** Mix of uppercase, lowercase, numbers, symbols
+- **Uniqueness:** Different password for each service
+- **Storage:** Use password manager, never commit to git
 
 ### After Deployment
 
-1. **Change all default passwords** in `.env`
-2. **Configure firewall** properly
-3. **Install SSL certificate** with Let's Encrypt
-4. **Restrict pgAdmin access** (bind to localhost or use VPN)
-5. **Setup automated backups**
-6. **Enable monitoring and logging**
+1. **Change all default passwords**
+2. **Configure firewalls** on both servers
+3. **Install SSL certificates** with Let's Encrypt
+4. **Restrict database access** to localhost or specific IPs
+5. **Restrict pgAdmin access** (VPN or IP whitelist)
+6. **Enable fail2ban** for SSH protection
+7. **Setup automated backups** with off-site storage
+8. **Enable monitoring** and alerting
+9. **Review logs** regularly
+10. **Keep systems updated** with security patches
+
+### Network Security
+
+**Backend Server:**
+- Only allow API access from frontend server IP
+- Restrict database/Redis to localhost or specific IPs
+- Use strong firewall rules
+- Consider VPN for administrative access
+
+**Frontend Server:**
+- Only expose HTTP/HTTPS ports publicly
+- Restrict SSH to specific IPs (optional)
+- Use rate limiting in Nginx
+- Enable DDoS protection (if available)
 
 ---
 
 ## 🆘 Troubleshooting
 
-### ubuntu-setup.sh fails
+### Setup Script Fails
 
+**Backend setup script:**
 ```bash
 # Check system requirements
-lsb_release -a  # Should be Ubuntu 20.04 or 22.04
+lsb_release -a  # Should be Ubuntu 22.04
 
 # Check internet connectivity
 ping -c 3 google.com
@@ -261,121 +428,229 @@ ping -c 3 google.com
 sudo -v
 
 # View detailed error
-./ubuntu-setup.sh 2>&1 | tee setup.log
+./backend-server-setup.sh 2>&1 | tee setup.log
 ```
 
-### verify-deployment.sh shows failures
+**Frontend setup script:**
+```bash
+# Similar checks as above
+./frontend-server-setup.sh 2>&1 | tee setup.log
+```
+
+### Docker Services Not Starting
 
 ```bash
-# Check Docker
+# Check Docker status
 sudo systemctl status docker
 
 # Check containers
 docker ps -a
 
 # Check logs
-docker compose -f docker-compose.postgres.yml logs
+docker logs eff-membership-postgres
+docker logs eff-membership-redis
 
 # Restart services
 docker compose -f docker-compose.postgres.yml restart
 ```
 
-### windows-backup.ps1 fails
-
-```powershell
-# Check Docker Desktop is running
-docker ps
-
-# Check container name
-docker ps --format "{{.Names}}"
-
-# Check container logs
-docker logs eff-membership-postgres
-
-# Run with verbose output
-.\deployment\windows-backup.ps1 -Verbose
-```
-
----
-
-## 📊 Deployment Checklist
-
-Use this checklist to track your deployment progress:
-
-- [ ] Windows backup completed
-- [ ] Ubuntu server prepared
-- [ ] ubuntu-setup.sh executed successfully
-- [ ] Files transferred to server
-- [ ] .env configured with production values
-- [ ] Docker services started
-- [ ] Database restored
-- [ ] verify-deployment.sh passed
-- [ ] Backend deployed with PM2
-- [ ] Frontend deployed with PM2
-- [ ] Nginx configured
-- [ ] SSL certificate installed
-- [ ] Firewall configured
-- [ ] Automated backups scheduled
-- [ ] Monitoring setup
-- [ ] Documentation updated
-
----
-
-## 🔄 Update Procedure
-
-To update an existing deployment:
+### API Not Responding
 
 ```bash
-# Pull latest changes
+# Check PM2 status
+pm2 status
+
+# Check logs
+pm2 logs eff-api --lines 100
+
+# Test locally
+curl http://localhost:5000/api/v1/health
+
+# Restart
+pm2 restart eff-api
+```
+
+### Frontend Not Loading
+
+```bash
+# Check Nginx status
+sudo systemctl status nginx
+
+# Test configuration
+sudo nginx -t
+
+# Check logs
+sudo tail -f /opt/eff-membership/logs/nginx/error.log
+
+# Reload Nginx
+sudo systemctl reload nginx
+```
+
+### Database Connection Issues
+
+```bash
+# Check PostgreSQL
+docker exec eff-membership-postgres pg_isready -U eff_admin
+
+# Check logs
+docker logs eff-membership-postgres
+
+# Restart
+docker restart eff-membership-postgres
+```
+
+**For more detailed troubleshooting, see:** `TROUBLESHOOTING.md`
+
+---
+
+## 🔄 Update & Maintenance
+
+### Update Application
+
+**Backend update:**
+```bash
 cd /opt/eff-membership
 git pull origin main
 
-# Update backend
 cd backend
 npm ci --production
 npm run build
 pm2 restart eff-api
 
-# Update frontend
-cd ../frontend
-npm ci --production
-npm run build
-pm2 restart eff-frontend
-
 # Run migrations if needed
-cd ../backend
 npm run migrate
+```
 
-# Verify
+**Frontend update:**
+```bash
 cd /opt/eff-membership
-./deployment/verify-deployment.sh
+git pull origin main
+
+cd frontend
+npm ci
+npm run build
+
+# Nginx will serve the new build automatically
+```
+
+### System Maintenance
+
+**Daily:**
+- Check health status: `./health-check-backend.sh`
+- Review error logs
+- Verify backups completed
+
+**Weekly:**
+- Update system packages: `sudo apt update && sudo apt upgrade`
+- Review performance metrics
+- Check disk space: `df -h`
+
+**Monthly:**
+- Test disaster recovery procedures
+- Review and update documentation
+- Security audit
+
+---
+
+## 📞 Support & Resources
+
+### Documentation
+
+- **`PRODUCTION_DEPLOYMENT_GUIDE.md`** - Complete deployment guide
+- **`DEPLOYMENT_CHECKLIST.md`** - Step-by-step checklist
+- **`MONITORING_SETUP.md`** - Monitoring and health checks
+- **`BACKUP_RECOVERY.md`** - Backup and recovery procedures
+- **`TROUBLESHOOTING.md`** - Common issues and solutions
+
+### Getting Help
+
+1. **Check documentation** in this directory
+2. **Review logs:**
+   - Backend: `/opt/eff-membership/logs/backend/`
+   - PM2: `/opt/eff-membership/logs/pm2/`
+   - Nginx: `/opt/eff-membership/logs/nginx/`
+   - Docker: `docker logs <container-name>`
+
+3. **Run health checks:**
+   - Backend: `./health-check-backend.sh`
+   - Frontend: `./health-check-frontend.sh`
+
+4. **Check system resources:**
+   ```bash
+   htop          # CPU and memory
+   df -h         # Disk space
+   pm2 monit     # PM2 processes
+   docker ps     # Docker containers
+   ```
+
+5. **Contact support** with:
+   - Error messages
+   - Log excerpts
+   - Steps to reproduce
+   - Server specifications
+
+---
+
+## 📝 Important Notes
+
+### Script Safety
+
+- All scripts are designed to be **idempotent** (safe to run multiple times)
+- Scripts include **error handling** and detailed logging
+- Always **review scripts** before running with sudo
+- Test in **staging environment** before production
+
+### File Permissions
+
+After deployment, ensure proper permissions:
+```bash
+# Backend .env file
+chmod 600 /opt/eff-membership/backend/.env
+
+# Frontend .env file
+chmod 600 /opt/eff-membership/frontend/.env.production
+
+# Scripts
+chmod +x /opt/eff-membership/deployment/*.sh
+chmod +x /opt/eff-membership/backup-scripts/*.sh
+```
+
+### Backup Verification
+
+Always verify backups work:
+```bash
+# Test database restore
+./backup-scripts/restore.sh backups/database/test-backup.dump
+
+# Verify files backup
+tar -tzf backups/files/uploads_latest.tar.gz
 ```
 
 ---
 
-## 📞 Support
+## 📅 Version History
 
-For detailed instructions, see:
-- [Complete Deployment Guide](../docs/UBUNTU_DOCKER_DEPLOYMENT_GUIDE.md)
-- [Quick Reference](../docs/QUICK_DEPLOYMENT_REFERENCE.md)
+**Version 2.0** (2025-10-24)
+- Split architecture deployment (separate backend/frontend servers)
+- Comprehensive documentation suite
+- Enhanced security configurations
+- Automated firewall setup
+- Health check scripts
+- Monitoring and alerting setup
 
-For issues:
-1. Check the troubleshooting sections in the guides
-2. Review container logs: `docker compose logs`
-3. Run verification script: `./deployment/verify-deployment.sh`
-4. Check system resources: `htop`, `df -h`
-
----
-
-## 📝 Notes
-
-- All scripts are designed to be idempotent (safe to run multiple times)
-- Scripts include error handling and logging
-- Backup scripts preserve data integrity
-- Verification script provides detailed diagnostics
+**Version 1.0** (2025-10-12)
+- Initial single-server deployment
+- Basic Docker setup
+- Legacy ubuntu-setup.sh script
 
 ---
 
-**Last Updated**: 2025-10-12  
-**Version**: 1.0
+**Last Updated:** 2025-10-24
+**Version:** 2.0
+**Architecture:** Split (Backend + Frontend Servers)
+**Target OS:** Ubuntu 22.04 LTS
+
+---
+
+**End of Deployment README**
 

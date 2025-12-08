@@ -132,7 +132,12 @@ export const config: Config = {
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10)
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:3001']
+    // Parse CORS_ORIGIN: if it contains comma, split into array; otherwise use as single string
+    origin: process.env.CORS_ORIGIN
+      ? (process.env.CORS_ORIGIN.includes(',')
+          ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+          : process.env.CORS_ORIGIN)
+      : ['http://localhost:3000', 'http://localhost:3001']
   },
   logging: {
     level: process.env.LOG_LEVEL || 'info',

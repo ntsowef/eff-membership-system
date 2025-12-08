@@ -34,7 +34,7 @@ import {
   Phone,
   Email,
   LocationOn,
-  Schedule,
+
   PersonOff,
   RestoreFromTrash
 } from '@mui/icons-material';
@@ -46,7 +46,7 @@ import {
   EXPIRY_CATEGORIES, 
   CATEGORY_COLORS,
   type ExpiredMembersFilters,
-  type ExpiredMember
+  // type ExpiredMember
 } from '../../types/membershipExpiration';
 
 interface ExpiredMembersProps {
@@ -115,7 +115,7 @@ const ExpiredMembers: React.FC<ExpiredMembersProps> = ({
     }
   };
 
-  const handlePageChange = (event: unknown, newPage: number) => {
+  const handlePageChange = (_event: unknown, newPage: number) => {
     handleFilterChange('page', newPage + 1);
   };
 
@@ -450,7 +450,7 @@ const ExpiredMembers: React.FC<ExpiredMembersProps> = ({
             count={expiredPagination.total_records}
             page={Math.max(0, Math.min((expiredPagination.current_page || 1) - 1, (expiredPagination.total_pages || 1) - 1))}
             onPageChange={handlePageChange}
-            rowsPerPage={expiredPagination.records_per_page}
+            rowsPerPage={Number(expiredPagination.records_per_page)}
             onRowsPerPageChange={handleRowsPerPageChange}
             rowsPerPageOptions={[10, 25, 50, 100]}
           />

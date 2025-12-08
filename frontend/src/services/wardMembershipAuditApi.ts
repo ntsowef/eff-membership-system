@@ -43,7 +43,7 @@ export const wardMembershipAuditApi = {
     }
 
     // Add filter parameters
-    if (filters.standing && filters.standing !== 'all') {
+    if (filters.standing && (filters.standing as any) !== 'all') {
       params.append('standing', filters.standing);
     }
     if (filters.municipality_code && filters.municipality_code !== 'all') {
@@ -88,7 +88,7 @@ export const wardMembershipAuditApi = {
     }
 
     // Add filter parameters
-    if (filters.performance && filters.performance !== 'all') {
+    if (filters.performance && (filters.performance as any) !== 'all') {
       params.append('performance', filters.performance);
     }
     if (filters.province_code && filters.province_code !== 'all') {
@@ -151,7 +151,7 @@ export const wardMembershipAuditApi = {
     const params = new URLSearchParams();
     
     // Add filter parameters for export
-    if (filters.standing && filters.standing !== 'all') {
+    if (filters.standing && (filters.standing as any) !== 'all') {
       params.append('standing', filters.standing);
     }
     if (filters.municipality_code && filters.municipality_code !== 'all') {
@@ -185,7 +185,7 @@ export const wardMembershipAuditApi = {
     const params = new URLSearchParams();
     
     // Add filter parameters for export
-    if (filters.performance && filters.performance !== 'all') {
+    if (filters.performance && (filters.performance as any) !== 'all') {
       params.append('performance', filters.performance);
     }
     if (filters.province_code && filters.province_code !== 'all') {

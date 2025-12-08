@@ -106,7 +106,7 @@ export class NotificationModel {
           u.email as recipient_email
         FROM notifications n
         LEFT JOIN users u ON n.user_id = u.id
-        LEFT JOIN members m ON n.member_id = m.id
+        LEFT JOIN members_consolidated m ON n.member_id = m.id
         WHERE n.id = ?
       `;
 
@@ -187,7 +187,7 @@ export class NotificationModel {
           u.email as recipient_email
         FROM notifications n
         LEFT JOIN users u ON n.user_id = u.id
-        LEFT JOIN members m ON n.member_id = m.id
+        LEFT JOIN members_consolidated m ON n.member_id = m.id
         ${whereClause}
         ORDER BY n.created_at DESC
         LIMIT ? OFFSET ?
@@ -410,7 +410,7 @@ export class NotificationModel {
 
       if (notification.member_id) {
         // Get member's phone number
-        const memberQuery = 'SELECT cell_number FROM members WHERE member_id = ?';
+        const memberQuery = 'SELECT cell_number FROM members_consolidated WHERE member_id = ?';
         const member = await executeQuerySingle<{ cell_number: string }>(memberQuery, [notification.member_id]);
         phoneNumber = member?.cell_number || null;
       } else if (notification.user_id) {
@@ -419,7 +419,7 @@ export class NotificationModel {
         const userMemberQuery = `
           SELECT m.cell_number
           FROM users u
-          LEFT JOIN members m ON u.member_id = m.member_id
+          LEFT JOIN members_consolidated m ON u.member_id = m.member_id
           WHERE u.id = ?
         `;
         const userMember = await executeQuerySingle<{ cell_number: string }>(userMemberQuery, [notification.user_id]);

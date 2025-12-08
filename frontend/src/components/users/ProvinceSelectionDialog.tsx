@@ -61,17 +61,19 @@ const ProvinceSelectionDialog: React.FC<ProvinceSelectionDialogProps> = ({
         console.error('Failed to fetch provinces:', error);
         // Fallback to basic province list
         return {
-          data: [
-            { province_code: 'GP', province_name: 'Gauteng', member_count: 12500 },
-            { province_code: 'WC', province_name: 'Western Cape', member_count: 8200 },
-            { province_code: 'KZN', province_name: 'KwaZulu-Natal', member_count: 9800 },
-            { province_code: 'EC', province_name: 'Eastern Cape', member_count: 7600 },
-            { province_code: 'FS', province_name: 'Free State', member_count: 4500 },
-            { province_code: 'LP', province_name: 'Limpopo', member_count: 3200 },
-            { province_code: 'MP', province_name: 'Mpumalanga', member_count: 2800 },
-            { province_code: 'NW', province_name: 'North West', member_count: 2100 },
-            { province_code: 'NC', province_name: 'Northern Cape', member_count: 1400 },
-          ]
+          data: {
+            data: [
+              { province_code: 'GP', province_name: 'Gauteng', member_count: 12500 },
+              { province_code: 'WC', province_name: 'Western Cape', member_count: 8200 },
+              { province_code: 'KZN', province_name: 'KwaZulu-Natal', member_count: 9800 },
+              { province_code: 'EC', province_name: 'Eastern Cape', member_count: 7600 },
+              { province_code: 'FS', province_name: 'Free State', member_count: 4500 },
+              { province_code: 'LP', province_name: 'Limpopo', member_count: 3200 },
+              { province_code: 'MP', province_name: 'Mpumalanga', member_count: 2800 },
+              { province_code: 'NW', province_name: 'North West', member_count: 2100 },
+              { province_code: 'NC', province_name: 'Northern Cape', member_count: 1400 },
+            ]
+          }
         };
       }
     },
@@ -79,7 +81,13 @@ const ProvinceSelectionDialog: React.FC<ProvinceSelectionDialogProps> = ({
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const provinces = provincesData?.data || [];
+  // Handle nested data structure from API response
+  // API returns: { data: { data: [...] } }
+  const provinces = Array.isArray(provincesData?.data?.data)
+    ? provincesData.data.data
+    : Array.isArray(provincesData?.data)
+    ? provincesData.data
+    : [];
 
   // Filter provinces based on search term
   const filteredProvinces = provinces.filter((province: Province) =>

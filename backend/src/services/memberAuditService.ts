@@ -93,7 +93,7 @@ export class MemberAuditService {
             WHEN m.ward_code != vd.ward_code THEN 'critical'
             ELSE 'low'
           END as severity
-        FROM members m
+        FROM members_consolidated m
         JOIN membership_statuses ms ON m.status_id = ms.status_id
         JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
@@ -156,7 +156,7 @@ export class MemberAuditService {
             THEN m.member_id 
           END) as issues_count
         FROM wards w
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         LEFT JOIN membership_statuses ms ON m.status_id = ms.status_id
         LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
         LEFT JOIN municipalities mu ON w.municipal_code = mu.municipal_code
@@ -227,7 +227,7 @@ export class MemberAuditService {
               THEN m.member_id 
             END) as issues_count
           FROM wards w2
-          LEFT JOIN members m ON w2.ward_code = m.ward_code
+          LEFT JOIN members_consolidated m ON w2.ward_code = m.ward_code
           LEFT JOIN membership_statuses ms ON m.status_id = ms.status_id
           LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
           GROUP BY w2.ward_code
@@ -291,14 +291,14 @@ export class MemberAuditService {
           COUNT(DISTINCT CASE WHEN ms.is_active = FALSE THEN m.member_id END) as high_issues,
           COUNT(DISTINCT CASE WHEN m.voting_district_code IS NULL THEN m.member_id END) as medium_issues,
           0 as low_issues
-        FROM members m
+        FROM members_consolidated m
         JOIN membership_statuses ms ON m.status_id = ms.status_id
         JOIN wards w ON m.ward_code = w.ward_code
         JOIN municipalities mu ON w.municipal_code = mu.municipal_code
         LEFT JOIN voting_districts vd ON m.voting_district_code = vd.vd_code
         LEFT JOIN (
           SELECT ward_code, COUNT(*) as member_count
-          FROM members
+          FROM members_consolidated
           GROUP BY ward_code
         ) ward_members ON w.ward_code = ward_members.ward_code
         LEFT JOIN (
@@ -308,7 +308,7 @@ export class MemberAuditService {
           FROM (
             SELECT w2.municipal_code, w2.ward_code, COUNT(m2.member_id) as member_count
             FROM wards w2
-            LEFT JOIN members m2 ON w2.ward_code = m2.ward_code
+            LEFT JOIN members_consolidated m2 ON w2.ward_code = m2.ward_code
             GROUP BY w2.municipal_code, w2.ward_code
           ) ward_stats
           GROUP BY municipal_code

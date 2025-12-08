@@ -28,7 +28,7 @@ import {
   Person,
   LocationOn,
   CheckCircle,
-  Warning,
+
   Search
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -82,7 +82,7 @@ const WarCouncilAppointmentDialog: React.FC<WarCouncilAppointmentDialogProps> = 
   const [appointmentNotes, setAppointmentNotes] = useState('');
 
   const { addNotification } = useUI();
-  const { user } = useAuth();
+  useAuth();
 
   // Load eligible members when dialog opens
   useEffect(() => {
@@ -369,14 +369,18 @@ const WarCouncilAppointmentDialog: React.FC<WarCouncilAppointmentDialogProps> = 
             label="Start Date *"
             value={startDate}
             onChange={(newValue) => setStartDate(newValue)}
-            renderInput={(params) => <TextField {...params} fullWidth />}
+            slotProps={{
+              textField: { fullWidth: true }
+            }}
           />
-          
+
           <DatePicker
             label="End Date (Optional)"
             value={endDate}
             onChange={(newValue) => setEndDate(newValue)}
-            renderInput={(params) => <TextField {...params} fullWidth />}
+            slotProps={{
+              textField: { fullWidth: true }
+            }}
             minDate={startDate || undefined}
           />
         </LocalizationProvider>

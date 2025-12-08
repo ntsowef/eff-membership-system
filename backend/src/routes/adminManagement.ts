@@ -48,7 +48,12 @@ router.post('/create-admin',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       // DEMO MODE: Use mock creator ID since authentication is disabled
-      const creatorId = req.user?.id || 1; // Default to admin user ID 1
+      // Get the first user ID from the database (user IDs start from 8571, not 1)
+      let creatorId: number = req.user?.id || 0;
+      if (!creatorId) {
+        const firstUser = await executeQuerySingle<{ user_id: number }>('SELECT user_id FROM users ORDER BY user_id LIMIT 1');
+        creatorId = firstUser?.user_id || 8571; // Fallback to known first user ID
+      }
       const result = await UserManagementService.createAdminUser(req.body, creatorId);
 
       // Log the action
@@ -153,7 +158,7 @@ router.get('/admins',
       // Get users with pagination
       const usersQuery = `
         SELECT
-          u.id,
+          u.user_id as id,
           u.name,
           u.email,
           u.admin_level,
@@ -167,14 +172,14 @@ router.get('/admins',
           u.created_at,
           u.updated_at,
           u.member_id,
-          r.name as role_name,
+          r.role_name as role_name,
           r.description as role_description,
           m.firstname as member_firstname,
           m.surname as member_surname,
           m.id_number as member_id_number
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
-        LEFT JOIN members m ON u.member_id = m.member_id
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        LEFT JOIN members_consolidated m ON u.member_id = m.member_id
         ${whereClause}
         ORDER BY u.created_at DESC
         LIMIT ? OFFSET ?
@@ -599,8 +604,8 @@ router.get('/statistics',
         SELECT
           admin_level,
           COUNT(*) as count,
-          SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_count,
-          SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive_count
+          SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END) as active_count,
+          SUM(CASE WHEN is_active = FALSE THEN 1 ELSE 0 END) as inactive_count
         FROM users
         WHERE admin_level IS NOT NULL AND admin_level != 'none'
         GROUP BY admin_level
@@ -649,8 +654,8 @@ router.get('/statistics',
       const mfaStats = await executeQuerySingle(`
         SELECT
           COUNT(*) as total_users,
-          SUM(CASE WHEN mfa_enabled = 1 THEN 1 ELSE 0 END) as mfa_enabled_count,
-          ROUND((SUM(CASE WHEN mfa_enabled = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 2) as mfa_adoption_percentage
+          SUM(CASE WHEN mfa_enabled = TRUE THEN 1 ELSE 0 END) as mfa_enabled_count,
+          ROUND((SUM(CASE WHEN mfa_enabled = TRUE THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)) * 100, 2) as mfa_adoption_percentage
         FROM users
         WHERE admin_level IS NOT NULL AND admin_level != 'none'
       `);
@@ -690,6 +695,198 @@ router.get('/statistics',
       };
 
       sendSuccess(res, statistics, 'User statistics retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Hard delete user (complete removal from system)
+router.delete('/users/:id/hard-delete',
+  authenticate,
+  requirePermission('users.delete'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = parseInt(req.params.id);
+      const deletedBy = req.user!.id;
+
+      // Prevent self-deletion
+      if (userId === deletedBy) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'CANNOT_DELETE_SELF',
+            message: 'You cannot delete your own account',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Validate user exists
+      const existingUser = await executeQuerySingle<{
+        user_id: number;
+        name: string;
+        email: string;
+        admin_level: string;
+      }>(`
+        SELECT user_id, name, email, admin_level
+        FROM users WHERE user_id = ?
+      `, [userId]);
+
+      if (!existingUser) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Log audit before deletion
+      await logAudit(
+        deletedBy,
+        AuditAction.DELETE,
+        EntityType.USER,
+        userId,
+        existingUser,
+        null,
+        req
+      );
+
+      // Delete related records first (to avoid foreign key constraints)
+
+      // Delete OTP codes
+      await executeQuery('DELETE FROM user_otp_codes WHERE user_id = ?', [userId]);
+
+      // Delete user creation workflows
+      await executeQuery('DELETE FROM user_creation_workflows WHERE user_id = ?', [userId]);
+
+      // Note: We keep audit logs for compliance purposes
+      // If you want to delete audit logs too, uncomment the line below:
+      // await executeQuery('DELETE FROM audit_logs WHERE user_id = ?', [userId]);
+
+      // Finally, delete the user
+      const result = await executeQuery('DELETE FROM users WHERE user_id = ?', [userId]);
+
+      if (result.affectedRows === 0) {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'DELETE_FAILED',
+            message: 'Failed to delete user',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          deleted: true,
+          user_id: userId,
+          user_email: existingUser.email,
+          user_name: existingUser.name
+        },
+        message: `User ${existingUser.name} (${existingUser.email}) has been permanently deleted from the system`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Delete user by email (convenience endpoint)
+router.delete('/users/by-email/:email',
+  authenticate,
+  requirePermission('users.delete'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const email = req.params.email;
+      const deletedBy = req.user!.id;
+
+      // Prevent self-deletion
+      if (email === req.user!.email) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'CANNOT_DELETE_SELF',
+            message: 'You cannot delete your own account',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Find user by email
+      const existingUser = await executeQuerySingle<{
+        user_id: number;
+        name: string;
+        email: string;
+        admin_level: string;
+      }>(`
+        SELECT user_id, name, email, admin_level
+        FROM users WHERE email = ?
+      `, [email]);
+
+      if (!existingUser) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: `User with email ${email} not found`,
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Log audit before deletion
+      await logAudit(
+        deletedBy,
+        AuditAction.DELETE,
+        EntityType.USER,
+        existingUser.user_id,
+        existingUser,
+        null,
+        req
+      );
+
+      // Delete related records first
+      await executeQuery('DELETE FROM user_otp_codes WHERE user_id = ?', [existingUser.user_id]);
+      await executeQuery('DELETE FROM user_creation_workflows WHERE user_id = ?', [existingUser.user_id]);
+
+      // Delete the user
+      const result = await executeQuery('DELETE FROM users WHERE user_id = ?', [existingUser.user_id]);
+
+      if (result.affectedRows === 0) {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'DELETE_FAILED',
+            message: 'Failed to delete user',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          deleted: true,
+          user_id: existingUser.user_id,
+          user_email: existingUser.email,
+          user_name: existingUser.name
+        },
+        message: `User ${existingUser.name} (${existingUser.email}) has been permanently deleted from the system`,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       next(error);
     }

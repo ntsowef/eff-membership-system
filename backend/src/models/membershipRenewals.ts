@@ -231,7 +231,7 @@ export class MembershipRenewalModel {
           END as renewal_urgency,
           DATEDIFF(CURDATE(), r.renewal_due_date) as days_overdue
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         LEFT JOIN users processor ON r.processed_by = processor.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -356,7 +356,7 @@ export class MembershipRenewalModel {
           END as renewal_urgency,
           DATEDIFF(CURDATE(), r.renewal_due_date) as days_overdue
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         LEFT JOIN users processor ON r.processed_by = processor.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -462,7 +462,7 @@ export class MembershipRenewalModel {
       const query = `
         SELECT COUNT(*) as count
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
       `;
@@ -641,7 +641,7 @@ export class MembershipRenewalModel {
           END as renewal_urgency,
           DATEDIFF(CURDATE(), r.renewal_due_date) as days_overdue
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         LEFT JOIN users processor ON r.processed_by = processor.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -677,7 +677,7 @@ export class MembershipRenewalModel {
           'Overdue' as renewal_urgency,
           DATEDIFF(CURDATE(), r.renewal_due_date) as days_overdue
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         LEFT JOIN users processor ON r.processed_by = processor.id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
@@ -743,7 +743,7 @@ export class MembershipRenewalModel {
           ROUND((COUNT(CASE WHEN r.renewal_status = 'Completed' THEN 1 END) / COUNT(*)) * 100, 2) as completion_rate,
           ROUND((COUNT(CASE WHEN r.payment_status = 'Completed' THEN 1 END) / COUNT(*)) * 100, 2) as payment_rate
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
       `;

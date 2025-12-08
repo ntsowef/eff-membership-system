@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../store';
-import { api } from '../lib/api';
+import { api as _api } from '../lib/api';
 
 interface SessionStatus {
   isValid: boolean;
@@ -9,10 +9,10 @@ interface SessionStatus {
   canExtend: boolean;
 }
 
-interface SessionWarning {
-  needsWarning: boolean;
-  timeRemaining: number;
-}
+// interface SessionWarning {
+//   needsWarning: boolean;
+//   timeRemaining: number;
+// }
 
 export const useSessionManagement = () => {
   const { logout, token } = useAuth();
@@ -39,10 +39,10 @@ export const useSessionManagement = () => {
   }, [showWarning]);
 
   // Get session ID from token or headers
-  const getSessionId = useCallback(() => {
-    // In a real implementation, you might extract this from JWT or store it separately
-    return token ? 'current-session' : null;
-  }, [token]);
+  // const _getSessionId = useCallback(() => {
+  //   // In a real implementation, you might extract this from JWT or store it separately
+  //   return token ? 'current-session' : null;
+  // }, [token]);
 
   // Check session status using localStorage
   const checkSessionStatus = useCallback(() => {
@@ -94,6 +94,11 @@ export const useSessionManagement = () => {
       setShowWarning(true);
     }
 
+    // Hide warning if no longer needed (session was extended)
+    if (!status.needsWarning && showWarningRef.current) {
+      setShowWarning(false);
+    }
+
     // Auto logout if session is invalid
     if (!status.isValid) {
       console.log('🔒 Session expired due to inactivity, logging out...');
@@ -124,6 +129,10 @@ export const useSessionManagement = () => {
       });
 
       console.log('🔄 Session extended by 10 minutes');
+
+      // Dispatch custom event to notify all hook instances to re-check immediately
+      window.dispatchEvent(new CustomEvent('sessionExtended'));
+
       return true;
     } catch (error) {
       console.error('Failed to extend session:', error);
@@ -166,8 +175,17 @@ export const useSessionManagement = () => {
       checkSessionStatus();
     }, 15000);
 
+    // Listen for session extension events from other hook instances
+    const handleSessionExtended = () => {
+      console.log('🔔 Session extension event received, re-checking status immediately');
+      checkSessionStatus();
+    };
+
+    window.addEventListener('sessionExtended', handleSessionExtended);
+
     return () => {
       clearInterval(interval);
+      window.removeEventListener('sessionExtended', handleSessionExtended);
     };
   }, [token, checkSessionStatus]);
 

@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Box, Typography, Alert, Button, Card, CardContent } from '@mui/material';
-import { CheckCircle, Error } from '@mui/icons-material';
+import { CheckCircle } from '@mui/icons-material';
 import { useUI } from '../../store';
 
 // Test importing components (should work now)

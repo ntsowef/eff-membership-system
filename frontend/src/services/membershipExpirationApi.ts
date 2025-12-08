@@ -162,7 +162,7 @@ export const membershipExpirationApi = {
     include_contact_details?: boolean;
   } = {}) => {
     const params = new URLSearchParams();
-    
+
     if (filters.status) {
       params.append('status', filters.status);
     }
@@ -174,15 +174,15 @@ export const membershipExpirationApi = {
     }
 
     const queryString = params.toString();
-    const endpoint = queryString 
-      ? `${BASE_ENDPOINT}/export-pdf?${queryString}`
-      : `${BASE_ENDPOINT}/export-pdf`;
+    const endpoint = queryString
+      ? `${BASE_ENDPOINT}/expiration-report/pdf?${queryString}`
+      : `${BASE_ENDPOINT}/expiration-report/pdf`;
 
     // Return blob for PDF download
     const response = await api.get(endpoint, {
       responseType: 'blob'
     });
-    
+
     return response.data;
   }
 };

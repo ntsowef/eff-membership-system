@@ -29,7 +29,7 @@ const FinalTest: React.FC = () => {
         
         return true;
       } else {
-        throw new Error('LeadershipAPI not properly imported');
+        throw new (Error as any)('LeadershipAPI not properly imported');
       }
     } catch (error) {
       addNotification({

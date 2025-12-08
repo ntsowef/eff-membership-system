@@ -140,7 +140,7 @@ router.get('/audit',
         u.name as performed_by_name
       FROM renewal_audit_trail rat
       LEFT JOIN membership_renewals r ON rat.renewal_id = r.renewal_id
-      LEFT JOIN members m ON r.member_id = m.member_id
+      LEFT JOIN members_consolidated m ON r.member_id = m.member_id
       LEFT JOIN users u ON rat.performed_by = u.user_id
       WHERE 1=1
         ${action_category ? 'AND rat.action_category = $1' : ''}

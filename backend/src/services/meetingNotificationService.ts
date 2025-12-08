@@ -18,13 +18,14 @@ export class MeetingNotificationService {
     try {
       // Get meeting details
       const meeting = await executeQuerySingle(`
-        SELECT 
+        SELECT
           m.*,
           mt.type_name,
           mt.type_code
         FROM meetings m
         JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
-        WHERE m.meeting_id = ? `, [meetingId]);
+        WHERE m.meeting_id = $1
+      `, [meetingId]);
 
       if (!meeting) {
         throw new Error('Meeting not found');
@@ -40,7 +41,7 @@ export class MeetingNotificationService {
           mem.phone_number,
           mem.membership_number
         FROM meeting_attendance ma
-        JOIN members mem ON ma.member_id = mem.member_id
+        JOIN members_consolidated mem ON ma.member_id = mem.member_id
         WHERE ma.meeting_id = $1 
           AND ma.invitation_status = 'Not Sent'
           AND mem.membership_status = 'Active'
@@ -60,9 +61,10 @@ export class MeetingNotificationService {
           if (invitationResult.success) {
             // Update invitation status
             await executeQuery(`
-              UPDATE meeting_attendance 
+              UPDATE meeting_attendance
               SET invitation_status = 'Sent', invitation_sent_at = CURRENT_TIMESTAMP
-              WHERE attendance_id = ? `, [attendee.attendance_id]);
+              WHERE attendance_id = $1
+            `, [attendee.attendance_id]);
 
             // Log the invitation
             await this.logInvitation(meetingId, attendee.member_id, 'Initial', 'System', 'Sent');
@@ -77,9 +79,10 @@ export class MeetingNotificationService {
           } else {
             // Update invitation status to failed
             await executeQuery(`
-              UPDATE meeting_attendance 
+              UPDATE meeting_attendance
               SET invitation_status = 'Failed'
-        WHERE attendance_id = ? `, [attendee.attendance_id]);
+              WHERE attendance_id = $1
+            `, [attendee.attendance_id]);
 
             // Log the failed invitation
             await this.logInvitation(meetingId, attendee.member_id, 'Initial', 'System', 'Failed', invitationResult.error);
@@ -256,9 +259,9 @@ Meeting Management System
     try {
       await executeQuery(`
         INSERT INTO meeting_invitation_log (
-          meeting_id, member_id, invitation_type, invitation_method, 
+          meeting_id, member_id, invitation_type, invitation_method,
           invitation_status, sent_at, error_message
-        ) EXCLUDED.?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?
+        ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
       `, [meetingId, memberId, invitationType, invitationMethod, status, errorMessage || null]);
     } catch (error) {
       console.error('Failed to log invitation:', error);
@@ -275,12 +278,12 @@ Meeting Management System
     try {
       // Get meeting details
       const meeting = await executeQuerySingle(`
-        SELECT 
+        SELECT
           m.*,
           mt.type_name
         FROM meetings m
         JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
-        WHERE m.meeting_id = ? AND m.meeting_status = 'Scheduled'
+        WHERE m.meeting_id = $1 AND m.meeting_status = 'Scheduled'
       `, [meetingId]);
 
       if (!meeting) {
@@ -296,7 +299,7 @@ Meeting Management System
           mem.email,
           mem.phone_number
         FROM meeting_attendance ma
-        JOIN members mem ON ma.member_id = mem.member_id
+        JOIN members_consolidated mem ON ma.member_id = mem.member_id
         WHERE ma.meeting_id = $1 
           AND ma.invitation_status = 'Sent'
           AND ma.attendance_status IN ('Invited', 'Confirmed')
@@ -330,9 +333,10 @@ Meeting Management System
 
       // Update meeting reminder sent timestamp
       await executeQuery(`
-        UPDATE meetings 
-        SET reminder_sent_at = CURRENT_TIMESTAMP 
-        WHERE meeting_id = ? `, [meetingId]);
+        UPDATE meetings
+        SET reminder_sent_at = CURRENT_TIMESTAMP
+        WHERE meeting_id = $1
+      `, [meetingId]);
 
       return { sent, failed };
     } catch (error) {

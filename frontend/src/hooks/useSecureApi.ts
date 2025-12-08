@@ -28,7 +28,7 @@ export const useSecureApi = () => {
 
     // Apply municipality filtering for municipality admin users
     const municipalityFilteredParams = applyMunicipalityFilter(
-      validation.sanitizedParams,
+      validation.sanitizedParams || {},
       municipalityContext
     );
 
@@ -71,11 +71,13 @@ export const useSecureApi = () => {
 
     // Apply municipality filtering to parameters
     const municipalityFilteredParams = applyMunicipalityFilter(
-      validation.sanitizedParams,
+      validation.sanitizedParams || {},
       municipalityContext
     );
 
-    return apiPost<T>(endpoint, secureData, municipalityFilteredParams);
+    // Merge params into data for POST requests
+    const dataWithParams = { ...secureData, ...municipalityFilteredParams };
+    return apiPost<T>(endpoint, dataWithParams);
   }, [user, municipalityContext]);
 
   /**
@@ -114,11 +116,13 @@ export const useSecureApi = () => {
 
     // Apply municipality filtering to parameters
     const municipalityFilteredParams = applyMunicipalityFilter(
-      validation.sanitizedParams,
+      validation.sanitizedParams || {},
       municipalityContext
     );
 
-    return apiPut<T>(endpoint, secureData, municipalityFilteredParams);
+    // Merge params into data for PUT requests
+    const dataWithParams = { ...secureData, ...municipalityFilteredParams };
+    return apiPut<T>(endpoint, dataWithParams);
   }, [user, municipalityContext]);
 
   /**
@@ -135,13 +139,13 @@ export const useSecureApi = () => {
       throw new Error(validation.error || 'Access denied');
     }
 
-    // Apply municipality filtering to parameters
-    const municipalityFilteredParams = applyMunicipalityFilter(
-      validation.sanitizedParams,
-      municipalityContext
-    );
+    // Apply municipality filtering to parameters - not used for DELETE
+    // const municipalityFilteredParams = applyMunicipalityFilter(
+    //   validation.sanitizedParams || {},
+    //   municipalityContext
+    // );
 
-    return apiDelete<T>(endpoint, municipalityFilteredParams);
+    return apiDelete<T>(endpoint);
   }, [user, municipalityContext]);
 
   /**

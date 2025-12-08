@@ -205,7 +205,7 @@ export class QueueService {
       try {
         const query = `
           SELECT member_id, firstname, surname, email, cell_number, ward_code
-          FROM members 
+          FROM members_consolidated 
           WHERE member_id = $1
         `;
         return await executeQuerySingle(query, [message.recipient_id]);

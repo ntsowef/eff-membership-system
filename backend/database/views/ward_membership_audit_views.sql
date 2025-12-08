@@ -20,14 +20,15 @@ SELECT
     d.province_code,
     p.province_name,
 
-    -- Active member counts (based on expiry date and status)
+    -- Active member counts (based on expiry date with 90-day grace period)
+    -- Active = not expired OR in grace period (expired < 90 days)
     SUM(CASE
-        WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+        WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
         ELSE 0
     END) as active_members,
 
     SUM(CASE
-        WHEN ms.expiry_date < CURDATE() OR mst.is_active = 0 THEN 1
+        WHEN ms.expiry_date < CURDATE() - INTERVAL 90 DAY OR mst.is_active = 0 THEN 1
         ELSE 0
     END) as expired_members,
 
@@ -38,14 +39,14 @@ SELECT
 
     COUNT(mem.member_id) as total_members,
 
-    -- Standing classification based on active members
+    -- Standing classification based on active members (with 90-day grace period)
     CASE
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 200 THEN CONVERT('Good Standing' USING utf8mb4) COLLATE utf8mb4_unicode_ci
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 100 THEN CONVERT('Acceptable Standing' USING utf8mb4) COLLATE utf8mb4_unicode_ci
         ELSE CONVERT('Needs Improvement' USING utf8mb4) COLLATE utf8mb4_unicode_ci
@@ -54,11 +55,11 @@ SELECT
     -- Standing level for sorting (1=Good, 2=Acceptable, 3=Needs Improvement)
     CASE
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 200 THEN 1
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 100 THEN 2
         ELSE 3
@@ -67,7 +68,7 @@ SELECT
     -- Performance metrics
     ROUND(
         (SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) * 100.0) / NULLIF(COUNT(mem.member_id), 0), 2
     ) as active_percentage,
@@ -75,7 +76,7 @@ SELECT
     -- Target achievement (200 members = 100%)
     ROUND(
         (SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) * 100.0) / 200, 2
     ) as target_achievement_percentage,
@@ -83,19 +84,19 @@ SELECT
     -- Members needed to reach next level
     CASE
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 200 THEN 0
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 100 THEN
             200 - SUM(CASE
-                WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+                WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
                 ELSE 0
             END)
         ELSE 100 - SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END)
     END as members_needed_next_level,
@@ -200,8 +201,9 @@ SELECT
     m.municipality_name,
     DATE_FORMAT(ms.date_joined, '%Y-%m-01') as trend_month,
 
+    -- Active members with 90-day grace period
     SUM(CASE
-        WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+        WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
         ELSE 0
     END) as active_members,
 
@@ -210,20 +212,20 @@ SELECT
     -- Growth trend indicator (simplified)
     CASE
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) > 0 THEN CONVERT('Growing' USING utf8mb4) COLLATE utf8mb4_unicode_ci
         ELSE CONVERT('Stable' USING utf8mb4) COLLATE utf8mb4_unicode_ci
     END as growth_trend,
 
-    -- Standing classification for the month
+    -- Standing classification for the month (with 90-day grace period)
     CASE
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 200 THEN CONVERT('Good Standing' USING utf8mb4) COLLATE utf8mb4_unicode_ci
         WHEN SUM(CASE
-            WHEN ms.expiry_date >= CURDATE() AND mst.is_active = 1 THEN 1
+            WHEN ms.expiry_date >= CURDATE() - INTERVAL 90 DAY AND mst.is_active = 1 THEN 1
             ELSE 0
         END) >= 100 THEN CONVERT('Acceptable Standing' USING utf8mb4) COLLATE utf8mb4_unicode_ci
         ELSE CONVERT('Needs Improvement' USING utf8mb4) COLLATE utf8mb4_unicode_ci

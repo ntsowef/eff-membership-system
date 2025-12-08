@@ -1,56 +1,75 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  host: 'localhost',
+  port: 5432,
+  user: 'eff_admin',
+  password: 'Frames!123',
+  database: 'eff_membership_database'
+});
 
 async function checkUsersTable() {
   try {
-    const connection = await mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: '',
-      database: 'membership_new'
-    });
-
-    console.log('🔍 Checking users table structure...\n');
-
-    // Get table structure
-    const [columns] = await connection.execute(`DESCRIBE users`);
-    console.log('📋 Users table columns:');
-    columns.forEach(col => {
-      console.log(`  • ${col.Field} (${col.Type}) - ${col.Null === 'YES' ? 'NULL' : 'NOT NULL'}`);
-    });
-
-    // Check membership approver user
-    console.log('\n🔍 Looking for membership approver user...');
-    const [users] = await connection.execute(`
-      SELECT * FROM users WHERE email = 'membership.approver@test.com'
+    console.log('🔍 Checking users table...\n');
+    
+    // Check if users table exists
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      )
     `);
-
-    if (users.length > 0) {
-      console.log('✅ Found membership approver user:', users[0]);
-    } else {
-      console.log('❌ Membership approver user not found');
+    console.log('users table exists:', tableExists.rows[0].exists);
+    
+    if (tableExists.rows[0].exists) {
+      // Get user count
+      const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
+      console.log('Total users:', userCount.rows[0].count);
+      
+      // Check if user_id 1 exists
+      const user1 = await pool.query('SELECT user_id, username, email FROM users WHERE user_id = 1');
+      console.log('User ID 1 exists:', user1.rows.length > 0);
+      if (user1.rows.length > 0) {
+        console.log('User ID 1 details:', user1.rows[0]);
+      }
+      
+      // Get first 5 users
+      const firstUsers = await pool.query('SELECT user_id, username, email FROM users ORDER BY user_id LIMIT 5');
+      console.log('\nFirst 5 users:');
+      console.table(firstUsers.rows);
     }
-
-    // Check roles table
-    console.log('\n📋 Checking roles table...');
-    const [roles] = await connection.execute(`SELECT * FROM roles`);
-    console.log('Roles found:', roles.length);
-    roles.forEach(role => {
-      console.log(`  • ${role.name} (ID: ${role.id})`);
-    });
-
-    // Check permissions table
-    console.log('\n📋 Checking permissions table...');
-    const [permissions] = await connection.execute(`SELECT * FROM permissions LIMIT 10`);
-    console.log('Permissions found:', permissions.length);
-    permissions.forEach(perm => {
-      console.log(`  • ${perm.name}`);
-    });
-
-    await connection.end();
-
+    
+    // Check the foreign key constraint
+    console.log('\n🔍 Checking foreign key constraint on leadership_appointments...\n');
+    const fkConstraint = await pool.query(`
+      SELECT
+        tc.constraint_name,
+        tc.table_name,
+        kcu.column_name,
+        ccu.table_name AS foreign_table_name,
+        ccu.column_name AS foreign_column_name
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.constraint_column_usage AS ccu
+        ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_name = 'leadership_appointments'
+        AND kcu.column_name = 'appointed_by'
+    `);
+    
+    console.log('Foreign key constraint on appointed_by:');
+    console.table(fkConstraint.rows);
+    
   } catch (error) {
     console.error('❌ Error:', error.message);
+  } finally {
+    await pool.end();
   }
 }
 
 checkUsersTable();
+

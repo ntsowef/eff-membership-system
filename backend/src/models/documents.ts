@@ -212,7 +212,7 @@ export class DocumentModel {
         LEFT JOIN document_categories dc ON d.category_id = dc.category_id
         LEFT JOIN users uploader ON d.uploaded_by = uploader.id
         LEFT JOIN users approver ON d.approved_by = approver.id
-        LEFT JOIN members m ON d.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON d.member_id = m.member_id
         WHERE d.document_id = ? AND d.deleted_at IS NULL
       `;
 
@@ -332,7 +332,7 @@ export class DocumentModel {
         LEFT JOIN document_categories dc ON d.category_id = dc.category_id
         LEFT JOIN users uploader ON d.uploaded_by = uploader.id
         LEFT JOIN users approver ON d.approved_by = approver.id
-        LEFT JOIN members m ON d.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON d.member_id = m.member_id
         ${whereClause}
         ORDER BY d.created_at DESC
         LIMIT ? OFFSET ?

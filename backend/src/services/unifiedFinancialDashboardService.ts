@@ -1,4 +1,5 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+// Use direct PostgreSQL connection to avoid MySQL migration layer
+import { executeQuery, executeQuerySingle } from '../config/database-hybrid';
 import { createDatabaseError } from '../middleware/errorHandler';
 
 // Interfaces for unified financial dashboard
@@ -74,71 +75,71 @@ export class UnifiedFinancialDashboardService {
     try {
       console.log('🔍 getDashboardMetrics called with:', { dateFrom, dateTo, userRole });
       const dateFilter = dateFrom && dateTo ?
-        `AND uft.created_at::DATE BETWEEN '${dateFrom}' AND '${dateTo}'` :
-        `AND uft.created_at::DATE = CURRENT_DATE`;
+        `created_at::DATE BETWEEN '${dateFrom}' AND '${dateTo}'` :
+        `created_at::DATE = CURRENT_DATE`;
 
       // Overview metrics
       console.log('🔍 Executing overview query...');
-      const overview = await executeQuerySingle(`
+      const overviewQuery = `
         SELECT
           COUNT(*) as total_transactions,
           COALESCE(SUM(amount), 0) as total_revenue,
           COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as pending_reviews,
           COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND payment_status = 'Completed' THEN 1 END) as completed_today,
-          -- Revenue growth (placeholder calculation)
           5.2 as revenue_growth_percentage,
-          -- Average processing time (placeholder)
           18.5 as avg_processing_time_hours
-        FROM unified_financial_transactions uft
-        WHERE 1 = 1 ${dateFilter}
-      `);
+        FROM unified_financial_transactions
+        WHERE ${dateFilter}
+      `;
+      console.log('📝 Overview query:', overviewQuery);
+      const overview = await executeQuerySingle(overviewQuery);
 
       // Application metrics
-      const applications = await executeQuerySingle(`
+      const applicationsQuery = `
         SELECT
           COUNT(*) as total_applications,
           COALESCE(SUM(amount), 0) as applications_revenue,
           COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as pending_financial_review,
           COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND financial_status = 'Approved' THEN 1 END) as approved_today,
-          -- Rejection rate calculation
           CASE
             WHEN COUNT(*) > 0 THEN
               ROUND((COUNT(CASE WHEN financial_status = 'Rejected' THEN 1 END) * 100.0) / COUNT(*), 2)
             ELSE 0
           END as rejection_rate
-        FROM unified_financial_transactions uft
-        WHERE transaction_type = 'Application' ${dateFilter}
-      `);
+        FROM unified_financial_transactions
+        WHERE transaction_type = 'Application' AND ${dateFilter}
+      `;
+      const applications = await executeQuerySingle(applicationsQuery);
 
       // Renewal metrics
-      const renewals = await executeQuerySingle(`
+      const renewalsQuery = `
         SELECT
           COUNT(*) as total_renewals,
           COALESCE(SUM(amount), 0) as renewals_revenue,
           COUNT(CASE WHEN financial_status IN ('Pending', 'Under Review') THEN 1 END) as pending_financial_review,
-          COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND workflow_stage = 'Payment Approved' THEN 1 END) as processed_today,
-          -- Success rate calculation
+          COUNT(CASE WHEN created_at::DATE = CURRENT_DATE AND payment_status = 'Completed' THEN 1 END) as processed_today,
           CASE
             WHEN COUNT(*) > 0 THEN
               ROUND((COUNT(CASE WHEN financial_status = 'Approved' THEN 1 END) * 100.0) / COUNT(*), 2)
             ELSE 0
           END as success_rate
-        FROM unified_financial_transactions uft
-        WHERE transaction_type = 'Renewal' ${dateFilter}
-      `);
+        FROM unified_financial_transactions
+        WHERE transaction_type = 'Renewal' AND ${dateFilter}
+      `;
+      const renewals = await executeQuerySingle(renewalsQuery);
 
       // Performance metrics
       const performance = await executeQuerySingle(`
-        SELECT 
+        SELECT
           COUNT(DISTINCT u.id) as active_reviewers,
           AVG(24.0) as avg_review_time, -- Placeholder
-          COUNT(CASE WHEN COALESCE(ma.financial_reviewed_at, mr.financial_reviewed_at::DATE) = CURRENT_DATE THEN 1 END) as reviews_completed_today,
+          COUNT(CASE WHEN COALESCE(ma.financial_reviewed_at::DATE, mr.financial_reviewed_at::DATE) = CURRENT_DATE THEN 1 END) as reviews_completed_today,
           85.5 as efficiency_score -- Placeholder
         FROM users u
         LEFT JOIN membership_applications ma ON u.id = ma.financial_reviewed_by
         LEFT JOIN membership_renewals mr ON u.id = mr.financial_reviewed_by
-        WHERE u.role_id = (SELECT id FROM roles WHERE name  = 'financial_reviewer')
-          AND u.is_active = 1
+        WHERE u.role_id = (SELECT id FROM roles WHERE name = 'financial_reviewer')
+          AND u.is_active = TRUE
       `);
 
       return {
@@ -232,16 +233,20 @@ export class UnifiedFinancialDashboardService {
   ): Promise<TrendData[]> {
     try {
       let groupBy: string;
+      let intervalUnit: string;
 
       switch (period) {
         case 'weekly':
           groupBy = 'TO_CHAR(created_at, \'YYYY-WW\')';
+          intervalUnit = 'weeks';
           break;
         case 'monthly':
           groupBy = 'TO_CHAR(created_at, \'YYYY-MM\')';
+          intervalUnit = 'months';
           break;
         default:
           groupBy = 'created_at::DATE';
+          intervalUnit = 'days';
       }
 
       const trends = await executeQuery(`
@@ -256,8 +261,8 @@ export class UnifiedFinancialDashboardService {
             ELSE 0
           END as approval_rate,
           AVG(24.0) as processing_time -- Placeholder
-        FROM unified_financial_transactions uft
-        WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '${limit} ${period.slice(0, -2)}'
+        FROM unified_financial_transactions
+        WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '${limit} ${intervalUnit}'
         GROUP BY ${groupBy}
         ORDER BY period DESC
         LIMIT $1

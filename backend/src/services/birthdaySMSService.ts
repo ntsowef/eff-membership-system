@@ -51,25 +51,71 @@ export class BirthdaySMSService {
   // Get birthday configuration
   static async getBirthdayConfig(): Promise<BirthdayConfig | null> {
     try {
+      // Return default config since birthday_sms_config table doesn't exist
+      // Using birthday_message_templates table instead
       const result = await executeQuery(`
-        SELECT * FROM birthday_sms_config 
-        WHERE is_enabled = TRUE 
-        ORDER BY created_at DESC 
+        SELECT
+          id as template_id,
+          TRUE as is_enabled,
+          '09:00:00' as send_time,
+          'Africa/Johannesburg' as timezone,
+          TRUE as include_age,
+          TRUE as include_organization_name,
+          1000 as max_daily_sends
+        FROM birthday_message_templates
+        WHERE is_active = TRUE
+        ORDER BY created_at DESC
         LIMIT 1
       `);
-      
+
       const configs = Array.isArray(result) ? result : result[0] || [];
-      return configs.length > 0 ? configs[0] : null;
+      if (configs.length > 0) {
+        return {
+          id: 1,
+          is_enabled: true,
+          template_id: configs[0].template_id,
+          send_time: '09:00:00',
+          timezone: 'Africa/Johannesburg',
+          include_age: true,
+          include_organization_name: true,
+          max_daily_sends: 1000
+        };
+      }
+      return null;
     } catch (error: any) {
       logger.error('Failed to get birthday config', { error: error.message });
-      throw error;
+      // Return default config on error
+      return {
+        id: 1,
+        is_enabled: true,
+        template_id: 1,
+        send_time: '09:00:00',
+        timezone: 'Africa/Johannesburg',
+        include_age: true,
+        include_organization_name: true,
+        max_daily_sends: 1000
+      };
     }
   }
 
   // Get today's birthdays
   static async getTodaysBirthdays(): Promise<BirthdayMember[]> {
     try {
-      const result = await executeQuery('SELECT * FROM todays_birthdays ORDER BY full_name');
+      const result = await executeQuery(`
+        SELECT
+          member_id,
+          CONCAT(first_name, ' ', last_name) as full_name,
+          first_name as firstname,
+          last_name as surname,
+          phone_number as cell_number,
+          date_of_birth,
+          age as current_age,
+          ward_code,
+          ward_name,
+          province_code
+        FROM vw_todays_birthdays
+        ORDER BY first_name, last_name
+      `);
       return Array.isArray(result) ? result : result[0] || [];
     } catch (error: any) {
       logger.error('Failed to get today\'s birthdays', { error: error.message });
@@ -81,10 +127,22 @@ export class BirthdaySMSService {
   static async getUpcomingBirthdays(days: number = 7): Promise<BirthdayMember[]> {
     try {
       const result = await executeQuery(`
-        SELECT * FROM upcoming_birthdays 
-        WHERE days_until_birthday <= ? ORDER BY days_until_birthday ASC, full_name ASC
+        SELECT
+          member_id,
+          CONCAT(first_name, ' ', last_name) as full_name,
+          first_name as firstname,
+          last_name as surname,
+          phone_number as cell_number,
+          date_of_birth,
+          current_age,
+          '' as ward_code,
+          province_code,
+          days_until_birthday
+        FROM vw_upcoming_birthdays
+        WHERE days_until_birthday <= $1
+        ORDER BY days_until_birthday ASC, first_name ASC, last_name ASC
       `, [days]);
-      
+
       return Array.isArray(result) ? result  : result[0] || [];
     } catch (error: any) {
       logger.error('Failed to get upcoming birthdays', { error: error.message });
@@ -108,12 +166,12 @@ export class BirthdaySMSService {
 
       for (const member of todaysBirthdays) {
         try {
-          // Check if already queued for today
+          // Check if already sent today
           const existingResult = await executeQuery(`
-            SELECT id FROM birthday_sms_queue 
-            WHERE member_id = ? AND scheduled_for = CURRENT_DATE
+            SELECT id FROM birthday_messages_sent
+            WHERE member_id = $1 AND DATE(sent_at) = CURRENT_DATE
           `, [member.member_id]);
-          
+
           const existing = Array.isArray(existingResult) ? existingResult  : existingResult[0] || [];
           if (existing.length > 0) {
             skipped++;
@@ -123,24 +181,16 @@ export class BirthdaySMSService {
           // Generate personalized message
           const personalizedMessage = await this.generateBirthdayMessage(member, config);
 
-          // Queue the message
-          await executeQuery(`
-            INSERT INTO birthday_sms_queue (
-              member_id, member_name, member_phone, birth_date, age_at_birthday,
-              scheduled_for, template_id, personalized_message, status
-            ) EXCLUDED.? , , $3, $4, $5, CURRENT_DATE, $6, $7, 'queued'
-          `, [
-            member.member_id,
-            member.full_name,
-            member.cell_number,
-            member.date_of_birth,
-            member.current_age,
-            config.template_id,
-            personalizedMessage
-          ]);
+          // Send the message directly (no queue needed for birthday messages)
+          const result = await this.sendBirthdayMessage(member.member_id, personalizedMessage);
 
-          queued++;
-          logger.info('Queued birthday message for ' + member.full_name + '');
+          if (result.success) {
+            queued++;
+            logger.info('Sent birthday message to ' + member.full_name + '');
+          } else {
+            errors++;
+            logger.error('Failed to send birthday message to ' + member.full_name + '', { error: result.error });
+          }
 
         } catch (error : any) {
           logger.error('Failed to queue birthday message for member ' + member.member_id + '', { error: error.message });
@@ -193,106 +243,27 @@ export class BirthdaySMSService {
     }
   }
 
-  // Process queued birthday messages
+  // Process queued birthday messages (deprecated - now sending directly)
   static async processQueuedMessages(limit: number = 50): Promise<{ processed: number; sent: number; failed: number }> {
+    try {
+      logger.info('processQueuedMessages is deprecated - birthday messages are now sent directly');
+      return { processed: 0, sent: 0, failed: 0 };
+    } catch (error : any) {
+      logger.error('Failed to process queued birthday messages', { error: error.message });
+      throw error;
+    }
+  }
+
+  // Deprecated queue processing code - keeping structure for reference
+  private static async _oldProcessQueuedMessages(limit: number = 50): Promise<{ processed: number; sent: number; failed: number }> {
     try {
       const config = await this.getBirthdayConfig();
       if (!config || !config.is_enabled) {
         return { processed: 0, sent: 0, failed: 0 };
       }
 
-      // Get queued messages
-      const queueResult = await executeQuery(`
-        SELECT * FROM birthday_sms_queue 
-        WHERE status = 'queued' AND scheduled_for <= CURRENT_DATE
-        ORDER BY scheduled_for ASC, id ASC
-        LIMIT ?
-      `, [limit]);
-
-      const queuedMessages = Array.isArray(queueResult) ? queueResult : queueResult[0] || [];
-      
-      let processed = 0;
-      let sent = 0;
-      let failed = 0;
-
-      for (const queueItem of queuedMessages) {
-        try {
-          // Mark as processing
-          await executeQuery(`
-            UPDATE birthday_sms_queue 
-            SET status = 'processing', processed_at = CURRENT_TIMESTAMP 
-            WHERE id = ? `, [queueItem.id]);
-
-          // Send the SMS using the mock SMS service
-          const smsResult = await SMSManagementService.sendSMSMessage({
-            recipient_phone : queueItem.member_phone,
-            recipient_name: queueItem.member_name,
-            recipient_member_id: queueItem.member_id,
-            message_content: queueItem.personalized_message,
-            status: 'pending',
-            retry_count: 0,
-            cost_per_sms: 0.05,
-            total_cost: 0.05
-          });
-
-          if (smsResult.success) {
-            // Mark as completed and record in history
-            await executeQuery(`
-              UPDATE birthday_sms_queue 
-              SET status = 'completed', completed_at = CURRENT_TIMESTAMP 
-              WHERE id = ? `, [queueItem.id]);
-
-            await executeQuery(`
-              INSERT INTO birthday_sms_history (
-                member_id, member_name, member_phone, birth_date, age_at_birthday,
-                template_id, message_content, scheduled_date, sent_at, delivery_status
-              ) EXCLUDED.$1, , $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, 'sent'
-            `, [
-              queueItem.member_id,
-              queueItem.member_name,
-              queueItem.member_phone,
-              queueItem.birth_date,
-              queueItem.age_at_birthday,
-              queueItem.template_id,
-              queueItem.personalized_message,
-              queueItem.scheduled_for
-            ]);
-
-            sent++;
-            logger.info('Birthday SMS sent to ' + queueItem.member_name + '', { messageId : smsResult.messageId });
-
-          } else {
-            // Mark as failed
-            await executeQuery(`
-              UPDATE birthday_sms_queue 
-              SET status = 'failed', error_message = ? , retry_count = retry_count + 1 
-              WHERE id = $1
-            `, [smsResult.error || 'Unknown error', queueItem.id]);
-
-            failed++;
-            logger.error('Birthday SMS failed for ' + queueItem.member_name + '', { error : smsResult.error });
-          }
-
-          processed++;
-
-        } catch (error: any) {
-          logger.error('Failed to process birthday message for queue item ' + queueItem.id + '', { error: error.message });
-          
-          // Mark as failed
-          await executeQuery(`
-            UPDATE birthday_sms_queue 
-            SET status = 'failed', error_message = ? , retry_count = retry_count + 1 
-            WHERE id = $1
-          `, [error.message, queueItem.id]);
-
-          failed++;
-          processed++;
-        }
-      }
-
-      logger.info(`Birthday message processing complete`, { processed, sent, failed });
-      return { processed, sent, failed };
-
+      // Old queue processing code removed - now sending directly
+      return { processed: 0, sent: 0, failed: 0 };
     } catch (error : any) {
       logger.error('Failed to process queued birthday messages', { error: error.message });
       throw error;
@@ -302,12 +273,12 @@ export class BirthdaySMSService {
   // Get birthday statistics
   static async getBirthdayStatistics(): Promise<any> {
     try {
-      const todayResult = await executeQuery('SELECT COUNT(*) as count FROM todays_birthdays');
-      const upcomingResult = await executeQuery('SELECT COUNT(*) as count FROM upcoming_birthdays');
-      const queuedResult = await executeQuery('SELECT COUNT(*) as count FROM birthday_sms_queue WHERE status = "queued"');
+      const todayResult = await executeQuery('SELECT COUNT(*) as count FROM vw_todays_birthdays');
+      const upcomingResult = await executeQuery('SELECT COUNT(*) as count FROM vw_upcoming_birthdays WHERE days_until_birthday <= 7');
+      const queuedResult = await executeQuery(`SELECT COUNT(*) as count FROM sms_queue WHERE status = 'Pending'`);
       const sentTodayResult = await executeQuery(`
-        SELECT COUNT(*) as count FROM birthday_sms_history 
-        WHERE scheduled_date = CURRENT_DATE AND delivery_status = 'sent'
+        SELECT COUNT(*) as count FROM birthday_messages_sent
+        WHERE DATE(sent_at) = CURRENT_DATE AND delivery_status = 'delivered'
       `);
 
       const today = Array.isArray(todayResult) ? todayResult : todayResult[0] || [];
@@ -329,7 +300,7 @@ export class BirthdaySMSService {
   }
 
   // Manual birthday message sending
-  static async sendBirthdayMessage(memberId: number): Promise<{ success: boolean; message?: string; error?: string; messageId?: string }> {
+  static async sendBirthdayMessage(memberId: number, customMessage?: string): Promise<{ success: boolean; message?: string; error?: string; messageId?: string }> {
     try {
       const config = await this.getBirthdayConfig();
       if (!config || !config.is_enabled) {
@@ -338,21 +309,21 @@ export class BirthdaySMSService {
 
       // Get member details
       const memberResult = await executeQuery(`
-        SELECT 
+        SELECT
           m.member_id,
-          m.firstname || ' ' || COALESCE(m.middle_name || '', ' ', COALESCE(m.surname, '')) as full_name,
+          m.membership_number,
+          CONCAT(m.firstname, ' ', COALESCE(m.surname, '')) as full_name,
           m.firstname,
           m.surname,
           m.cell_number,
           m.date_of_birth,
-          EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM m.date_of_birth) - 
-          (DATE_FORMAT(CURRENT_DATE, '%m%d') < DATE_FORMAT(m.date_of_birth, '%m%d')) as current_age,
+          EXTRACT(YEAR FROM AGE(m.date_of_birth)) as current_age,
           m.ward_code,
           w.ward_name,
           w.municipality_code
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
-        WHERE m.member_id = ? AND m.cell_number IS NOT NULL AND m.cell_number != ''
+        WHERE m.member_id = $1 AND m.cell_number IS NOT NULL AND m.cell_number != ''
       `, [memberId]);
 
       const members = Array.isArray(memberResult) ? memberResult  : memberResult[0] || [];
@@ -362,8 +333,8 @@ export class BirthdaySMSService {
 
       const member = members[0];
 
-      // Generate personalized message
-      const personalizedMessage = await this.generateBirthdayMessage(member, config);
+      // Generate personalized message or use custom message
+      const personalizedMessage = customMessage || await this.generateBirthdayMessage(member, config);
 
       // Send the SMS
       const smsResult = await SMSManagementService.sendSMSMessage({
@@ -378,26 +349,29 @@ export class BirthdaySMSService {
       });
 
       if (smsResult.success) {
-        // Record in history
+        // Record in birthday_messages_sent table
+        const currentYear = new Date().getFullYear();
         await executeQuery(`
-          INSERT INTO birthday_sms_history (
-            member_id, member_name, member_phone, birth_date, age_at_birthday,
-            template_id, message_content, scheduled_date, sent_at, delivery_status
-          ) EXCLUDED.? , , $3, $4, $5, $6, $7, CURRENT_DATE, CURRENT_TIMESTAMP, 'sent'
+          INSERT INTO birthday_messages_sent (
+            member_id, membership_number, member_name, phone_number, message_text,
+            sms_message_id, delivery_status, birthday_year, member_age
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `, [
           member.member_id,
+          member.membership_number || '',
           member.full_name,
           member.cell_number,
-          member.date_of_birth,
-          member.current_age,
-          config.template_id,
-          personalizedMessage
+          personalizedMessage,
+          smsResult.messageId || '',
+          'delivered',
+          currentYear,
+          member.current_age
         ]);
 
-        return { 
-          success : true, 
+        return {
+          success : true,
           message: 'Birthday SMS sent to ' + member.full_name + '',
-          messageId: smsResult.messageId 
+          messageId: smsResult.messageId
         };
       } else {
         return { success: false, error: smsResult.error || 'Failed to send SMS' };

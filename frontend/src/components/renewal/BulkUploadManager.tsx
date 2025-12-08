@@ -51,7 +51,7 @@ const BulkUploadManager: React.FC = () => {
     recentUploads,
     fraudCases,
     isUploading,
-    isPolling,
+
     error,
     upload,
     fetchRecentUploads,

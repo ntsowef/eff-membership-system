@@ -69,10 +69,32 @@ export class RedisService {
     try {
       if (!this.isConnected) {
         await this.client.connect();
+
+        // Check Redis role to ensure we're connected to master
+        await this.checkRedisRole();
       }
     } catch (error) {
       console.error('❌ Failed to connect to Redis:', error);
       throw error;
+    }
+  }
+
+  private async checkRedisRole(): Promise<void> {
+    try {
+      const roleInfo = await this.client.role();
+      const role = roleInfo[0];
+
+      if (role === 'slave' || role === 'replica') {
+        console.error('⚠️  WARNING: Connected to Redis REPLICA (read-only)!');
+        console.error('   Master host:', roleInfo[1]);
+        console.error('   Master port:', roleInfo[2]);
+        console.error('   ❌ Write operations will FAIL!');
+        console.error('   💡 Update REDIS_HOST and REDIS_PORT to connect to the master instance.');
+      } else if (role === 'master') {
+        console.log('✅ Connected to Redis MASTER (read-write)');
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not check Redis role:', error);
     }
   }
 
@@ -332,8 +354,33 @@ export class RedisService {
     try {
       const result = await this.client.brpop(key, timeout);
       return result;
-    } catch (error) {
-      console.error('❌ Failed to pop from list in Redis:', error);
+    } catch (error: any) {
+      // Check if this is a READONLY error (connected to replica instead of master)
+      if (error.message && error.message.includes('READONLY')) {
+        console.error('❌ READONLY ERROR: Connected to Redis replica instead of master!');
+        console.error('   This usually means Redis failover occurred or wrong port configured.');
+        console.error('   Current connection:', {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: process.env.REDIS_PORT || '6379'
+        });
+        console.error('   Please check your Redis configuration and ensure you\'re connecting to the MASTER instance.');
+
+        // Try to reconnect
+        try {
+          console.log('🔄 Attempting to reconnect to Redis...');
+          await this.client.disconnect();
+          await this.connect();
+          console.log('✅ Reconnected to Redis, retrying operation...');
+
+          // Retry the operation once
+          const result = await this.client.brpop(key, timeout);
+          return result;
+        } catch (reconnectError) {
+          console.error('❌ Failed to reconnect to Redis:', reconnectError);
+        }
+      } else {
+        console.error('❌ Failed to pop from list in Redis:', error);
+      }
       return null;
     }
   }
@@ -354,6 +401,35 @@ export class RedisService {
     } catch (error) {
       console.error('❌ Failed to get keys from Redis:', error);
       return [];
+    }
+  }
+
+  // Counter operations
+  public async incr(key: string): Promise<number> {
+    try {
+      return await this.client.incr(key);
+    } catch (error) {
+      console.error('❌ Failed to increment key in Redis:', error);
+      throw error;
+    }
+  }
+
+  public async expire(key: string, seconds: number): Promise<boolean> {
+    try {
+      const result = await this.client.expire(key, seconds);
+      return result === 1;
+    } catch (error) {
+      console.error('❌ Failed to set expiry in Redis:', error);
+      throw error;
+    }
+  }
+
+  public async ttl(key: string): Promise<number> {
+    try {
+      return await this.client.ttl(key);
+    } catch (error) {
+      console.error('❌ Failed to get TTL from Redis:', error);
+      throw error;
     }
   }
 

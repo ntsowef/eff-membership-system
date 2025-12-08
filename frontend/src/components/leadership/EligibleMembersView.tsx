@@ -60,7 +60,7 @@ const EligibleMembersView: React.FC = () => {
   const members = membersData?.members || [];
   const pagination = membersData?.pagination || { total: 0, totalPages: 1 };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -77,16 +77,17 @@ const EligibleMembersView: React.FC = () => {
     });
   };
 
-  const getHierarchyLevelColor = (level: string) => {
-    switch (level) {
-      case 'National': return 'primary';
-      case 'Province': return 'secondary';
-      case 'District': return 'info';
-      case 'Municipality': return 'success';
-      case 'Ward': return 'warning';
-      default: return 'default';
-    }
-  };
+  // Helper function to get hierarchy level color (currently unused)
+  // const getHierarchyLevelColor = (level: string) => {
+  //   switch (level) {
+  //     case 'National': return 'primary';
+  //     case 'Province': return 'secondary';
+  //     case 'District': return 'info';
+  //     case 'Municipality': return 'success';
+  //     case 'Ward': return 'warning';
+  //     default: return 'default';
+  //   }
+  // };
 
   return (
     <Box sx={{ p: 3 }}>

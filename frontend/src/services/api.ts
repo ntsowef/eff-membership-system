@@ -17,10 +17,11 @@ import type {
   AllLookupsResponse,
 } from '../types/api';
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
+// Get API base URL from environment variable or use proxy path for development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 // Create axios instance with default config
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000, // 60 seconds - increased for PDF generation and large exports
   headers: {
@@ -118,7 +119,7 @@ export const geographicApi = {
   getMunicipalities: (districtCode?: string) =>
     apiGet('/geographic/municipalities', districtCode ? { district: districtCode } : {}),
 
-  // Get municipality by code
+// Get single municipality by code
   getMunicipalityByCode: (municipalityCode: string) =>
     apiGet(`/geographic/municipalities/${municipalityCode}`),
 
@@ -167,34 +168,23 @@ export const membersApi = {
   getMemberStatistics: () => apiGet('/members/statistics'),
   exportMembers: (format: string, filters?: any) =>
     apiGet('/members/export', { format, ...filters }),
-  exportWardAudit: async (wardCode: string, format: string = 'pdf') => {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    const response = await axios.get(
-      `${API_BASE_URL}/members/ward/${wardCode}/audit-export`,
-      {
-        params: { format },
-        responseType: 'blob',
-        timeout: 60000,
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      }
-    );
+exportWardAudit: async (wardCode: string, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf'): Promise<Blob> => {
+    const response = await api.get(`/members/ward/${wardCode}/audit-export`, {
+      params: { format },
+      responseType: 'blob',
+      timeout: 60000
+    });
     return response.data;
   },
-  exportSubregionMembers: async (subregionCode: string, options?: { format?: string }) => {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    const response = await axios.get(
-      `${API_BASE_URL}/members/subregion/${subregionCode}/export`,
-      {
-        params: options,
-        responseType: 'blob',
-        timeout: 60000,
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      }
-    );
+  // Sub-region (municipality) members
+  getSubregionMembers: (municipalityCode: string, filters?: any) =>
+    apiGet(`/members/subregion/${municipalityCode}`, filters),
+  exportSubregionMembers: async (municipalityCode: string, filters?: any): Promise<Blob> => {
+    const response = await api.get(`/members/subregion/${municipalityCode}/download`, {
+      params: filters,
+      responseType: 'blob',
+      timeout: 60000
+    });
     return response.data;
   },
 };
@@ -210,6 +200,7 @@ export const applicationsApi = {
   submitApplication: (id: string) => apiPost(`/membership-applications/${id}/submit`, {}),
 
   // Review actions
+  submitApplication: (id: string) => apiPost(`/membership-applications/${id}/submit`),
   reviewApplication: (id: string, reviewData: any) => apiPost(`/membership-applications/${id}/review`, reviewData),
   setUnderReview: (id: string) => apiPost(`/membership-applications/${id}/under-review`),
   bulkReview: (data: any) => apiPost('/membership-applications/bulk/review', data),
@@ -300,21 +291,24 @@ export const viewsApi = {
     apiGet('/views/members-with-voting-districts', filters),
   getVotingDistrictSummary: (filters?: any) =>
     apiGet('/views/voting-district-summary', filters),
-  exportMembersWithVotingDistricts: async (filters?: any, format: string = 'pdf') => {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    const response = await axios.get(
-      `${API_BASE_URL}/views/members-with-voting-districts/export`,
-      {
-        params: { ...filters, format },
-        responseType: 'blob',
-        timeout: 60000,
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      }
-    );
-    return response.data;
-  },
+exportMembersWithVotingDistricts: async (filters: any, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf'): Promise<{
+    blob: Blob;
+    emailSentTo?: string;
+    emailStatus?: 'sending' | 'failed' | 'no-email';
+    emailError?: string;
+  }> => {
+    const response = await api.get('/views/members-with-voting-districts/export', {
+      params: { ...filters, format },
+      responseType: 'blob',
+      timeout: 60000
+    });
+    return {
+      blob: response.data,
+      emailSentTo: response.headers['x-email-sent-to'],
+      emailStatus: response.headers['x-email-status'],
+      emailError: response.headers['x-email-error']
+    };
+  }
 };
 
 // Analytics API functions
@@ -540,13 +534,16 @@ export const systemApi = {
   getSystemInfo: () => apiGet('/system/info'),
   getSystemOverview: () => apiGet('/system/overview'),
   getSystemLogs: (filters?: any) => apiGet('/system/logs', filters),
-  getLogDetail: (source: string, logId: number) => apiGet(`/system/logs/${source}/${logId}`),
+getLogDetail: (source: string, id: string | number) => apiGet(`/system/logs/${source}/${id}`),
   getSettings: () => apiGet('/system/settings'),
   getSetting: (key: string) => apiGet(`/system/settings/${key}`),
   updateSetting: (key: string, value: any) => apiPut(`/system/settings/${key}`, { value }),
 
   // Export operations
-  exportLogsCSV: () => `${API_BASE_URL}/system/logs/export/csv`,
+  exportLogsCSV: (filters?: any) => {
+    const params = new URLSearchParams(filters || {}).toString();
+    return `${API_BASE_URL}/system/logs/export/csv${params ? `?${params}` : ''}`;
+  },
 
   // Backup operations
   createBackup: () => apiPost('/system/backups'),
@@ -572,6 +569,7 @@ export const memberApplicationBulkUploadApi = {
           'Content-Type': 'multipart/form-data',
           ...(token && { Authorization: `Bearer ${token}` }),
         },
+        timeout: 120000, // 2 minutes timeout for file uploads
       }
     );
     return response.data;

@@ -30,7 +30,7 @@ import {
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import wardAuditApi from '../../services/wardAuditApi';
-import type { MunicipalityDelegateReport as ReportType, WardComplianceSummary } from '../../types/wardAudit';
+import type { WardComplianceSummary } from '../../types/wardAudit';
 
 const MunicipalityDelegateReport: React.FC = () => {
   const { municipalityCode } = useParams<{ municipalityCode: string }>();

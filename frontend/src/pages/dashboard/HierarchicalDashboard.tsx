@@ -35,7 +35,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiGet } from '../../lib/api';
 import StatsCard from '../../components/ui/StatsCard';
 import PageHeader from '../../components/ui/PageHeader';
-import { useProvinceContext, useProvinceBreadcrumbs } from '../../hooks/useProvinceContext';
+import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
 
@@ -132,10 +132,10 @@ interface DrillDownSectionProps {
   childLabel?: string;
 }
 
-interface DrillDownSectionState {
-  displayedCount: number;
-  isLoadingMore: boolean;
-}
+// interface DrillDownSectionState {
+//   displayedCount: number;
+//   isLoadingMore: boolean;
+// }
 
 const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childLevel, childLabel }) => {
   const navigate = useNavigate();
@@ -173,10 +173,22 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
       try {
         const result = await apiGet<any>(url);
 
+        console.log('🔍 DrillDownSection - API Response:', {
+          level,
+          url,
+          resultType: typeof result,
+          resultKeys: result ? Object.keys(result) : [],
+          hasData: !!result?.data,
+          isArray: Array.isArray(result),
+          isDataArray: Array.isArray(result?.data),
+          dataLength: Array.isArray(result?.data) ? result.data.length : 'N/A'
+        });
+
         // Handle different response formats
-        if (level === 'ward' && result?.data?.data) {
-          // Voting districts endpoint returns { data: { data: [...] } }
-          return result.data.data.map((vd: any) => ({
+        if (level === 'ward' && result?.data) {
+          // Voting districts endpoint: apiGet extracts to { data: [...] }
+          console.log('✅ Ward level - Mapping voting districts:', result.data.length, 'items');
+          return result.data.map((vd: any) => ({
             code: vd.voting_district_code,
             name: vd.voting_district_name || `Voting District ${vd.voting_district_number || ''}`,
             member_count: vd.member_count || 0,
@@ -185,9 +197,10 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
         }
 
         // Other endpoints return arrays directly
+        console.log('📋 Non-ward level - Returning result directly');
         return result || [];
       } catch (error) {
-        console.error('Failed to fetch child entities:', error);
+        console.error('❌ Failed to fetch child entities:', error);
         return [];
       }
     },
@@ -219,11 +232,16 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
   };
 
   const handleChildClick = (childCode: string) => {
-    if (childLevel === 'voting_station') {
-      // For voting stations, navigate to members list filtered by voting district
+    console.log('🖱️ Child clicked:', { childLevel, childCode, level });
+
+    // For ward level, we're showing voting districts, so navigate to members list
+    if (level === 'ward' || childLevel === 'voting_station') {
+      // Navigate to members list filtered by voting district
+      console.log('🗳️ Navigating to members list with voting_district_code:', childCode);
       navigate(`/admin/members?voting_district_code=${childCode}`);
     } else {
       // For other levels, continue hierarchical navigation
+      console.log('📊 Navigating to hierarchical dashboard:', childLevel, childCode);
       navigate(`/admin/dashboard/hierarchical/${childLevel}/${childCode}`);
     }
   };
@@ -288,7 +306,7 @@ const DrillDownSection: React.FC<DrillDownSectionProps> = ({ level, code, childL
         {childEntities && childEntities.length > 0 ? (
           <Grid container spacing={2}>
             {childEntities.slice(0, displayedCount).map((entity: any, index: number) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={entity.code || entity.id} data-ward-index={index}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={`${entity.code || entity.id}-${index}`} data-ward-index={index}>
                 <Card
                   variant="outlined"
                   sx={{
@@ -735,7 +753,7 @@ const HierarchicalDashboard: React.FC = () => {
           <Breadcrumbs separator={<NavigateNext fontSize="small" />}>
             {breadcrumbs.map((crumb, index) => (
               <Link
-                key={index}
+                key={`${crumb.href}-${index}`}
                 href={crumb.href}
                 onClick={(e) => {
                   e.preventDefault();
@@ -801,14 +819,14 @@ const HierarchicalDashboard: React.FC = () => {
         {/* Statistics Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {statsCards.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grid item xs={12} sm={6} md={3} key={`stat-${stat.title}-${index}`}>
               <StatsCard
                 title={stat.title}
                 value={stat.value}
                 icon={stat.icon}
-                color={stat.color}
-                trend={stat.trend}
-                subtitle={stat.subtitle}
+                color={stat.color as any}
+                trend={(stat as any).trend}
+                subtitle={(stat as any).subtitle}
                 onClick={() => {
                   // Navigate to detailed view based on stat type
                   if (stat.title.includes('Members')) {

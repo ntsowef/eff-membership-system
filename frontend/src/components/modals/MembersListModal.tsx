@@ -62,7 +62,7 @@ const MembersListModal: React.FC<MembersListModalProps> = ({
   const districtInfo = membersData?.data?.district_info;
   const pagination = membersData?.data?.pagination;
 
-  const handlePageChange = (event: React.ChangeEvent<unknown>, newPage: number) => {
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, newPage: number) => {
     setPage(newPage);
   };
 

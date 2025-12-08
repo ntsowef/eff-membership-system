@@ -11,7 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
+
   Button,
   Chip,
   LinearProgress,
@@ -19,7 +19,7 @@ import {
   Tooltip,
   Alert,
   CircularProgress,
-  Divider,
+
 } from '@mui/material';
 import {
   Refresh,
@@ -62,7 +62,7 @@ interface RenewalDashboardProps {
 }
 
 const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
-  onProcessRenewal,
+
   onSendReminder,
   onViewAnalytics
 }) => {
@@ -79,7 +79,7 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
         return response.data.data.renewal_dashboard as RenewalDashboardData;
       }
       
-      throw new Error('Invalid renewal dashboard data structure');
+      throw new (Error as any)('Invalid renewal dashboard data structure');
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 10 * 60 * 1000, // 10 minutes

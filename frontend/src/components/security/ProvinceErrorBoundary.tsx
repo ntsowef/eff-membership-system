@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Alert, Box, Button, Typography, Paper } from '@mui/material';
 import { Refresh, Home, Security } from '@mui/icons-material';
 import { logSecurityViolation } from '../../utils/provinceValidation';

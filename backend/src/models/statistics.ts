@@ -123,24 +123,22 @@ export class StatisticsModel {
           COUNT(DISTINCT m.member_id) as total_members,
           COUNT(DISTINCT CASE WHEN g.gender_name = 'Male' THEN m.member_id END) as male_members,
           COUNT(DISTINCT CASE WHEN g.gender_name = 'Female' THEN m.member_id END) as female_members,
-          COUNT(DISTINCT CASE WHEN mst.is_active = TRUE THEN ms.membership_id END) as active_memberships,
-          COUNT(DISTINCT CASE WHEN mst.is_active = FALSE THEN ms.membership_id END) as expired_memberships,
+          COUNT(DISTINCT CASE WHEN m.expiry_date >= CURRENT_DATE THEN m.member_id END) as active_memberships,
+          COUNT(DISTINCT CASE WHEN m.expiry_date < CURRENT_DATE THEN m.member_id END) as expired_memberships,
           COUNT(DISTINCT d.district_code) as districts_count,
           COUNT(DISTINCT mu.municipality_code) as municipalities_count,
           COUNT(DISTINCT w.ward_code) as wards_count,
           ROUND(
             (COUNT(DISTINCT m.member_id) * 100.0 /
-             (SELECT COUNT(DISTINCT member_id) FROM members)
+             (SELECT COUNT(DISTINCT member_id) FROM members_consolidated)
             ), 2
           ) as percentage_of_total
         FROM provinces p
         LEFT JOIN districts d ON p.province_code = d.province_code
         LEFT JOIN municipalities mu ON d.district_code = mu.district_code
         LEFT JOIN wards w ON mu.municipality_code = w.municipality_code
-        LEFT JOIN members m ON w.ward_code = m.ward_code
+        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
         LEFT JOIN genders g ON m.gender_id = g.gender_id
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
-        LEFT JOIN membership_statuses mst ON ms.status_id = mst.status_id
         GROUP BY p.province_code, p.province_name
         ORDER BY total_members DESC
       `;
@@ -176,12 +174,12 @@ export class StatisticsModel {
         params.push(filters.province_code);
       }
 
-      // Gender breakdown
+      // Gender breakdown from members_consolidated
       const genderQuery = `
-        SELECT 
+        SELECT
           g.gender_name,
           COUNT(*) as count
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN genders g ON m.gender_id = g.gender_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
@@ -189,7 +187,7 @@ export class StatisticsModel {
       `;
       const genderData = await executeQuery<{ gender_name: string; count: number }>(genderQuery, params);
 
-      // Age groups breakdown - first get counts, then calculate percentages
+      // Age groups breakdown from members_consolidated
       const ageQuery = `
         SELECT
           CASE
@@ -202,7 +200,7 @@ export class StatisticsModel {
             ELSE '65+'
           END as age_group,
           COUNT(*) as member_count
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
         AND m.age IS NOT NULL
@@ -220,13 +218,13 @@ export class StatisticsModel {
       `;
       const ageData = await executeQuery<{ age_group: string; member_count: number }>(ageQuery, params);
 
-      // Race breakdown
+      // Race breakdown from members_consolidated
       const raceQuery = `
-        SELECT 
+        SELECT
           r.race_name,
           COUNT(*) as count,
-          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
-        FROM members m
+          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members_consolidated m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
+        FROM members_consolidated m
         LEFT JOIN races r ON m.race_id = r.race_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
@@ -236,13 +234,13 @@ export class StatisticsModel {
       `;
       const raceData = await executeQuery<{ race_name: string; count: number; percentage: number }>(raceQuery, [...params, ...params]);
 
-      // Language breakdown
+      // Language breakdown from members_consolidated
       const languageQuery = `
-        SELECT 
+        SELECT
           l.language_name,
           COUNT(*) as count,
-          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
-        FROM members m
+          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members_consolidated m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
+        FROM members_consolidated m
         LEFT JOIN languages l ON m.language_id = l.language_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
@@ -252,13 +250,13 @@ export class StatisticsModel {
       `;
       const languageData = await executeQuery<{ language_name: string; count: number; percentage: number }>(languageQuery, [...params, ...params]);
 
-      // Occupation breakdown
+      // Occupation breakdown from members_consolidated
       const occupationQuery = `
-        SELECT 
+        SELECT
           oc.category_name,
           COUNT(*) as count,
-          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
-        FROM members m
+          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members_consolidated m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
+        FROM members_consolidated m
         LEFT JOIN occupations o ON m.occupation_id = o.occupation_id
         LEFT JOIN occupation_categories oc ON o.category_id = oc.category_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
@@ -269,13 +267,13 @@ export class StatisticsModel {
       `;
       const occupationData = await executeQuery<{ category_name: string; count: number; percentage: number }>(occupationQuery, [...params, ...params]);
 
-      // Qualification breakdown - Fixed: use qualifications table with level_order column
+      // Qualification breakdown from members_consolidated
       const qualificationQuery = `
         SELECT
           q.qualification_name,
           COUNT(*) as count,
-          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
-        FROM members m
+          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members_consolidated m2 LEFT JOIN wards w2 ON m2.ward_code = w2.ward_code ${whereClause.replace(/m\./g, 'm2.').replace(/w\./g, 'w2.')})), 2) as percentage
+        FROM members_consolidated m
         LEFT JOIN qualifications q ON m.qualification_id = q.qualification_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         ${whereClause}
@@ -317,20 +315,19 @@ export class StatisticsModel {
   // Get membership trends
   static async getMembershipTrends(months: number = 12): Promise<MembershipTrends> {
     try {
-      // Monthly registrations
+      // Monthly registrations from members_consolidated
       const monthlyQuery = `
         SELECT
-          TO_CHAR(ms.date_joined, 'YYYY-MM') as month_year,
-          EXTRACT(YEAR FROM ms.date_joined)::INTEGER as year,
-          TO_CHAR(ms.date_joined, 'Month') as month,
-          COUNT(CASE WHEN st.subscription_type_id = 1 THEN 1 END) as new_members,
-          COUNT(CASE WHEN st.subscription_type_id = 2 THEN 1 END) as renewals,
+          TO_CHAR(m.created_at, 'YYYY-MM') as month_year,
+          EXTRACT(YEAR FROM m.created_at)::INTEGER as year,
+          TO_CHAR(m.created_at, 'Month') as month,
+          COUNT(CASE WHEN m.subscription_type_id = 1 THEN 1 END) as new_members,
+          COUNT(CASE WHEN m.subscription_type_id = 2 THEN 1 END) as renewals,
           COUNT(*) as total
-        FROM memberships ms
-        LEFT JOIN subscription_types st ON ms.subscription_type_id = st.subscription_type_id
-        WHERE ms.date_joined >= CURRENT_DATE - INTERVAL '1 month' * $1
-        GROUP BY TO_CHAR(ms.date_joined, 'YYYY-MM'), EXTRACT(YEAR FROM ms.date_joined), TO_CHAR(ms.date_joined, 'Month')
-        ORDER BY ms.date_joined DESC
+        FROM members_consolidated m
+        WHERE m.created_at >= CURRENT_DATE - INTERVAL '1 month' * $1
+        GROUP BY TO_CHAR(m.created_at, 'YYYY-MM'), EXTRACT(YEAR FROM m.created_at), TO_CHAR(m.created_at, 'Month')
+        ORDER BY month_year DESC
       `;
       const monthlyData = await executeQuery<{
         month_year: string;
@@ -341,27 +338,30 @@ export class StatisticsModel {
         total: number;
       }>(monthlyQuery, [months]);
 
-      // Status distribution
+      // Status distribution from members_consolidated
       const statusQuery = `
-        SELECT 
-          mst.status_name,
+        SELECT
+          CASE
+            WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 'Active'
+            WHEN m.expiry_date < CURRENT_DATE THEN 'Expired'
+            ELSE 'Unknown'
+          END as status_name,
           COUNT(*) as count,
-          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM memberships)), 2) as percentage
-        FROM memberships ms
-        LEFT JOIN membership_statuses mst ON ms.status_id = mst.status_id
-        GROUP BY mst.status_id, mst.status_name
+          ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM members_consolidated)), 2) as percentage
+        FROM members_consolidated m
+        GROUP BY status_name
         ORDER BY count DESC
       `;
       const statusData = await executeQuery<{ status_name: string; count: number; percentage: number }>(statusQuery);
 
-      // Expiry analysis
+      // Expiry analysis from members_consolidated
       const expiryQuery = `
         SELECT
           COUNT(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_30_days,
           COUNT(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days' THEN 1 END) as expiring_60_days,
           COUNT(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days' THEN 1 END) as expiring_90_days,
           COUNT(CASE WHEN expiry_date < CURRENT_DATE THEN 1 END) as expired
-        FROM memberships
+        FROM members_consolidated
         WHERE expiry_date IS NOT NULL
       `;
       const expiryData = await executeQuerySingle<{
@@ -417,85 +417,96 @@ export class StatisticsModel {
     }>;
   }> {
     try {
-      // Get totals
-      const totalsQuery = `
-        SELECT 
-          (SELECT COUNT(*) FROM members) as members,
-          (SELECT COUNT(*) FROM memberships) as memberships,
-          (SELECT COUNT(*) FROM memberships ms JOIN membership_statuses mst ON ms.status_id = mst.status_id WHERE mst.is_active = TRUE) as active_memberships,
-          (SELECT COUNT(*) FROM provinces) as provinces,
-          (SELECT COUNT(*) FROM districts) as districts,
-          (SELECT COUNT(*) FROM municipalities) as municipalities,
-          (SELECT COUNT(*) FROM wards) as wards,
-          (SELECT COUNT(*) FROM voting_stations WHERE is_active = TRUE) as voting_stations
-      `;
-      const totals = await executeQuerySingle<{
-        members: number;
-        memberships: number;
-        active_memberships: number;
-        provinces: number;
-        districts: number;
-        municipalities: number;
-        wards: number;
-        voting_stations: number;
-      }>(totalsQuery);
+      // OPTIMIZED: Run all count queries in parallel instead of nested subqueries
+      // Using members_consolidated table (the correct consolidated table)
+      const [
+        memberCount,
+        activeMemberCount,
+        provinceCount,
+        districtCount,
+        municipalityCount,
+        wardCount,
+        votingStationCount,
+        growthStats,
+        topWardsData
+      ] = await Promise.all([
+        // Member count from members_consolidated
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM members_consolidated'),
+        // Active member count from members_consolidated
+        executeQuerySingle<{ count: number }>(`
+          SELECT COUNT(*) as count
+          FROM members_consolidated m
+          JOIN membership_statuses mst ON m.membership_status_id = mst.status_id
+          WHERE mst.is_active = TRUE
+        `),
+        // Province count
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM provinces'),
+        // District count
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM districts'),
+        // Municipality count
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM municipalities'),
+        // Ward count
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM wards'),
+        // Voting station count
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM voting_stations WHERE is_active = TRUE'),
+        // Growth statistics from members_consolidated
+        executeQuerySingle<{
+          members_this_month: number;
+          members_last_month: number;
+        }>(`
+          SELECT
+            COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+                       AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) THEN 1 END) as members_this_month,
+            COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month')
+                       AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE - INTERVAL '1 month') THEN 1 END) as members_last_month
+          FROM members_consolidated
+        `),
+        // Top wards from members_consolidated (Active members only - not expired OR expired < 90 days)
+        executeQuery<{
+          ward_code: string;
+          ward_name: string;
+          municipality_name: string;
+          member_count: number;
+        }>(`
+          SELECT
+            w.ward_code,
+            w.ward_name,
+            m.municipality_name,
+            COUNT(CASE WHEN mem.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) as member_count
+          FROM wards w
+          LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
+          LEFT JOIN members_consolidated mem ON w.ward_code = mem.ward_code
+          GROUP BY w.ward_code, w.ward_name, m.municipality_name
+          HAVING COUNT(CASE WHEN mem.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 1 END) > 0
+          ORDER BY member_count DESC
+          LIMIT 10
+        `)
+      ]);
 
-      // Get growth statistics (PostgreSQL compatible)
-      const growthQuery = `
-        SELECT
-          COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) THEN 1 END) as members_this_month,
-          COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month') AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE - INTERVAL '1 month') THEN 1 END) as members_last_month
-        FROM members
-      `;
-      const growth = await executeQuerySingle<{
-        members_this_month: number;
-        members_last_month: number;
-      }>(growthQuery);
+      const totals = {
+        members: memberCount?.count || 0,
+        memberships: memberCount?.count || 0,
+        active_memberships: activeMemberCount?.count || 0,
+        provinces: provinceCount?.count || 0,
+        districts: districtCount?.count || 0,
+        municipalities: municipalityCount?.count || 0,
+        wards: wardCount?.count || 0,
+        voting_stations: votingStationCount?.count || 0
+      };
 
       // Calculate growth rate
-      const growthRate = growth && growth.members_last_month > 0 
-        ? Math.round(((growth.members_this_month - growth.members_last_month) / growth.members_last_month) * 100)
+      const growthRate = growthStats && growthStats.members_last_month > 0
+        ? Math.round(((growthStats.members_this_month - growthStats.members_last_month) / growthStats.members_last_month) * 100)
         : 0;
 
-      // Get top wards by member count
-      const topWardsQuery = `
-        SELECT 
-          w.ward_code,
-          w.ward_name,
-          m.municipality_name,
-          COUNT(mem.member_id) as member_count
-        FROM wards w
-        LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
-        LEFT JOIN members mem ON w.ward_code = mem.ward_code
-        GROUP BY w.ward_code, w.ward_name, m.municipality_name
-        HAVING member_count > 0
-        ORDER BY member_count DESC
-        LIMIT 10
-      `;
-      const topWards = await executeQuery<{
-        ward_code: string;
-        ward_name: string;
-        municipality_name: string;
-        member_count: number;
-      }>(topWardsQuery);
-
       return {
-        totals: totals || {
-          members: 0,
-          memberships: 0,
-          active_memberships: 0,
-          provinces: 0,
-          districts: 0,
-          municipalities: 0,
-          wards: 0,
-          voting_stations: 0
-        },
+        totals,
         growth: {
-          members_this_month: growth?.members_this_month || 0,
-          members_last_month: growth?.members_last_month || 0,
+          members_this_month: growthStats?.members_this_month || 0,
+          members_last_month: growthStats?.members_last_month || 0,
           growth_rate: growthRate
         },
-        top_wards: topWards
+        top_wards: topWardsData || []
       };
     } catch (error) {
       throw createDatabaseError('Failed to fetch system statistics', error);
@@ -512,7 +523,7 @@ export class StatisticsModel {
           COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_members_30d,
           COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '60 days'
                      AND DATE(created_at) < CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_members_prev_30d
-        FROM members
+        FROM members_consolidated
       `;
       const memberStats = await executeQuerySingle(memberStatsQuery);
 

@@ -174,13 +174,13 @@ export class MemberSearchModel {
           m.ward_code,
           w.ward_name,
           CONCAT('Ward ', w.ward_number, ' - ', w.ward_name) as ward_display,
-          w.municipality_code,
+          m.municipality_code,
           mu.municipality_name,
-          w.district_code,
+          m.district_code,
           d.district_name,
-          w.province_code,
-          p.province_name,
-          CONCAT(w.ward_name, ', ', mu.municipality_name, ', ', d.district_name, ', ', p.province_name) as location_display,
+          m.province_code,
+          m.province_name,
+          CONCAT(w.ward_name, ', ', mu.municipality_name, ', ', d.district_name, ', ', m.province_name) as location_display,
           vs_table.station_name as voting_station_name,
           o.occupation_name,
           q.qualification_name,
@@ -189,36 +189,34 @@ export class MemberSearchModel {
           m.voter_registration_date,
           voter_s.is_eligible_to_vote,
           ms.status_name as membership_status,
-          mem.expiry_date as membership_expiry_date,
-          mem.date_joined as membership_date_joined,
-          CASE 
-            WHEN mem.expiry_date > CURDATE() THEN 'Active'
-            WHEN mem.expiry_date <= CURDATE() THEN 'Expired'
+          m.expiry_date as membership_expiry_date,
+          m.date_joined as membership_date_joined,
+          CASE
+            WHEN m.expiry_date > CURDATE() THEN 'Active'
+            WHEN m.expiry_date <= CURDATE() THEN 'Expired'
             ELSE 'Unknown'
           END as membership_status_display,
           CONCAT(m.firstname, ' ', COALESCE(m.surname, ''), ' ', m.id_number, ' ', COALESCE(m.email, ''), ' ', COALESCE(m.cell_number, '')) as search_text,
           m.created_at,
           m.updated_at,
-          DATEDIFF(mem.expiry_date, CURDATE()) as days_until_expiry,
-          TIMESTAMPDIFF(YEAR, mem.date_joined, CURDATE()) as membership_duration_years
+          DATEDIFF(m.expiry_date, CURDATE()) as days_until_expiry,
+          TIMESTAMPDIFF(YEAR, m.date_joined, CURDATE()) as membership_duration_years
       `;
 
       let fromClause = `
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN genders g ON m.gender_id = g.gender_id
         LEFT JOIN races r ON m.race_id = r.race_id
         LEFT JOIN citizenships c ON m.citizenship_id = c.citizenship_id
         LEFT JOIN languages l ON m.language_id = l.language_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
-        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
-        LEFT JOIN districts d ON w.district_code = d.district_code
-        LEFT JOIN provinces p ON w.province_code = p.province_code
+        LEFT JOIN municipalities mu ON m.municipality_code = mu.municipality_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
         LEFT JOIN voting_stations vs_table ON m.voting_station_id = vs_table.voting_station_id
         LEFT JOIN occupations o ON m.occupation_id = o.occupation_id
         LEFT JOIN qualification_levels q ON m.qualification_id = q.qualification_id
         LEFT JOIN voter_statuses voter_s ON m.voter_status_id = voter_s.voter_status_id
-        LEFT JOIN memberships mem ON m.member_id = mem.member_id
-        LEFT JOIN membership_statuses ms ON mem.status_id = ms.status_id
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
       `;
 
       let whereClause = 'WHERE 1=1';
@@ -250,14 +248,12 @@ export class MemberSearchModel {
   static async getSearchCount(filters: AdvancedMemberFilters = {}): Promise<number> {
     try {
       let fromClause = `
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
-        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
-        LEFT JOIN districts d ON w.district_code = d.district_code
-        LEFT JOIN provinces p ON w.province_code = p.province_code
+        LEFT JOIN municipalities mu ON m.municipality_code = mu.municipality_code
+        LEFT JOIN districts d ON m.district_code = d.district_code
         LEFT JOIN voter_statuses voter_s ON m.voter_status_id = voter_s.voter_status_id
-        LEFT JOIN memberships mem ON m.member_id = mem.member_id
-        LEFT JOIN membership_statuses ms ON mem.status_id = ms.status_id
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
       `;
 
       let whereClause = 'WHERE 1=1';
@@ -566,7 +562,7 @@ export class MemberSearchModel {
   static async getSearchStatistics(filters: AdvancedMemberFilters = {}): Promise<SearchStatistics> {
     try {
       const baseQuery = `
-        FROM members m
+        FROM members_consolidated m
         LEFT JOIN genders g ON m.gender_id = g.gender_id
         LEFT JOIN races r ON m.race_id = r.race_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
@@ -719,7 +715,7 @@ export class MemberSearchModel {
           CONCAT(firstname, ' ', COALESCE(surname, ''), ' (', id_number, ')') as display,
           'member' as type,
           'Members' as category
-        FROM members
+        FROM members_consolidated
         WHERE (firstname LIKE ? OR surname LIKE ?)
         AND firstname IS NOT NULL
         ORDER BY firstname
@@ -860,11 +856,11 @@ export class MemberSearchModel {
     }
   }
 
-  // Quick search using the existing search view
+  // Quick search using the consolidated search view
   static async quickSearch(searchTerm: string, limit: number = 20): Promise<any[]> {
     try {
       const query = `
-        SELECT * FROM vw_member_search
+        SELECT * FROM vw_member_search_consolidated
         WHERE search_text LIKE ?
         ORDER BY
           CASE

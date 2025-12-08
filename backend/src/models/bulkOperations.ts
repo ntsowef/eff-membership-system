@@ -401,7 +401,7 @@ export class BulkOperationsModel {
         try {
           // Get current member details
           const currentMember = await executeQuerySingle(
-            'SELECT hierarchy_level, entity_id FROM members WHERE member_id = ?',
+            'SELECT hierarchy_level, entity_id FROM members_consolidated WHERE member_id = ?',
             [memberId]
           );
 

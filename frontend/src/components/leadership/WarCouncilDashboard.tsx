@@ -14,7 +14,7 @@ import {
   ListItemText,
   Avatar,
   Chip,
-  Paper,
+
   LinearProgress,
   Divider
 } from '@mui/material';
@@ -49,9 +49,9 @@ const WarCouncilDashboard: React.FC<WarCouncilDashboardProps> = ({
   const { user } = useAuth();
 
   // Check permissions
-  const canViewDashboard = WarCouncilPermissions.canViewWarCouncilDashboard(user);
-  const canManageAppointments = WarCouncilPermissions.canManageWarCouncilAppointments(user);
-  const uiConfig = WarCouncilPermissions.getUIConfig(user);
+  const canViewDashboard = WarCouncilPermissions.canViewWarCouncilDashboard(user as any);
+  WarCouncilPermissions.canManageWarCouncilAppointments(user as any);
+  WarCouncilPermissions.getUIConfig(user as any);
 
   // Load dashboard data
   const loadDashboard = async () => {

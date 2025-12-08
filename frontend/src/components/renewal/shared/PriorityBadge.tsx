@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Chip, ChipProps } from '@mui/material';
+import { Chip, type ChipProps } from '@mui/material';
 import {
   PriorityHigh,
   Remove,
@@ -61,6 +61,7 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({
       color={getPriorityColor(priority)}
       icon={showIcon ? getPriorityIcon(priority) : undefined}
       size="small"
+      sx={{ borderRadius: '50px', ...chipProps.sx }} // Pill shape
       {...chipProps}
     />
   );

@@ -38,7 +38,6 @@ import {
   CheckCircle as ApprovedIcon,
   Visibility as ViewIcon,
   Refresh as RefreshIcon,
-  Download as DownloadIcon,
   VerifiedUser as VerifyIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -225,7 +224,9 @@ const FinancialMonitoringDashboard: React.FC = () => {
               label="Select Date"
               value={selectedDate}
               onChange={(newValue) => newValue && setSelectedDate(newValue)}
-              renderInput={(params) => <TextField {...params} size="small" />}
+              slotProps={{
+                textField: { size: 'small' }
+              }}
             />
           </LocalizationProvider>
           <IconButton onClick={loadDashboardData} color="primary">
@@ -329,7 +330,7 @@ const FinancialMonitoringDashboard: React.FC = () => {
 
       {/* Tabs for different sections */}
       <Paper sx={{ mb: 3 }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+        <Tabs value={activeTab} onChange={(_e, newValue) => setActiveTab(newValue)}>
           <Tab label={`Pending Verifications (${pendingPayments.length})`} />
           <Tab label={`Ready for Approval (${readyApplications.length})`} />
         </Tabs>

@@ -6,6 +6,13 @@ import { RenewalBulkUploadService } from '../services/renewalBulkUploadService';
 import { RenewalBulkProcessor } from '../services/renewalBulkProcessor';
 import { asyncHandler, sendSuccess, ValidationError, AuthenticationError, NotFoundError } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
+import { addRenewalJob, getJobStatus, getQueueStats } from '../services/uploadQueueService';
+import {
+  uploadFrequencyLimiter,
+  concurrentUploadLimiter,
+  systemConcurrentUploadLimiter
+} from '../middleware/uploadRateLimiting';
+import { FileStorageService } from '../services/fileStorageService';
 
 const router = express.Router();
 
@@ -17,10 +24,17 @@ const router = express.Router();
 // MULTER CONFIGURATION FOR FILE UPLOAD
 // =====================================================================================
 
+// Use repository root _upload_file_directory (watched by Python processor)
+// Backend runs from backend/ folder, so go up two levels to reach repository root
+const repoRoot = path.join(__dirname, '..', '..', '..');
+const uploadDir = path.join(repoRoot, process.env.UPLOAD_DIR || '_upload_file_directory');
+
+console.log('📂 [Renewal Bulk Upload] Upload directory:', uploadDir);
+
 // Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../uploads/bulk-renewals');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('✅ Created upload directory:', uploadDir);
 }
 
 // Configure multer storage
@@ -73,18 +87,33 @@ const upload = multer({
  * @access  Private (Admin/Provincial Admin)
  */
 router.post('/upload',
+  // Rate limiting temporarily disabled for testing
+  // uploadFrequencyLimiter,
+  // concurrentUploadLimiter,
+  // systemConcurrentUploadLimiter,
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
-    const userId = (req as any).user?.userId || 1; // TESTING: Default to user ID 1
-    const userRole = (req as any).user?.role || 'admin'; // TESTING: Default to admin
-
-    // TEMPORARILY DISABLED FOR TESTING
-    // if (!userId) {
-    //   throw new AuthenticationError('User not authenticated');
-    // }
+    const userId = (req as any).user?.id || 1;
+    const userRole = (req as any).user?.role_name || 'admin';
 
     if (!req.file) {
       throw new ValidationError('No file uploaded');
+    }
+
+    // Check disk space before processing
+    const diskSpace = await FileStorageService.checkDiskSpace();
+    if (!diskSpace.hasSpace) {
+      fs.unlinkSync(req.file.path);
+      throw new ValidationError(
+        `Insufficient disk space. Only ${diskSpace.freeGB}GB available. Minimum ${5}GB required.`
+      );
+    }
+
+    // Validate file size
+    const sizeValidation = FileStorageService.validateFileSize(req.file.size);
+    if (!sizeValidation.valid) {
+      fs.unlinkSync(req.file.path);
+      throw new ValidationError(sizeValidation.error!);
     }
 
     const { province_code } = req.body;
@@ -104,20 +133,41 @@ router.post('/upload',
       province_code: province_code || null
     });
 
-    // Start background processing
-    // Note: In production, this should be handled by a job queue (Bull, BullMQ, etc.)
-    setImmediate(async () => {
-      try {
-        await RenewalBulkProcessor.processBulkUpload(upload_uuid);
-      } catch (error) {
-        console.error('Background processing error:', error);
-      }
-    });
+    // Add job to queue instead of immediate processing
+    await addRenewalJob(upload_uuid, 10, userRole);
+
+    console.log(`📥 Renewal upload queued: ${upload_uuid} by user ${userId} (${userRole})`);
 
     sendSuccess(res, {
       upload_uuid,
-      message: 'File uploaded successfully. Processing started in background.'
+      status: 'queued',
+      message: 'File uploaded successfully and queued for processing'
     }, 'File uploaded successfully', 201);
+  })
+);
+
+/**
+ * @route   GET /api/v1/renewal-bulk-upload/queue/status
+ * @desc    Get queue statistics
+ * @access  Private (Admin)
+ */
+router.get('/queue/status',
+  asyncHandler(async (req: Request, res: Response) => {
+    const stats = await getQueueStats('renewal');
+    sendSuccess(res, stats, 'Queue statistics retrieved successfully');
+  })
+);
+
+/**
+ * @route   GET /api/v1/renewal-bulk-upload/job/:upload_uuid
+ * @desc    Get job status from queue
+ * @access  Private
+ */
+router.get('/job/:upload_uuid',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { upload_uuid } = req.params;
+    const jobStatus = await getJobStatus(upload_uuid, 'renewal');
+    sendSuccess(res, jobStatus, 'Job status retrieved successfully');
   })
 );
 
@@ -158,7 +208,7 @@ router.get('/fraud-cases',
         bu.file_name as upload_file_name,
         bu.uploaded_at as upload_date
       FROM renewal_fraud_cases fc
-      LEFT JOIN members m ON fc.member_id = m.member_id
+      LEFT JOIN members_consolidated m ON fc.member_id = m.member_id
       LEFT JOIN renewal_bulk_uploads bu ON fc.upload_id = bu.upload_id
       WHERE 1=1
         ${fraud_type ? 'AND fc.fraud_type = $1' : ''}

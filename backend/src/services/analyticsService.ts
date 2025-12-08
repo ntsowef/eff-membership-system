@@ -255,7 +255,7 @@ export class AnalyticsService {
            COUNT(DISTINCT CASE WHEN md.delivery_status IN ('Delivered', 'Opened', 'Clicked', 'Read') THEN md.id END)) * 100, 2
         ) as engagement_rate
       FROM message_deliveries md
-      JOIN members m ON md.recipient_id = m.member_id
+      JOIN members_consolidated m ON md.recipient_id = m.member_id
       JOIN provinces p ON m.province_code = p.province_code
       WHERE md.recipient_type = 'Member' ${whereClause}
       GROUP BY m.province_code, p.province_name

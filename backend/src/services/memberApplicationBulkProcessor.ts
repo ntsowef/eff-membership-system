@@ -1,6 +1,7 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import { MemberApplicationBulkUploadService, BulkApplicationRecord, ProcessingResult } from './memberApplicationBulkUploadService';
+import { BatchProcessingService } from './batchProcessingService';
 
 // =====================================================================================
 // PROCESSOR CLASS
@@ -55,32 +56,90 @@ export class MemberApplicationBulkProcessor {
         total_records: records.length
       });
 
-      // Step 4: Process each record
-      for (const record of records) {
-        try {
-          await this.processRecord(upload.upload_id, record, result);
-          result.processed_records++;
+      // Step 4: Validate and filter records
+      console.log(`[BulkProcessor] Validating records...`);
+      const validRecords: BulkApplicationRecord[] = [];
+      const invalidRecords: BulkApplicationRecord[] = [];
 
-          // Update progress every 10 records
-          if (result.processed_records % 10 === 0) {
-            await MemberApplicationBulkUploadService.updateUploadProgress(upload_uuid, {
-              processed_records: result.processed_records,
-              successful_records: result.successful_records,
-              failed_records: result.failed_records,
-              duplicate_records: result.duplicate_records
-            });
-          }
-        } catch (error: any) {
-          console.error(`Error processing row ${record.row_number}:`, error);
+      for (const record of records) {
+        const validation = MemberApplicationBulkUploadService.validateRecord(record);
+
+        if (!validation.passed) {
           result.failed_records++;
           result.errors.push({
             row: record.row_number,
-            error: error.message
+            error: validation.errors.join('; ')
+          });
+          invalidRecords.push(record);
+
+          // Save failed record
+          await this.saveUploadRecord(upload.upload_id, record, 'Failed', validation.errors.join('; '));
+        } else {
+          // Check for duplicates
+          const duplicateCheck = await MemberApplicationBulkUploadService.checkDuplicate(record.id_number);
+
+          if (duplicateCheck.shouldBlock) {
+            const category = duplicateCheck.category || 'Duplicate';
+
+            if (category === 'DUPLICATE_ACTIVE' || category === 'DUPLICATE_PENDING') {
+              result.duplicate_records++;
+            } else {
+              result.failed_records++;
+            }
+
+            result.errors.push({
+              row: record.row_number,
+              error: duplicateCheck.reason || 'Duplicate or blocked application'
+            });
+
+            const recordStatus = category.startsWith('DUPLICATE') ? 'Duplicate' : 'Failed';
+            await this.saveUploadRecord(upload.upload_id, record, recordStatus, duplicateCheck.reason || 'Blocked');
+          } else {
+            validRecords.push(record);
+          }
+        }
+
+        result.processed_records++;
+
+        // Update progress every 50 records during validation
+        if (result.processed_records % 50 === 0) {
+          await MemberApplicationBulkUploadService.updateUploadProgress(upload_uuid, {
+            processed_records: result.processed_records,
+            successful_records: result.successful_records,
+            failed_records: result.failed_records,
+            duplicate_records: result.duplicate_records
           });
         }
       }
 
-      // Step 5: Final update
+      console.log(`[BulkProcessor] Validation complete: ${validRecords.length} valid, ${invalidRecords.length} invalid`);
+
+      // Step 5: Batch insert valid records
+      if (validRecords.length > 0) {
+        console.log(`[BulkProcessor] Batch inserting ${validRecords.length} valid records...`);
+
+        const batchResult = await BatchProcessingService.batchInsertApplications(validRecords);
+
+        result.successful_records = batchResult.successCount;
+        result.failed_records += batchResult.failureCount;
+        result.errors.push(...batchResult.errors);
+
+        // Save upload records - only mark as Success those that actually succeeded
+        console.log(`[BulkProcessor] Saving upload records...`);
+
+        // Save successful records
+        for (const record of batchResult.successfulRecords) {
+          await this.saveUploadRecord(upload.upload_id, record, 'Success', null);
+        }
+
+        // Save failed records (from batch insert failures)
+        for (const record of batchResult.failedRecords) {
+          const error = batchResult.errors.find(e => e.row === record.row_number);
+          await this.saveUploadRecord(upload.upload_id, record, 'Failed', error?.error || 'Batch insert failed');
+        }
+      }
+
+      // Step 6: Final update
       await MemberApplicationBulkUploadService.updateUploadProgress(upload_uuid, {
         processed_records: result.processed_records,
         successful_records: result.successful_records,

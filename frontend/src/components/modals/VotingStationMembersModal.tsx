@@ -63,7 +63,7 @@ const VotingStationMembersModal: React.FC<VotingStationMembersModalProps> = ({
   const stationInfo = membersData?.data?.station_info;
   const pagination = membersData?.data?.pagination;
 
-  const handlePageChange = (event: React.ChangeEvent<unknown>, newPage: number) => {
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, newPage: number) => {
     setPage(newPage);
   };
 

@@ -62,8 +62,7 @@ interface WardAuditTableProps {
 
 const WardAuditTable: React.FC<WardAuditTableProps> = ({
   onExportSuccess,
-  onExportError,
-  onShowMessage
+  onExportError
 }) => {
   const {
     wardAuditData,
@@ -87,7 +86,7 @@ const WardAuditTable: React.FC<WardAuditTableProps> = ({
   const setSelectedProvince = useSetSelectedProvince();
   const setSelectedMunicipality = useSetSelectedMunicipality();
 
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const municipalityContext = useMunicipalityContext();
   const { secureGet, getProvinceFilter } = useSecureApi();
 
@@ -203,12 +202,20 @@ const WardAuditTable: React.FC<WardAuditTableProps> = ({
 
   const handleExportPDF = async () => {
     try {
+      console.log('🔄 Starting PDF export with filters:', wardFilters);
       const blob = await wardMembershipAuditApi.exportWardAuditPDF(wardFilters);
       const filename = generateExportFilename('ward-audit', 'pdf');
       downloadBlob(blob, filename);
       onExportSuccess();
-    } catch (error) {
-      onExportError(error.message || 'Export failed');
+    } catch (error: any) {
+      console.error('❌ Export failed:', error);
+
+      // Check if it's an authentication error
+      if (error.response?.status === 401) {
+        onExportError('Authentication failed. Please log out and log back in, then try again.');
+      } else {
+        onExportError(error.message || 'Export failed');
+      }
     }
   };
 

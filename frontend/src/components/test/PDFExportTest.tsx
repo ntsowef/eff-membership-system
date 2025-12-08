@@ -15,7 +15,7 @@ import {
   MenuItem,
   Chip
 } from '@mui/material';
-import { Download, PictureAsPdf, TableChart, Description } from '@mui/icons-material';
+import { PictureAsPdf, TableChart, Description } from '@mui/icons-material';
 
 const PDFExportTest: React.FC = () => {
   const [loading, setLoading] = useState(false);

@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { Box, Typography, Alert, Button, Card, CardContent, CircularProgress } from '@mui/material';
-import { CheckCircle, Error, Storage } from '@mui/icons-material';
+import { CheckCircle, Storage } from '@mui/icons-material';
 import { useUI } from '../../store';
 import * as LeadershipService from '../../services/leadershipApi';
 
@@ -21,7 +21,7 @@ const DatabaseTest: React.FC = () => {
     try {
       console.log('Testing leadership appointments API...');
       
-      const appointments = await LeadershipAPI.getCurrentAppointments({ limit: 5 });
+      const appointments = await LeadershipAPI.getCurrentAppointments({ limit: 5 } as any);
       
       setResults({
         success: true,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -30,7 +30,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import { useSecureApi } from '../../hooks/useSecureApi';
-import { wardMembershipAuditApi } from '../../services/wardMembershipAuditApi';
 import { useWardMembershipAuditStore, useTrendsFilters, useUpdateTrendsFilters } from '../../store/wardMembershipAuditStore';
 import { GROWTH_TREND_COLORS } from '../../types/wardMembershipAudit';
 import type { GrowthTrend } from '../../types/wardMembershipAudit';
@@ -54,7 +53,7 @@ const WardTrendsAnalysis: React.FC<WardTrendsAnalysisProps> = ({
   const trendsFilters = useTrendsFilters();
   const updateTrendsFilters = useUpdateTrendsFilters();
 
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const municipalityContext = useMunicipalityContext();
   const { secureGet, getProvinceFilter } = useSecureApi();
 

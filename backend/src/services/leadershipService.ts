@@ -2,6 +2,9 @@ import { LeadershipModel, CreateAppointmentData, UpdateAppointmentData, Leadersh
 import { ElectionModel, CreateCandidateData, UpdateCandidateData } from '../models/elections';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
 import { executeQuery, executeQuerySingle } from '../config/database';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface ElectionCreationData {
   election_name: string;
@@ -49,7 +52,7 @@ export class LeadershipService {
       // Validate member exists - ALL MEMBERS ARE NOW ELIGIBLE
       // Skip member validation for now since everyone is eligible
       // const member = await executeQuerySingle(
-      //   'SELECT id FROM members WHERE id = ? ',
+      //   'SELECT id FROM members_consolidated WHERE id = ? ',
       //   [appointmentData.member_id]
       // );
       //
@@ -136,6 +139,20 @@ export class LeadershipService {
     }
   }
 
+  // Delete appointment (hard delete - for testing/cleanup purposes)
+  static async deleteAppointment(appointmentId: number): Promise<boolean> {
+    try {
+      const appointment = await LeadershipModel.getAppointmentById(appointmentId);
+      if (!appointment) {
+        throw new NotFoundError('Appointment not found');
+      }
+
+      return await LeadershipModel.deleteAppointment(appointmentId);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Create new election
   static async createElection(electionData: ElectionCreationData): Promise<number> {
     try {
@@ -200,7 +217,7 @@ export class LeadershipService {
 
       // Validate member exists and is eligible
       const member = await executeQuerySingle(
-        'SELECT member_id, membership_status FROM members WHERE member_id = ? ',
+        'SELECT member_id, membership_status FROM members_consolidated WHERE member_id = ? ',
         [candidateData.member_id]
       );
 
@@ -383,20 +400,20 @@ export class LeadershipService {
 
       switch (hierarchyLevel) {
         case 'National':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active"';
+          query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active"';
           break;
         case 'Province':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND province_id = ? ';
+          query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND province_id = ? ';
           params = [entityId];
           break;
-        case 'Region' : query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND region_id = $1';
+        case 'Region' : query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND region_id = $1';
           params = [entityId];
           break;
         case 'Municipality':
-          query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND municipality_id = ? ';
+          query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND municipality_id = ? ';
           params = [entityId];
           break;
-        case 'Ward' : query = 'SELECT COUNT(*) as count FROM members WHERE membership_status = "Active" AND ward_id = $1';
+        case 'Ward' : query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND ward_id = $1';
           params = [entityId];
           break;
         default:
@@ -520,15 +537,15 @@ export class LeadershipService {
           COALESCE(m.cell_number, '') as cell_number,
           'Active' as membership_status,
           COALESCE(m.province_code, '') as province_code,
-          COALESCE(m.province_name, 'Unknown') as province_name,
+          COALESCE(m.province_name, '') as province_name,
           COALESCE(m.district_code, '') as district_code,
-          COALESCE(m.district_name, 'Unknown') as district_name,
+          COALESCE(m.district_name, '') as district_name,
           COALESCE(m.municipality_code, '') as municipality_code,
-          COALESCE(m.municipality_name, 'Unknown') as municipality_name,
+          COALESCE(m.municipality_name, '') as municipality_name,
           COALESCE(m.municipality_type, '') as municipality_type,
           COALESCE(m.ward_code, '') as ward_code,
-          COALESCE(m.ward_name, 'Unknown') as ward_name,
-          COALESCE(m.ward_number, 'Unknown') as ward_number,
+          COALESCE(m.ward_name, '') as ward_name,
+          m.ward_number,
           COALESCE(m.member_created_at, CURRENT_TIMESTAMP) as membership_date,
           COALESCE(EXTRACT(YEAR FROM AGE(CURRENT_TIMESTAMP, m.member_created_at)) * 12 +
                    EXTRACT(MONTH FROM AGE(CURRENT_TIMESTAMP, m.member_created_at)), 0)::INTEGER as membership_duration_months,
@@ -666,28 +683,51 @@ export class LeadershipService {
   // Get municipalities by province
   static async getMunicipalitiesByProvince(provinceId: number): Promise<any[]> {
     try {
-      const query = `
-        SELECT DISTINCT
-          mu.municipality_id as id,
-          mu.municipality_code,
-          mu.municipality_name,
-          mu.district_code,
-          p.province_name,
-          COUNT(DISTINCT m.member_id) as member_count,
-          COUNT(DISTINCT la.id) as leadership_appointments
-        FROM municipalities mu
-        JOIN districts d ON mu.district_code = d.district_code
-        JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN vw_member_details m ON mu.municipality_code = m.municipality_code
-        LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Municipality'
-          AND la.entity_id = mu.municipality_id
-          AND la.appointment_status = 'Active'
-        WHERE p.province_id = ? AND mu.municipality_name IS NOT NULL
-        GROUP BY mu.municipality_id, mu.municipality_code, mu.municipality_name, mu.district_code, p.province_name
-        ORDER BY mu.municipality_name
-      `;
+      // First get the province code from province ID
+      const province = await prisma.provinces.findUnique({
+        where: { province_id: provinceId },
+        select: { province_code: true }
+      });
 
-      return await executeQuery(query, [provinceId]);
+      if (!province) {
+        return [];
+      }
+
+      // Get all districts for this province
+      const districts = await prisma.districts.findMany({
+        where: {
+          province_code: province.province_code,
+          is_active: true
+        },
+        select: {
+          district_code: true
+        }
+      });
+
+      const districtCodes = districts.map(d => d.district_code);
+
+      // Get municipalities by district codes
+      const municipalities = await prisma.municipalities.findMany({
+        where: {
+          district_code: {
+            in: districtCodes
+          },
+          is_active: true
+        },
+        select: {
+          municipality_id: true,
+          municipality_code: true,
+          municipality_name: true,
+          municipality_type: true,
+          district_code: true,
+          parent_municipality_id: true
+        },
+        orderBy: {
+          municipality_name: 'asc'
+        }
+      });
+
+      return municipalities;
     } catch (error) {
       throw error;
     }
@@ -696,27 +736,41 @@ export class LeadershipService {
   // Get municipalities by province CODE
   static async getMunicipalitiesByProvinceCode(provinceCode : string): Promise<any[]> {
     try {
-      const query = `
-        SELECT DISTINCT
-          mu.id,
-          mu.municipality_code,
-          mu.municipality_name,
-          mu.province_code,
-          p.province_name,
-          COUNT(DISTINCT m.member_id) as member_count,
-          COUNT(DISTINCT la.id) as leadership_appointments
-        FROM municipalities mu
-        JOIN provinces p ON mu.province_code = p.province_code
-        LEFT JOIN vw_member_details m ON mu.municipality_code = m.municipality_code
-        LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Municipality'
-          AND la.entity_id = mu.id
-          AND la.appointment_status = 'Active'
-        WHERE p.province_code = ? AND mu.municipality_name IS NOT NULL
-        GROUP BY mu.id, mu.municipality_code, mu.municipality_name, mu.province_code, p.province_name
-        ORDER BY mu.municipality_name
-      `;
+      // Get all districts for this province
+      const districts = await prisma.districts.findMany({
+        where: {
+          province_code: provinceCode,
+          is_active: true
+        },
+        select: {
+          district_code: true
+        }
+      });
 
-      return await executeQuery(query, [provinceCode]);
+      const districtCodes = districts.map(d => d.district_code);
+
+      // Get municipalities by district codes
+      const municipalities = await prisma.municipalities.findMany({
+        where: {
+          district_code: {
+            in: districtCodes
+          },
+          is_active: true
+        },
+        select: {
+          municipality_id: true,
+          municipality_code: true,
+          municipality_name: true,
+          municipality_type: true,
+          district_code: true,
+          parent_municipality_id: true
+        },
+        orderBy: {
+          municipality_name: 'asc'
+        }
+      });
+
+      return municipalities;
     } catch (error) {
       throw error;
     }
@@ -886,15 +940,12 @@ export class LeadershipService {
       }
 
       // Filter out members already in War Council
+      // War Council position IDs: 1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25
       const warCouncilMembers = await executeQuery(`
         SELECT DISTINCT la.member_id
         FROM leadership_appointments la
-        JOIN leadership_positions lp ON la.position_id = lp.id
-        JOIN leadership_structures ls ON lp.structure_id = ls.id
-        WHERE ls.structure_code = 'WCS'
+        WHERE la.position_id IN (1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 23, 24, 25)
           AND la.appointment_status = 'Active'
-          AND la.hierarchy_level = 'National'
-          AND la.entity_id = 1
       `);
 
       const warCouncilMemberIds = warCouncilMembers.map(m => m.member_id);

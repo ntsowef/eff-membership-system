@@ -15,6 +15,7 @@ export interface District {
 }
 
 export interface Municipality {
+  municipality_id: number;
   municipality_code: string;
   municipality_name: string;
   district_code: string | null;
@@ -152,6 +153,7 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
+          municipality_id,
           municipality_code,
           municipality_name,
           district_code,
@@ -171,13 +173,15 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
-          municipality_code,
-          municipality_name,
-          district_code,
-          province_code,
-          municipality_type
-        FROM municipalities
-        WHERE municipality_code = ?
+          m.municipality_id,
+          m.municipality_code,
+          m.municipality_name,
+          m.district_code,
+          d.province_code,
+          m.municipality_type
+        FROM municipalities m
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        WHERE m.municipality_code = ?
       `;
 
       return await executeQuerySingle<Municipality>(query, [code]);
@@ -190,6 +194,7 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
+          m.municipality_id,
           m.municipality_code,
           m.municipality_name,
           m.district_code,
@@ -213,6 +218,7 @@ export class GeographicModel {
     try {
       const query = `
         SELECT
+          m.municipality_id,
           m.municipality_code,
           m.municipality_name,
           m.district_code,
@@ -294,6 +300,46 @@ export class GeographicModel {
 
   static async getWardsByMunicipality(municipalityCode: string): Promise<Ward[]> {
     try {
+      // First, check if this is a metro municipality
+      const municipalityQuery = `
+        SELECT municipality_id, municipality_type
+        FROM municipalities
+        WHERE municipality_code = ?
+      `;
+
+      const municipality = await executeQuerySingle<{ municipality_id: number; municipality_type: string }>(
+        municipalityQuery,
+        [municipalityCode]
+      );
+
+      // If it's a Metropolitan municipality, get wards from all its sub-regions
+      if (municipality && municipality.municipality_type === 'Metropolitan') {
+        const query = `
+          SELECT
+            w.ward_id as id,
+            w.ward_code,
+            w.ward_number,
+            w.ward_name,
+            w.municipality_code,
+            m.district_code,
+            d.province_code,
+            m.municipality_name,
+            d.district_name,
+            p.province_name,
+            w.created_at,
+            w.updated_at
+          FROM wards w
+          LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
+          LEFT JOIN districts d ON m.district_code = d.district_code
+          LEFT JOIN provinces p ON d.province_code = p.province_code
+          WHERE m.parent_municipality_id = ?
+          ORDER BY w.ward_number
+        `;
+
+        return await executeQuery<Ward>(query, [municipality.municipality_id]);
+      }
+
+      // Otherwise, get wards directly for this municipality
       const query = `
         SELECT
           w.ward_id as id,

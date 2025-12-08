@@ -1,6 +1,6 @@
 import React from 'react';
-import { usePermissionCheck, RolePermissions } from '../../hooks/useRolePermissions';
-import { Box, Alert, Typography } from '@mui/material';
+import { usePermissionCheck, type RolePermissions } from '../../hooks/useRolePermissions';
+import { Alert, Typography } from '@mui/material';
 import { Lock as LockIcon } from '@mui/icons-material';
 
 interface PermissionGateProps {
@@ -22,7 +22,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   showFallback = false,
   adminLevels
 }) => {
-  const { hasPermission, hasAnyPermission, hasAllPermissions, getAdminLevelDisplay } = usePermissionCheck();
+  const { hasPermission, hasAnyPermission, hasAllPermissions } = usePermissionCheck();
   const { user } = usePermissionCheck().permissions as any; // Access user from the hook
 
   // Check admin level restrictions

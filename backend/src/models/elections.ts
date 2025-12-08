@@ -130,14 +130,14 @@ export class ElectionModel {
           END as entity_name
         FROM leadership_elections le
         LEFT JOIN leadership_positions lp ON le.position_id = lp.id
-        LEFT JOIN members creator ON le.created_by = creator.member_id
+        LEFT JOIN members_consolidated creator ON le.created_by = creator.member_id
         LEFT JOIN election_candidates ec ON le.id = ec.election_id
         LEFT JOIN (
           SELECT 
             ec.election_id,
             CONCAT(m.firstname, ' ', m.surname) as member_name
           FROM election_candidates ec
-          LEFT JOIN members m ON ec.member_id = m.member_id
+          LEFT JOIN members_consolidated m ON ec.member_id = m.member_id
           WHERE ec.is_winner = TRUE
         ) winner ON le.id = winner.election_id
         LEFT JOIN provinces p ON le.entity_id = p.province_id AND le.hierarchy_level = 'Province'
@@ -176,7 +176,7 @@ export class ElectionModel {
           END as entity_name
         FROM leadership_elections le
         LEFT JOIN leadership_positions lp ON le.position_id = lp.id
-        LEFT JOIN members creator ON le.created_by = creator.member_id
+        LEFT JOIN members_consolidated creator ON le.created_by = creator.member_id
         LEFT JOIN provinces p ON le.entity_id = p.province_id AND le.hierarchy_level = 'Province'
         LEFT JOIN regions r ON le.entity_id = r.region_id AND le.hierarchy_level = 'Region'
         LEFT JOIN municipalities mun ON le.entity_id = mun.municipality_id AND le.hierarchy_level = 'Municipality'
@@ -245,7 +245,7 @@ export class ElectionModel {
           le.election_name,
           lp.position_name
         FROM election_candidates ec
-        LEFT JOIN members m ON ec.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON ec.member_id = m.member_id
         LEFT JOIN leadership_elections le ON ec.election_id = le.id
         LEFT JOIN leadership_positions lp ON le.position_id = lp.id
         WHERE ec.election_id = ?
@@ -380,7 +380,7 @@ export class ElectionModel {
             ELSE 0
           END as vote_percentage
         FROM election_candidates ec
-        LEFT JOIN members m ON ec.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON ec.member_id = m.member_id
         WHERE ec.election_id = ? AND ec.candidate_status = 'Approved'
         ORDER BY ec.votes_received DESC
       `;

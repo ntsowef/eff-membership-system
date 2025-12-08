@@ -92,7 +92,7 @@ export class RenewalService {
       const query = `
         SELECT r.*, m.firstname, m.surname, m.email_address, m.cell_number
         FROM membership_renewals r
-        LEFT JOIN members m ON r.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON r.member_id = m.member_id
         WHERE r.renewal_due_date <= CURRENT_DATE
         AND r.auto_renewal = TRUE
         AND r.renewal_status = 'Pending'
@@ -265,7 +265,7 @@ export class RenewalService {
         m.email_address,
         m.cell_number
       FROM membership_renewals r
-      LEFT JOIN members m ON r.member_id = m.member_id
+      LEFT JOIN members_consolidated m ON r.member_id = m.member_id
       WHERE r.renewal_due_date = DATE_ADD(CURRENT_DATE, INTERVAL ? DAY)
       AND r.renewal_status IN ('Pending', 'Processing')
       AND NOT EXISTS (

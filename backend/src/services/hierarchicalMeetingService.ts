@@ -148,7 +148,7 @@ export class HierarchicalMeetingService {
           la.entity_id
         FROM leadership_appointments la
         JOIN leadership_positions lp ON la.position_id = lp.id
-        JOIN members m ON la.member_id = m.member_id
+        JOIN members_consolidated m ON la.member_id = m.member_id
         WHERE la.appointment_status = 'Active'
         AND lp.is_active = TRUE
       `;
@@ -206,7 +206,7 @@ export class HierarchicalMeetingService {
           m.firstname,
           m.surname,
           m.email
-        FROM members m
+        FROM members_consolidated m
         WHERE m.membership_status = 'Active'
       `;
 
@@ -272,7 +272,7 @@ export class HierarchicalMeetingService {
           la.entity_id
         FROM leadership_appointments la
         JOIN leadership_positions lp ON la.position_id = lp.id
-        JOIN members m ON la.member_id = m.member_id
+        JOIN members_consolidated m ON la.member_id = m.member_id
         WHERE la.appointment_status = 'Active'
         AND lp.is_active = TRUE
         AND la.hierarchy_level = 'National'
@@ -389,7 +389,7 @@ export class HierarchicalMeetingService {
             WHEN lp.position_code LIKE 'NEC%' OR lp.position_code LIKE 'PEC%' THEN 3
             ELSE 4
           END as meeting_invitation_priority
-        FROM members m
+        FROM members_consolidated m
         INNER JOIN leadership_appointments la ON m.member_id = la.member_id
         INNER JOIN leadership_positions lp ON la.position_id = lp.id
         WHERE la.appointment_status = 'Active'
@@ -567,7 +567,7 @@ export class HierarchicalMeetingService {
         la.entity_id,
         la.hierarchy_level as entity_type,
         lp.position_order
-      FROM members m
+      FROM members_consolidated m
       INNER JOIN leadership_appointments la ON m.member_id = la.member_id
       INNER JOIN leadership_positions lp ON la.position_id = lp.id
       INNER JOIN memberships ms ON m.member_id = ms.member_id
@@ -649,7 +649,7 @@ export class HierarchicalMeetingService {
         END as meeting_invitation_priority,
         la.entity_id as province_id,
         lp.position_order
-      FROM members m
+      FROM members_consolidated m
       INNER JOIN leadership_appointments la ON m.member_id = la.member_id
       INNER JOIN leadership_positions lp ON la.position_id = lp.id
       INNER JOIN memberships ms ON m.member_id = ms.member_id
@@ -722,7 +722,7 @@ export class HierarchicalMeetingService {
           WHEN lp.position_code LIKE 'NEC%' OR lp.position_code LIKE 'PEC%' OR lp.position_code LIKE 'MEC%' OR lp.position_code LIKE 'BCT%' THEN 2
           ELSE 3
         END as meeting_invitation_priority
-      FROM members m
+      FROM members_consolidated m
       INNER JOIN leadership_appointments la ON m.member_id = la.member_id
       INNER JOIN leadership_positions lp ON la.position_id = lp.id
       WHERE la.appointment_status = 'Active'
@@ -953,7 +953,7 @@ export class HierarchicalMeetingService {
     limit?: number;
     offset?: number;
     sort?: string;
-    order$1: 'asc' | 'desc';
+    order: 'asc' | 'desc';
   }): Promise<{ meetings: any[]; total: number }> {
     try {
       let whereConditions: string[] = [];
@@ -991,7 +991,7 @@ export class HierarchicalMeetingService {
 
       // Get meetings with details
       const sortColumn = filters.sort || 'meeting_date';
-      const sortOrder = filters.order$1 || 'desc';
+      const sortOrder = filters.order || 'desc';
       const limit = filters.limit || 50;
       const offset = filters.offset || 0;
 

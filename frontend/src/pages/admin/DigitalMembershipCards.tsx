@@ -79,7 +79,7 @@ const DigitalMembershipCards: React.FC = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
@@ -203,6 +203,7 @@ const DigitalMembershipCards: React.FC = () => {
             variant="outlined"
             size="small"
             icon={<QrCode />}
+            sx={{ borderRadius: '50px' }} // Pill shape
           />
           <Chip
             label="PDF Generation: Ready"
@@ -210,6 +211,7 @@ const DigitalMembershipCards: React.FC = () => {
             variant="outlined"
             size="small"
             icon={<Download />}
+            sx={{ borderRadius: '50px' }} // Pill shape
           />
           <Chip
             label="Security Features: Enabled"
@@ -217,6 +219,7 @@ const DigitalMembershipCards: React.FC = () => {
             variant="outlined"
             size="small"
             icon={<Security />}
+            sx={{ borderRadius: '50px' }} // Pill shape
           />
           <Chip
             label="Bulk Processing: Available"
@@ -224,6 +227,7 @@ const DigitalMembershipCards: React.FC = () => {
             variant="outlined"
             size="small"
             icon={<GroupAdd />}
+            sx={{ borderRadius: '50px' }} // Pill shape
           />
         </Box>
       </Paper>
@@ -301,7 +305,7 @@ const DigitalMembershipCards: React.FC = () => {
                                 {template}
                               </Typography>
                               <Typography variant="body2">
-                                {percentage}%
+                                {String(percentage)}%
                               </Typography>
                             </Box>
                             <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8 }}>

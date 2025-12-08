@@ -16,7 +16,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
+
   Chip,
   LinearProgress,
   Alert,
@@ -32,7 +32,7 @@ import {
   People,
   Refresh,
   PictureAsPdf,
-  GetApp,
+
   Analytics,
   Timeline,
   LocationOn,
@@ -69,7 +69,7 @@ interface RenewalAnalyticsProps {
   onExportReport?: (period: string) => void;
 }
 
-const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) => {
+const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport: _onExportReport }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('last_12_months');
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -279,14 +279,14 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="primary.main" fontWeight="bold">
-                  {formatPercentage(retention_metrics.overall_retention_rate)}
+                  {formatPercentage((retention_metrics as any).overall_retention_rate || 0)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Overall Retention Rate
                 </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={retention_metrics.overall_retention_rate} 
+                <LinearProgress
+                  variant="determinate"
+                  value={(retention_metrics as any).overall_retention_rate || 0}
                   color="primary"
                   sx={{ mt: 1, height: 8, borderRadius: 4 }}
                 />
@@ -311,14 +311,14 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="success.main" fontWeight="bold">
-                  {formatPercentage(retention_metrics.long_term_retention)}
+                  {formatPercentage((retention_metrics as any).long_term_retention || 0)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Long-term Retention
                 </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={retention_metrics.long_term_retention} 
+                <LinearProgress
+                  variant="determinate"
+                  value={(retention_metrics as any).long_term_retention || 0}
                   color="success"
                   sx={{ mt: 1, height: 8, borderRadius: 4 }}
                 />
@@ -347,7 +347,7 @@ const RenewalAnalytics: React.FC<RenewalAnalyticsProps> = ({ onExportReport }) =
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
-                Average Membership Duration: <strong>{retention_metrics.average_membership_duration} years</strong>
+                Average Membership Duration: <strong>{(retention_metrics as any).average_membership_duration || 0} years</strong>
               </Typography>
             </Grid>
             <Grid item xs={12} sm={6}>

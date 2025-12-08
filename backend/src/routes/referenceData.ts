@@ -24,6 +24,11 @@ interface Qualification {
   level_order: number;
 }
 
+interface MembershipStatus {
+  status_id: number;
+  status_name: string;
+}
+
 /**
  * GET /api/v1/reference/languages
  * Get all available languages
@@ -292,6 +297,37 @@ router.get('/qualifications/:id', async (req, res) => {
     });
   } catch (error) {
     const dbError = createDatabaseError('Failed to fetch qualification', error);
+    return res.status(500).json({
+      success: false,
+      message: dbError.message,
+      error: process.env.NODE_ENV === 'development' ? dbError.details : undefined
+    });
+  }
+});
+
+/**
+ * GET /api/v1/reference/membership-statuses
+ * Get all membership statuses
+ */
+router.get('/membership-statuses', async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        status_id,
+        status_name
+      FROM membership_statuses
+      ORDER BY status_name ASC
+    `;
+
+    const statuses = await executeQuery<MembershipStatus>(query);
+
+    return res.json({
+      success: true,
+      data: statuses,
+      message: `Retrieved ${statuses.length} membership statuses`
+    });
+  } catch (error) {
+    const dbError = createDatabaseError('Failed to fetch membership statuses', error);
     return res.status(500).json({
       success: false,
       message: dbError.message,

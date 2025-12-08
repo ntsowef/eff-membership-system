@@ -93,7 +93,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Add request interceptor to include auth token
-      const requestInterceptor = (config: any) => {
+      (config: any) => {
         const authToken = localStorage.getItem('authToken');
         if (authToken) {
           config.headers.Authorization = `Bearer ${authToken}`;
@@ -102,7 +102,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
 
       // Add response interceptor to handle auth errors
-      const responseInterceptor = (error: any) => {
+      (error: any) => {
         if (error.response?.status === 401) {
           // Unauthorized, logout user
           logout();

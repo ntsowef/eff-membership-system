@@ -149,7 +149,9 @@ router.get('/membership',
       filters.municipal_code = geographicContext.municipal_code;
     }
 
-    const membershipAnalytics = await AnalyticsModel.getMembershipAnalytics(filters);
+    // Use optimized model with materialized views for better performance
+    const { AnalyticsOptimizedModel } = await import('../models/analyticsOptimized');
+    const membershipAnalytics = await AnalyticsOptimizedModel.getMembershipAnalytics(filters);
 
     // Log audit trail (skip if no user - development mode)
     if (req.user?.id) {

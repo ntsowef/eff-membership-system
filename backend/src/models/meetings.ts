@@ -271,76 +271,46 @@ export class MeetingModel {
   // Create new hierarchical meeting (adapted to work with existing database schema)
   static async createMeeting(meetingData: CreateMeetingData): Promise<number> {
     try {
-      // Convert meeting_date and meeting_time to start_datetime and end_datetime
-      const meetingDate = meetingData.meeting_date;
-      const meetingTime = meetingData.meeting_time;
-      const endTime = meetingData.end_time;
-      const durationMinutes = meetingData.duration_minutes || 120;
-
-      // Ensure we have string values for date/time - simplified approach
-      let dateStr: string;
-      let timeStr: string;
-
-      // Handle date conversion more safely
-      if (typeof meetingDate === 'string') {
-        dateStr = meetingDate;
-      } else {
-        // Convert any non-string to string, handling Date objects
-        const dateObj = meetingDate as any;
-        if (dateObj && typeof dateObj.toISOString === 'function') {
-          dateStr = dateObj.toISOString().split('T')[0];
-        } else {
-          dateStr = String(meetingDate);
-        }
+      // Format date properly - extract just the date part if it's an ISO string
+      let dateStr = String(meetingData.meeting_date);
+      if (dateStr.includes('T')) {
+        dateStr = dateStr.split('T')[0]; // Extract YYYY-MM-DD from ISO string
       }
-
-      // Handle time conversion
-      timeStr = String(meetingTime);
-
-      // Create start_datetime with better error handling
-      const startDateTime = new Date(`${dateStr}T${timeStr}:00`);
-
-      if (isNaN(startDateTime.getTime())) {
-        throw new Error(`Invalid meeting date/time: ${dateStr}T${timeStr}:00`);
-      }
-
-      // Create end_datetime (either from end_time or calculated from duration)
-      let endDateTime: Date;
-      if (endTime && endTime.trim() !== '') {
-        endDateTime = new Date(`${dateStr}T${endTime}:00`);
-        if (isNaN(endDateTime.getTime())) {
-          throw new Error(`Invalid end time: ${endTime}`);
-        }
-      } else {
-        endDateTime = new Date(startDateTime.getTime() + (durationMinutes * 60000));
-      }
+      const timeStr = String(meetingData.meeting_time);
+      const endTimeStr = meetingData.end_time ? String(meetingData.end_time) : null;
 
       const query = `
         INSERT INTO meetings (
-          title, description, hierarchy_level, entity_id, meeting_type,
-          start_datetime, end_datetime, location, virtual_meeting_link,
-          meeting_status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          meeting_title, meeting_type_id, hierarchy_level, entity_id,
+          meeting_date, meeting_time, end_time, duration_minutes,
+          location, virtual_meeting_link, meeting_platform, meeting_status,
+          description, objectives, quorum_required, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING meeting_id
       `;
 
       const params = [
-        meetingData.title, // Use 'title' not 'meeting_title'
-        meetingData.description || null,
+        meetingData.title,
+        meetingData.meeting_type_id,
         meetingData.hierarchy_level,
-        meetingData.entity_id || 1, // Default to 1 for National meetings
-        'Regular', // Map to existing enum values - we'll need to enhance this later
-        startDateTime,
-        endDateTime,
+        meetingData.entity_id || 1,
+        dateStr,
+        timeStr,
+        endTimeStr,
+        meetingData.duration_minutes || 120,
         meetingData.location || null,
         meetingData.virtual_meeting_link || null,
-        'Scheduled', // Default status for new meetings
-        meetingData.created_by || 1 // Default user ID
+        meetingData.meeting_platform || 'In-Person',
+        'Scheduled',
+        meetingData.description || null,
+        meetingData.objectives || null,
+        meetingData.quorum_required || 0,
+        meetingData.created_by || 1
       ];
 
       const result = await executeQuery(query, params);
-      return result.insertId;
+      return result[0].meeting_id;
     } catch (error) {
-      console.error('Database error creating meeting:', error);
       throw createDatabaseError('Failed to create meeting', error);
     }
   }
@@ -478,15 +448,18 @@ export class MeetingModel {
   static async getMeetingById(id: number): Promise<MeetingDetails | null> {
     try {
       const query = `
-        SELECT 
+        SELECT
           m.*,
           u.name as creator_name,
-          CASE 
+          CASE
+            WHEN m.hierarchy_level = 'National' THEN 'National'
+            WHEN m.hierarchy_level = 'Provincial' THEN p.province_name
             WHEN m.hierarchy_level = 'Province' THEN p.province_name
             WHEN m.hierarchy_level = 'Region' THEN d.district_name
+            WHEN m.hierarchy_level = 'Municipal' THEN mu.municipality_name
             WHEN m.hierarchy_level = 'Municipality' THEN mu.municipality_name
             WHEN m.hierarchy_level = 'Ward' THEN w.ward_name
-            ELSE 'National'
+            ELSE 'Unknown'
           END as entity_name,
           COALESCE(attendance_stats.attendee_count, 0) as attendee_count,
           COALESCE(attendance_stats.present_count, 0) as present_count,
@@ -494,13 +467,13 @@ export class MeetingModel {
           COALESCE(attendance_stats.excused_count, 0) as excused_count,
           COALESCE(attendance_stats.late_count, 0) as late_count
         FROM meetings m
-        LEFT JOIN users u ON m.created_by = u.id
-        LEFT JOIN provinces p ON m.hierarchy_level = 'Province' AND m.entity_id = p.id
-        LEFT JOIN districts d ON m.hierarchy_level = 'Region' AND m.entity_id = d.id
-        LEFT JOIN municipalities mu ON m.hierarchy_level = 'Municipality' AND m.entity_id = mu.id
-        LEFT JOIN wards w ON m.hierarchy_level = 'Ward' AND m.entity_id = w.id
+        LEFT JOIN users u ON m.created_by = u.user_id
+        LEFT JOIN provinces p ON (m.hierarchy_level = 'Province' OR m.hierarchy_level = 'Provincial') AND m.entity_id = p.province_id
+        LEFT JOIN districts d ON m.hierarchy_level = 'Region' AND m.entity_id = d.district_id
+        LEFT JOIN municipalities mu ON (m.hierarchy_level = 'Municipality' OR m.hierarchy_level = 'Municipal') AND m.entity_id = mu.municipality_id
+        LEFT JOIN wards w ON m.hierarchy_level = 'Ward' AND m.entity_id = w.ward_id
         LEFT JOIN (
-          SELECT 
+          SELECT
             meeting_id,
             COUNT(*) as attendee_count,
             COUNT(CASE WHEN attendance_status = 'Present' THEN 1 END) as present_count,
@@ -509,8 +482,8 @@ export class MeetingModel {
             COUNT(CASE WHEN attendance_status = 'Late' THEN 1 END) as late_count
           FROM meeting_attendance
           GROUP BY meeting_id
-        ) attendance_stats ON m.id = attendance_stats.meeting_id
-        WHERE m.id = ?
+        ) attendance_stats ON m.meeting_id = attendance_stats.meeting_id
+        WHERE m.meeting_id = $1
       `;
 
       return await executeQuerySingle<MeetingDetails>(query, [id]);
@@ -597,11 +570,11 @@ export class MeetingModel {
           COALESCE(attendance_stats.excused_count, 0) as excused_count,
           COALESCE(attendance_stats.late_count, 0) as late_count
         FROM meetings m
-        LEFT JOIN users u ON m.created_by = u.id
-        LEFT JOIN provinces p ON m.hierarchy_level = 'Province' AND m.entity_id = p.id
-        LEFT JOIN districts d ON m.hierarchy_level = 'Region' AND m.entity_id = d.id
-        LEFT JOIN municipalities mu ON m.hierarchy_level = 'Municipality' AND m.entity_id = mu.id
-        LEFT JOIN wards w ON m.hierarchy_level = 'Ward' AND m.entity_id = w.id
+        LEFT JOIN users u ON m.created_by = u.user_id
+        LEFT JOIN provinces p ON m.hierarchy_level = 'Province' AND m.entity_id = p.province_id
+        LEFT JOIN districts d ON m.hierarchy_level = 'Region' AND m.entity_id = d.district_id
+        LEFT JOIN municipalities mu ON m.hierarchy_level = 'Municipality' AND m.entity_id = mu.municipality_id
+        LEFT JOIN wards w ON m.hierarchy_level = 'Ward' AND m.entity_id = w.ward_id
         LEFT JOIN (
           SELECT 
             meeting_id,
@@ -612,9 +585,9 @@ export class MeetingModel {
             COUNT(CASE WHEN attendance_status = 'Late' THEN 1 END) as late_count
           FROM meeting_attendance
           GROUP BY meeting_id
-        ) attendance_stats ON m.id = attendance_stats.meeting_id
+        ) attendance_stats ON m.meeting_id = attendance_stats.meeting_id
         ${whereClause}
-        ORDER BY m.start_datetime DESC
+        ORDER BY m.meeting_date DESC, m.meeting_time DESC
         LIMIT ? OFFSET ?
       `;
 
@@ -833,7 +806,7 @@ export class MeetingModel {
           m.id_number as member_id_number,
           recorder.name as recorder_name
         FROM meeting_attendance ma
-        LEFT JOIN members m ON ma.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON ma.member_id = m.member_id
         LEFT JOIN users recorder ON ma.recorded_by = recorder.id
         WHERE ma.meeting_id = ?
         ORDER BY m.firstname, m.surname
@@ -920,17 +893,18 @@ export class MeetingModel {
       const query = `
         SELECT
           ma.*,
-          m.title as meeting_title,
-          m.start_datetime,
-          m.end_datetime,
-          m.meeting_type,
+          m.meeting_title,
+          m.meeting_date,
+          m.meeting_time,
+          m.end_time,
+          m.meeting_type_id,
           m.hierarchy_level,
           recorder.name as recorder_name
         FROM meeting_attendance ma
-        LEFT JOIN meetings m ON ma.meeting_id = m.id
+        LEFT JOIN meetings m ON ma.meeting_id = m.meeting_id
         LEFT JOIN users recorder ON ma.recorded_by = recorder.id
         WHERE ma.member_id = ?
-        ORDER BY m.start_datetime DESC
+        ORDER BY m.meeting_date DESC, m.meeting_time DESC
         LIMIT ?
       `;
 
@@ -947,12 +921,12 @@ export class MeetingModel {
       const params: any[] = [memberId];
 
       if (dateFrom) {
-        whereClause += ' AND m.start_datetime >= ?';
+        whereClause += ' AND m.meeting_date >= ?';
         params.push(dateFrom);
       }
 
       if (dateTo) {
-        whereClause += ' AND m.start_datetime <= ?';
+        whereClause += ' AND m.meeting_date <= ?';
         params.push(dateTo);
       }
 
@@ -965,7 +939,7 @@ export class MeetingModel {
           COUNT(CASE WHEN ma.attendance_status = 'Late' THEN 1 END) as late_count,
           ROUND((COUNT(CASE WHEN ma.attendance_status = 'Present' THEN 1 END) / COUNT(*)) * 100, 2) as attendance_rate
         FROM meeting_attendance ma
-        LEFT JOIN meetings m ON ma.meeting_id = m.id
+        LEFT JOIN meetings m ON ma.meeting_id = m.meeting_id
         ${whereClause}
       `;
 

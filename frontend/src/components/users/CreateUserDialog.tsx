@@ -18,8 +18,7 @@ import {
   CardContent,
   Chip,
   Divider,
-  Switch,
-  FormControlLabel,
+
   IconButton,
   InputAdornment,
 } from '@mui/material';
@@ -29,8 +28,7 @@ import {
   Phone,
   LocationOn,
   AdminPanelSettings,
-  Link,
-  Warning,
+
   PersonSearch,
   PersonAdd,
   Visibility,

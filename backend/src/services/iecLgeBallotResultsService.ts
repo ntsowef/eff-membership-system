@@ -3,9 +3,11 @@
  * Handles Local Government Election ballot results from IEC API
  */
 
-import { executeQuery } from '../config/database';
+import { getPrisma } from './prismaService';
 import { iecElectoralEventsService } from './iecElectoralEventsService';
 import { IecGeographicMappingService } from './iecGeographicMappingService';
+
+const prisma = getPrisma();
 
 interface LgeBallotResult {
   id?: number;
@@ -105,16 +107,23 @@ export class IecLgeBallotResultsService {
         throw new Error(`No IEC Municipality ID mapping found for municipality code: ${municipalityCode}`);
       }
 
-      // Get province code for this municipality
-      const municipalityInfo = await executeQuery(`
-        SELECT province_code FROM municipalities WHERE municipality_code = ?
-      `, [municipalityCode]) as any[];
+      // Get province code for this municipality (via district relationship)
+      const municipalityInfo = await prisma.municipalities.findFirst({
+        where: { municipality_code: municipalityCode },
+        select: {
+          districts: {
+            select: {
+              province_code: true
+            }
+          }
+        }
+      });
 
-      if (municipalityInfo.length === 0) {
+      if (!municipalityInfo || !municipalityInfo.districts) {
         throw new Error(`Municipality not found: ${municipalityCode}`);
       }
 
-      const provinceCode = municipalityInfo[0].province_code;
+      const provinceCode = municipalityInfo.districts.province_code;
       const iecProvinceId = await this.mappingService.getIecProvinceId(provinceCode);
 
       // Get current active electoral event
@@ -169,16 +178,33 @@ export class IecLgeBallotResultsService {
         throw new Error(`No IEC Ward ID mapping found for ward code: ${wardCode}`);
       }
 
-      // Get ward info including municipality and province
-      const wardInfo = await executeQuery(`
-        SELECT municipality_code, province_code FROM wards WHERE ward_code = ?
-      `, [wardCode]) as any[];
+      // Get ward info including municipality
+      const wardInfo = await prisma.wards.findFirst({
+        where: { ward_code: wardCode },
+        select: {
+          municipality_code: true
+        }
+      });
 
-      if (wardInfo.length === 0) {
+      if (!wardInfo) {
         throw new Error(`Ward not found: ${wardCode}`);
       }
 
-      const { municipality_code, province_code } = wardInfo[0];
+      const municipality_code = wardInfo.municipality_code;
+
+      // Get province code via municipality's district
+      const municipalityInfo = await prisma.municipalities.findFirst({
+        where: { municipality_code: municipality_code },
+        select: {
+          districts: {
+            select: {
+              province_code: true
+            }
+          }
+        }
+      });
+
+      const province_code = municipalityInfo?.districts?.province_code || '';
       const iecMunicipalityId = await this.mappingService.getIecMunicipalityId(municipality_code);
       const iecProvinceId = await this.mappingService.getIecProvinceId(province_code);
 
@@ -263,31 +289,28 @@ export class IecLgeBallotResultsService {
    */
   private async getCachedBallotResults(query: BallotResultsQuery): Promise<LgeBallotResult[]> {
     try {
-      let sql = `
-        SELECT * FROM iec_lge_ballot_results 
-        WHERE iec_event_id = ?
-      `;
-      const params: any[] = [query.electoralEventId];
+      const whereClause: any = {
+        iec_event_id: query.electoralEventId
+      };
 
       if (query.provinceId) {
-        sql += ` AND iec_province_id = ?`;
-        params.push(query.provinceId);
+        whereClause.iec_province_id = query.provinceId;
       }
 
       if (query.municipalityId) {
-        sql += ` AND iec_municipality_id = ?`;
-        params.push(query.municipalityId);
+        whereClause.iec_municipality_id = String(query.municipalityId);
       }
 
       if (query.wardId) {
-        sql += ` AND iec_ward_id = ?`;
-        params.push(query.wardId);
+        whereClause.iec_ward_id = String(query.wardId);
       }
 
-      sql += ` ORDER BY last_updated DESC`;
+      const results = await prisma.iec_lge_ballot_results.findMany({
+        where: whereClause,
+        orderBy: { last_updated: 'desc' }
+      });
 
-      const results = await executeQuery(sql, params) as LgeBallotResult[];
-      return results;
+      return results as any[];
 
     } catch (error) {
       console.error('❌ Error getting cached ballot results:', error);
@@ -309,34 +332,54 @@ export class IecLgeBallotResultsService {
       console.log(`💾 Caching ${results.length} ballot results (${resultType})`);
 
       for (const result of results) {
-        await executeQuery(`
-          INSERT INTO iec_lge_ballot_results
-          (iec_event_id, iec_province_id, iec_municipality_id, iec_ward_id,
-           province_code, municipality_code, ward_code, ballot_data,
-           total_votes, registered_voters, voter_turnout_percentage,
-           result_type, data_source)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-          ballot_data = VALUES(ballot_data),
-          total_votes = VALUES(total_votes),
-          registered_voters = VALUES(registered_voters),
-          voter_turnout_percentage = VALUES(voter_turnout_percentage),
-          last_updated = CURRENT_TIMESTAMP
-        `, [
-          result.iec_event_id,
-          result.iec_province_id || null,
-          result.iec_municipality_id || null,
-          result.iec_ward_id || null,
-          resultType === 'province' ? primaryCode : (provinceCode || null),
-          resultType === 'municipality' ? primaryCode : (municipalityCode || null),
-          resultType === 'ward' ? primaryCode : null,
-          JSON.stringify(result.ballot_data),
-          result.total_votes,
-          result.registered_voters,
-          result.voter_turnout_percentage,
-          resultType,
-          'IEC_API'
-        ]);
+        // Build where clause to find existing record
+        const whereClause: any = {
+          iec_event_id: result.iec_event_id,
+          result_type: resultType
+        };
+
+        if (resultType === 'province') {
+          whereClause.iec_province_id = result.iec_province_id;
+        } else if (resultType === 'municipality') {
+          whereClause.iec_municipality_id = result.iec_municipality_id ? String(result.iec_municipality_id) : null;
+        } else if (resultType === 'ward') {
+          whereClause.iec_ward_id = result.iec_ward_id ? String(result.iec_ward_id) : null;
+        }
+
+        // Check if record exists
+        const existing = await prisma.iec_lge_ballot_results.findFirst({
+          where: whereClause
+        });
+
+        const data = {
+          iec_event_id: result.iec_event_id,
+          iec_province_id: result.iec_province_id || null,
+          iec_municipality_id: result.iec_municipality_id ? String(result.iec_municipality_id) : null,
+          iec_ward_id: result.iec_ward_id ? String(result.iec_ward_id) : null,
+          province_code: resultType === 'province' ? primaryCode : (provinceCode || null),
+          municipality_code: resultType === 'municipality' ? primaryCode : (municipalityCode || null),
+          ward_code: resultType === 'ward' ? primaryCode : null,
+          ballot_data: result.ballot_data,
+          total_votes: result.total_votes,
+          registered_voters: result.registered_voters,
+          voter_turnout_percentage: result.voter_turnout_percentage,
+          result_type: resultType,
+          data_source: 'IEC_API',
+          last_updated: new Date()
+        };
+
+        if (existing) {
+          // Update existing record
+          await prisma.iec_lge_ballot_results.update({
+            where: { id: existing.id },
+            data
+          });
+        } else {
+          // Create new record
+          await prisma.iec_lge_ballot_results.create({
+            data
+          });
+        }
       }
 
       console.log(`✅ Cached ${results.length} ballot results`);
@@ -402,24 +445,25 @@ export class IecLgeBallotResultsService {
     last_updated: Date | null;
   }> {
     try {
-      const stats = await executeQuery(`
-        SELECT 
-          COUNT(*) as total_results,
-          SUM(CASE WHEN result_type = 'province' THEN 1 ELSE 0 END) as province_count,
-          SUM(CASE WHEN result_type = 'municipality' THEN 1 ELSE 0 END) as municipality_count,
-          SUM(CASE WHEN result_type = 'ward' THEN 1 ELSE 0 END) as ward_count,
-          MAX(last_updated) as last_updated
-        FROM iec_lge_ballot_results
-      `) as any[];
+      const [total, provinceCount, municipalityCount, wardCount, lastUpdatedResult] = await Promise.all([
+        prisma.iec_lge_ballot_results.count(),
+        prisma.iec_lge_ballot_results.count({ where: { result_type: 'province' } }),
+        prisma.iec_lge_ballot_results.count({ where: { result_type: 'municipality' } }),
+        prisma.iec_lge_ballot_results.count({ where: { result_type: 'ward' } }),
+        prisma.iec_lge_ballot_results.findFirst({
+          orderBy: { last_updated: 'desc' },
+          select: { last_updated: true }
+        })
+      ]);
 
       return {
-        total_results: stats[0]?.total_results || 0,
+        total_results: total,
         by_type: {
-          province: stats[0]?.province_count || 0,
-          municipality: stats[0]?.municipality_count || 0,
-          ward: stats[0]?.ward_count || 0
+          province: provinceCount,
+          municipality: municipalityCount,
+          ward: wardCount
         },
-        last_updated: stats[0]?.last_updated || null
+        last_updated: lastUpdatedResult?.last_updated || null
       };
 
     } catch (error) {

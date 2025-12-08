@@ -162,7 +162,7 @@ export class FileWatcherService {
       INSERT INTO file_processing_jobs (
         job_uuid, file_name, file_path, file_size, ward_number,
         status, progress, created_at, priority, user_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `;
 
     await executeQuery(query, [

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   Container,
@@ -17,7 +17,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  IconButton,
   CircularProgress,
   Alert,
   Breadcrumbs,
@@ -27,7 +26,6 @@ import {
 import {
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   HourglassEmpty as HourglassEmptyIcon,
   Email as EmailIcon,
   Visibility as VisibilityIcon,
@@ -84,7 +82,6 @@ interface AttendanceData {
 const MeetingAttendancePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   // Fetch attendance data
   const { data: attendanceData, isLoading, error } = useQuery({
@@ -116,7 +113,7 @@ const MeetingAttendancePage: React.FC = () => {
   };
 
   // Get status icon
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string): React.ReactElement | undefined => {
     switch (status?.toLowerCase()) {
       case 'sent': return <EmailIcon fontSize="small" />;
       case 'delivered': return <CheckCircleIcon fontSize="small" />;
@@ -124,7 +121,7 @@ const MeetingAttendancePage: React.FC = () => {
       case 'accepted': return <ThumbUpIcon fontSize="small" />;
       case 'declined': return <ThumbDownIcon fontSize="small" />;
       case 'tentative': return <HourglassEmptyIcon fontSize="small" />;
-      default: return null;
+      default: return undefined;
     }
   };
 

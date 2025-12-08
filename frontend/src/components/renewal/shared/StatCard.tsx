@@ -47,8 +47,8 @@ const StatCard: React.FC<StatCardProps> = ({
               justifyContent: 'center',
               width: 48,
               height: 48,
-              borderRadius: 2,
-              bgcolor: `${color}.light`,
+              borderRadius: '50px', // Oval/pill shape
+              bgcolor: (theme) => theme.palette[color]?.light || `${color}.light`,
               color: `${color}.main`,
             }}
           >

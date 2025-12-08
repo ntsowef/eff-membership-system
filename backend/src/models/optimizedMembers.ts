@@ -1,4 +1,6 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+// IMPORTANT: Use database-hybrid directly to avoid MySQL-to-PostgreSQL conversion
+// since our queries are already in PostgreSQL format
+import { executeQuery, executeQuerySingle } from '../config/database-hybrid';
 import { cacheService, CacheTTL } from '../services/cacheService';
 import { DatabaseError } from '../middleware/errorHandler';
 
@@ -10,13 +12,17 @@ export interface OptimizedMemberData {
   last_name: string;
   email: string;
   phone_number: string;
+  province_code: string;
   province_name: string;
   municipality_name: string;
-  ward_number: string;
+  ward_code: string;
   voting_station_name: string;
   membership_type: string;
+  membership_status?: string; // Actual status from memberships table
   join_date: string;
   expiry_date: string;
+  membership_amount?: string;
+  days_until_expiry?: number;
   id_number?: string;
 }
 
@@ -36,50 +42,63 @@ export class OptimizedMemberModel {
    */
   static async getMemberByIdNumberOptimized(idNumber: string): Promise<OptimizedMemberData | null> {
     const cacheKey = `${this.CACHE_PREFIX_ID_NUMBER}${idNumber}`;
-    
+
     try {
       // Try cache first
       const cachedMember = await cacheService.get(cacheKey);
       if (cachedMember) {
+        console.log(`[CACHE HIT] Member ${idNumber} found in cache`);
         return cachedMember as OptimizedMemberData;
       }
 
-      // Use direct query (PostgreSQL compatible)
+      console.log(`[CACHE MISS] Member ${idNumber} not in cache, querying database...`);
+
+      // Use optimized view with metro support (PostgreSQL compatible)
+      // FIX: Use actual expiry_date and membership_status from view instead of calculating
       const query = `
         SELECT
-          m.member_id,
-          CONCAT('MEM', LPAD(m.member_id::TEXT, 6, '0')) as membership_number,
-          m.firstname as first_name,
-          COALESCE(m.surname, '') as last_name,
-          COALESCE(m.email, '') as email,
-          COALESCE(m.cell_number, '') as phone_number,
-          p.province_name,
-          mu.municipality_name,
-          w.ward_number,
-          COALESCE(vs.station_name, 'Not Available') as voting_station_name,
-          'Standard' as membership_type,
-          m.created_at as join_date,
-          m.created_at + INTERVAL '365 days' as expiry_date,
-          m.id_number
-        FROM members m
-        LEFT JOIN wards w ON m.ward_code = w.ward_code
-        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
-        LEFT JOIN districts d ON mu.district_code = d.district_code
-        LEFT JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
-        WHERE m.id_number = $1
+          member_id,
+          membership_number,
+          firstname as first_name,
+          COALESCE(surname, '') as last_name,
+          COALESCE(email, '') as email,
+          COALESCE(cell_number, '') as phone_number,
+          province_code,
+          province_name,
+          municipality_name,
+          ward_code,
+          voting_station_name,
+          COALESCE(membership_status, 'Inactive') as membership_type,
+          membership_status,
+          member_created_at as join_date,
+          expiry_date,
+          membership_amount,
+          days_until_expiry,
+          id_number
+        FROM vw_member_details_optimized
+        WHERE id_number = $1
         LIMIT 1
       `;
 
       const memberData = await executeQuerySingle<OptimizedMemberData>(query, [idNumber]);
 
       if (memberData) {
+        console.log(`[DB QUERY] Member ${idNumber} found, province_name: ${memberData.province_name}`);
+        console.log(`[DB QUERY] DEBUG - province_code: ${memberData.province_code}`);
+        console.log(`[DB QUERY] DEBUG - membership_status: ${memberData.membership_status}`);
+        console.log(`[DB QUERY] DEBUG - expiry_date: ${memberData.expiry_date}`);
+        console.log(`[DB QUERY] DEBUG - membership_amount: ${memberData.membership_amount}`);
+        console.log(`[DB QUERY] DEBUG - days_until_expiry: ${memberData.days_until_expiry}`);
+        console.log(`[DB QUERY] DEBUG - Full data:`, JSON.stringify(memberData, null, 2));
+
         // Cache the result
         await cacheService.set(cacheKey, memberData, this.MEMBER_CACHE_TTL);
 
         // Also cache by member_id for cross-referencing
         const memberIdCacheKey = `${this.CACHE_PREFIX_MEMBER_ID}${memberData.member_id}`;
         await cacheService.set(memberIdCacheKey, memberData, this.MEMBER_CACHE_TTL);
+      } else {
+        console.log(`[DB QUERY] Member ${idNumber} not found`);
       }
 
       return memberData;
@@ -104,30 +123,30 @@ export class OptimizedMemberModel {
         return cachedMember as OptimizedMemberData;
       }
 
-      // Use direct query (PostgreSQL compatible)
+      // Use optimized view with metro support (PostgreSQL compatible)
+      // FIX: Use actual expiry_date and membership_status from view instead of calculating
       const query = `
         SELECT
-          m.member_id,
-          CONCAT('MEM', LPAD(m.member_id::TEXT, 6, '0')) as membership_number,
-          m.firstname as first_name,
-          COALESCE(m.surname, '') as last_name,
-          COALESCE(m.email, '') as email,
-          COALESCE(m.cell_number, '') as phone_number,
-          p.province_name,
-          mu.municipality_name,
-          w.ward_number,
-          COALESCE(vs.station_name, 'Not Available') as voting_station_name,
-          'Standard' as membership_type,
-          m.created_at as join_date,
-          m.created_at + INTERVAL '365 days' as expiry_date,
-          m.id_number
-        FROM members m
-        LEFT JOIN wards w ON m.ward_code = w.ward_code
-        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
-        LEFT JOIN districts d ON mu.district_code = d.district_code
-        LEFT JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
-        WHERE m.member_id = $1
+          member_id,
+          membership_number,
+          firstname as first_name,
+          COALESCE(surname, '') as last_name,
+          COALESCE(email, '') as email,
+          COALESCE(cell_number, '') as phone_number,
+          province_code,
+          province_name,
+          municipality_name,
+          ward_code,
+          voting_station_name,
+          COALESCE(membership_status, 'Inactive') as membership_type,
+          membership_status,
+          member_created_at as join_date,
+          expiry_date,
+          membership_amount,
+          days_until_expiry,
+          id_number
+        FROM vw_member_details_optimized
+        WHERE member_id = $1
         LIMIT 1
       `;
 
@@ -154,28 +173,33 @@ export class OptimizedMemberModel {
   }
 
   /**
-   * Fallback method using vw_member_details view when cache table doesn't exist
+   * Fallback method using vw_member_details_optimized view
    */
   private static async getMemberByIdNumberFallback(idNumber: string): Promise<OptimizedMemberData | null> {
     try {
-      // Use vw_member_details view directly (PostgreSQL compatible)
+      // Use vw_member_details_optimized view with metro support (PostgreSQL compatible)
+      // FIX: Use actual expiry_date and membership_status from view instead of calculating
       const fallbackQuery = `
         SELECT
           member_id,
-          CONCAT('MEM', LPAD(member_id::TEXT, 6, '0')) as membership_number,
+          membership_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           COALESCE(email, '') as email,
           COALESCE(cell_number, '') as phone_number,
+          province_code,
           province_name,
           municipality_name,
-          ward_number,
-          COALESCE(voting_station_name, 'Not Available') as voting_station_name,
-          'Standard' as membership_type,
+          ward_code,
+          voting_station_name,
+          COALESCE(membership_status, 'Inactive') as membership_type,
+          membership_status,
           member_created_at as join_date,
-          member_created_at + INTERVAL '365 days' as expiry_date,
+          expiry_date,
+          membership_amount,
+          days_until_expiry,
           id_number
-        FROM vw_member_details
+        FROM vw_member_details_optimized
         WHERE id_number = $1
         LIMIT 1
       `;
@@ -192,23 +216,29 @@ export class OptimizedMemberModel {
    */
   private static async getMemberByIdFallback(memberId: string): Promise<OptimizedMemberData | null> {
     try {
-      // Use vw_member_details view directly (PostgreSQL compatible)
+      // Use vw_member_details_optimized view with metro support (PostgreSQL compatible)
+      // FIX: Use actual expiry_date and membership_status from view instead of calculating
       const fallbackQuery = `
         SELECT
           member_id,
-          CONCAT('MEM', LPAD(member_id::TEXT, 6, '0')) as membership_number,
+          membership_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           COALESCE(email, '') as email,
           COALESCE(cell_number, '') as phone_number,
+          province_code,
           province_name,
           municipality_name,
-          ward_number,
-          COALESCE(voting_station_name, 'Not Available') as voting_station_name,
-          'Standard' as membership_type,
+          ward_code,
+          voting_station_name,
+          COALESCE(membership_status, 'Inactive') as membership_type,
+          membership_status,
           member_created_at as join_date,
-          member_created_at + INTERVAL '365 days' as expiry_date
-        FROM vw_member_details
+          expiry_date,
+          membership_amount,
+          days_until_expiry,
+          id_number
+        FROM vw_member_details_optimized
         WHERE member_id = $1
         LIMIT 1
       `;

@@ -62,8 +62,7 @@ interface MunicipalityPerformanceTableProps {
 
 const MunicipalityPerformanceTable: React.FC<MunicipalityPerformanceTableProps> = ({
   onExportSuccess,
-  onExportError,
-  onShowMessage
+  onExportError
 }) => {
   const {
     municipalityPerformanceData,
@@ -85,7 +84,7 @@ const MunicipalityPerformanceTable: React.FC<MunicipalityPerformanceTableProps> 
   const selectedProvince = useSelectedProvince();
   const setSelectedProvince = useSetSelectedProvince();
 
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const municipalityContext = useMunicipalityContext();
   const { secureGet, getProvinceFilter } = useSecureApi();
 
@@ -203,7 +202,7 @@ const MunicipalityPerformanceTable: React.FC<MunicipalityPerformanceTableProps> 
       const filename = generateExportFilename('municipality-performance', 'excel');
       downloadBlob(blob, filename);
       onExportSuccess();
-    } catch (error) {
+    } catch (error: any) {
       onExportError(error.message || 'Export failed');
     }
   };
@@ -238,7 +237,7 @@ const MunicipalityPerformanceTable: React.FC<MunicipalityPerformanceTableProps> 
     );
   }
 
-  const isAllSelected = municipalityPerformanceData.length > 0 && 
+  const isAllSelected = municipalityPerformanceData.length > 0 &&
     municipalityPerformanceData.every(municipality => selectedMunicipalities.includes(municipality.municipality_code));
   const isIndeterminate = selectedMunicipalities.length > 0 && !isAllSelected;
 
@@ -472,7 +471,7 @@ const MunicipalityPerformanceTable: React.FC<MunicipalityPerformanceTableProps> 
                     label={municipality.municipality_performance}
                     color={getPerformanceColor(municipality.municipality_performance)}
                     size="small"
-                    icon={municipality.municipality_performance === 'Performing Municipality' ? 
+                    icon={municipality.municipality_performance === 'Performing Municipality' ?
                       <TrendingUp /> : <TrendingDown />}
                   />
                 </TableCell>

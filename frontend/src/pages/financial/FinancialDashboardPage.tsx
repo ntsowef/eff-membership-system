@@ -11,26 +11,26 @@ import {
 } from '@mui/material';
 import {
   Home,
-  Dashboard,
+  // Dashboard,
   AccountBalance,
 } from '@mui/icons-material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import UnifiedFinancialDashboard from '../../components/financial/UnifiedFinancialDashboard';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 
 const FinancialDashboardPage: React.FC = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  // const _navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
 
   // Check if user has financial reviewer permissions
   const canViewFinancialDashboard = hasPermission('financial.view_dashboard') ||
                                    hasPermission('financial.view_all_transactions') ||
-                                   user?.role === 'financial_reviewer' ||
-                                   user?.role === 'financial.approver' ||
-                                   user?.role === 'super_admin';
+                                   (user as any)?.role === 'financial_reviewer' ||
+                                   (user as any)?.role === 'financial.approver' ||
+                                   (user as any)?.role === 'super_admin';
 
   if (!canViewFinancialDashboard) {
     return (
@@ -88,7 +88,7 @@ const FinancialDashboardPage: React.FC = () => {
         </Paper>
 
         {/* Welcome Message for Financial Reviewers */}
-        {user?.role === 'financial_reviewer' && (
+        {(user as any)?.role === 'financial_reviewer' && (
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="subtitle2" gutterBottom>
               Welcome, Financial Reviewer!

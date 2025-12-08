@@ -29,12 +29,12 @@ import {
   Person,
   Security,
   Email,
-  Print,
   Visibility,
   CheckCircle,
 } from '@mui/icons-material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import cardFrontImage from '../../assets/images/Eff_first.png';
 
 interface CardTemplate {
   id: string;
@@ -272,11 +272,14 @@ const DigitalCardGenerator: React.FC<DigitalCardGeneratorProps> = ({
           {generatedCard && (
             <Box>
               {/* Card Preview */}
-              <Paper 
-                sx={{ 
-                  p: 3, 
-                  mb: 3, 
-                  bgcolor: 'primary.main', 
+              <Paper
+                sx={{
+                  p: 3,
+                  mb: 3,
+                  backgroundImage: `url(${cardFrontImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
                   color: 'white',
                   borderRadius: 2,
                   position: 'relative',

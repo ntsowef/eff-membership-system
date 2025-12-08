@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Chip, ChipProps } from '@mui/material';
+import { Chip, type ChipProps } from '@mui/material';
 import {
   CheckCircle,
   Error,

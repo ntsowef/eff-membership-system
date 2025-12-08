@@ -675,7 +675,7 @@ export class RenewalAdministrativeService {
           mr.renewal_status
         FROM renewal_manual_notes rmn
         LEFT JOIN users u ON rmn.created_by = u.user_id
-        LEFT JOIN members m ON rmn.member_id = m.member_id
+        LEFT JOIN members_consolidated m ON rmn.member_id = m.member_id
         LEFT JOIN membership_renewals mr ON rmn.renewal_id = mr.renewal_id
         WHERE rmn.requires_follow_up = true
           AND rmn.follow_up_completed = false

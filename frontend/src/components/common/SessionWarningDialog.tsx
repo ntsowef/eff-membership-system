@@ -7,13 +7,11 @@ import {
   Button,
   Typography,
   Box,
-  Alert,
-  CircularProgress
+  Alert
 } from '@mui/material';
 import {
   Warning as WarningIcon,
   AccessTime as TimeIcon,
-  Refresh as RefreshIcon,
   ExitToApp as LogoutIcon
 } from '@mui/icons-material';
 import { useSessionManagement } from '../../hooks/useSessionManagement';
@@ -29,7 +27,6 @@ export const SessionWarningDialog: React.FC<SessionWarningDialogProps> = ({
 }) => {
   const {
     sessionStatus,
-    isExtending,
     extendSession,
     dismissWarning,
     handleLogout,

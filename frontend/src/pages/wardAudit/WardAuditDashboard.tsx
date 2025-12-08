@@ -30,7 +30,7 @@ import {
   Cancel as CancelIcon,
   Visibility as VisibilityIcon,
   Assessment as AssessmentIcon,
-  People as PeopleIcon,
+  // People as PeopleIcon,
   HowToVote as HowToVoteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';

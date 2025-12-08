@@ -26,14 +26,14 @@ import {
   Search,
   History,
 } from '@mui/icons-material';
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import FinancialTransactionHistory from '../../components/financial/FinancialTransactionHistory';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 
 const FinancialTransactionHistoryPage: React.FC = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  // const _navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
@@ -47,11 +47,11 @@ const FinancialTransactionHistoryPage: React.FC = () => {
   // Check if user has financial transaction view permissions
   const canViewTransactions = hasPermission('financial.view_all_transactions') ||
                               hasPermission('financial.view_dashboard') ||
-                              user?.role === 'financial_reviewer' ||
-                              user?.role === 'financial.approver' ||
-                              user?.role === 'membership_approver' ||
-                              user?.role === 'membership.approver' ||
-                              user?.role === 'super_admin';
+                              (user as any)?.role === 'financial_reviewer' ||
+                              (user as any)?.role === 'financial.approver' ||
+                              (user as any)?.role === 'membership_approver' ||
+                              (user as any)?.role === 'membership.approver' ||
+                              (user as any)?.role === 'super_admin';
 
   if (!canViewTransactions) {
     return (
@@ -206,7 +206,7 @@ const FinancialTransactionHistoryPage: React.FC = () => {
         </Paper>
 
         {/* Welcome Message for Financial Reviewers */}
-        {user?.role === 'financial_reviewer' && (
+        {(user as any)?.role === 'financial_reviewer' && (
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="subtitle2" gutterBottom>
               Financial Reviewer Access

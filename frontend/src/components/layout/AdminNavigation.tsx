@@ -46,7 +46,7 @@ interface NavigationItem {
 
 const AdminNavigation: React.FC = () => {
   const { user, hasPermission, hasAdminLevel, canAccessUserManagement } = useAuth();
-  const { permissions } = usePermissionCheck();
+  usePermissionCheck();
   const navigate = useNavigate();
   const location = useLocation();
   const [openSections, setOpenSections] = React.useState<string[]>(['user-management']);

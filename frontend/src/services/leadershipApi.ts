@@ -508,7 +508,13 @@ export class LeadershipAPI {
   static async getMunicipalitiesByProvince(provinceId: number): Promise<GeographicEntity[]> {
     try {
       const response = await api.get(`/leadership/geographic/municipalities/${provinceId}`);
-      return response.data.data.municipalities;
+      const municipalities = response.data.data.municipalities;
+
+      // Transform municipality_id to id for GeographicEntity interface
+      return municipalities.map((m: any) => ({
+        ...m,
+        id: m.municipality_id || m.id
+      }));
     } catch (error: any) {
       throw new Error(`Failed to fetch municipalities: ${error.response?.data?.message || error.message}`);
     }
@@ -521,7 +527,13 @@ export class LeadershipAPI {
     try {
       // Use the core geographic endpoint which supports code-based filtering
       const response = await api.get(`/geographic/municipalities`, { params: { province: provinceCode } });
-      return response.data.data.municipalities ?? response.data.data;
+      const municipalities = response.data.data.municipalities ?? response.data.data;
+
+      // Transform municipality_id to id for GeographicEntity interface
+      return municipalities.map((m: any) => ({
+        ...m,
+        id: m.municipality_id || m.id
+      }));
     } catch (error: any) {
       throw new Error(`Failed to fetch municipalities: ${error.response?.data?.message || error.message}`);
     }

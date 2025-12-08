@@ -59,8 +59,9 @@ import {
   Person,
   CalendarToday,
   SupervisorAccount,
+  HowToVote, // For voting district filter chip
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { Member } from '../../store';
 import GeographicFilter from '../../components/members/GeographicFilter';
@@ -95,12 +96,14 @@ interface GeographicFilters {
   district?: string;
   municipality?: string;
   ward?: string;
+  voting_district_code?: string;
 }
 
 const MembersListPage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const municipalityContext = useMunicipalityContext();
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
@@ -120,6 +123,18 @@ const MembersListPage: React.FC = () => {
   const [sortBy, setSortBy] = useState('firstname');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  // Read URL parameters on mount
+  useEffect(() => {
+    const votingDistrictCode = searchParams.get('voting_district_code');
+    if (votingDistrictCode) {
+      console.log('🗳️ Setting voting district filter from URL:', votingDistrictCode);
+      setGeographicFilters(prev => ({
+        ...prev,
+        voting_district_code: votingDistrictCode
+      }));
+    }
+  }, [searchParams]);
+
   // Audit export state
   const [auditExportLoading, setAuditExportLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -127,12 +142,13 @@ const MembersListPage: React.FC = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info'>('info');
   const [wardAuditDialog, setWardAuditDialog] = useState(false);
   const [wardCodeInput, setWardCodeInput] = useState('');
+  const [exportFormat, setExportFormat] = useState<'excel' | 'word' | 'pdf' | 'both'>('pdf');
 
   // File processing status modal state
   const [processingModalOpen, setProcessingModalOpen] = useState(false);
-  const [processingWardCode, setProcessingWardCode] = useState('');
-  const [processingWardName, setProcessingWardName] = useState('');
-  const [processingJobData, setProcessingJobData] = useState<any>(null);
+  const [processingWardCode, _setProcessingWardCode] = useState('');
+  const [processingWardName, _setProcessingWardName] = useState('');
+  const [_processingJobData, _setProcessingJobData] = useState<any>(null);
 
   // Debounce search term
   useEffect(() => {
@@ -145,7 +161,7 @@ const MembersListPage: React.FC = () => {
   }, [searchTerm]);
 
   // Fetch membership statuses for filtering
-  const { data: membershipStatuses } = useQuery({
+  const { data: membershipStatusesRaw } = useQuery({
     queryKey: ['membership-statuses'],
     queryFn: async () => {
       const result = await apiGet<MembershipStatus[]>('/lookups/membership-statuses');
@@ -154,9 +170,14 @@ const MembersListPage: React.FC = () => {
     staleTime: 10 * 60 * 1000, // Cache for 10 minutes
   });
 
+  // Extract data from API response
+  const membershipStatuses = Array.isArray(membershipStatusesRaw)
+    ? membershipStatusesRaw
+    : (membershipStatusesRaw as any)?.data || [];
+
   // Create status name to ID mapping
   const statusNameToId = React.useMemo(() => {
-    if (!membershipStatuses) return {};
+    if (!membershipStatuses || !Array.isArray(membershipStatuses)) return {};
     const mapping: { [key: string]: number } = {};
     membershipStatuses.forEach(status => {
       mapping[status.status_name] = status.status_id;
@@ -188,7 +209,12 @@ const MembersListPage: React.FC = () => {
       // Use geographic filtering with the enhanced main endpoint
       console.log('🔍 Geographic Filters Debug:', geographicFilters);
 
-      if (geographicFilters.ward) {
+      if (geographicFilters.voting_district_code) {
+        // Voting district is the most specific - use main endpoint with voting_district_code filter
+        params.append('voting_district_code', geographicFilters.voting_district_code);
+        console.log('🗳️ Using voting district filter:', geographicFilters.voting_district_code);
+        return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
+      } else if (geographicFilters.ward) {
         // Ward is the most specific - use main endpoint with ward_code filter
         params.append('ward_code', geographicFilters.ward);
         console.log('📍 Using ward filter:', geographicFilters.ward);
@@ -453,10 +479,10 @@ const MembersListPage: React.FC = () => {
     }
   };
 
-  // Handle ward audit export
-  const handleWardAuditExport = async (wardCode: string) => {
+  // Handle ward audit export (Attendance Register)
+  const handleWardAuditExport = async (wardCode: string, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf') => {
     if (!wardCode) {
-      setSnackbarMessage('Ward code is required for audit export');
+      setSnackbarMessage('Ward code is required for attendance register export');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
       return;
@@ -466,47 +492,48 @@ const MembersListPage: React.FC = () => {
     setActionAnchorEl(null); // Close the action menu
 
     try {
-      console.log(`🔄 Starting ward audit export for ward: ${wardCode}`);
+      console.log(`📋 Starting Attendance Register export for ward: ${wardCode} (format: ${format})`);
 
-      const response = await membersApi.exportWardAudit(wardCode);
+      // Get the blob from the API
+      const blob = await membersApi.exportWardAudit(wardCode, format);
 
-      console.log('✅ Ward audit export response:', response);
-
-      if (response.data) {
-        const { filename, member_count, ward_info, processing_status, processing_message } = response.data;
-
-        // Show success message for file creation
-        setSnackbarMessage(
-          `✅ Ward audit export completed! ${member_count} members exported and queued for voter verification processing`
-        );
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
-
-        console.log(`📊 Ward audit export successful:`, {
-          filename,
-          member_count,
-          ward_info,
-          processing_status
-        });
-
-        // Open the processing status modal
-        setProcessingWardCode(wardCode);
-        setProcessingWardName(ward_info?.ward_name || '');
-        setProcessingJobData({
-          filename,
-          member_count,
-          ward_info
-        });
-        setProcessingModalOpen(true);
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      let extension: string;
+      if (format === 'both') {
+        extension = 'zip';
+      } else if (format === 'excel') {
+        extension = 'xlsx';
+      } else if (format === 'pdf') {
+        extension = 'pdf';
       } else {
-        setSnackbarMessage('Ward audit export completed successfully');
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
+        extension = 'docx';
       }
-    } catch (error: any) {
-      console.error('❌ Ward audit export failed:', error);
+      const filename = `ATTENDANCE_REGISTER_WARD_${wardCode}_${timestamp}.${extension}`;
 
-      let errorMessage = 'Failed to export ward audit';
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log(`✅ Attendance Register downloaded: ${filename}`);
+
+      // Show success message
+      setSnackbarMessage(
+        `✅ Attendance Register for Ward ${wardCode} downloaded successfully!`
+      );
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+
+    } catch (error: any) {
+      console.error('❌ Attendance Register export failed:', error);
+
+      let errorMessage = 'Failed to export Attendance Register';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -533,7 +560,7 @@ const MembersListPage: React.FC = () => {
     const wardCode = wardCodeInput.trim();
     setWardAuditDialog(false);
     setWardCodeInput(''); // Clear input after closing dialog
-    handleWardAuditExport(wardCode);
+    handleWardAuditExport(wardCode, exportFormat);
   };
 
   // Show loading state
@@ -717,7 +744,7 @@ const MembersListPage: React.FC = () => {
                 color="warning"
                 disabled={auditExportLoading}
               >
-                {auditExportLoading ? 'Exporting Ward Audit...' : `Export Ward ${geographicFilters.ward} Audit`}
+                {auditExportLoading ? 'Downloading Attendance Register...' : `Download Ward ${geographicFilters.ward} Attendance Register`}
               </ActionButton>
             )}
           </Box>
@@ -742,6 +769,79 @@ const MembersListPage: React.FC = () => {
               <Chip
                 label={`Province: ${filters.province}`}
                 onDelete={() => handleFilterChange('province', '')}
+                size="small"
+              />
+            )}
+            {geographicFilters.voting_district_code && (
+              <Chip
+                label={`Voting District: ${geographicFilters.voting_district_code}`}
+                onDelete={() => {
+                  setGeographicFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters.voting_district_code;
+                    return newFilters;
+                  });
+                  setPage(0);
+                }}
+                size="small"
+                color="primary"
+                icon={<HowToVote />}
+              />
+            )}
+            {geographicFilters.ward && (
+              <Chip
+                label={`Ward: ${geographicFilters.ward}`}
+                onDelete={() => {
+                  setGeographicFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters.ward;
+                    return newFilters;
+                  });
+                  setPage(0);
+                }}
+                size="small"
+                color="secondary"
+              />
+            )}
+            {geographicFilters.municipality && (
+              <Chip
+                label={`Municipality: ${geographicFilters.municipality}`}
+                onDelete={() => {
+                  setGeographicFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters.municipality;
+                    return newFilters;
+                  });
+                  setPage(0);
+                }}
+                size="small"
+              />
+            )}
+            {geographicFilters.district && (
+              <Chip
+                label={`District: ${geographicFilters.district}`}
+                onDelete={() => {
+                  setGeographicFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters.district;
+                    return newFilters;
+                  });
+                  setPage(0);
+                }}
+                size="small"
+              />
+            )}
+            {geographicFilters.province && (
+              <Chip
+                label={`Province: ${geographicFilters.province}`}
+                onDelete={() => {
+                  setGeographicFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters.province;
+                    return newFilters;
+                  });
+                  setPage(0);
+                }}
                 size="small"
               />
             )}
@@ -1100,19 +1200,19 @@ const MembersListPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Ward Audit Dialog */}
+      {/* Ward Attendance Register Dialog */}
       <Dialog open={wardAuditDialog} onClose={() => setWardAuditDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Assessment color="warning" />
-            Confirm Ward Audit Export
+            Download Ward Attendance Register
           </Box>
         </DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
             {geographicFilters.ward
-              ? `Confirm the ward code below to export comprehensive audit data for all members in this ward.`
-              : `Enter a ward code to export comprehensive audit data for all members in that ward.`
+              ? `Confirm the ward code below to download the Attendance Register for all members in this ward.`
+              : `Enter a ward code to download the Attendance Register for all members in that ward.`
             }
           </Alert>
           <TextField
@@ -1131,9 +1231,23 @@ const MembersListPage: React.FC = () => {
             }}
             helperText={geographicFilters.ward
               ? "Ward code from your current filter (you can modify if needed)"
-              : "Enter the ward code for the ward you want to audit"
+              : "Enter the ward code for the Attendance Register"
             }
+            sx={{ mb: 2 }}
           />
+          <FormControl fullWidth variant="outlined">
+            <InputLabel>Export Format</InputLabel>
+            <Select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'excel' | 'word' | 'pdf' | 'both')}
+              label="Export Format"
+            >
+              <MenuItem value="pdf">PDF Attendance Register (Recommended)</MenuItem>
+              <MenuItem value="excel">Excel Only (.xlsx)</MenuItem>
+              <MenuItem value="word">Word Only (.docx)</MenuItem>
+              <MenuItem value="both">Both (Excel + Word in ZIP)</MenuItem>
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => {
@@ -1149,7 +1263,7 @@ const MembersListPage: React.FC = () => {
             disabled={auditExportLoading || !wardCodeInput.trim()}
             startIcon={<Assessment />}
           >
-            {auditExportLoading ? 'Exporting...' : `Export Ward ${wardCodeInput} Audit`}
+            {auditExportLoading ? 'Downloading...' : `Download Ward ${wardCodeInput} Attendance Register`}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1176,7 +1290,7 @@ const MembersListPage: React.FC = () => {
         onClose={() => setProcessingModalOpen(false)}
         wardCode={processingWardCode}
         wardName={processingWardName}
-        initialJobData={processingJobData}
+        initialJobData={_processingJobData}
       />
       </Container>
     </Box>

@@ -335,9 +335,9 @@ export class ComprehensiveFinancialService {
 
       // Get current KPI to calculate variance
       const currentKPI = await executeQuerySingle(`
-        SELECT current_value, target_value 
-        FROM financial_kpi_tracking 
-        WHERE kpi_name = ? AND measurement_date = 
+        SELECT current_value, target_value
+        FROM financial_kpi_tracking
+        WHERE kpi_name = $1 AND measurement_date = $2
       `, [kpiName, measurementDate]);
 
       let variancePercentage = 0;
@@ -376,22 +376,14 @@ export class ComprehensiveFinancialService {
         INSERT INTO financial_kpi_tracking (
           kpi_name, measurement_date, current_value, previous_value,
           variance_percentage, trend_direction, performance_status
-        ) EXCLUDED.?, ?, ?, ?, ?, ?, ?
-        ON CONFLICT DO UPDATE SET
-          previous_value = current_value,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (kpi_name, measurement_date) DO UPDATE SET
           current_value = EXCLUDED.current_value,
+          previous_value = EXCLUDED.previous_value,
           variance_percentage = EXCLUDED.variance_percentage,
           trend_direction = EXCLUDED.trend_direction,
           performance_status = EXCLUDED.performance_status
-      `, [
-        kpiName,
-        measurementDate,
-        newValue,
-        currentKPI?.current_value || 0,
-        variancePercentage,
-        trendDirection,
-        performanceStatus
-      ]);
+      `, [kpiName, measurementDate, newValue, currentKPI?.current_value || 0, variancePercentage, trendDirection, performanceStatus]);
 
     } catch (error) {
       throw createDatabaseError('Failed to update financial KPI', error);
@@ -408,7 +400,7 @@ export class ComprehensiveFinancialService {
       const cached = await executeQuerySingle(`
         SELECT cache_data, expires_at, is_valid
         FROM financial_dashboard_cache
-        WHERE cache_key = ? AND expires_at > CURRENT_TIMESTAMP AND is_valid = TRUE
+        WHERE cache_key = $1 AND expires_at > CURRENT_TIMESTAMP AND is_valid = TRUE
       `, [cacheKey]);
 
       if (cached) {
@@ -438,14 +430,7 @@ export class ComprehensiveFinancialService {
       await executeQuery(`
         INSERT INTO financial_dashboard_cache (
           cache_key, cache_data, cache_type, expires_at, data_size_bytes
-        ) EXCLUDED.?, ?, ?, ?, ?
-        ON CONFLICT DO UPDATE SET
-          cache_data = EXCLUDED.cache_data,
-          cache_type = EXCLUDED.cache_type,
-          expires_at = EXCLUDED.expires_at,
-          data_size_bytes = EXCLUDED.data_size_bytes,
-          generated_at = CURRENT_TIMESTAMP,
-          is_valid = TRUE
+        ) VALUES ($1, $2, $3, $4, $5)
       `, [cacheKey, cacheData, cacheType, expiresAt, dataSizeBytes]);
 
     } catch (error) {

@@ -10,7 +10,7 @@ import {
   Paper,
   CircularProgress,
   Alert,
-  Button,
+  // Button,
   FormControl,
   InputLabel,
   Select,
@@ -24,12 +24,12 @@ import {
   People,
   Event,
   AccountBalance,
-  Download,
+  // Download,
   Refresh,
   Analytics,
-  BarChart,
-  PieChart,
-  ShowChart,
+  // BarChart,
+  // PieChart,
+  // ShowChart,
   Assessment,
   PictureAsPdf,
 } from '@mui/icons-material';
@@ -44,6 +44,21 @@ import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/use
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
 import MunicipalityContextBanner from '../../components/common/MunicipalityContextBanner';
 import { useSecureApi } from '../../hooks/useSecureApi';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ComposedChart,
+  ReferenceLine,
+} from 'recharts';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -127,6 +142,12 @@ const AnalyticsPage: React.FC = () => {
     queryFn: () => secureGet('/analytics/leadership', getFilterParams()),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Extract payloads from API response (handles both wrapped { data: {...} } and direct {...} structures)
+  const dashboardStats = (((dashboardData as any)?.data) || dashboardData)?.statistics;
+  const membershipAnalytics = (((membershipData as any)?.data) || membershipData)?.analytics;
+  const meetingAnalytics = (((meetingData as any)?.data) || meetingData)?.analytics;
+  const leadershipAnalytics = (((leadershipData as any)?.data) || leadershipData)?.analytics;
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -359,7 +380,7 @@ const AnalyticsPage: React.FC = () => {
                       ? ` (${provinceContext.assignedProvince?.name || 'Province'})`
                       : ''
                   }`}
-                  value={(dashboardData?.statistics?.total_members || 0).toLocaleString()}
+                  value={(dashboardStats?.total_members || 0).toLocaleString()}
                   subtitle={
                     municipalityContext.shouldRestrictToMunicipality
                       ? `Municipality-specific data`
@@ -384,7 +405,7 @@ const AnalyticsPage: React.FC = () => {
                       ? ` (${provinceContext.assignedProvince?.name || 'Province'})`
                       : ''
                   }`}
-                  value={(dashboardData?.statistics?.active_members || 0).toLocaleString()}
+                  value={(dashboardStats?.active_members || 0).toLocaleString()}
                   subtitle={
                     municipalityContext.shouldRestrictToMunicipality
                       ? `Municipality-specific data`
@@ -403,7 +424,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Pending Applications"
-                  value={(dashboardData?.statistics?.pending_applications || 0).toString()}
+                  value={(dashboardStats?.pending_applications || 0).toString()}
                   subtitle="Awaiting review"
                   icon={Assessment}
                   color="warning"
@@ -412,7 +433,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Recent Registrations"
-                  value={(dashboardData?.statistics?.recent_registrations || 0).toString()}
+                  value={(dashboardStats?.recent_registrations || 0).toString()}
                   subtitle="Last 30 days"
                   icon={TrendingUp}
                   color="info"
@@ -425,7 +446,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Total Meetings"
-                  value={(dashboardData?.statistics?.total_meetings || 0).toString()}
+                  value={(dashboardStats?.total_meetings || 0).toString()}
                   subtitle="All scheduled meetings"
                   icon={Event}
                   color="primary"
@@ -434,7 +455,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Upcoming Meetings"
-                  value={(dashboardData?.statistics?.upcoming_meetings || 0).toString()}
+                  value={(dashboardStats?.upcoming_meetings || 0).toString()}
                   subtitle="Scheduled ahead"
                   icon={Event}
                   color="info"
@@ -443,7 +464,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Leadership Positions"
-                  value={(dashboardData?.statistics?.leadership_positions_filled || 0).toString()}
+                  value={(dashboardStats?.leadership_positions_filled || 0).toString()}
                   subtitle="Filled positions"
                   icon={AccountBalance}
                   color="success"
@@ -452,7 +473,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Growth Rate"
-                  value={`${dashboardData?.statistics?.membership_growth_rate || 0}%`}
+                  value={`${dashboardStats?.membership_growth_rate || 0}%`}
                   subtitle="Monthly growth"
                   icon={TrendingUp}
                   color="success"
@@ -489,7 +510,7 @@ const AnalyticsPage: React.FC = () => {
                       ? ` (${provinceContext.assignedProvince?.name || 'Province'})`
                       : ''
                   }`}
-                  value={(membershipData?.analytics?.total_members || 0).toLocaleString()}
+                  value={(membershipAnalytics?.total_members || 0).toLocaleString()}
                   subtitle={
                     municipalityContext.shouldRestrictToMunicipality
                       ? `Municipality-specific data`
@@ -510,7 +531,7 @@ const AnalyticsPage: React.FC = () => {
                       ? ` (${provinceContext.assignedProvince?.name || 'Province'})`
                       : ''
                   }`}
-                  value={(membershipData?.analytics?.active_members || 0).toLocaleString()}
+                  value={(membershipAnalytics?.active_members || 0).toLocaleString()}
                   subtitle={
                     municipalityContext.shouldRestrictToMunicipality
                       ? `Municipality-specific data`
@@ -525,7 +546,7 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Inactive Members"
-                  value={(membershipData?.analytics?.inactive_members || 0).toString()}
+                  value={(membershipAnalytics?.inactive_members || 0).toString()}
                   subtitle="Not currently active"
                   icon={People}
                   color="error"
@@ -534,54 +555,16 @@ const AnalyticsPage: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <StatsCard
                   title="Pending Members"
-                  value={(membershipData?.analytics?.pending_members || 0).toString()}
+                  value={(membershipAnalytics?.pending_members || 0).toString()}
                   subtitle="Awaiting approval"
                   icon={People}
                   color="warning"
                 />
               </Grid>
 
-              {/* Membership by Hierarchy */}
+              {/* Gender Distribution - Pie Chart */}
               <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Membership by Hierarchy
-                    </Typography>
-                    {membershipData?.analytics?.membership_by_hierarchy?.map((item, index) => (
-                      <Box key={index} sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2">{item.hierarchy_level}</Typography>
-                          <Typography variant="body2">
-                            {item.member_count} ({Number(item.percentage).toFixed(1)}%)
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: 8,
-                            backgroundColor: 'grey.200',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: `${Number(item.percentage)}%`,
-                              height: '100%',
-                              backgroundColor: 'primary.main',
-                              borderRadius: 1,
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    ))}
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Gender Distribution */}
-              <Grid item xs={12} md={6}>
-                <Card>
+                    <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
                       Gender Distribution{
@@ -592,38 +575,40 @@ const AnalyticsPage: React.FC = () => {
                           : ''
                       }
                     </Typography>
-                    {membershipData?.analytics?.gender_distribution?.map((item, index) => (
-                      <Box key={index} sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2">{item.gender}</Typography>
-                          <Typography variant="body2">
-                            {item.member_count} ({Number(item.percentage).toFixed(1)}%)
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: 8,
-                            backgroundColor: 'grey.200',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: `${Number(item.percentage)}%`,
-                              height: '100%',
-                              backgroundColor: index === 0 ? 'primary.main' : 'secondary.main',
-                              borderRadius: 1,
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    ))}
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={membershipAnalytics?.gender_distribution?.map((item: any) => ({
+                            name: item.gender,
+                            value: Number(item.member_count),
+                            percentage: Number(item.percentage).toFixed(1),
+                          }))}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percentage }: any) => `${name}: ${percentage}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          >
+                          {membershipAnalytics?.gender_distribution?.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={index === 0 ? '#1976d2' : index === 1 ? '#dc004e' : '#ff9800'} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: any, name: any, props: any) => [
+                            `${Number(value).toLocaleString()} (${props.payload.percentage}%)`,
+                            name
+                          ]}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
               </Grid>
 
-              {/* Age Distribution */}
+              {/* Age Distribution - Bar Chart */}
               <Grid item xs={12} md={6}>
                 <Card>
                   <CardContent>
@@ -636,33 +621,144 @@ const AnalyticsPage: React.FC = () => {
                           : ''
                       }
                     </Typography>
-                    {membershipData?.analytics?.age_distribution?.map((item, index) => (
-                      <Box key={index} sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2">{item.age_group}</Typography>
-                          <Typography variant="body2">
-                            {item.member_count} ({Number(item.percentage).toFixed(1)}%)
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: 8,
-                            backgroundColor: 'grey.200',
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: `${Number(item.percentage)}%`,
-                              height: '100%',
-                              backgroundColor: `hsl(${index * 60}, 70%, 50%)`,
-                              borderRadius: 1,
-                            }}
-                          />
-                        </Box>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        data={membershipAnalytics?.age_distribution?.map((item: any) => ({
+                          age_group: item.age_group,
+                          member_count: Number(item.member_count),
+                          percentage: Number(item.percentage).toFixed(1),
+                        }))}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="age_group" />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value: any, name: any, props: any) => [
+                            `${Number(value).toLocaleString()} (${props.payload.percentage}%)`,
+                            'Members'
+                          ]}
+                        />
+                        <Legend formatter={() => 'Members'} />
+                        <Bar dataKey="member_count" fill="#1976d2" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Population Pyramid - Age/Gender Distribution */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Population Pyramid - Age/Gender Distribution{
+                        municipalityContext.shouldRestrictToMunicipality
+                          ? ` - ${municipalityContext.assignedMunicipality?.name || 'Municipality'}`
+                          : provinceContext.isProvincialAdmin
+                          ? ` - ${provinceContext.assignedProvince?.name || 'Province'}`
+                          : ''
+                      }
+                    </Typography>
+                    <Box sx={{ display: 'flex', height: 400 }}>
+                      {/* Male side (left) */}
+                      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                            data={membershipAnalytics?.age_gender_pyramid?.map((item: any) => ({
+                              age_group: item.age_group,
+                              male_count: Number(item.male_count),
+                              male_percentage: Number(item.male_percentage).toFixed(1),
+                            }))}
+                            layout="vertical"
+                            margin={{ top: 20, right: 0, left: 30, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              reversed
+                              tickFormatter={(value) => value.toLocaleString()}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="age_group"
+                              width={0}
+                              hide
+                            />
+                            <Tooltip
+                              formatter={(value: any, name: any, props: any) => [
+                                `${Number(value).toLocaleString()} (${props.payload.male_percentage}%)`,
+                                'Male'
+                              ]}
+                            />
+                            <Bar
+                              dataKey="male_count"
+                              fill="#1976d2"
+                              name="Male"
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </Box>
-                    ))}
+
+                      {/* Center axis with age labels */}
+                      <Box sx={{ width: 80, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', py: 2.5 }}>
+                        {membershipAnalytics?.age_gender_pyramid?.map((item: any, index: number) => (
+                          <Typography key={index} variant="body2" align="center" sx={{ height: `${100 / (membershipAnalytics?.age_gender_pyramid?.length || 1)}%`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {item.age_group}
+                          </Typography>
+                        ))}
+                      </Box>
+
+                      {/* Female side (right) */}
+                      <Box sx={{ flex: 1 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={membershipAnalytics?.age_gender_pyramid?.map((item: any) => ({
+                              age_group: item.age_group,
+                              female_count: Number(item.female_count),
+                              female_percentage: Number(item.female_percentage).toFixed(1),
+                            }))}
+                            layout="vertical"
+                            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              tickFormatter={(value) => value.toLocaleString()}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="age_group"
+                              width={0}
+                              hide
+                            />
+                            <Tooltip
+                              formatter={(value: any, name: any, props: any) => [
+                                `${Number(value).toLocaleString()} (${props.payload.female_percentage}%)`,
+                                'Female'
+                              ]}
+                            />
+                            <Bar
+                              dataKey="female_count"
+                              fill="#dc004e"
+                              name="Female"
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </Box>
+                    </Box>
+
+                    {/* Legend */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mt: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 16, height: 16, bgcolor: '#1976d2' }} />
+                        <Typography variant="body2">Male</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 16, height: 16, bgcolor: '#dc004e' }} />
+                        <Typography variant="body2">Female</Typography>
+                      </Box>
+                    </Box>
                   </CardContent>
                 </Card>
               </Grid>
@@ -674,7 +770,7 @@ const AnalyticsPage: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       Membership by Status
                     </Typography>
-                    {membershipData?.analytics?.membership_by_status?.map((item, index) => (
+                    {membershipAnalytics?.membership_by_status?.map((item: any, index: number) => (
                       <Box key={index} sx={{ mb: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                           <Typography variant="body2">{item.membership_status}</Typography>
@@ -705,34 +801,40 @@ const AnalyticsPage: React.FC = () => {
                 </Card>
               </Grid>
 
-              {/* Membership Growth */}
-              <Grid item xs={12}>
+              {/* Voter Registration Status */}
+              <Grid item xs={12} md={6}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Membership Growth (Last 12 Months)
+                      Voter Registration Status
                     </Typography>
-                    {membershipData?.analytics?.membership_growth?.length && membershipData.analytics.membership_growth.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {membershipData?.analytics?.membership_growth?.map((item: any, index: number) => (
-                          <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2">{item.month}</Typography>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                              <Typography variant="body2" color="primary.main">
-                                New: {item.new_members}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                Total: {item.total_members}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        ))}
+                    {membershipAnalytics?.voter_registration_status?.map((item: any, index: number) => (
+                      <Box key={index} sx={{ mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">{item.voter_status}</Typography>
+                          <Typography variant="body2">
+                            {item.member_count} ({Number(item.percentage).toFixed(1)}%)
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: 8,
+                            backgroundColor: 'grey.200',
+                            borderRadius: 1,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${Number(item.percentage)}%`,
+                              height: '100%',
+                              backgroundColor: item.voter_status === 'Registered' ? 'success.main' : 'error.main',
+                              borderRadius: 1,
+                            }}
+                          />
+                        </Box>
                       </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        No growth data available
-                      </Typography>
-                    )}
+                    ))}
                   </CardContent>
                 </Card>
               </Grid>
@@ -750,9 +852,9 @@ const AnalyticsPage: React.FC = () => {
                           : ''
                       }
                     </Typography>
-                    {membershipData?.analytics?.geographic_performance?.best_performing_wards?.length && membershipData.analytics.geographic_performance.best_performing_wards.length > 0 ? (
+                    {membershipAnalytics?.geographic_performance?.best_performing_wards?.length && membershipAnalytics.geographic_performance.best_performing_wards.length > 0 ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {membershipData.analytics.geographic_performance.best_performing_wards.map((ward: any, index: number) => (
+                        {membershipAnalytics.geographic_performance.best_performing_wards.map((ward: any, index: number) => (
                           <Box key={index} sx={{ p: 2, border: '1px solid', borderColor: 'success.light', borderRadius: 1 }}>
                             <Typography variant="body2" fontWeight="bold">
                               #{index + 1} {ward.ward_name}
@@ -794,7 +896,7 @@ const AnalyticsPage: React.FC = () => {
                       <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
                         Best performing district municipalities within {provinceContext.assignedProvince?.name || 'your province'}
                       </Typography>
-                      {membershipData?.analytics?.geographic_performance?.top_performing_districts?.length && membershipData.analytics.geographic_performance.top_performing_districts.length > 0 ? (
+                      {membershipAnalytics?.geographic_performance?.top_performing_districts?.length && membershipAnalytics.geographic_performance.top_performing_districts.length > 0 ? (
                         <Box sx={{ mt: 3 }}>
                           <Box
                             sx={{
@@ -807,8 +909,8 @@ const AnalyticsPage: React.FC = () => {
                               overflowX: 'auto'
                             }}
                           >
-                            {membershipData.analytics.geographic_performance.top_performing_districts.map((district: any, index: number) => {
-                              const maxCount = membershipData?.analytics?.geographic_performance?.top_performing_districts?.[0]?.member_count || 1;
+                            {membershipAnalytics.geographic_performance.top_performing_districts.map((district: any, index: number) => {
+                              const maxCount = membershipAnalytics?.geographic_performance?.top_performing_districts?.[0]?.member_count || 1;
                               const barHeight = (district.member_count / maxCount) * 180; // Max height 180px
                               const color = `hsl(${200 + index * 15}, 70%, ${45 + index * 3}%)`; // Blue gradient
 
@@ -918,36 +1020,36 @@ const AnalyticsPage: React.FC = () => {
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Total Meetings"
-                  value={(meetingData?.analytics?.total_meetings || 0).toString()}
+                  value={(meetingAnalytics?.total_meetings || 0).toString()}
                   subtitle="All meetings held"
                   icon={Event}
                   color="primary"
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Completed"
-                  value={(meetingData?.analytics?.completed_meetings || 0).toString()}
+                  value={(meetingAnalytics?.completed_meetings || 0).toString()}
                   subtitle="Successfully held"
                   icon={Event}
                   color="success"
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Upcoming"
-                  value={(meetingData?.analytics?.upcoming_meetings || 0).toString()}
+                  value={(meetingAnalytics?.upcoming_meetings || 0).toString()}
                   subtitle="Scheduled ahead"
                   icon={Event}
                   color="info"
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Average Attendance"
-                  value={`${meetingData?.analytics?.average_attendance || 0}%`}
+                  value={`${meetingAnalytics?.average_attendance || 0}%`}
                   subtitle="Participation rate"
                   icon={People}
                   color="success"
@@ -961,7 +1063,7 @@ const AnalyticsPage: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       Meetings by Type
                     </Typography>
-                    {meetingData?.analytics?.meetings_by_type?.map((item, index) => (
+                    {meetingAnalytics?.meetings_by_type?.map((item: any, index: number) => (
                       <Box key={index} sx={{ mb: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                           <Typography variant="body2">{item.meeting_type}</Typography>
@@ -999,7 +1101,7 @@ const AnalyticsPage: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       Meetings by Hierarchy
                     </Typography>
-                    {meetingData?.analytics?.meetings_by_hierarchy?.map((item, index) => (
+                    {meetingAnalytics?.meetings_by_hierarchy?.map((item: any, index: number) => (
                       <Box key={index} sx={{ mb: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                           <Typography variant="body2">{item.hierarchy_level}</Typography>
@@ -1035,36 +1137,36 @@ const AnalyticsPage: React.FC = () => {
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Total Positions"
-                  value={(leadershipData?.analytics?.total_positions || 0).toString()}
+                  value={(leadershipAnalytics?.total_positions || 0).toString()}
                   subtitle="All leadership roles"
                   icon={AccountBalance}
                   color="primary"
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Filled Positions"
-                  value={(leadershipData?.analytics?.filled_positions || 0).toString()}
+                  value={(leadershipAnalytics?.filled_positions || 0).toString()}
                   subtitle="Currently occupied"
                   icon={AccountBalance}
                   color="success"
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Vacant Positions"
-                  value={(leadershipData?.analytics?.vacant_positions || 0).toString()}
+                  value={(leadershipAnalytics?.vacant_positions || 0).toString()}
                   subtitle="Need to be filled"
                   icon={AccountBalance}
                   color="error"
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <StatsCard
+                    <StatsCard
                   title="Active Elections"
-                  value={(leadershipData?.analytics?.upcoming_elections || 0).toString()}
+                  value={(leadershipAnalytics?.upcoming_elections || 0).toString()}
                   subtitle="Currently running"
                   icon={Event}
                   color="info"
@@ -1078,7 +1180,7 @@ const AnalyticsPage: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       Positions by Hierarchy
                     </Typography>
-                    {leadershipData?.analytics?.positions_by_hierarchy?.map((item, index) => (
+                    {leadershipAnalytics?.positions_by_hierarchy?.map((item: any, index: number) => (
                       <Box key={index} sx={{ mb: 3 }}>
                         <Typography variant="subtitle1" gutterBottom>
                           {item.hierarchy_level}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -12,8 +12,6 @@ import {
   Tooltip,
   Alert,
   CircularProgress,
-  Chip,
-  Button,
   useTheme,
   Divider,
   List,
@@ -24,10 +22,8 @@ import {
   LinearProgress,
 } from '@mui/material';
 import {
-  AccountBalance,
   TrendingUp,
   TrendingDown,
-  Payment,
   Receipt,
   Assessment,
   Speed,
@@ -40,14 +36,12 @@ import {
   People,
   Analytics,
   Dashboard as DashboardIcon,
-  Notifications,
   Timeline,
 } from '@mui/icons-material';
 import {
-  LineChart,
   Line,
-  AreaChart,
   Area,
+  AreaChart,
   BarChart,
   Bar,
   PieChart,
@@ -62,7 +56,7 @@ import {
   ComposedChart,
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
-import { financialDashboardApi, twoTierApprovalApi, financialTransactionApi } from '../../services/api';
+import { financialDashboardApi, financialTransactionApi } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
 
 interface TabPanelProps {
@@ -182,7 +176,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
   }
 
   // Transform trends data to match chart expectations
-  const trendsArray = Array.isArray(trends?.data?.trends) ? trends.data.trends :
+  const trendsArray = Array.isArray((trends as any)?.data?.trends) ? (trends as any).data.trends :
                      Array.isArray(trends?.data) ? trends.data : [];
 
   const transformedTrends = trendsArray.map((trend: any) => ({
@@ -200,11 +194,11 @@ const UnifiedFinancialDashboard: React.FC = () => {
   }));
 
   // Ensure alerts is always an array
-  const alertsArray = Array.isArray(alerts?.data?.alerts) ? alerts.data.alerts :
+  const alertsArray = Array.isArray((alerts as any)?.data?.alerts) ? (alerts as any).data.alerts :
                      Array.isArray(alerts?.data) ? alerts.data : [];
 
   const dashboardData = {
-    metrics: metrics?.data?.metrics || {},
+    metrics: (metrics as any)?.data?.metrics || {},
     realtimeStats: realtimeStats?.data?.stats || {},
     trends: transformedTrends,
     alerts: alertsArray,
@@ -281,7 +275,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     <Typography variant="caption" color={
                       dashboardData.metrics.overview?.revenue_growth_percentage >= 0 ? 'success.main' : 'error.main'
                     }>
-                      {Math.abs(dashboardData.metrics.overview?.revenue_growth_percentage || 0).toFixed(1)}%
+                      {Math.abs(Number(dashboardData.metrics.overview?.revenue_growth_percentage || 0)).toFixed(1)}%
                     </Typography>
                   </Box>
                 </Box>
@@ -328,7 +322,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     Pending Reviews
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Avg: {dashboardData.metrics.overview?.avg_processing_time_hours?.toFixed(1) || 0}h
+                    Avg: {Number(dashboardData.metrics.overview?.avg_processing_time_hours || 0).toFixed(1)}h
                   </Typography>
                 </Box>
               </Box>
@@ -345,7 +339,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                 </Avatar>
                 <Box>
                   <Typography variant="h5">
-                    {dashboardData.performance.efficiency_score?.toFixed(1) || '0'}%
+                    {Number(dashboardData.performance.efficiency_score || 0).toFixed(1)}%
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Efficiency Score
@@ -364,7 +358,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
       <Paper sx={{ mb: 3 }}>
         <Tabs 
           value={activeTab} 
-          onChange={(e, newValue) => setActiveTab(newValue)}
+          onChange={(_e, newValue) => setActiveTab(newValue)}
           variant="scrollable"
           scrollButtons="auto"
         >
@@ -592,7 +586,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     sx={{ height: 8, borderRadius: 4 }}
                   />
                   <Typography variant="caption">
-                    {dashboardData.metrics.applications?.rejection_rate?.toFixed(1) || 0}%
+                    {Number(dashboardData.metrics.applications?.rejection_rate || 0).toFixed(1)}%
                   </Typography>
                 </Box>
                 <Divider sx={{ my: 2 }} />
@@ -607,7 +601,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     color="success"
                   />
                   <Typography variant="h6">
-                    {(100 - (dashboardData.metrics.applications?.rejection_rate || 0)).toFixed(1)}%
+                    {(100 - Number(dashboardData.metrics.applications?.rejection_rate || 0)).toFixed(1)}%
                   </Typography>
                 </Box>
               </CardContent>
@@ -685,7 +679,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                   />
                   <Box sx={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <Typography variant="h4" color="success.main">
-                      {dashboardData.metrics.renewals?.success_rate?.toFixed(1) || 0}%
+                      {Number(dashboardData.metrics.renewals?.success_rate || 0).toFixed(1)}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Success Rate
@@ -766,7 +760,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary="Avg Review Time"
-                      secondary={`${dashboardData.performance.avg_review_time?.toFixed(1) || 0} hours`}
+                      secondary={`${Number(dashboardData.performance.avg_review_time || 0).toFixed(1)} hours`}
                     />
                   </ListItem>
                   <ListItem>
@@ -784,7 +778,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary="Efficiency Score"
-                      secondary={`${dashboardData.performance.efficiency_score?.toFixed(1) || 0}%`}
+                      secondary={`${Number(dashboardData.performance.efficiency_score || 0).toFixed(1)}%`}
                     />
                   </ListItem>
                 </List>
@@ -818,7 +812,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                   <Grid item xs={12} sm={6} md={3}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="h4" color="success.main">
-                        {dashboardData.quickStats.approval_rate?.toFixed(1) || 0}%
+                        {Number(dashboardData.quickStats.approval_rate || 0).toFixed(1)}%
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Approval Rate
@@ -834,7 +828,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                   <Grid item xs={12} sm={6} md={3}>
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="h4" color="info.main">
-                        {dashboardData.quickStats.avg_processing_time?.toFixed(1) || 0}h
+                        {Number(dashboardData.quickStats.avg_processing_time || 0).toFixed(1)}h
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Avg Processing Time
@@ -936,7 +930,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary="Growth Rate"
-                      secondary={`${dashboardData.quickStats.growth_rate?.toFixed(1) || 0}%`}
+                      secondary={`${Number(dashboardData.quickStats.growth_rate || 0).toFixed(1)}%`}
                     />
                   </ListItem>
                   <ListItem>
@@ -945,7 +939,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary="Avg Transaction Value"
-                      secondary={`R${dashboardData.quickStats.avg_transaction_value?.toFixed(2) || '0.00'}`}
+                      secondary={`R${Number(dashboardData.quickStats.avg_transaction_value || 0).toFixed(2)}`}
                     />
                   </ListItem>
                   <ListItem>
@@ -954,7 +948,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary="Data Quality Score"
-                      secondary={`${dashboardData.quickStats.data_quality_score?.toFixed(1) || 0}%`}
+                      secondary={`${Number(dashboardData.quickStats.data_quality_score || 0).toFixed(1)}%`}
                     />
                   </ListItem>
                 </List>
@@ -979,7 +973,7 @@ const UnifiedFinancialDashboard: React.FC = () => {
                     <Grid item xs={12} sm={6} md={3} key={index}>
                       <Box sx={{ textAlign: 'center', p: 2 }}>
                         <Typography variant="h5" color={`${indicator.color}.main`}>
-                          {indicator.value.toFixed(1)}%
+                          {Number(indicator.value).toFixed(1)}%
                         </Typography>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                           {indicator.label}

@@ -33,7 +33,7 @@ export const createAdmin = createAsyncThunk(
     ward_code?: string;
     justification?: string;
   }) => {
-    const response = await UserManagementAPI.createAdmin(adminData);
+    const response = await UserManagementAPI.createAdmin(adminData as any);
     return response.data;
   }
 );
@@ -193,16 +193,16 @@ const userManagementSlice = createSlice({
   name: 'userManagement',
   initialState,
   reducers: {
-    setFilters: (state, action: PayloadAction<Partial<UserManagementState['filters']>>) => {
+    setFilters: (state: any, action: PayloadAction<Partial<UserManagementState['filters']>>) => {
       state.filters = { ...state.filters, ...action.payload };
     },
-    clearFilters: (state) => {
+    clearFilters: (state: any) => {
       state.filters = {};
     },
-    setSelectedUsers: (state, action: PayloadAction<number[]>) => {
+    setSelectedUsers: (state: any, action: PayloadAction<number[]>) => {
       state.selectedUsers = action.payload;
     },
-    toggleUserSelection: (state, action: PayloadAction<number>) => {
+    toggleUserSelection: (state: any, action: PayloadAction<number>) => {
       const userId = action.payload;
       const index = state.selectedUsers.indexOf(userId);
       if (index > -1) {
@@ -211,13 +211,13 @@ const userManagementSlice = createSlice({
         state.selectedUsers.push(userId);
       }
     },
-    clearUserSelection: (state) => {
+    clearUserSelection: (state: any) => {
       state.selectedUsers = [];
     },
-    clearMFASetup: (state) => {
+    clearMFASetup: (state: any) => {
       state.mfaSetup = null;
     },
-    clearErrors: (state) => {
+    clearErrors: (state: any) => {
       state.adminsError = null;
       state.statisticsError = null;
       state.workflowsError = null;
@@ -225,130 +225,130 @@ const userManagementSlice = createSlice({
       state.mfaError = null;
     }
   },
-  extraReducers: (builder) => {
+  extraReducers: (builder: any) => {
     // Fetch admins
     builder
-      .addCase(fetchAdmins.pending, (state) => {
+      .addCase(fetchAdmins.pending, (state: any) => {
         state.adminsLoading = true;
         state.adminsError = null;
       })
-      .addCase(fetchAdmins.fulfilled, (state, action) => {
+      .addCase(fetchAdmins.fulfilled, (state: any, action: any) => {
         state.adminsLoading = false;
         state.admins = action.payload.admins;
         state.adminsPagination = action.payload.pagination;
       })
-      .addCase(fetchAdmins.rejected, (state, action) => {
+      .addCase(fetchAdmins.rejected, (state: any, action: any) => {
         state.adminsLoading = false;
         state.adminsError = action.error.message || 'Failed to fetch admins';
       });
 
     // Create admin
     builder
-      .addCase(createAdmin.pending, (state) => {
+      .addCase(createAdmin.pending, (state: any) => {
         state.adminsLoading = true;
         state.adminsError = null;
       })
-      .addCase(createAdmin.fulfilled, (state) => {
+      .addCase(createAdmin.fulfilled, (state: any) => {
         state.adminsLoading = false;
         // Refresh admins list after creation
       })
-      .addCase(createAdmin.rejected, (state, action) => {
+      .addCase(createAdmin.rejected, (state: any, action: any) => {
         state.adminsLoading = false;
         state.adminsError = action.error.message || 'Failed to create admin';
       });
 
     // Fetch user statistics
     builder
-      .addCase(fetchUserStatistics.pending, (state) => {
+      .addCase(fetchUserStatistics.pending, (state: any) => {
         state.statisticsLoading = true;
         state.statisticsError = null;
       })
-      .addCase(fetchUserStatistics.fulfilled, (state, action) => {
+      .addCase(fetchUserStatistics.fulfilled, (state: any, action: any) => {
         state.statisticsLoading = false;
         state.userStatistics = action.payload.user_statistics;
       })
-      .addCase(fetchUserStatistics.rejected, (state, action) => {
+      .addCase(fetchUserStatistics.rejected, (state: any, action: any) => {
         state.statisticsLoading = false;
         state.statisticsError = action.error.message || 'Failed to fetch statistics';
       });
 
     // Fetch pending workflows
     builder
-      .addCase(fetchPendingWorkflows.pending, (state) => {
+      .addCase(fetchPendingWorkflows.pending, (state: any) => {
         state.workflowsLoading = true;
         state.workflowsError = null;
       })
-      .addCase(fetchPendingWorkflows.fulfilled, (state, action) => {
+      .addCase(fetchPendingWorkflows.fulfilled, (state: any, action: any) => {
         state.workflowsLoading = false;
         state.pendingWorkflows = action.payload.workflows;
       })
-      .addCase(fetchPendingWorkflows.rejected, (state, action) => {
+      .addCase(fetchPendingWorkflows.rejected, (state: any, action: any) => {
         state.workflowsLoading = false;
         state.workflowsError = action.error.message || 'Failed to fetch workflows';
       });
 
     // Review workflow
     builder
-      .addCase(reviewWorkflow.fulfilled, (state, action) => {
+      .addCase(reviewWorkflow.fulfilled, (state: any, action: any) => {
         const { workflowId } = action.payload;
-        state.pendingWorkflows = state.pendingWorkflows.filter(w => w.id !== workflowId);
+        state.pendingWorkflows = state.pendingWorkflows.filter((w: any) => w.id !== workflowId);
       });
 
     // Fetch my sessions
     builder
-      .addCase(fetchMySessions.pending, (state) => {
+      .addCase(fetchMySessions.pending, (state: any) => {
         state.sessionsLoading = true;
         state.sessionsError = null;
       })
-      .addCase(fetchMySessions.fulfilled, (state, action) => {
+      .addCase(fetchMySessions.fulfilled, (state: any, action: any) => {
         state.sessionsLoading = false;
         state.mySessions = action.payload.sessions;
       })
-      .addCase(fetchMySessions.rejected, (state, action) => {
+      .addCase(fetchMySessions.rejected, (state: any, action: any) => {
         state.sessionsLoading = false;
         state.sessionsError = action.error.message || 'Failed to fetch sessions';
       });
 
     // Terminate session
     builder
-      .addCase(terminateSession.fulfilled, (state, action) => {
+      .addCase(terminateSession.fulfilled, (state: any, action: any) => {
         const { sessionId } = action.payload;
-        state.mySessions = state.mySessions.filter(s => s.session_id !== sessionId);
+        state.mySessions = state.mySessions.filter((s: any) => s.session_id !== sessionId);
       });
 
     // Fetch MFA status
     builder
-      .addCase(fetchMFAStatus.pending, (state) => {
+      .addCase(fetchMFAStatus.pending, (state: any) => {
         state.mfaLoading = true;
         state.mfaError = null;
       })
-      .addCase(fetchMFAStatus.fulfilled, (state, action) => {
+      .addCase(fetchMFAStatus.fulfilled, (state: any, action: any) => {
         state.mfaLoading = false;
         state.mfaStatus = action.payload;
       })
-      .addCase(fetchMFAStatus.rejected, (state, action) => {
+      .addCase(fetchMFAStatus.rejected, (state: any, action: any) => {
         state.mfaLoading = false;
         state.mfaError = action.error.message || 'Failed to fetch MFA status';
       });
 
     // Generate MFA setup
     builder
-      .addCase(generateMFASetup.pending, (state) => {
+      .addCase(generateMFASetup.pending, (state: any) => {
         state.mfaLoading = true;
         state.mfaError = null;
       })
-      .addCase(generateMFASetup.fulfilled, (state, action) => {
+      .addCase(generateMFASetup.fulfilled, (state: any, action: any) => {
         state.mfaLoading = false;
         state.mfaSetup = action.payload;
       })
-      .addCase(generateMFASetup.rejected, (state, action) => {
+      .addCase(generateMFASetup.rejected, (state: any, action: any) => {
         state.mfaLoading = false;
         state.mfaError = action.error.message || 'Failed to generate MFA setup';
       });
 
     // Enable MFA
     builder
-      .addCase(enableMFA.fulfilled, (state, action) => {
+      .addCase(enableMFA.fulfilled, (state: any, _action: any) => {
         state.mfaStatus = { ...state.mfaStatus!, enabled: true };
         state.mfaSetup = null;
       });

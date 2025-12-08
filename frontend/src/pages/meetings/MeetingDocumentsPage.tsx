@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
   Button,
   Grid,
   Chip,
@@ -13,7 +12,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   IconButton,
   Menu,
   MenuItem,
@@ -21,10 +19,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
   Alert,
   CircularProgress,
   Tabs,
@@ -32,7 +26,6 @@ import {
   Badge,
   Container,
   useTheme,
-  Divider,
 } from '@mui/material';
 import {
   Description,
@@ -41,20 +34,15 @@ import {
   Edit,
   Delete,
   Visibility,
-  Download,
   Assignment,
   Gavel,
-  AttachFile,
-  History,
-  FilterList,
   Refresh,
   Article,
   Task,
-  CheckCircle,
   Schedule,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost, apiPut, apiDelete } from '../../lib/api';
+import { apiGet, apiDelete } from '../../lib/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
@@ -78,40 +66,40 @@ interface MeetingDocument {
   approver_name?: string;
 }
 
-interface ActionItem {
-  id: number;
-  meeting_id: number;
-  document_id?: number;
-  action_title: string;
-  action_description?: string;
-  assigned_to?: number;
-  assigned_role?: string;
-  due_date?: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-  assignee_name?: string;
-}
+// interface ActionItem {
+//   id: number;
+//   meeting_id: number;
+//   document_id?: number;
+//   action_title: string;
+//   action_description?: string;
+//   assigned_to?: number;
+//   assigned_role?: string;
+//   due_date?: string;
+//   priority: 'low' | 'medium' | 'high' | 'urgent';
+//   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+//   created_by: number;
+//   created_at: string;
+//   updated_at: string;
+//   assignee_name?: string;
+// }
 
-interface MeetingDecision {
-  id: number;
-  meeting_id: number;
-  document_id?: number;
-  decision_title: string;
-  decision_description: string;
-  decision_type: 'resolution' | 'motion' | 'policy' | 'appointment' | 'other';
-  voting_result?: any;
-  decision_status: 'proposed' | 'approved' | 'rejected' | 'deferred';
-  proposed_by?: number;
-  seconded_by?: number;
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-  proposer_name?: string;
-  seconder_name?: string;
-}
+// interface MeetingDecision {
+//   id: number;
+//   meeting_id: number;
+//   document_id?: number;
+//   decision_title: string;
+//   decision_description: string;
+//   decision_type: 'resolution' | 'motion' | 'policy' | 'appointment' | 'other';
+//   voting_result?: any;
+//   decision_status: 'proposed' | 'approved' | 'rejected' | 'deferred';
+//   proposed_by?: number;
+//   seconded_by?: number;
+//   created_by: number;
+//   created_at: string;
+//   updated_at: string;
+//   proposer_name?: string;
+//   seconder_name?: string;
+// }
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -154,14 +142,14 @@ const MeetingDocumentsPage: React.FC = () => {
   });
 
   // Fetch action items
-  const { data: actionItemsData, isLoading: actionItemsLoading, refetch: refetchActionItems } = useQuery({
+  const { data: actionItemsData, refetch: refetchActionItems } = useQuery({
     queryKey: ['meeting-action-items', meetingId],
     queryFn: () => apiGet(`/meeting-documents/action-items/meeting/${meetingId}`),
     enabled: !!meetingId,
   });
 
   // Fetch decisions
-  const { data: decisionsData, isLoading: decisionsLoading, refetch: refetchDecisions } = useQuery({
+  const { data: decisionsData, refetch: refetchDecisions } = useQuery({
     queryKey: ['meeting-decisions', meetingId],
     queryFn: () => apiGet(`/meeting-documents/decisions/meeting/${meetingId}`),
     enabled: !!meetingId,
@@ -174,10 +162,10 @@ const MeetingDocumentsPage: React.FC = () => {
     enabled: !!meetingId,
   });
 
-  const documents = documentsData?.data?.documents || [];
-  const actionItems = actionItemsData?.data?.action_items || [];
-  const decisions = decisionsData?.data?.decisions || [];
-  const meeting = meetingData?.meeting || null;
+  const documents = (documentsData as any)?.data?.documents || [];
+  const actionItems = (actionItemsData as any)?.data?.action_items || [];
+  const decisions = (decisionsData as any)?.data?.decisions || [];
+  const meeting = (meetingData as any)?.data?.meeting || null;
 
   // Delete document mutation
   const deleteDocumentMutation = useMutation({
@@ -189,7 +177,7 @@ const MeetingDocumentsPage: React.FC = () => {
     },
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
@@ -225,35 +213,35 @@ const MeetingDocumentsPage: React.FC = () => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'low': return 'success';
-      case 'medium': return 'warning';
-      case 'high': return 'error';
-      case 'urgent': return 'error';
-      default: return 'default';
-    }
-  };
+  // const getPriorityColor = (priority: string) => {
+  //   switch (priority) {
+  //     case 'low': return 'success';
+  //     case 'medium': return 'warning';
+  //     case 'high': return 'error';
+  //     case 'urgent': return 'error';
+  //     default: return 'default';
+  //   }
+  // };
 
-  const getActionStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'default';
-      case 'in_progress': return 'info';
-      case 'completed': return 'success';
-      case 'cancelled': return 'error';
-      default: return 'default';
-    }
-  };
+  // const getActionStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'pending': return 'default';
+  //     case 'in_progress': return 'info';
+  //     case 'completed': return 'success';
+  //     case 'cancelled': return 'error';
+  //     default: return 'default';
+  //   }
+  // };
 
-  const getDecisionStatusColor = (status: string) => {
-    switch (status) {
-      case 'proposed': return 'default';
-      case 'approved': return 'success';
-      case 'rejected': return 'error';
-      case 'deferred': return 'warning';
-      default: return 'default';
-    }
-  };
+  // const getDecisionStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'proposed': return 'default';
+  //     case 'approved': return 'success';
+  //     case 'rejected': return 'error';
+  //     case 'deferred': return 'warning';
+  //     default: return 'default';
+  //   }
+  // };
 
   if (!meetingId) {
     return (
@@ -314,7 +302,7 @@ const MeetingDocumentsPage: React.FC = () => {
               value={documents.length}
               icon={Description}
               color="primary"
-              subtitle={`${documents.filter(d => d.document_status === 'published').length} published`}
+              subtitle={`${documents.filter((d: any) => d.document_status === 'published').length} published`}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -323,7 +311,7 @@ const MeetingDocumentsPage: React.FC = () => {
               value={actionItems.length}
               icon={Assignment}
               color="warning"
-              subtitle={`${actionItems.filter(a => a.status === 'completed').length} completed`}
+              subtitle={`${actionItems.filter((a: any) => a.status === 'completed').length} completed`}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -332,16 +320,16 @@ const MeetingDocumentsPage: React.FC = () => {
               value={decisions.length}
               icon={Gavel}
               color="success"
-              subtitle={`${decisions.filter(d => d.decision_status === 'approved').length} approved`}
+              subtitle={`${decisions.filter((d: any) => d.decision_status === 'approved').length} approved`}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="Pending Items"
               value={
-                documents.filter(d => d.document_status === 'draft').length +
-                actionItems.filter(a => a.status === 'pending').length +
-                decisions.filter(d => d.decision_status === 'proposed').length
+                documents.filter((d: any) => d.document_status === 'draft').length +
+                actionItems.filter((a: any) => a.status === 'pending').length +
+                decisions.filter((d: any) => d.decision_status === 'proposed').length
               }
               icon={Schedule}
               color="error"

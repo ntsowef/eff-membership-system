@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Chip, ChipProps } from '@mui/material';
+import { Chip, type ChipProps } from '@mui/material';
 import {
   Error,
   Warning,
@@ -65,6 +65,7 @@ const SeverityBadge: React.FC<SeverityBadgeProps> = ({
       color={getSeverityColor(severity)}
       icon={showIcon ? getSeverityIcon(severity) : undefined}
       size="small"
+      sx={{ borderRadius: '50px', ...chipProps.sx }} // Pill shape
       {...chipProps}
     />
   );

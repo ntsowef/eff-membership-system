@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
+  // Card,
   CardContent,
   Grid,
   Button,
@@ -45,12 +45,12 @@ import {
   Stop,
   CheckCircle,
   Schedule,
-  People,
+  // People,
   Poll,
   Campaign,
   Refresh,
-  Groups,
-  EventAvailable,
+  // Groups,
+  // EventAvailable,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiPost } from '../../lib/api';

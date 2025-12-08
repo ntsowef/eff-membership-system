@@ -144,6 +144,12 @@ export const notFoundHandler = (
   res: Response,
   next: NextFunction
 ): void => {
+  // Silently ignore /metrics requests (Prometheus monitoring)
+  if (req.path === '/metrics') {
+    res.status(404).end();
+    return;
+  }
+
   const error = new NotFoundError(`Route ${req.method} ${req.path} not found`);
   next(error);
 };

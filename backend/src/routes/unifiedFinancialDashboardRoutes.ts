@@ -36,38 +36,12 @@ router.get('/metrics',
         throw new ValidationError(error.details[0].message);
       }
 
-      // Temporarily bypass cache to fix the issue
-      // Temporarily return mock data to fix the issue
-      const metrics = {
-        overview: {
-          total_transactions: 14,
-          total_revenue: 155.00,
-          pending_reviews: 14,
-          completed_today: 0,
-          revenue_growth_percentage: 5.2,
-          avg_processing_time_hours: 18.5
-        },
-        applications: {
-          total_applications: 6,
-          applications_revenue: 75.00,
-          pending_financial_review: 6,
-          approved_today: 0,
-          rejection_rate: 0
-        },
-        renewals: {
-          total_renewals: 8,
-          renewals_revenue: 80.00,
-          pending_financial_review: 8,
-          processed_today: 0,
-          success_rate: 100
-        },
-        performance: {
-          active_reviewers: 1,
-          avg_review_time: 24.0,
-          reviews_completed_today: 0,
-          efficiency_score: 85.5
-        }
-      };
+      // Get real data from the database
+      const metrics = await UnifiedFinancialDashboardService.getDashboardMetrics(
+        value.date_from,
+        value.date_to,
+        req.user?.role
+      );
 
       sendSuccess(res, { metrics }, 'Dashboard metrics retrieved successfully');
     } catch (error) {
@@ -105,25 +79,11 @@ router.get('/trends',
         throw new ValidationError(error.details[0].message);
       }
 
-      // Temporarily return mock data to fix the issue
-      const trends = [
-        {
-          period: '2025-09-21',
-          applications_count: 2,
-          renewals_count: 3,
-          total_revenue: 50.00,
-          approval_rate: 100,
-          processing_time: 24.0
-        },
-        {
-          period: '2025-09-20',
-          applications_count: 4,
-          renewals_count: 5,
-          total_revenue: 105.00,
-          approval_rate: 100,
-          processing_time: 18.5
-        }
-      ];
+      // Get real data from the database
+      const trends = await UnifiedFinancialDashboardService.getFinancialTrends(
+        value.period || 'daily',
+        value.limit || 30
+      );
 
       sendSuccess(res, { trends, period: value.period, limit: value.limit }, 'Financial trends retrieved successfully');
     } catch (error) {
@@ -193,48 +153,16 @@ router.get('/performance',
     try {
       const dateFrom = req.query.date_from as string;
       const dateTo = req.query.date_to as string;
-      
-      // Temporarily return mock data to fix the issue
-      const metrics = {
-        overview: {
-          total_transactions: 14,
-          total_revenue: 155.00,
-          pending_reviews: 14,
-          completed_today: 0,
-          revenue_growth_percentage: 5.2,
-          avg_processing_time_hours: 18.5
-        },
-        applications: {
-          total_applications: 6,
-          applications_revenue: 75.00,
-          pending_financial_review: 6,
-          approved_today: 0,
-          rejection_rate: 0
-        },
-        renewals: {
-          total_renewals: 8,
-          renewals_revenue: 80.00,
-          pending_financial_review: 8,
-          processed_today: 0,
-          success_rate: 100
-        },
-        performance: {
-          active_reviewers: 1,
-          avg_review_time: 24.0,
-          reviews_completed_today: 0,
-          efficiency_score: 85.5
-        }
-      };
-      const trends = [
-        {
-          period: '2025-09-21',
-          applications_count: 2,
-          renewals_count: 3,
-          total_revenue: 50.00,
-          approval_rate: 100,
-          processing_time: 24.0
-        }
-      ];
+      const period = req.query.period as 'daily' | 'weekly' | 'monthly' || 'daily';
+
+      // Get real data from the database
+      const metrics = await UnifiedFinancialDashboardService.getDashboardMetrics(
+        dateFrom,
+        dateTo,
+        req.user?.role
+      );
+
+      const trends = await UnifiedFinancialDashboardService.getFinancialTrends(period, 7);
 
       const performance = {
         current_metrics: metrics,

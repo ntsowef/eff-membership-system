@@ -1,9 +1,11 @@
 const bcrypt = require('bcrypt');
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { getPrisma } from './prismaService';
 import { cacheService } from './cacheService';
 import { createDatabaseError } from '../middleware/errorHandler';
+
+const prisma = getPrisma();
 
 // Security interfaces
 export interface MFASetup {
@@ -62,15 +64,21 @@ export class SecurityService {
       // Generate backup codes
       const backupCodes = this.generateBackupCodes();
 
-      // Store MFA setup in database
-      await executeQuery(`
-        INSERT INTO user_mfa_settings (user_id, secret_key, backup_codes, is_enabled, created_at)
-        VALUES (?, ?, ?, FALSE, NOW())
-        ON DUPLICATE KEY UPDATE 
-        secret_key = VALUES(secret_key),
-        backup_codes = VALUES(backup_codes),
-        updated_at = NOW()
-      `, [userId, secret.base32, JSON.stringify(backupCodes)]);
+      // Store MFA setup in database - UPSERT operation
+      await prisma.user_mfa_settings.upsert({
+        where: { user_id: userId },
+        update: {
+          secret_key: secret.base32,
+          backup_codes: backupCodes,
+          updated_at: new Date()
+        },
+        create: {
+          user_id: userId,
+          secret_key: secret.base32,
+          backup_codes: backupCodes,
+          is_enabled: false
+        }
+      });
 
       return {
         secret: secret.base32!,
@@ -85,10 +93,16 @@ export class SecurityService {
   // Verify MFA token
   static async verifyMFA(userId: number, token: string): Promise<boolean> {
     try {
-      const mfaSettings = await executeQuerySingle(`
-        SELECT secret_key, backup_codes FROM user_mfa_settings 
-        WHERE user_id = ? AND is_enabled = TRUE
-      `, [userId]);
+      const mfaSettings = await prisma.user_mfa_settings.findFirst({
+        where: {
+          user_id: userId,
+          is_enabled: true
+        },
+        select: {
+          secret_key: true,
+          backup_codes: true
+        }
+      });
 
       if (!mfaSettings) {
         return false;
@@ -107,19 +121,22 @@ export class SecurityService {
       }
 
       // Check backup codes
-      const backupCodes = JSON.parse(mfaSettings.backup_codes || '[]');
-      const hashedToken = await bcrypt.hash(token, 10);
-      
+      const backupCodes = Array.isArray(mfaSettings.backup_codes)
+        ? mfaSettings.backup_codes
+        : JSON.parse((mfaSettings.backup_codes as string) || '[]');
+
       for (const code of backupCodes) {
         if (await bcrypt.compare(token, code)) {
           // Remove used backup code
           const updatedCodes = backupCodes.filter((c: string) => c !== code);
-          await executeQuery(`
-            UPDATE user_mfa_settings 
-            SET backup_codes = ?, updated_at = NOW()
-            WHERE user_id = ?
-          `, [JSON.stringify(updatedCodes), userId]);
-          
+          await prisma.user_mfa_settings.update({
+            where: { user_id: userId },
+            data: {
+              backup_codes: updatedCodes,
+              updated_at: new Date()
+            }
+          });
+
           return true;
         }
       }
@@ -140,11 +157,14 @@ export class SecurityService {
       }
 
       // Enable MFA
-      await executeQuery(`
-        UPDATE user_mfa_settings 
-        SET is_enabled = TRUE, enabled_at = NOW(), updated_at = NOW()
-        WHERE user_id = ?
-      `, [userId]);
+      await prisma.user_mfa_settings.update({
+        where: { user_id: userId },
+        data: {
+          is_enabled: true,
+          enabled_at: new Date(),
+          updated_at: new Date()
+        }
+      });
 
       // Log security event
       await this.logSecurityEvent(userId, 'mfa_setup', '', '', { action: 'enabled' });
@@ -158,11 +178,14 @@ export class SecurityService {
   // Disable MFA for user
   static async disableMFA(userId: number): Promise<boolean> {
     try {
-      await executeQuery(`
-        UPDATE user_mfa_settings 
-        SET is_enabled = FALSE, disabled_at = NOW(), updated_at = NOW()
-        WHERE user_id = ?
-      `, [userId]);
+      await prisma.user_mfa_settings.update({
+        where: { user_id: userId },
+        data: {
+          is_enabled: false,
+          disabled_at: new Date(),
+          updated_at: new Date()
+        }
+      });
 
       // Log security event
       await this.logSecurityEvent(userId, 'mfa_setup', '', '', { action: 'disabled' });
@@ -176,10 +199,13 @@ export class SecurityService {
   // Check if user has MFA enabled
   static async isMFAEnabled(userId: number): Promise<boolean> {
     try {
-      const result = await executeQuerySingle(`
-        SELECT is_enabled FROM user_mfa_settings 
-        WHERE user_id = ? AND is_enabled = TRUE
-      `, [userId]);
+      const result = await prisma.user_mfa_settings.findFirst({
+        where: {
+          user_id: userId,
+          is_enabled: true
+        },
+        select: { is_enabled: true }
+      });
 
       return !!result;
     } catch (error) {
@@ -191,20 +217,30 @@ export class SecurityService {
   static async recordLoginAttempt(userId: number, ipAddress: string, userAgent: string, success: boolean, failureReason?: string): Promise<void> {
     try {
       // Record login attempt
-      await executeQuery(`
-        INSERT INTO login_attempts (user_id, ip_address, user_agent, success, failure_reason, attempted_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-      `, [userId, ipAddress, userAgent, success, failureReason]);
+      await prisma.login_attempts.create({
+        data: {
+          user_id: userId,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          success: success,
+          failure_reason: failureReason
+        }
+      });
 
       if (!success) {
         // Check failed attempts in last hour
-        const failedAttempts = await executeQuerySingle(`
-          SELECT COUNT(*) as count FROM login_attempts 
-          WHERE user_id = ? AND success = FALSE 
-          AND attempted_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-        `, [userId]);
+        const oneHourAgo = new Date();
+        oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
-        if (failedAttempts && failedAttempts.count >= this.MAX_FAILED_ATTEMPTS) {
+        const failedCount = await prisma.login_attempts.count({
+          where: {
+            user_id: userId,
+            success: false,
+            attempted_at: { gt: oneHourAgo }
+          }
+        });
+
+        if (failedCount >= this.MAX_FAILED_ATTEMPTS) {
           await this.lockAccount(userId, ipAddress, userAgent);
         }
       } else {
@@ -222,11 +258,15 @@ export class SecurityService {
       const lockoutUntil = new Date();
       lockoutUntil.setMinutes(lockoutUntil.getMinutes() + this.LOCKOUT_DURATION);
 
-      await executeQuery(`
-        UPDATE users 
-        SET account_locked = TRUE, locked_until = ?, locked_at = NOW(), updated_at = NOW()
-        WHERE id = ?
-      `, [lockoutUntil, userId]);
+      await prisma.users.update({
+        where: { user_id: userId },
+        data: {
+          account_locked: true,
+          locked_until: lockoutUntil,
+          locked_at: new Date(),
+          updated_at: new Date()
+        }
+      });
 
       // Log security event
       await this.logSecurityEvent(userId, 'account_locked', ipAddress, userAgent, {
@@ -251,10 +291,16 @@ export class SecurityService {
       }
 
       // Check database
-      const result = await executeQuerySingle(`
-        SELECT account_locked, locked_until FROM users 
-        WHERE id = ? AND account_locked = TRUE
-      `, [userId]);
+      const result = await prisma.users.findFirst({
+        where: {
+          user_id: userId,
+          account_locked: true
+        },
+        select: {
+          account_locked: true,
+          locked_until: true
+        }
+      });
 
       if (!result) {
         return false;
@@ -275,11 +321,14 @@ export class SecurityService {
   // Clear account lockout
   static async clearAccountLockout(userId: number): Promise<void> {
     try {
-      await executeQuery(`
-        UPDATE users 
-        SET account_locked = FALSE, locked_until = NULL, updated_at = NOW()
-        WHERE id = ?
-      `, [userId]);
+      await prisma.users.update({
+        where: { user_id: userId },
+        data: {
+          account_locked: false,
+          locked_until: null,
+          updated_at: new Date()
+        }
+      });
 
       // Clear cache
       await cacheService.del(`account_locked:${userId}`);
@@ -296,10 +345,15 @@ export class SecurityService {
       expiresAt.setMinutes(expiresAt.getMinutes() + this.SESSION_TIMEOUT);
 
       // Store session in database
-      await executeQuery(`
-        INSERT INTO user_sessions (session_id, user_id, ip_address, user_agent, expires_at, created_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-      `, [sessionId, userId, ipAddress, userAgent, expiresAt]);
+      await prisma.user_sessions.create({
+        data: {
+          session_id: sessionId,
+          user_id: userId,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          expires_at: expiresAt
+        }
+      });
 
       // Store session in cache
       await cacheService.set(`session:${sessionId}`, {
@@ -328,10 +382,16 @@ export class SecurityService {
       }
 
       // Check database
-      const session = await executeQuerySingle(`
-        SELECT user_id, expires_at FROM user_sessions 
-        WHERE session_id = ? AND expires_at > NOW()
-      `, [sessionId]);
+      const session = await prisma.user_sessions.findFirst({
+        where: {
+          session_id: sessionId,
+          expires_at: { gt: new Date() }
+        },
+        select: {
+          user_id: true,
+          expires_at: true
+        }
+      });
 
       if (session) {
         return { userId: session.user_id, valid: true };
@@ -346,9 +406,9 @@ export class SecurityService {
   // Invalidate session
   static async invalidateSession(sessionId: string): Promise<void> {
     try {
-      await executeQuery(`
-        DELETE FROM user_sessions WHERE session_id = ?
-      `, [sessionId]);
+      await prisma.user_sessions.delete({
+        where: { session_id: sessionId }
+      });
 
       await cacheService.del(`session:${sessionId}`);
     } catch (error) {
@@ -365,10 +425,15 @@ export class SecurityService {
     details?: any
   ): Promise<void> {
     try {
-      await executeQuery(`
-        INSERT INTO security_events (user_id, event_type, ip_address, user_agent, details, created_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-      `, [userId, eventType, ipAddress, userAgent, JSON.stringify(details)]);
+      await prisma.security_events.create({
+        data: {
+          user_id: userId,
+          event_type: eventType,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          details: details
+        }
+      });
     } catch (error) {
       console.error('Failed to log security event:', error);
     }
@@ -377,12 +442,19 @@ export class SecurityService {
   // Get user security settings
   static async getUserSecuritySettings(userId: number): Promise<SecuritySettings> {
     try {
-      const settings = await executeQuerySingle(`
-        SELECT * FROM user_security_settings WHERE user_id = ?
-      `, [userId]);
+      const settings = await prisma.user_security_settings.findUnique({
+        where: { user_id: userId }
+      });
 
       if (settings) {
-        return settings;
+        return {
+          mfa_enabled: settings.mfa_enabled || false,
+          session_timeout_minutes: settings.session_timeout_minutes || this.SESSION_TIMEOUT,
+          max_failed_attempts: settings.max_failed_attempts || this.MAX_FAILED_ATTEMPTS,
+          lockout_duration_minutes: settings.lockout_duration_minutes || this.LOCKOUT_DURATION,
+          password_expiry_days: settings.password_expiry_days || this.PASSWORD_EXPIRY_DAYS,
+          require_password_change: settings.require_password_change || false
+        };
       }
 
       // Return default settings
@@ -416,10 +488,16 @@ export class SecurityService {
   // Password security
   static async checkPasswordExpiry(userId: number): Promise<boolean> {
     try {
-      const result = await executeQuerySingle(`
-        SELECT password_changed_at FROM users 
-        WHERE id = ? AND password_changed_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-      `, [userId, this.PASSWORD_EXPIRY_DAYS]);
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() - this.PASSWORD_EXPIRY_DAYS);
+
+      const result = await prisma.users.findFirst({
+        where: {
+          user_id: userId,
+          password_changed_at: { lt: expiryDate }
+        },
+        select: { password_changed_at: true }
+      });
 
       return !!result;
     } catch (error) {
@@ -431,10 +509,17 @@ export class SecurityService {
   static async detectSuspiciousActivity(userId: number, ipAddress: string): Promise<boolean> {
     try {
       // Check for multiple IPs in short time
-      const recentIPs = await executeQuery(`
-        SELECT DISTINCT ip_address FROM login_attempts 
-        WHERE user_id = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-      `, [userId]);
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
+      const recentIPs = await prisma.login_attempts.findMany({
+        where: {
+          user_id: userId,
+          attempted_at: { gt: oneHourAgo }
+        },
+        select: { ip_address: true },
+        distinct: ['ip_address']
+      });
 
       if (recentIPs.length > 3) {
         await this.logSecurityEvent(userId, 'suspicious_activity', ipAddress, '', {

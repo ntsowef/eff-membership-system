@@ -49,7 +49,7 @@ const BulkCardGenerator: React.FC = () => {
   const [memberIds, setMemberIds] = useState<string[]>(['']);
   const [selectedTemplate, setSelectedTemplate] = useState('standard');
   const [customExpiry, setCustomExpiry] = useState('');
-  const [sendEmail, setSendEmail] = useState(false);
+  const [sendEmail] = useState(false);
   const [generationResult, setGenerationResult] = useState<BulkGenerationResult | null>(null);
 
   // Bulk generation mutation

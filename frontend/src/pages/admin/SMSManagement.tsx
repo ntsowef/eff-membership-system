@@ -46,7 +46,7 @@ import {
   Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  Warning as WarningIcon,
+  // Warning as WarningIcon,
   Speed as SpeedIcon,
   TrendingUp as TrendingUpIcon,
   Webhook as WebhookIcon,
@@ -129,12 +129,12 @@ const SMSManagement: React.FC = () => {
   // Birthday SMS state
   const [birthdayStats, setBirthdayStats] = useState<any>(null);
   const [todaysBirthdays, setTodaysBirthdays] = useState<any[]>([]);
-  const [upcomingBirthdays, setUpcomingBirthdays] = useState<any[]>([]);
+  const [_upcomingBirthdays, _setUpcomingBirthdays] = useState<any[]>([]);
   const [birthdayHistory, setBirthdayHistory] = useState<any[]>([]);
   const [schedulerStatus, setSchedulerStatus] = useState<any>(null);
 
   // Provider monitoring state
-  const [providerHealth, setProviderHealth] = useState<any>(null);
+  const [_providerHealth, _setProviderHealth] = useState<any>(null);
   const [deliveryStats, setDeliveryStats] = useState<any>(null);
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
 
@@ -272,7 +272,7 @@ const SMSManagement: React.FC = () => {
   const testProviderHealth = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/sms-webhooks/test/json-applink', {
+      await api.post('/sms-webhooks/test/json-applink', {
         test_message: 'Health check test from EFF Membership System'
       });
       setSuccess('Provider health test completed successfully');
@@ -392,7 +392,7 @@ const SMSManagement: React.FC = () => {
 
       setBirthdayStats(statsRes.data.data.statistics);
       setTodaysBirthdays(todaysRes.data.data.birthdays);
-      setUpcomingBirthdays(upcomingRes.data.data.birthdays);
+      _setUpcomingBirthdays(upcomingRes.data.data.birthdays);
       setBirthdayHistory(historyRes.data.data.history);
       setSchedulerStatus(schedulerRes.data.data.scheduler_status);
     } catch (err: any) {

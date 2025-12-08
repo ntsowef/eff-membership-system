@@ -1,7 +1,7 @@
 // LeadershipAssignment Component
 // Core interface for assigning members to leadership positions
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -29,7 +29,6 @@ import {
   Alert,
   CircularProgress,
   InputAdornment,
-  Divider,
   IconButton,
   Tooltip
 } from '@mui/material';
@@ -37,12 +36,9 @@ import {
   Search,
   Assignment,
   Person,
-  Add,
   Visibility,
-  Edit,
   CheckCircle,
-  Cancel,
-  Info
+  Cancel
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -119,10 +115,10 @@ interface AssignmentFormData {
   appointment_notes: string;
 }
 
-interface PositionWithVacancy extends LeadershipPosition {
-  is_vacant?: boolean;
-  current_holder?: string;
-}
+// interface PositionWithVacancy extends LeadershipPosition {
+//   is_vacant?: boolean;
+//   current_holder?: string;
+// }
 
 // =====================================================
 // LeadershipAssignment Component
@@ -136,7 +132,7 @@ const LeadershipAssignment: React.FC<LeadershipAssignmentProps> = ({
   const [geographicSelection, setGeographicSelection] = useState<GeographicSelection | null>(null);
 
   // Get province context for provincial admin restrictions
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [showVacantOnly, setShowVacantOnly] = useState(true);
   const [selectedPosition, setSelectedPosition] = useState<LeadershipPosition | null>(null);
@@ -242,7 +238,7 @@ const LeadershipAssignment: React.FC<LeadershipAssignmentProps> = ({
     setMemberSelectorOpen(true);
   };
 
-  const handleMemberSelect = (member: Member) => {
+  const handleMemberSelect = (member: any) => {
     setSelectedMember(member);
     setFormData(prev => ({
       ...prev,
@@ -271,7 +267,7 @@ const LeadershipAssignment: React.FC<LeadershipAssignmentProps> = ({
     const appointmentData: CreateAppointmentData = {
       position_id: formData.position_id,
       member_id: formData.member_id,
-      hierarchy_level: formData.hierarchy_level,
+      hierarchy_level: formData.hierarchy_level as any,
       entity_id: formData.entity_id,
       appointment_type: formData.appointment_type,
       start_date: formData.start_date.toISOString().split('T')[0],

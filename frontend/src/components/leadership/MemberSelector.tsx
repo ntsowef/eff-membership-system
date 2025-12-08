@@ -133,7 +133,7 @@ const MemberSelector: React.FC<MemberSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   // Get province context for provincial admin restrictions
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);

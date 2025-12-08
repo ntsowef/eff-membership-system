@@ -30,7 +30,8 @@ import {
   ListItemText,
   Divider,
   IconButton,
-  Tooltip,
+  Snackbar,
+  // Tooltip,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -38,10 +39,10 @@ import {
   ArrowBack as ArrowBackIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
   HighlightOff as HighlightOffIcon,
-  Info as InfoIcon,
+  // Info as InfoIcon,
 } from '@mui/icons-material';
 import wardAuditApi from '../../services/wardAuditApi';
-import type { WardComplianceSummary, VotingDistrictCompliance } from '../../types/wardAudit';
+import type { VotingDistrictCompliance } from '../../types/wardAudit';
 import WardMeetingManagement from './WardMeetingManagement';
 import WardDelegateManagement from './WardDelegateManagement';
 
@@ -52,7 +53,8 @@ const WardComplianceDetail: React.FC = () => {
   
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('');
-  
+  const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
+
   const [showMeetingManagement, setShowMeetingManagement] = useState(false);
   const [showDelegateManagement, setShowDelegateManagement] = useState(false);
 
@@ -77,20 +79,35 @@ const WardComplianceDetail: React.FC = () => {
     enabled: !!wardCode,
   });
   
-  // Approve compliance mutation
-  const approveMutation = useMutation({
-    mutationFn: (notes: string) => 
-      wardAuditApi.approveWardCompliance(wardCode!, { notes }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ward-compliance', wardCode] });
-      queryClient.invalidateQueries({ queryKey: ['ward-audit-wards'] });
+  // Submit compliance mutation (new endpoint)
+  const submitComplianceMutation = useMutation({
+    mutationFn: (notes: string) =>
+      wardAuditApi.submitWardCompliance(wardCode!, { notes }),
+    onSuccess: async () => {
+      // Invalidate and refetch queries to get updated data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['ward-compliance', wardCode] }),
+        queryClient.invalidateQueries({ queryKey: ['ward-audit-wards'] })
+      ]);
+
+      // Wait for refetch to complete
+      await queryClient.refetchQueries({ queryKey: ['ward-compliance', wardCode] });
+
+      // Close dialog and reset form
       setApproveDialogOpen(false);
       setApprovalNotes('');
+
+      // Show success message
+      setSuccessSnackbarOpen(true);
     },
+    onError: (error: any) => {
+      console.error('Failed to submit ward compliance:', error);
+      // Error will be shown in the dialog via submitComplianceMutation.error
+    }
   });
-  
-  const handleApprove = () => {
-    approveMutation.mutate(approvalNotes);
+
+  const handleSubmitCompliance = () => {
+    submitComplianceMutation.mutate(approvalNotes);
   };
   
   if (wardLoading || vdLoading) {
@@ -111,14 +128,39 @@ const WardComplianceDetail: React.FC = () => {
     );
   }
   
+  // Helper function to get Criterion 1 description based on VD count
+  const getCriterion1Description = () => {
+    const vdCount = ward.total_voting_districts;
+    if (vdCount <= 3) {
+      return 'ALL voting districts must be compliant (no exceptions)';
+    } else {
+      return '≥200 members OR (190-199 members + all VDs compliant)';
+    }
+  };
+
+  // Helper function to get Criterion 1 details with exception info
+  const getCriterion1Details = () => {
+    const baseDetails = `Total Members: ${ward.total_members} | VDs Compliant: ${ward.compliant_voting_districts}/${ward.total_voting_districts}`;
+
+    if (ward.criterion_1_exception_applied) {
+      if (ward.total_members >= 200 && !ward.all_vds_compliant) {
+        return `${baseDetails} | ⚠️ Exception: ≥200 members (not all VDs compliant)`;
+      } else if (ward.total_members >= 190 && ward.total_members < 200 && ward.all_vds_compliant) {
+        return `${baseDetails} | ⚠️ Exception: 190-199 members with all VDs compliant`;
+      }
+    }
+
+    return baseDetails;
+  };
+
   // Define compliance criteria with enhanced data
   const criteria = [
     {
       id: 1,
       name: 'Membership & Voting District Compliance',
-      description: '≥100 members AND 50%+ voting districts have ≥10 members',
+      description: getCriterion1Description(),
       passed: ward.criterion_1_compliant,
-      details: `Total Members: ${ward.total_members} | VDs Compliant: ${ward.compliant_voting_districts}/${ward.total_voting_districts}`,
+      details: getCriterion1Details(),
       action: null,
     },
     {
@@ -157,17 +199,25 @@ const WardComplianceDetail: React.FC = () => {
     {
       id: 5,
       name: 'Delegate Selection',
-      description: 'Delegates selected for assemblies (SRPA/PPA/NPA)',
+      description: 'At least 3 delegates selected across SRPA/PPA/NPA assemblies',
       passed: ward.criterion_5_passed,
       details: ward.criterion_5_data
-        ? `SRPA: ${ward.criterion_5_data.srpa_delegates} | PPA: ${ward.criterion_5_data.ppa_delegates} | NPA: ${ward.criterion_5_data.npa_delegates}`
-        : 'No delegates assigned',
-      action: () => setShowDelegateManagement(true),
-      actionLabel: 'Manage Delegates',
+        ? `Total: ${ward.criterion_5_data.total_delegates} (SRPA: ${ward.criterion_5_data.srpa_delegates} | PPA: ${ward.criterion_5_data.ppa_delegates} | NPA: ${ward.criterion_5_data.npa_delegates})`
+        : ward.is_compliant
+          ? 'No delegates assigned yet'
+          : '⚠️ Ward must be submitted as compliant first',
+      action: ward.is_compliant ? () => setShowDelegateManagement(true) : null,
+      actionLabel: ward.is_compliant ? 'Manage Delegates' : 'Locked',
     },
   ];
 
-  const canApprove = ward.all_criteria_passed && !ward.is_compliant;
+  // Can submit compliance if criteria 1-4 pass (criterion 5 is not required for submission)
+  const canSubmitCompliance =
+    ward.criterion_1_compliant &&
+    ward.criterion_2_passed &&
+    ward.criterion_3_passed &&
+    ward.criterion_4_passed &&
+    !ward.is_compliant;
   
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -306,7 +356,7 @@ const WardComplianceDetail: React.FC = () => {
                   primaryTypographyProps={{ component: 'span' }}
                   secondaryTypographyProps={{ component: 'span' }}
                 />
-                {criterion.action && (
+                {criterion.action ? (
                   <Button
                     variant="outlined"
                     size="small"
@@ -315,14 +365,22 @@ const WardComplianceDetail: React.FC = () => {
                   >
                     {criterion.actionLabel}
                   </Button>
-                )}
+                ) : criterion.id === 5 && !ward.is_compliant ? (
+                  <Chip
+                    label="Locked"
+                    size="small"
+                    color="default"
+                    icon={<CancelIcon />}
+                    sx={{ ml: 2 }}
+                  />
+                ) : null}
               </ListItem>
             </React.Fragment>
           ))}
         </List>
-        
-        {/* Approval Button */}
-        {canApprove && (
+
+        {/* Submit Compliance Button */}
+        {canSubmitCompliance && (
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
             <Button
               variant="contained"
@@ -331,15 +389,36 @@ const WardComplianceDetail: React.FC = () => {
               startIcon={<CheckCircleIcon />}
               onClick={() => setApproveDialogOpen(true)}
             >
-              Approve Ward Compliance
+              Submit Ward as Compliant
             </Button>
           </Box>
         )}
-        
-        {!ward.criterion_1_compliant && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
+
+        {/* Success message when ward is already compliant */}
+        {ward.is_compliant && (
+          <Alert severity="success" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>Criterion 1 Not Met:</strong> Ward must have at least 200 members and all voting districts must have at least 5 members each before approval.
+              <strong>✅ Ward Approved:</strong> This ward has been officially submitted as compliant on{' '}
+              {ward.compliance_approved_at ? new Date(ward.compliance_approved_at).toLocaleDateString() : 'N/A'}.
+              Delegate assignment is now available.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Warning messages for failed criteria */}
+        {!ward.criterion_1_compliant && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              <strong>Criterion 1 Not Met:</strong> {getCriterion1Description()}
+            </Typography>
+          </Alert>
+        )}
+
+        {!canSubmitCompliance && !ward.is_compliant && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              <strong>Compliance Submission Requirements:</strong> Criteria 1, 2, 3, and 4 must all pass before the ward can be submitted as compliant.
+              Once submitted, delegate assignment will become available.
             </Typography>
           </Alert>
         )}
@@ -400,35 +479,65 @@ const WardComplianceDetail: React.FC = () => {
         </TableContainer>
       </Paper>
       
-      {/* Approval Dialog */}
-      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Approve Ward Compliance</DialogTitle>
+      {/* Submit Compliance Dialog */}
+      <Dialog
+        open={approveDialogOpen}
+        onClose={() => !submitComplianceMutation.isPending && setApproveDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Submit Ward as Compliant</DialogTitle>
         <DialogContent>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Criteria 1-4 Passed!</strong> This ward meets all requirements for compliance submission.
+            </Typography>
+          </Alert>
+
+          {/* Show error if submission failed */}
+          {submitComplianceMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Submission Failed:</strong> {submitComplianceMutation.error?.message || 'An error occurred'}
+              </Typography>
+            </Alert>
+          )}
+
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            You are about to approve compliance for <strong>{ward.ward_name}</strong>. 
-            This action will mark the ward as compliant in the system.
+            You are about to submit <strong>{ward.ward_name}</strong> as compliant.
+            This action will:
           </Typography>
+          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+            <li><Typography variant="body2">Mark the ward as officially compliant</Typography></li>
+            <li><Typography variant="body2">Enable delegate assignment for SRPA, PPA, and NPA</Typography></li>
+            <li><Typography variant="body2">Record this submission in the audit log</Typography></li>
+          </Box>
           <TextField
-            label="Approval Notes (Optional)"
+            label="Submission Notes (Optional)"
             multiline
             rows={4}
             fullWidth
             value={approvalNotes}
             onChange={(e) => setApprovalNotes(e.target.value)}
-            placeholder="Add any notes or comments about this approval..."
+            placeholder="Add any notes or comments about this compliance submission..."
+            disabled={submitComplianceMutation.isPending}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setApproveDialogOpen(false)}>
+          <Button
+            onClick={() => setApproveDialogOpen(false)}
+            disabled={submitComplianceMutation.isPending}
+          >
             Cancel
           </Button>
           <Button
             variant="contained"
             color="success"
-            onClick={handleApprove}
-            disabled={approveMutation.isPending}
+            onClick={handleSubmitCompliance}
+            disabled={submitComplianceMutation.isPending}
+            startIcon={submitComplianceMutation.isPending ? <CircularProgress size={20} /> : <CheckCircleIcon />}
           >
-            {approveMutation.isPending ? 'Approving...' : 'Approve'}
+            {submitComplianceMutation.isPending ? 'Submitting...' : 'Submit as Compliant'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -460,6 +569,28 @@ const WardComplianceDetail: React.FC = () => {
           </Box>
         </Box>
       )}
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={successSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSuccessSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSuccessSnackbarOpen(false)}
+          severity="success"
+          sx={{ width: '100%' }}
+          variant="filled"
+        >
+          <Typography variant="body1" fontWeight="bold">
+            Ward Submitted as Compliant Successfully!
+          </Typography>
+          <Typography variant="body2">
+            Delegate assignment is now available for this ward.
+          </Typography>
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

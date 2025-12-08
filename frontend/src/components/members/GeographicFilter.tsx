@@ -15,6 +15,7 @@ import {
   Button,
   Divider,
   Alert,
+  Tooltip as MuiTooltip,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -25,6 +26,7 @@ import {
   BarChart as BarChartIcon,
   ChevronLeft,
   ChevronRight,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import {
   PieChart,
@@ -35,7 +37,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
@@ -43,6 +45,7 @@ import { apiGet } from '../../lib/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../common/ProvinceContextBanner';
+import WardMembersModal from './WardMembersModal';
 
 // Types for geographic hierarchy
 interface GeographicData {
@@ -69,6 +72,7 @@ interface GeographicFilters {
 interface GeographicFilterProps {
   filters: GeographicFilters;
   onFiltersChange: (filters: GeographicFilters) => void;
+  membershipStatus?: string;
 }
 
 // Colors for charts
@@ -85,17 +89,17 @@ const SPECIAL_VOTING_DISTRICTS = {
   '11111111': { name: 'Deceased', icon: '⚰️', color: '#9e9e9e' }
 };
 
-// Helper function to check if a voting district is special
-const isSpecialVotingDistrict = (code: string): boolean => {
-  return Object.keys(SPECIAL_VOTING_DISTRICTS).includes(code);
-};
+// Helper function to check if a voting district is special (currently unused)
+// const _isSpecialVotingDistrict = (code: string): boolean => {
+//   return Object.keys(SPECIAL_VOTING_DISTRICTS).includes(code);
+// };
 
 // Helper function to get special voting district info
 const getSpecialVotingDistrictInfo = (code: string) => {
   return SPECIAL_VOTING_DISTRICTS[code as keyof typeof SPECIAL_VOTING_DISTRICTS];
 };
 
-const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersChange }) => {
+const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersChange, membershipStatus = '' }) => {
   const [expanded, setExpanded] = useState(true);
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie');
   const [districts, setDistricts] = useState<any[]>([]);
@@ -103,6 +107,11 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   const [subregions, setSubregions] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
   const [votingDistricts, setVotingDistricts] = useState<any[]>([]);
+
+  // Ward members modal state
+  const [wardMembersModalOpen, setWardMembersModalOpen] = useState(false);
+  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [selectedWardName, setSelectedWardName] = useState('');
 
   // Pagination state for bar chart
   const [currentPage, setCurrentPage] = useState(0);
@@ -114,24 +123,45 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   // Get municipality context for municipality admin restrictions
   const municipalityContext = useMunicipalityContext();
 
+  // Handler to open ward members modal
+  const handleViewWardMembers = (wardCode: string, wardName: string) => {
+    setSelectedWardCode(wardCode);
+    setSelectedWardName(wardName);
+    setWardMembersModalOpen(true);
+  };
+
   // Fetch province statistics (using real API data with fallback)
   const { data: provinceStats, isLoading: provincesLoading } = useQuery({
-    queryKey: ['member-stats-provinces'],
+    queryKey: ['member-stats-provinces', membershipStatus],
     queryFn: async () => {
       try {
         console.log('🌍 Fetching province stats...');
-        const result = await apiGet<GeographicData[]>('/members/stats/provinces');
+        const statusParam = membershipStatus ? `?membership_status=${membershipStatus}` : '';
+        const result = await apiGet<GeographicData[]>(`/members/stats/provinces${statusParam}`);
         console.log('🌍 Province stats response:', result);
 
-        // Since apiGet now returns the data directly, check if it's an array
+        // Extract data from API response - handle nested structure
+        // Backend returns: { success: true, data: { data: [...] } }
+        // After apiGet: { success: true, data: { data: [...] } }
+        let extractedData;
         if (Array.isArray(result)) {
-          return { data: result };
-        } else if (result && typeof result === 'object' && Array.isArray(result.data)) {
-          return result;
+          extractedData = result;
+        } else if (result && typeof result === 'object') {
+          // Check for nested data.data structure
+          if ((result as any).data?.data && Array.isArray((result as any).data.data)) {
+            extractedData = (result as any).data.data;
+          } else if (Array.isArray((result as any).data)) {
+            extractedData = (result as any).data;
+          } else {
+            console.warn('🌍 Unexpected province stats response structure:', result);
+            extractedData = [];
+          }
+        } else {
+          extractedData = [];
         }
 
-        console.warn('🌍 Unexpected province stats response structure:', result);
-        return { data: [] };
+        console.log('🌍 Extracted province data:', extractedData);
+        return { data: extractedData };
       } catch (error) {
         console.error('🌍 Failed to fetch province stats:', error);
         // Return fallback data to prevent crash
@@ -155,13 +185,18 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
   // Fetch districts when province is selected
   const { data: districtStats, isLoading: districtsLoading } = useQuery({
-    queryKey: ['member-stats-districts', filters.province],
+    queryKey: ['member-stats-districts', filters.province, membershipStatus],
     queryFn: async () => {
       console.log('🏘️ Fetching districts for province:', filters.province);
       try {
-        const result = await apiGet<{ data: GeographicData[] }>(`/members/stats/districts?province=${filters.province}`);
+        const statusParam = membershipStatus ? `&membership_status=${membershipStatus}` : '';
+        const result = await apiGet<{ data: GeographicData[] }>(`/members/stats/districts?province=${filters.province}${statusParam}`);
         console.log('🏘️ Districts response:', result);
-        return result;
+
+        // Extract data - handle nested structure
+        const extracted = (result as any)?.data?.data || (result as any)?.data || result;
+        console.log('🏘️ Extracted districts:', extracted);
+        return { data: Array.isArray(extracted) ? extracted : [] };
       } catch (error) {
         console.error('🏘️ Failed to fetch districts:', error);
         throw error;
@@ -173,26 +208,45 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
   // Fetch municipalities when district is selected
   const { data: municipalityStats, isLoading: municipalitiesLoading } = useQuery({
-    queryKey: ['member-stats-municipalities', filters.district],
-    queryFn: () => apiGet<{ data: GeographicData[] }>(`/members/stats/municipalities?district=${filters.district}`),
+    queryKey: ['member-stats-municipalities', filters.district, membershipStatus],
+    queryFn: async () => {
+      const statusParam = membershipStatus ? `&membership_status=${membershipStatus}` : '';
+      const result = await apiGet<{ data: GeographicData[] }>(`/members/stats/municipalities?district=${filters.district}${statusParam}`);
+
+      // Extract data - handle nested structure
+      const extracted = (result as any)?.data?.data || (result as any)?.data || result;
+      return { data: Array.isArray(extracted) ? extracted : [] };
+    },
     enabled: !!filters.district,
     staleTime: 5 * 60 * 1000,
   });
 
   // Fetch subregions when municipality is selected (only for Metropolitan municipalities)
   const { data: subregionStats, isLoading: subregionsLoading } = useQuery({
-    queryKey: ['member-stats-subregions', filters.municipality],
-    queryFn: () => apiGet<{ data: GeographicData[] }>(`/members/stats/subregions?municipality=${filters.municipality}`),
+    queryKey: ['member-stats-subregions', filters.municipality, membershipStatus],
+    queryFn: async () => {
+      const statusParam = membershipStatus ? `&membership_status=${membershipStatus}` : '';
+      const result = await apiGet<{ data: GeographicData[] }>(`/members/stats/subregions?municipality=${filters.municipality}${statusParam}`);
+
+      // Extract data - handle nested structure
+      const extracted = (result as any)?.data?.data || (result as any)?.data || result;
+      return { data: Array.isArray(extracted) ? extracted : [] };
+    },
     enabled: !!filters.municipality,
     staleTime: 5 * 60 * 1000,
   });
 
   // Fetch wards when municipality or subregion is selected
   const { data: wardStats, isLoading: wardsLoading } = useQuery({
-    queryKey: ['member-stats-wards', filters.municipality, filters.subregion],
-    queryFn: () => {
+    queryKey: ['member-stats-wards', filters.municipality, filters.subregion, membershipStatus],
+    queryFn: async () => {
       const municipalityParam = filters.subregion || filters.municipality;
-      return apiGet<{ data: GeographicData[] }>(`/members/stats/wards?municipality=${municipalityParam}`);
+      const statusParam = membershipStatus ? `&membership_status=${membershipStatus}` : '';
+      const result = await apiGet<{ data: GeographicData[] }>(`/members/stats/wards?municipality=${municipalityParam}${statusParam}`);
+
+      // Extract data - handle nested structure
+      const extracted = (result as any)?.data?.data || (result as any)?.data || result;
+      return { data: Array.isArray(extracted) ? extracted : [] };
     },
     enabled: !!(filters.municipality || filters.subregion),
     staleTime: 5 * 60 * 1000,
@@ -200,8 +254,11 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
 
   // Fetch voting districts when ward is selected
   const { data: votingDistrictStats, isLoading: votingDistrictsLoading } = useQuery({
-    queryKey: ['member-stats-voting-districts', filters.ward],
-    queryFn: () => apiGet<{ data: GeographicData[] }>(`/members/stats/voting-districts?ward=${filters.ward}`),
+    queryKey: ['member-stats-voting-districts', filters.ward, membershipStatus],
+    queryFn: () => {
+      const statusParam = membershipStatus ? `&membership_status=${membershipStatus}` : '';
+      return apiGet<{ data: GeographicData[] }>(`/members/stats/voting-districts?ward=${filters.ward}${statusParam}`);
+    },
     enabled: !!filters.ward,
     staleTime: 5 * 60 * 1000,
   });
@@ -734,12 +791,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
                 />
               ))}
             </Pie>
-            <Tooltip
-              formatter={(value: any, _name: any, props: any) => [
-                `${value} members`,
-                props.payload.name
-              ]}
-            />
+            <RechartsTooltip />
           </PieChart>
         </ResponsiveContainer>
       );
@@ -814,12 +866,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
               interval={0}
             />
             <YAxis />
-            <Tooltip
-              formatter={(value: any, _name: any, props: any) => [
-                `${value} members`,
-                props.payload.name
-              ]}
-            />
+            <RechartsTooltip />
             <Bar
               dataKey="value"
               fill="#8884d8"
@@ -1195,23 +1242,48 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
             )}
 
             {(filters.municipality || filters.subregion) && (
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Ward</InputLabel>
-                  <Select
-                    value={filters.ward || ''}
-                    onChange={(e) => handleWardChange(e.target.value)}
-                    label="Ward"
-                  >
-                    <MenuItem value="">All Wards</MenuItem>
-                    {Array.isArray(wards) && wards.map((ward) => (
-                      <MenuItem key={ward.ward_code} value={ward.ward_code}>
-                        {ward.ward_name || `Ward ${ward.ward_code}`} ({ward.member_count})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+              <>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Ward</InputLabel>
+                    <Select
+                      value={filters.ward || ''}
+                      onChange={(e) => handleWardChange(e.target.value)}
+                      label="Ward"
+                    >
+                      <MenuItem value="">All Wards</MenuItem>
+                      {Array.isArray(wards) && wards.map((ward) => (
+                        <MenuItem key={ward.ward_code} value={ward.ward_code}>
+                          {ward.ward_name || `Ward ${ward.ward_code}`} ({ward.member_count})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                {filters.ward && (
+                  <Grid item xs={12} sm={6} md={2}>
+                    <MuiTooltip title="View all members in this ward">
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        size="small"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => {
+                          if (filters.ward) {
+                            const wardInfo = wards.find(w => w.ward_code === filters.ward);
+                            handleViewWardMembers(
+                              filters.ward,
+                              wardInfo?.ward_name || `Ward ${filters.ward}`
+                            );
+                          }
+                        }}
+                      >
+                        View Members
+                      </Button>
+                    </MuiTooltip>
+                  </Grid>
+                )}
+              </>
             )}
           </Grid>
 
@@ -1268,6 +1340,14 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
           )}
         </Collapse>
       </CardContent>
+
+      {/* Ward Members Modal */}
+      <WardMembersModal
+        open={wardMembersModalOpen}
+        onClose={() => setWardMembersModalOpen(false)}
+        wardCode={selectedWardCode}
+        wardName={selectedWardName}
+      />
     </Card>
   );
 };

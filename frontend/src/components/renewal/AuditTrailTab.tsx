@@ -38,7 +38,7 @@ import {
   Warning,
   Edit,
   Settings,
-  Circle,
+
 } from '@mui/icons-material';
 import { getAllAuditTrail } from '../../services/renewalBulkUploadService';
 import type { AuditTrailEntry } from '../../types/renewalBulkUpload';
@@ -70,7 +70,7 @@ const AuditTrailTab: React.FC = () => {
     }
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -297,7 +297,7 @@ const AuditTrailTab: React.FC = () => {
               />
 
               {/* Timeline Items */}
-              {paginatedEntries.map((entry, index) => (
+              {paginatedEntries.map((entry, _index) => (
                 <Box
                   key={entry.audit_id}
                   sx={{

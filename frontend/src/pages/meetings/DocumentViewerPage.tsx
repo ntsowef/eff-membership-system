@@ -37,7 +37,6 @@ import {
   Schedule,
   Person,
   LocationOn,
-  Article,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPut } from '../../lib/api';
@@ -109,11 +108,11 @@ const DocumentViewerPage: React.FC = () => {
     enabled: !!meetingId,
   });
 
-  const document: MeetingDocument | null = documentData?.data?.document || null;
-  const meeting = meetingData?.meeting || null;
+  const document: MeetingDocument | null = (documentData as any)?.data?.document || null;
+  const meeting = (meetingData as any)?.data?.meeting || null;
 
   // Approval form
-  const { control, handleSubmit, formState: { errors } } = useForm<ApprovalFormData>({
+  const { control, handleSubmit } = useForm<ApprovalFormData>({
     defaultValues: {
       document_status: document?.document_status as any || 'draft',
       approval_notes: '',
@@ -353,7 +352,7 @@ const DocumentViewerPage: React.FC = () => {
                       <Chip
                         label={document.document_status.toUpperCase()}
                         color={getStatusColor(document.document_status) as any}
-                        size="large"
+                        size="medium"
                       />
                       {document.document_status === 'approved' && (
                         <CheckCircle color="success" />

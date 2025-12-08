@@ -13,7 +13,20 @@ import type {
   GeographicAssignmentRequest
 } from '../types/userManagement';
 
-// Types are imported from ../types/userManagement.ts
+// Re-export types for use in other modules
+export type {
+  User,
+  CreateAdminRequest,
+  UserCreationWorkflow,
+  UserSession,
+  MFAStatus,
+  MFASetup,
+  UserStatistics,
+  AdminListParams,
+  WorkflowReviewRequest,
+  BulkUpdateRequest,
+  GeographicAssignmentRequest
+};
 
 // User Management API Service
 export class UserManagementAPI {

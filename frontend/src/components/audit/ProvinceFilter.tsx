@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { geographicApi } from '../../services/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
-import { LocationOn, Lock } from '@mui/icons-material';
+import { LocationOn } from '@mui/icons-material';
 
 interface Province {
   province_code: string;
@@ -84,12 +84,12 @@ const ProvinceFilter: React.FC<ProvinceFilterProps> = ({
       provincesArray = provinces;
     }
     // Check if provinces has a data property that contains the array
-    else if (provinces.data && Array.isArray(provinces.data)) {
-      provincesArray = provinces.data;
+    else if ((provinces as any).data && Array.isArray((provinces as any).data)) {
+      provincesArray = (provinces as any).data;
     }
     // Check if provinces has a provinces property that contains the array
-    else if (provinces.provinces && Array.isArray(provinces.provinces)) {
-      provincesArray = provinces.provinces;
+    else if ((provinces as any).provinces && Array.isArray((provinces as any).provinces)) {
+      provincesArray = (provinces as any).provinces;
     }
     else {
       console.warn('Unexpected provinces data format:', provinces);

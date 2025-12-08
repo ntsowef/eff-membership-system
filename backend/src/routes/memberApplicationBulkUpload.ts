@@ -7,19 +7,39 @@ import { asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { ValidationError } from '../middleware/errorHandler';
 import { MemberApplicationBulkUploadService } from '../services/memberApplicationBulkUploadService';
 import { MemberApplicationBulkProcessor } from '../services/memberApplicationBulkProcessor';
+import { addUploadJob, getJobStatus, getQueueStats } from '../services/uploadQueueService';
+import {
+  uploadFrequencyLimiter,
+  concurrentUploadLimiter,
+  systemConcurrentUploadLimiter
+} from '../middleware/uploadRateLimiting';
+import { FileStorageService } from '../services/fileStorageService';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+// Apply authentication to all routes
+router.use(authenticate);
 
 // =====================================================================================
 // MULTER CONFIGURATION
 // =====================================================================================
 
+// Use repository root _upload_file_directory (watched by Python processor)
+// Backend runs from backend/ folder, so go up two levels to reach repository root
+const repoRoot = path.join(__dirname, '..', '..', '..');
+const uploadDir = path.join(repoRoot, process.env.UPLOAD_DIR || '_upload_file_directory');
+
+console.log('📂 [Member Application Bulk Upload] Upload directory:', uploadDir);
+
+// Ensure upload directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('✅ Created upload directory:', uploadDir);
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/member-applications');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -59,12 +79,43 @@ const upload = multer({
  * @access  Private (Admin)
  */
 router.post('/upload',
+  // Rate limiting temporarily disabled for testing
+  // uploadFrequencyLimiter,
+  // concurrentUploadLimiter,
+  // systemConcurrentUploadLimiter,
   upload.single('file'),
   asyncHandler(async (req: Request, res: Response) => {
-    const userId = (req as any).user?.userId || 1; // TESTING: Default to user ID 1
+    console.log('🚀 [UPLOAD ROUTE] Starting upload request');
+    console.log('🔐 [UPLOAD ROUTE] User from req:', (req as any).user);
+
+    const userId = (req as any).user?.id || 1;
+    const userRole = (req as any).user?.role_name;
+
+    console.log('👤 [UPLOAD ROUTE] Extracted userId:', userId);
+    console.log('👤 [UPLOAD ROUTE] Extracted userRole:', userRole);
 
     if (!req.file) {
       throw new ValidationError('No file uploaded');
+    }
+
+    console.log('📁 [UPLOAD ROUTE] File received:', req.file.originalname);
+
+    // Check disk space before processing
+    const diskSpace = await FileStorageService.checkDiskSpace();
+    if (!diskSpace.hasSpace) {
+      // Delete uploaded file
+      fs.unlinkSync(req.file.path);
+      throw new ValidationError(
+        `Insufficient disk space. Only ${diskSpace.freeGB}GB available. Minimum ${5}GB required.`
+      );
+    }
+
+    // Validate file size
+    const sizeValidation = FileStorageService.validateFileSize(req.file.size);
+    if (!sizeValidation.valid) {
+      // Delete uploaded file
+      fs.unlinkSync(req.file.path);
+      throw new ValidationError(sizeValidation.error!);
     }
 
     // Determine file type
@@ -80,22 +131,44 @@ router.post('/upload',
       uploaded_by: userId
     });
 
-    // Start background processing
-    setImmediate(async () => {
-      try {
-        await MemberApplicationBulkProcessor.processBulkUpload(upload_uuid);
-      } catch (error) {
-        console.error('Background processing error:', error);
-      }
-    });
+    // Add job to queue instead of immediate processing
+    await addUploadJob(upload_uuid, 10, userRole);
+
+    console.log(`📥 Upload queued: ${upload_uuid} by user ${userId} (${userRole})`);
 
     sendSuccess(res, {
       upload_uuid,
       file_name: req.file.originalname,
       file_size: req.file.size,
       file_type: fileType,
+      status: 'queued',
       message: 'File uploaded successfully and queued for processing'
     }, 'File uploaded successfully', 201);
+  })
+);
+
+/**
+ * @route   GET /api/v1/member-application-bulk-upload/queue/status
+ * @desc    Get queue statistics
+ * @access  Private (Admin)
+ */
+router.get('/queue/status',
+  asyncHandler(async (req: Request, res: Response) => {
+    const stats = await getQueueStats('upload');
+    sendSuccess(res, stats, 'Queue statistics retrieved successfully');
+  })
+);
+
+/**
+ * @route   GET /api/v1/member-application-bulk-upload/job/:upload_uuid
+ * @desc    Get job status from queue
+ * @access  Private
+ */
+router.get('/job/:upload_uuid',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { upload_uuid } = req.params;
+    const jobStatus = await getJobStatus(upload_uuid, 'upload');
+    sendSuccess(res, jobStatus, 'Job status retrieved successfully');
   })
 );
 
@@ -320,6 +393,24 @@ router.post('/cancel/:upload_uuid',
     });
 
     sendSuccess(res, { upload_uuid }, 'Upload cancelled successfully');
+  })
+);
+
+/**
+ * @route   GET /api/v1/member-application-bulk-upload/debug-user
+ * @desc    Debug endpoint to check req.user
+ * @access  Private
+ */
+router.get('/debug-user',
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = (req as any).user;
+    sendSuccess(res, {
+      user,
+      userId_method1: user?.userId,
+      userId_method2: user?.id,
+      userRole_method1: user?.role,
+      userRole_method2: user?.role_name
+    }, 'User debug info');
   })
 );
 

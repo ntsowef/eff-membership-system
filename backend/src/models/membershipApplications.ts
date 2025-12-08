@@ -1,4 +1,5 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
+import { executeUpdate } from '../config/database-hybrid';
 import { createDatabaseError } from '../middleware/errorHandler';
 
 // Membership Application interfaces
@@ -182,6 +183,12 @@ export class MembershipApplicationModel {
 
       const applicationNumber = this.generateApplicationNumber();
 
+      // Determine payment_status based on whether payment info is provided
+      const hasPaymentInfo = applicationData.payment_method &&
+                            applicationData.payment_reference &&
+                            applicationData.payment_amount;
+      const paymentStatus = hasPaymentInfo ? 'Completed' : 'Pending';
+
       const query = `
         INSERT INTO membership_applications (
           application_number, first_name, last_name, id_number, date_of_birth,
@@ -191,9 +198,10 @@ export class MembershipApplicationModel {
           signature_type, signature_data, declaration_accepted, constitution_accepted,
           hierarchy_level, entity_name, membership_type, reason_for_joining,
           skills_experience, referred_by, payment_method, payment_reference,
-          last_payment_date, payment_amount, payment_notes, province_code,
+          last_payment_date, payment_amount, payment_notes, payment_status, province_code,
           district_code, municipal_code, voting_district_code
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'Draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        RETURNING application_id
       `;
 
       const params = [
@@ -233,6 +241,7 @@ export class MembershipApplicationModel {
         applicationData.last_payment_date || null,
         applicationData.payment_amount || null,
         applicationData.payment_notes || null,
+        paymentStatus, // payment_status
         // Geographic fields
         applicationData.province_code || null,
         applicationData.district_code || null,
@@ -240,8 +249,18 @@ export class MembershipApplicationModel {
         applicationData.voting_district_code || null
       ];
 
-      const result = await executeQuery(query, params);
-      return result.insertId;
+      console.log('🔍 DEBUG: Executing INSERT query with RETURNING...');
+      const result = await executeQuery<{ application_id: number }>(query, params);
+      console.log('🔍 DEBUG: INSERT result:', JSON.stringify(result));
+
+      // PostgreSQL returns the inserted row with RETURNING clause
+      if (result && result.length > 0 && result[0].application_id) {
+        console.log('✅ DEBUG: Application ID retrieved:', result[0].application_id);
+        return result[0].application_id;
+      }
+
+      console.error('❌ DEBUG: Failed to get application ID. Result:', result);
+      throw new Error('Failed to get application ID after insert');
     } catch (error) {
       throw createDatabaseError('Failed to create membership application', error);
     }
@@ -250,17 +269,66 @@ export class MembershipApplicationModel {
   // Get application by ID with full details
   static async getApplicationById(id: number): Promise<MembershipApplicationDetails | null> {
     try {
-      // Simplified query without problematic joins
+      // Query with geographic joins to get location names
       const query = `
         SELECT
-          ma.*,
-          NULL as ward_name,
-          NULL as municipality_name,
-          NULL as district_name,
-          NULL as province_name,
-          NULL as reviewer_name
+          ma.application_id as id,
+          ma.application_number,
+          ma.first_name,
+          ma.last_name,
+          ma.id_number,
+          ma.date_of_birth,
+          ma.gender_id,
+          COALESCE(g.gender_name, 'Unknown') as gender,
+          ma.language_id,
+          ma.occupation_id,
+          ma.qualification_id,
+          ma.citizenship_status,
+          ma.email,
+          ma.cell_number,
+          ma.alternative_number,
+          ma.residential_address,
+          ma.postal_address,
+          ma.ward_code,
+          ma.application_type,
+          ma.status,
+          ma.signature_type,
+          ma.signature_data,
+          ma.declaration_accepted,
+          ma.constitution_accepted,
+          ma.hierarchy_level,
+          ma.entity_name,
+          ma.membership_type,
+          ma.reason_for_joining,
+          ma.skills_experience,
+          ma.referred_by,
+          ma.payment_method,
+          ma.payment_reference,
+          ma.last_payment_date,
+          ma.payment_amount,
+          ma.payment_notes,
+          ma.province_code,
+          ma.district_code,
+          ma.municipal_code,
+          ma.voting_district_code,
+          ma.created_at,
+          ma.updated_at,
+          ma.reviewed_by,
+          ma.reviewed_at,
+          ma.admin_notes,
+          w.ward_name,
+          m.municipality_name,
+          d.district_name,
+          p.province_name,
+          u.name as reviewer_name
         FROM membership_applications ma
-        WHERE ma.application_id = ?
+        LEFT JOIN wards w ON ma.ward_code = w.ward_code
+        LEFT JOIN municipalities m ON ma.municipal_code = m.municipality_code
+        LEFT JOIN districts d ON ma.district_code = d.district_code
+        LEFT JOIN provinces p ON ma.province_code = p.province_code
+        LEFT JOIN genders g ON ma.gender_id = g.gender_id
+        LEFT JOIN users u ON ma.reviewed_by = u.user_id
+        WHERE ma.application_id = $1
       `;
 
       const application = await executeQuerySingle<MembershipApplicationDetails>(query, [id]);
@@ -289,7 +357,7 @@ export class MembershipApplicationModel {
           NULL as province_name,
           NULL as reviewer_name
         FROM membership_applications ma
-        WHERE ma.application_number = ?
+        WHERE ma.application_number = $1
       `;
 
       const application = await executeQuerySingle<MembershipApplicationDetails>(query, [applicationNumber]);
@@ -308,9 +376,9 @@ export class MembershipApplicationModel {
   static async getApplicationByIdNumber(idNumber: string): Promise<MembershipApplication | null> {
     try {
       const query = `
-        SELECT * FROM membership_applications 
-        WHERE id_number = ? 
-        ORDER BY created_at DESC 
+        SELECT * FROM membership_applications
+        WHERE id_number = $1
+        ORDER BY created_at DESC
         LIMIT 1
       `;
 
@@ -325,69 +393,70 @@ export class MembershipApplicationModel {
     try {
       const fields: string[] = [];
       const params: any[] = [];
+      let paramIndex = 1;
 
       if (applicationData.first_name !== undefined) {
-        fields.push('first_name = ?');
+        fields.push(`first_name = $${paramIndex++}`);
         params.push(applicationData.first_name);
       }
 
       if (applicationData.last_name !== undefined) {
-        fields.push('last_name = ?');
+        fields.push(`last_name = $${paramIndex++}`);
         params.push(applicationData.last_name);
       }
 
       if (applicationData.id_number !== undefined) {
-        fields.push('id_number = ?');
+        fields.push(`id_number = $${paramIndex++}`);
         params.push(applicationData.id_number);
       }
 
       if (applicationData.date_of_birth !== undefined) {
-        fields.push('date_of_birth = ?');
+        fields.push(`date_of_birth = $${paramIndex++}`);
         params.push(applicationData.date_of_birth);
       }
 
       if (applicationData.gender !== undefined) {
-        fields.push('gender = ?');
+        fields.push(`gender = $${paramIndex++}`);
         params.push(applicationData.gender);
       }
 
       if (applicationData.email !== undefined) {
-        fields.push('email = ?');
+        fields.push(`email = $${paramIndex++}`);
         params.push(applicationData.email);
       }
 
       if (applicationData.cell_number !== undefined) {
-        fields.push('cell_number = ?');
+        fields.push(`cell_number = $${paramIndex++}`);
         params.push(applicationData.cell_number);
       }
 
       if (applicationData.alternative_number !== undefined) {
-        fields.push('alternative_number = ?');
+        fields.push(`alternative_number = $${paramIndex++}`);
         params.push(applicationData.alternative_number);
       }
 
       if (applicationData.residential_address !== undefined) {
-        fields.push('residential_address = ?');
+        fields.push(`residential_address = $${paramIndex++}`);
         params.push(applicationData.residential_address);
       }
 
       if (applicationData.postal_address !== undefined) {
-        fields.push('postal_address = ?');
+        fields.push(`postal_address = $${paramIndex++}`);
         params.push(applicationData.postal_address);
       }
 
       if (applicationData.ward_code !== undefined) {
-        fields.push('ward_code = ?');
+        fields.push(`ward_code = $${paramIndex++}`);
         params.push(applicationData.ward_code);
       }
 
       if (applicationData.application_type !== undefined) {
-        fields.push('application_type = ?');
+        fields.push(`application_type = $${paramIndex++}`);
         params.push(applicationData.application_type);
       }
 
       if (applicationData.admin_notes !== undefined) {
-        fields.push('admin_notes = ?');
+        fields.push(`admin_notes = $${paramIndex++}`);
         params.push(applicationData.admin_notes);
       }
 
@@ -398,8 +467,8 @@ export class MembershipApplicationModel {
       fields.push('updated_at = CURRENT_TIMESTAMP');
       params.push(id);
 
-      const query = `UPDATE membership_applications SET ${fields.join(', ')} WHERE id = ?`;
-      const result = await executeQuery(query, params);
+      const query = `UPDATE membership_applications SET ${fields.join(', ')} WHERE application_id = $${paramIndex}`;
+      const result = await executeUpdate(query, params);
 
       return result.affectedRows > 0;
     } catch (error) {
@@ -411,12 +480,12 @@ export class MembershipApplicationModel {
   static async submitApplication(id: number): Promise<boolean> {
     try {
       const query = `
-        UPDATE membership_applications 
-        SET status = 'Submitted', submitted_at = CURRENT_TIMESTAMP 
-        WHERE id = ? AND status = 'Draft'
+        UPDATE membership_applications
+        SET status = 'Submitted', submitted_at = CURRENT_TIMESTAMP
+        WHERE application_id = $1 AND status = 'Draft'
       `;
 
-      const result = await executeQuery(query, [id]);
+      const result = await executeUpdate(query, [id]);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to submit membership application', error);
@@ -429,12 +498,12 @@ export class MembershipApplicationModel {
       const query = `
         UPDATE membership_applications
         SET
-          status = ?,
-          rejection_reason = ?,
-          admin_notes = ?,
-          reviewed_by = ?,
+          status = $1,
+          rejection_reason = $2,
+          admin_notes = $3,
+          reviewed_by = $4,
           reviewed_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND status IN ('Submitted', 'Under Review')
+        WHERE application_id = $5 AND status IN ('Submitted', 'Under Review')
       `;
 
       const params = [
@@ -445,7 +514,7 @@ export class MembershipApplicationModel {
         id
       ];
 
-      const result = await executeQuery(query, params);
+      const result = await executeUpdate(query, params);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to review membership application', error);
@@ -457,11 +526,11 @@ export class MembershipApplicationModel {
     try {
       const query = `
         UPDATE membership_applications
-        SET status = 'Under Review', reviewed_by = ?
-        WHERE id = ? AND status = 'Submitted'
+        SET status = 'Under Review', reviewed_by = $1
+        WHERE application_id = $2 AND status = 'Submitted'
       `;
 
-      const result = await executeQuery(query, [reviewedBy, id]);
+      const result = await executeUpdate(query, [reviewedBy, id]);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to set application under review', error);
@@ -473,10 +542,10 @@ export class MembershipApplicationModel {
     try {
       const query = `
         SELECT
-          id, document_type, original_filename, stored_filename,
+          document_id as id, document_type, original_filename, stored_filename,
           file_path, file_size, mime_type, status, uploaded_at
         FROM documents
-        WHERE application_id = ? AND status = 'Active'
+        WHERE application_id = $1 AND status = 'Active'
         ORDER BY uploaded_at DESC
       `;
 
@@ -486,16 +555,40 @@ export class MembershipApplicationModel {
     }
   }
 
-  // Delete application (soft delete by changing status)
+  // Delete application (soft delete by changing status to Rejected)
   static async deleteApplication(id: number): Promise<boolean> {
     try {
-      const query = `
-        UPDATE membership_applications
-        SET status = 'Cancelled', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND status IN ('Draft', 'Submitted')
+      // First check if application exists and is not already approved
+      const checkQuery = `
+        SELECT application_id, status
+        FROM membership_applications
+        WHERE application_id = $1
       `;
 
-      const result = await executeQuery(query, [id]);
+      const application = await executeQuerySingle<{ application_id: number; status: string }>(checkQuery, [id]);
+
+      if (!application) {
+        return false; // Application not found
+      }
+
+      // Don't allow deletion of approved applications
+      if (application.status === 'Approved') {
+        return false;
+      }
+
+      // If already rejected, consider it as successfully deleted
+      if (application.status === 'Rejected') {
+        return true;
+      }
+
+      // Otherwise, soft delete by changing status to Rejected
+      const query = `
+        UPDATE membership_applications
+        SET status = 'Rejected', updated_at = CURRENT_TIMESTAMP
+        WHERE application_id = $1 AND status IN ('Draft', 'Submitted', 'Under Review')
+      `;
+
+      const result = await executeUpdate(query, [id]);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to delete membership application', error);
@@ -509,8 +602,68 @@ export class MembershipApplicationModel {
     filters: ApplicationFilters = {}
   ): Promise<ApplicationDetails[]> {
     try {
+      // Build WHERE clause based on filters
+      let whereClause = 'WHERE 1=1';
+      const queryParams: any[] = [];
+      let paramIndex = 1;
 
-      // Ultra-simple query to avoid any issues
+      if (filters.status) {
+        whereClause += ` AND status = $${paramIndex}`;
+        queryParams.push(filters.status);
+        paramIndex++;
+      }
+
+      if (filters.application_type) {
+        whereClause += ` AND application_type = $${paramIndex}`;
+        queryParams.push(filters.application_type);
+        paramIndex++;
+      }
+
+      if (filters.ward_code) {
+        whereClause += ` AND ward_code = $${paramIndex}`;
+        queryParams.push(filters.ward_code);
+        paramIndex++;
+      }
+
+      if (filters.municipal_code) {
+        whereClause += ` AND municipal_code = $${paramIndex}`;
+        queryParams.push(filters.municipal_code);
+        paramIndex++;
+      }
+
+      if (filters.district_code) {
+        whereClause += ` AND district_code = $${paramIndex}`;
+        queryParams.push(filters.district_code);
+        paramIndex++;
+      }
+
+      if (filters.province_code) {
+        whereClause += ` AND province_code = $${paramIndex}`;
+        queryParams.push(filters.province_code);
+        paramIndex++;
+      }
+
+      if (filters.submitted_after) {
+        whereClause += ` AND submitted_at >= $${paramIndex}`;
+        queryParams.push(filters.submitted_after);
+        paramIndex++;
+      }
+
+      if (filters.submitted_before) {
+        whereClause += ` AND submitted_at <= $${paramIndex}`;
+        queryParams.push(filters.submitted_before);
+        paramIndex++;
+      }
+
+      if (filters.search) {
+        whereClause += ` AND (first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR id_number ILIKE $${paramIndex})`;
+        queryParams.push(`%${filters.search}%`);
+        paramIndex++;
+      }
+
+      // Add limit and offset
+      queryParams.push(limit, offset);
+
       const query = `
         SELECT
           application_id as id,
@@ -527,11 +680,11 @@ export class MembershipApplicationModel {
           submitted_at,
           reviewed_at
         FROM membership_applications
+        ${whereClause}
         ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `;
 
-      const queryParams = [limit, offset];
       const results = await executeQuery<any[]>(query, queryParams);
 
       // Transform results to match expected interface
@@ -551,9 +704,67 @@ export class MembershipApplicationModel {
   // Get application count with filters
   static async getApplicationCount(filters: ApplicationFilters = {}): Promise<number> {
     try {
-      // Ultra-simple count query
-      const query = `SELECT COUNT(*) as count FROM membership_applications`;
-      const result = await executeQuerySingle<{ count: number }>(query, []);
+      // Build WHERE clause based on filters
+      let whereClause = 'WHERE 1=1';
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+
+      if (filters.status) {
+        whereClause += ` AND status = $${paramIndex}`;
+        queryParams.push(filters.status);
+        paramIndex++;
+      }
+
+      if (filters.application_type) {
+        whereClause += ` AND application_type = $${paramIndex}`;
+        queryParams.push(filters.application_type);
+        paramIndex++;
+      }
+
+      if (filters.ward_code) {
+        whereClause += ` AND ward_code = $${paramIndex}`;
+        queryParams.push(filters.ward_code);
+        paramIndex++;
+      }
+
+      if (filters.municipal_code) {
+        whereClause += ` AND municipal_code = $${paramIndex}`;
+        queryParams.push(filters.municipal_code);
+        paramIndex++;
+      }
+
+      if (filters.district_code) {
+        whereClause += ` AND district_code = $${paramIndex}`;
+        queryParams.push(filters.district_code);
+        paramIndex++;
+      }
+
+      if (filters.province_code) {
+        whereClause += ` AND province_code = $${paramIndex}`;
+        queryParams.push(filters.province_code);
+        paramIndex++;
+      }
+
+      if (filters.submitted_after) {
+        whereClause += ` AND submitted_at >= $${paramIndex}`;
+        queryParams.push(filters.submitted_after);
+        paramIndex++;
+      }
+
+      if (filters.submitted_before) {
+        whereClause += ` AND submitted_at <= $${paramIndex}`;
+        queryParams.push(filters.submitted_before);
+        paramIndex++;
+      }
+
+      if (filters.search) {
+        whereClause += ` AND (first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR id_number ILIKE $${paramIndex})`;
+        queryParams.push(`%${filters.search}%`);
+        paramIndex++;
+      }
+
+      const query = `SELECT COUNT(*) as count FROM membership_applications ${whereClause}`;
+      const result = await executeQuerySingle<{ count: number }>(query, queryParams);
       return result?.count || 0;
     } catch (error) {
       throw createDatabaseError('Failed to get application count', error);
@@ -565,24 +776,25 @@ export class MembershipApplicationModel {
     try {
       let whereClause = 'WHERE 1=1';
       const params: any[] = [];
+      let paramIndex = 1;
 
       if (filters.ward_code) {
-        whereClause += ' AND ma.ward_code = ?';
+        whereClause += ` AND ma.ward_code = $${paramIndex++}`;
         params.push(filters.ward_code);
       }
 
       if (filters.municipality_id) {
-        whereClause += ' AND w.municipality_id = ?';
+        whereClause += ` AND w.municipality_id = $${paramIndex++}`;
         params.push(filters.municipality_id);
       }
 
       if (filters.region_id) {
-        whereClause += ' AND m.region_id = ?';
+        whereClause += ` AND m.region_id = $${paramIndex++}`;
         params.push(filters.region_id);
       }
 
       if (filters.province_id) {
-        whereClause += ' AND r.province_id = ?';
+        whereClause += ` AND r.province_id = $${paramIndex++}`;
         params.push(filters.province_id);
       }
 

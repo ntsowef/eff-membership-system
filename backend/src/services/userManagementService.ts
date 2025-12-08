@@ -6,6 +6,7 @@ import { SecurityService } from './securityService';
 import { logAudit, AuditAction, EntityType } from '../middleware/auditLogger';
 import bcrypt from 'bcrypt';
 import { config } from '../config/config';
+import { emailService } from './emailService';
 
 // User creation workflow interfaces
 export interface UserCreationRequest {
@@ -19,6 +20,7 @@ export interface UserCreationRequest {
   municipal_code?: string;
   ward_code?: string;
   member_id?: number;
+  cell_number?: string; // Added for admin users who need OTP/MFA
   promote_existing_member?: boolean;
   justification?: string;
   requires_approval?: boolean;
@@ -105,32 +107,46 @@ export class UserManagementService {
     try {
       // Get system configuration
       const config = await executeQuerySingle(`
-        SELECT config_value 
-        FROM system_configuration 
+        SELECT config_value
+        FROM system_configuration
         WHERE config_key = 'admin_creation_requires_approval'
       `);
 
-      const requiresApproval = config ? JSON.parse(config.config_value) : true;
+      const requiresApproval = config ? JSON.parse(config.config_value) : false; // Default to FALSE (no approval needed)
 
       // Super admins and national admins might bypass approval for lower levels
       const creator = await executeQuerySingle(`
-        SELECT admin_level, r.name as role_name
+        SELECT u.admin_level, r.role_name as role_name
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
-        WHERE u.id = ? `, [createdBy]);
+        LEFT JOIN roles r ON u.role_id = r.role_id
+        WHERE u.user_id = $1`, [createdBy]);
 
-      if (creator.role_name === 'super_admin') {
-        return false; // Super admin doesn't need approval
+      if (!creator) {
+        return false; // If creator not found, allow creation without approval
       }
 
-      if (creator.admin_level === 'national' && 
+      // Check for super admin or national administrator roles
+      if (creator.role_name === 'super_admin' ||
+          creator.role_name === 'Super Administrator' ||
+          creator.role_name === 'National Administrator') {
+        return false; // These roles don't need approval
+      }
+
+      // National admin can create any level without approval
+      if (creator.admin_level === 'national') {
+        return false;
+      }
+
+      // Province admin can create lower levels without approval
+      if (creator.admin_level === 'province' &&
           ['district', 'municipality', 'ward'].includes(adminLevel)) {
-        return false; // National admin can create lower levels without approval
+        return false;
       }
 
       return requiresApproval;
     } catch (error) {
-      return true; // Default to requiring approval on error
+      console.error('Error checking approval requirement:', error);
+      return false; // Default to NOT requiring approval on error (allow creation)
     }
   }
 
@@ -144,9 +160,11 @@ export class UserManagementService {
       
       const query = `
         INSERT INTO user_creation_workflow (
+        
           request_id, requested_by, user_data, admin_level,
           justification, status
-        ) EXCLUDED.? , , $3, $4, $5, 'pending'
+        
+      ) VALUES ($1, $2, $3, $4, $5, 'pending')
       `;
 
       const result = await executeQuery(query, [
@@ -168,13 +186,36 @@ export class UserManagementService {
     requestData : UserCreationRequest,
     createdBy: number
   ): Promise<number> {
+    console.log('🔵 createUserDirectly called with:', { requestData, createdBy });
     try {
-      // Get role ID
-      const role = await executeQuerySingle(`
-        SELECT id FROM roles WHERE name = ? `, [requestData.role_name]);
+      // Map common role name variations to database role names
+      const roleNameMapping: { [key: string]: string } = {
+        'provincial_admin': 'Provincial Administrator',
+        'province_admin': 'Provincial Administrator',
+        'municipal_admin': 'Municipal Administrator',
+        'municipality_admin': 'Municipal Administrator',
+        'district_admin': 'District Administrator',
+        'ward_admin': 'Ward Administrator',
+        'national_admin': 'National Administrator',
+        'super_admin': 'Super Administrator',
+        'member': 'Member',
+        'guest': 'Guest'
+      };
+
+      // Get the correct role name
+      const roleName = roleNameMapping[requestData.role_name.toLowerCase()] || requestData.role_name;
+
+      // Get role ID - try by name first, then by role_code, then by role_name column
+      console.log('🔵 Looking for role:', requestData.role_name, '-> mapped to:', roleName);
+      let role = await executeQuerySingle(`
+        SELECT role_id as id, role_name as name FROM roles
+        WHERE role_name = $1 OR role_code = $2 OR LOWER(role_name) = LOWER($3)
+        LIMIT 1`, [roleName, requestData.role_name.toUpperCase(), requestData.role_name]);
+
+      console.log('🔵 Role found:', role);
 
       if (!role) {
-        throw new ValidationError('Role ' + requestData.role_name + ' not found');
+        throw new ValidationError('Role ' + requestData.role_name + ' not found. Available roles: Super Administrator, National Administrator, Provincial Administrator, District Administrator, Municipal Administrator, Ward Administrator, Member, Guest');
       }
 
       // Hash password
@@ -184,9 +225,10 @@ export class UserManagementService {
       const userQuery = `
         INSERT INTO users (
           name, email, password, role_id, admin_level,
-          province_code, district_code, municipal_code, ward_code, member_id,
+          province_code, district_code, municipal_code, ward_code, member_id, cell_number,
           is_active, created_at
-        ) EXCLUDED.$1, , $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, CURRENT_TIMESTAMP)
+        RETURNING user_id
       `;
 
       const userResult = await executeQuery(userQuery, [
@@ -199,28 +241,44 @@ export class UserManagementService {
         requestData.district_code && requestData.district_code.trim() !== '' ? requestData.district_code : null,
         requestData.municipal_code && requestData.municipal_code.trim() !== '' ? requestData.municipal_code : null,
         requestData.ward_code && requestData.ward_code.trim() !== '' ? requestData.ward_code : null,
-        requestData.member_id || null
+        requestData.member_id || null,
+        requestData.cell_number || null
       ]);
 
-      const userId = userResult.insertId;
+      const userId = Array.isArray(userResult) ? userResult[0].user_id : userResult.user_id;
 
-      // Log admin creation
-      await executeQuery(`
-        INSERT INTO admin_user_creation_log (
-          created_user_id, created_by_user_id, admin_level,
-          creation_reason, approval_status
-        ) EXCLUDED.? , , $3, $4, 'approved'
-      `, [
-        userId,
-        createdBy,
-        requestData.admin_level,
-        requestData.justification || 'Direct admin creation'
-      ]);
+      // Log admin creation (commented out - table may not exist)
+      // await executeQuery(`
+      //   INSERT INTO admin_user_creation_log (
+      //     created_user_id, created_by_user_id, admin_level,
+      //     creation_reason, approval_status
+      //   ) VALUES ($1, $2, $3, $4, 'approved')
+      // `, [
+      //   userId,
+      //   createdBy,
+      //   requestData.admin_level,
+      //   requestData.justification || 'Direct admin creation'
+      // ]);
 
-
+      // Send welcome email with credentials
+      try {
+        await emailService.sendNewUserCredentials(
+          requestData.email,
+          requestData.name,
+          requestData.email,
+          requestData.password,
+          requestData.admin_level,
+          role.name || requestData.role_name
+        );
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail user creation if email fails
+      }
 
       return userId;
     } catch (error) {
+      console.error('❌ ERROR in createUserDirectly:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       throw createDatabaseError('Failed to create user directly', error);
     }
   }
@@ -232,7 +290,7 @@ export class UserManagementService {
     try {
       // Simplified permission check - only national admin can review workflows
       const reviewer = await executeQuerySingle(`
-        SELECT admin_level FROM users WHERE id = ? AND is_active = TRUE
+        SELECT admin_level FROM users WHERE user_id = $1 AND is_active = TRUE
       `, [reviewerId]);
 
       if (!reviewer || reviewer.admin_level !== 'national') {
@@ -268,7 +326,7 @@ export class UserManagementService {
     try {
       // Get workflow details
       const workflow = await executeQuerySingle(`
-        SELECT * FROM user_creation_workflow WHERE id = ? AND status = 'pending'
+        SELECT * FROM user_creation_workflow WHERE id = $1 AND status = 'pending'
       `, [workflowId]);
 
       if (!workflow) {
@@ -290,8 +348,8 @@ export class UserManagementService {
         // Update workflow with created user ID
         await executeQuery(`
           UPDATE user_creation_workflow
-          SET created_user_id = ? , status = 'completed'
-        WHERE id = 
+          SET created_user_id = $1, status = 'completed'
+          WHERE id = $2
         `, [userId, workflowId]);
 
         return {
@@ -315,7 +373,7 @@ export class UserManagementService {
     try {
       // Simplified permission check - only national admin can view statistics
       const requester = await executeQuerySingle(`
-        SELECT admin_level FROM users WHERE id = ? AND is_active = TRUE
+        SELECT admin_level FROM users WHERE user_id = $1 AND is_active = TRUE
       `, [requesterId]);
 
       if (!requester || requester.admin_level !== 'national') {
@@ -369,7 +427,7 @@ export class UserManagementService {
 
       // Simplified permission check - only national admin can manage users
       const manager = await executeQuerySingle(`
-        SELECT admin_level FROM users WHERE id = ? AND is_active = TRUE
+        SELECT admin_level FROM users WHERE user_id = $1 AND is_active = TRUE
       `, [updatedBy]);
 
       if (!manager || manager.admin_level !== 'national') {

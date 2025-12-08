@@ -14,7 +14,7 @@ import {
   TablePagination,
   Paper,
   Typography,
-  Box,
+
 } from '@mui/material';
 
 export interface Column<T> {

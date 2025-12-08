@@ -11,7 +11,6 @@ import {
   Paper,
   Chip,
   Divider,
-  Avatar,
   CircularProgress,
 } from '@mui/material';
 import {

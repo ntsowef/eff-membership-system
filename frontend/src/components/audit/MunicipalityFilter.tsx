@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { geographicApi } from '../../services/api';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
 import { useMunicipalityContext } from '../../hooks/useMunicipalityContext';
-import { Business, Lock } from '@mui/icons-material';
+import { Business } from '@mui/icons-material';
 
 interface Municipality {
   municipality_code: string;
@@ -104,12 +104,12 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
       municipalitiesArray = municipalities;
     }
     // Check if municipalities has a data property that contains the array
-    else if (municipalities.data && Array.isArray(municipalities.data)) {
-      municipalitiesArray = municipalities.data;
+    else if ((municipalities as any).data && Array.isArray((municipalities as any).data)) {
+      municipalitiesArray = (municipalities as any).data;
     }
     // Check if municipalities has a municipalities property that contains the array
-    else if (municipalities.municipalities && Array.isArray(municipalities.municipalities)) {
-      municipalitiesArray = municipalities.municipalities;
+    else if ((municipalities as any).municipalities && Array.isArray((municipalities as any).municipalities)) {
+      municipalitiesArray = (municipalities as any).municipalities;
     }
     else {
       console.warn('Unexpected municipalities data format:', municipalities);

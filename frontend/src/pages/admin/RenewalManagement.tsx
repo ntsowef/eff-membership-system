@@ -9,8 +9,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  Alert,
+  // DialogActions,
+  // Alert,
   Breadcrumbs,
   Link,
   Chip,
@@ -78,7 +78,7 @@ const RenewalManagement: React.FC = () => {
   const [showBulkProcessor, setShowBulkProcessor] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
@@ -300,112 +300,6 @@ const RenewalManagement: React.FC = () => {
         <TabPanel value={activeTab} index={6}>
           <AuditTrailTab />
         </TabPanel>
-      </Paper>
-
-      {/* Feature Information */}
-      <Paper sx={{ mx: 3, mb: 3, p: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Renewal Management System Features
-        </Typography>
-        
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 3, mt: 2 }}>
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main" gutterBottom>
-              🔄 Automated Workflow
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Multi-stage renewal reminders (60, 30, 7 days)
-              <br />
-              • Grace period management (configurable)
-              <br />
-              • Automated status tracking and escalation
-              <br />
-              • Smart notification scheduling
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main" gutterBottom>
-              💳 Payment Processing
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Multiple payment methods (online, bank, cash)
-              <br />
-              • Bulk renewal processing capabilities
-              <br />
-              • Payment gateway integration ready
-              <br />
-              • Automated receipt generation
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main" gutterBottom>
-              📊 Analytics & Reporting
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Real-time renewal rate monitoring
-              <br />
-              • Revenue tracking and forecasting
-              <br />
-              • Geographic performance analysis
-              <br />
-              • Professional PDF report generation
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main" gutterBottom>
-              📱 Communication System
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • SMS reminder campaigns
-              <br />
-              • Personalized renewal notifications
-              <br />
-              • Bulk messaging capabilities
-              <br />
-              • Delivery tracking and analytics
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main" gutterBottom>
-              👥 Member Self-Service
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Online renewal portal (coming soon)
-              <br />
-              • Payment status tracking
-              <br />
-              • Renewal history access
-              <br />
-              • Digital membership cards
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main" gutterBottom>
-              🔧 Administrative Tools
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Manual renewal processing
-              <br />
-              • Approval workflow management
-              <br />
-              • Audit trail and history tracking
-              <br />
-              • Bulk operations and exports
-            </Typography>
-          </Box>
-        </Box>
-
-        <Alert severity="info" sx={{ mt: 3 }}>
-          <Typography variant="body2">
-            <strong>Integration Status:</strong> The Renewal Management System is fully integrated with your existing member database (186,328 members across 9 provinces) 
-            and works seamlessly with the Membership Expiration Management System. All features use real organizational data for accurate processing and reporting.
-          </Typography>
-        </Alert>
       </Paper>
 
       {/* Bulk Renewal Processor Dialog */}

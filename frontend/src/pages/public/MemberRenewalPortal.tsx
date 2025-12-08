@@ -3,71 +3,197 @@ import {
   Box,
   Container,
   Typography,
-  Paper,
   Grid,
-  Card,
-  CardContent,
-  Alert,
-  Chip,
-  Divider,
 } from '@mui/material';
 import {
   Security,
   Speed,
   Payment,
   Support,
-  CheckCircle,
-  Phone,
-  Email,
-  Schedule,
 } from '@mui/icons-material';
 import MemberSelfServicePortal from '../../components/renewal/MemberSelfServicePortal';
 
 const MemberRenewalPortal: React.FC = () => {
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
-      {/* Header */}
-      <Paper sx={{ py: 6, mb: 4, bgcolor: 'primary.main', color: 'white', borderRadius: 0 }}>
-        <Container maxWidth="lg">
-          <Typography variant="h3" component="h1" gutterBottom textAlign="center">
-            Member Renewal Portal
-          </Typography>
-          <Typography variant="h6" textAlign="center" sx={{ opacity: 0.9 }}>
-            Renew your membership quickly and securely online
-          </Typography>
-          
-          <Grid container spacing={3} sx={{ mt: 4 }}>
+    <Box>
+      {/* Hero Section */}
+      <Box
+        sx={{
+          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
+          color: 'white',
+          py: 8,
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'radial-gradient(circle at 20% 50%, rgba(220, 20, 60, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139, 0, 0, 0.15) 0%, transparent 50%)',
+            pointerEvents: 'none'
+          },
+        }}
+      >
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Box textAlign="center" sx={{ mb: 6 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: '#DC143C',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                letterSpacing: '0.15em',
+                mb: 2,
+                display: 'block',
+                textShadow: '0 2px 8px rgba(220, 20, 60, 0.3)',
+                animation: 'fadeInUp 0.8s ease-out 0.1s both',
+                '@keyframes fadeInUp': {
+                  '0%': { opacity: 0, transform: 'translateY(20px)' },
+                  '100%': { opacity: 1, transform: 'translateY(0)' }
+                }
+              }}
+            >
+              MEMBERSHIP RENEWAL
+            </Typography>
+            <Typography
+              variant="h2"
+              component="h1"
+              gutterBottom
+              sx={{
+                fontWeight: 700,
+                fontSize: { xs: '2.5rem', md: '3.5rem' },
+                lineHeight: 1.1,
+                mb: 3,
+                textShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                animation: 'fadeInUp 0.8s ease-out 0.2s both',
+              }}
+            >
+              Renew Your Membership
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                opacity: 0.9,
+                lineHeight: 1.7,
+                fontWeight: 400,
+                fontSize: '1.1rem',
+                maxWidth: '700px',
+                mx: 'auto',
+                color: 'rgba(255, 255, 255, 0.9)',
+                animation: 'fadeInUp 0.8s ease-out 0.3s both',
+              }}
+            >
+              Continue your fight for economic freedom. Renew your membership quickly and securely online.
+            </Typography>
+          </Box>
+
+          {/* Feature Cards */}
+          <Grid container spacing={3} sx={{ mt: 2 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Security sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="h6" gutterBottom>Secure</Typography>
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(220, 20, 60, 0.2)',
+                  transition: 'all 0.3s ease',
+                  animation: 'fadeInUp 0.8s ease-out 0.4s both',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 12px 40px rgba(220, 20, 60, 0.2)',
+                  }
+                }}
+              >
+                <Security sx={{ fontSize: 48, mb: 2, color: '#DC143C' }} />
+                <Typography variant="h6" gutterBottom fontWeight={700}>
+                  Secure
+                </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.8 }}>
                   Bank-level security for all transactions
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Speed sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="h6" gutterBottom>Fast</Typography>
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(220, 20, 60, 0.2)',
+                  transition: 'all 0.3s ease',
+                  animation: 'fadeInUp 0.8s ease-out 0.5s both',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 12px 40px rgba(220, 20, 60, 0.2)',
+                  }
+                }}
+              >
+                <Speed sx={{ fontSize: 48, mb: 2, color: '#DC143C' }} />
+                <Typography variant="h6" gutterBottom fontWeight={700}>
+                  Fast
+                </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.8 }}>
                   Complete renewal in under 5 minutes
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Payment sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="h6" gutterBottom>Flexible</Typography>
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(220, 20, 60, 0.2)',
+                  transition: 'all 0.3s ease',
+                  animation: 'fadeInUp 0.8s ease-out 0.6s both',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 12px 40px rgba(220, 20, 60, 0.2)',
+                  }
+                }}
+              >
+                <Payment sx={{ fontSize: 48, mb: 2, color: '#DC143C' }} />
+                <Typography variant="h6" gutterBottom fontWeight={700}>
+                  Flexible
+                </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.8 }}>
                   Multiple payment options available
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Support sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="h6" gutterBottom>Support</Typography>
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 3,
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(220, 20, 60, 0.2)',
+                  transition: 'all 0.3s ease',
+                  animation: 'fadeInUp 0.8s ease-out 0.7s both',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 12px 40px rgba(220, 20, 60, 0.2)',
+                  }
+                }}
+              >
+                <Support sx={{ fontSize: 48, mb: 2, color: '#DC143C' }} />
+                <Typography variant="h6" gutterBottom fontWeight={700}>
+                  Support
+                </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.8 }}>
                   24/7 customer support available
                 </Typography>
@@ -75,199 +201,32 @@ const MemberRenewalPortal: React.FC = () => {
             </Grid>
           </Grid>
         </Container>
-      </Paper>
+      </Box>
 
-      <Container maxWidth="lg">
-        <Grid container spacing={4}>
+      {/* Main Content */}
+      <Box sx={{ bgcolor: '#FAFAFA', py: 8 }}>
+        <Container maxWidth="lg">
           {/* Main Renewal Portal */}
-          <Grid item xs={12} lg={8}>
-            <MemberSelfServicePortal />
-          </Grid>
+          <MemberSelfServicePortal />
+        </Container>
+      </Box>
 
-          {/* Sidebar Information */}
-          <Grid item xs={12} lg={4}>
-            {/* Renewal Benefits */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle color="success" />
-                  Renewal Benefits
-                </Typography>
-                
-                <Box sx={{ mt: 2 }}>
-                  {[
-                    'Continued access to all member services',
-                    'Digital membership card',
-                    'Priority customer support',
-                    'Exclusive member discounts',
-                    'Access to member-only events',
-                    'Monthly newsletter and updates'
-                  ].map((benefit, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
-                      <Typography variant="body2">{benefit}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* Payment Options */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Payment Options
-                </Typography>
-                
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" fontWeight="bold">Online Payment</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Credit/Debit cards, PayPal, and digital wallets
-                    </Typography>
-                    <Chip label="Instant Processing" color="success" size="small" sx={{ mt: 0.5 }} />
-                  </Box>
-                  
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" fontWeight="bold">Bank Transfer</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Direct bank transfer with reference number
-                    </Typography>
-                    <Chip label="1-2 Business Days" color="warning" size="small" sx={{ mt: 0.5 }} />
-                  </Box>
-                  
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="bold">EFT Payment</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Electronic funds transfer
-                    </Typography>
-                    <Chip label="Same Day Processing" color="info" size="small" sx={{ mt: 0.5 }} />
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* Contact Support */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Need Help?
-                </Typography>
-                
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  Our support team is available to assist you with your renewal process.
-                </Alert>
-                
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <Phone color="primary" />
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold">Phone Support</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        +27 11 123 4567
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <Email color="primary" />
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold">Email Support</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        renewals@organization.co.za
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Schedule color="primary" />
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold">Business Hours</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Monday - Friday: 8:00 AM - 5:00 PM
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* Security Information */}
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Security color="primary" />
-                  Security & Privacy
-                </Typography>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Your personal and payment information is protected with industry-standard security measures.
-                </Typography>
-                
-                <Box sx={{ mt: 2 }}>
-                  {[
-                    'SSL encryption for all data transmission',
-                    'PCI DSS compliant payment processing',
-                    'No storage of sensitive payment data',
-                    'Regular security audits and updates'
-                  ].map((feature, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
-                      <Typography variant="body2">{feature}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Footer Information */}
-        <Paper sx={{ mt: 6, p: 4, bgcolor: 'grey.100' }}>
-          <Grid container spacing={4}>
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>
-                Renewal Process
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Our streamlined 4-step process makes membership renewal quick and easy. 
-                Simply verify your identity, choose your renewal options, make payment, 
-                and receive instant confirmation.
-              </Typography>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>
-                Membership Types
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Choose between Standard Renewal (R700) for continued access to all 
-                basic services, or Premium Upgrade (R1,200) for enhanced benefits 
-                and exclusive features.
-              </Typography>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom>
-                After Renewal
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Once your renewal is complete, you'll receive SMS and email confirmations, 
-                access to your digital membership card, and continued access to all 
-                member services and benefits.
-              </Typography>
-            </Grid>
-          </Grid>
-          
-          <Divider sx={{ my: 3 }} />
-          
-          <Typography variant="body2" color="text.secondary" textAlign="center">
-            © 2025 Organization Name. All rights reserved. | 
-            <strong> Secure Member Renewal Portal</strong> | 
-            Questions? Contact support at renewals@organization.co.za
+      {/* Footer */}
+      <Box
+        sx={{
+          bgcolor: '#1a1a1a',
+          color: 'white',
+          py: 4,
+          textAlign: 'center',
+          borderTop: '1px solid rgba(220, 20, 60, 0.2)',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Typography variant="body2" sx={{ opacity: 0.8 }}>
+            © 2025 Economic Freedom Fighters. All rights reserved. | Secure Member Renewal Portal
           </Typography>
-        </Paper>
-      </Container>
+        </Container>
+      </Box>
     </Box>
   );
 };

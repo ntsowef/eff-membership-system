@@ -86,7 +86,7 @@ export class MeetingInvitationService {
           m.cell_number as phone
         FROM leadership_appointments la
         JOIN leadership_positions lp ON la.position_id = lp.id
-        JOIN members m ON la.member_id = m.member_id
+        JOIN members_consolidated m ON la.member_id = m.member_id
         WHERE la.hierarchy_level = 'Province'
           AND la.entity_id = ?
           AND la.appointment_status = 'Active'
@@ -196,8 +196,8 @@ export class MeetingInvitationService {
           'MEM' || LPAD(CAST(mi.invitee_id AS TEXT), 6, '0') as member_number,
           creator.firstname || ' ' || creator.surname as created_by_name
         FROM meeting_invitations mi
-        LEFT JOIN members m ON mi.invitee_id = m.member_id
-        LEFT JOIN members creator ON mi.created_by = creator.member_id
+        LEFT JOIN members_consolidated m ON mi.invitee_id = m.member_id
+        LEFT JOIN members_consolidated creator ON mi.created_by = creator.member_id
         WHERE mi.meeting_id = $1
         AND LOWER(mi.invitee_type) = 'member'
         ORDER BY mi.created_at ASC

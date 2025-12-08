@@ -27,7 +27,7 @@ export interface MemberCardData {
   phone_number: string;
   province_name: string;
   municipality_name: string;
-  ward_number: string;
+  ward_code: string;
   voting_station_name: string;
   membership_type: string;
   join_date: string;
@@ -47,24 +47,29 @@ export class DigitalMembershipCardModel {
     qr_code_url: string;
   }> {
     try {
-      // Get member information
+      // Get member information (PostgreSQL syntax) - using optimized view
+      // FIX: Use actual expiry_date and membership_status from view instead of calculating
       const memberQuery = `
         SELECT
           member_id,
-          CONCAT('MEM', LPAD(member_id, 6, '0')) as membership_number,
+          membership_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           COALESCE(email, '') as email,
           COALESCE(cell_number, '') as phone_number,
+          province_code,
           province_name,
           municipality_name,
-          ward_number,
+          ward_code,
           COALESCE(voting_station_name, 'Not Available') as voting_station_name,
-          'Standard' as membership_type,
+          COALESCE(membership_status, 'Inactive') as membership_type,
+          membership_status,
           member_created_at as join_date,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date
-        FROM vw_member_details
-        WHERE member_id = ?
+          expiry_date,
+          membership_amount,
+          days_until_expiry
+        FROM vw_member_details_optimized
+        WHERE member_id = $1
       `;
       
       const memberData = await executeQuerySingle<MemberCardData>(memberQuery, [memberId]);
@@ -89,7 +94,7 @@ export class DigitalMembershipCardModel {
         card_number: cardNumber,
         name: `${memberData.first_name} ${memberData.last_name}`,
         expiry_date: options.custom_expiry || memberData.expiry_date,
-        security_hash: securityHash.substring(0, 16), // First 16 chars for QR
+        security_hash: securityHash ? securityHash.substring(0, 16) : 'N/A', // First 16 chars for QR
         issued: new Date().toISOString()
       });
       
@@ -188,7 +193,7 @@ export class DigitalMembershipCardModel {
         doc.fontSize(12)
            .font('Helvetica')
            .text(`${memberData.municipality_name}`, 0, 95, { align: 'center', width: 350 })
-           .text(`Ward Code: ${memberData.ward_number}`, 0, 115, { align: 'center', width: 350 })
+           .text(`Ward Code: ${memberData.ward_code}`, 0, 115, { align: 'center', width: 350 })
            .text(`${memberData.voting_station_name}`, 0, 135, { align: 'center', width: 350 });
 
         // Membership dates - Centered
@@ -208,7 +213,7 @@ export class DigitalMembershipCardModel {
         // Security features
         doc.fontSize(6)
            .fillColor('#666666')
-           .text(`Security Hash: ${cardData.security_hash.substring(0, 16)}...`, 20, 185);
+           .text(`Security Hash: ${cardData.security_hash ? cardData.security_hash.substring(0, 16) : 'N/A'}...`, 20, 185);
 
         // Footer
         doc.fontSize(8)
@@ -289,25 +294,30 @@ export class DigitalMembershipCardModel {
         };
       }
 
-      // Get member information to verify
+      // Get member information to verify (PostgreSQL syntax) - using optimized view
+      // FIX: Use actual expiry_date from view instead of calculating
       const memberQuery = `
         SELECT
           member_id,
-          CONCAT('MEM', LPAD(member_id, 6, '0')) as membership_number,
+          membership_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
+          province_code,
           province_name,
           municipality_name,
-          ward_number,
+          ward_code,
           COALESCE(voting_station_name, 'Not Available') as voting_station_name,
+          membership_status,
           member_created_at as join_date,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date
-        FROM vw_member_details
-        WHERE member_id = ? AND CONCAT('MEM', LPAD(member_id, 6, '0')) = ?
+          expiry_date,
+          membership_amount,
+          days_until_expiry
+        FROM vw_member_details_optimized
+        WHERE member_id = $1 AND membership_number = $2
       `;
-      
+
       const memberInfo = await executeQuerySingle(memberQuery, [
-        parsedData.member_id, 
+        parsedData.member_id,
         parsedData.membership_number
       ]);
 
@@ -363,21 +373,26 @@ export class DigitalMembershipCardModel {
   }> {
     try {
       // In a real implementation, this would query the digital_cards table
-      // For now, we'll simulate with member data
+      // For now, we'll simulate with member data (PostgreSQL syntax) - using optimized view
+      // FIX: Use actual expiry_date from view instead of calculating
       const memberQuery = `
         SELECT
           member_id,
-          CONCAT('MEM', LPAD(member_id, 6, '0')) as membership_number,
+          membership_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
+          province_code,
           province_name,
           municipality_name,
-          ward_number,
+          ward_code,
           COALESCE(voting_station_name, 'Not Available') as voting_station_name,
+          membership_status,
           member_created_at as join_date,
-          DATE_ADD(member_created_at, INTERVAL 365 DAY) as expiry_date
-        FROM vw_member_details
-        WHERE member_id = ?
+          expiry_date,
+          membership_amount,
+          days_until_expiry
+        FROM vw_member_details_optimized
+        WHERE member_id = $1
       `;
       
       const memberData = await executeQuerySingle(memberQuery, [memberId]);

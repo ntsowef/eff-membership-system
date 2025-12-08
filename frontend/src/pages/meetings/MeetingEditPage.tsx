@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Button,
   TextField,
   Grid,
@@ -15,7 +13,7 @@ import {
   CircularProgress,
   Paper,
 } from '@mui/material';
-import { Event, Save, Cancel, ArrowBack } from '@mui/icons-material';
+import { Save, Cancel, ArrowBack } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPut } from '../../lib/api';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -32,25 +30,25 @@ interface UpdateMeetingData {
   max_attendees: number;
 }
 
-interface Meeting {
-  id: number;
-  title: string;
-  description?: string;
-  hierarchy_level: string;
-  entity_id: number;
-  meeting_type: string;
-  start_datetime: string;
-  end_datetime: string;
-  location?: string;
-  virtual_meeting_link?: string;
-  meeting_status: string;
-  max_attendees?: number;
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-  creator_name?: string;
-  entity_name?: string;
-}
+// interface Meeting {
+//   id: number;
+//   title: string;
+//   description?: string;
+//   hierarchy_level: string;
+//   entity_id: number;
+//   meeting_type: string;
+//   start_datetime: string;
+//   end_datetime: string;
+//   location?: string;
+//   virtual_meeting_link?: string;
+//   meeting_status: string;
+//   max_attendees?: number;
+//   created_by: number;
+//   created_at: string;
+//   updated_at: string;
+//   creator_name?: string;
+//   entity_name?: string;
+// }
 
 const MeetingEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -92,7 +90,7 @@ const MeetingEditPage: React.FC = () => {
         return getMockMeetingById(parseInt(id || '1'));
       }
     },
-    enabled: isValidId,
+    enabled: isValidId as any,
   });
 
   const meeting = (meetingData as any)?.data?.meeting || (meetingData as any)?.meeting;
@@ -116,7 +114,7 @@ const MeetingEditPage: React.FC = () => {
   // Update meeting mutation
   const updateMeetingMutation = useMutation({
     mutationFn: (data: UpdateMeetingData) => apiPut(`/meetings/${id}`, data),
-    onSuccess: (response) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
       queryClient.invalidateQueries({ queryKey: ['meeting', id] });
       navigate(`/admin/meetings/${id}`);

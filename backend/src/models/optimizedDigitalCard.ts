@@ -235,7 +235,7 @@ export class OptimizedDigitalCardModel {
         doc.fontSize(12)
            .font('Helvetica')
            .text(`${memberData.municipality_name}`, 0, 95, { align: 'center', width: 350 })
-           .text(`Ward Code: ${memberData.ward_number}`, 0, 115, { align: 'center', width: 350 })
+           .text(`Ward Code: ${memberData.ward_code}`, 0, 115, { align: 'center', width: 350 })
            .text(`${memberData.voting_station_name}`, 0, 135, { align: 'center', width: 350 });
 
         // Membership dates - Centered

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -10,7 +10,7 @@ import {
   LinearProgress,
   CircularProgress,
   Alert,
-  Divider,
+
   IconButton,
   Tooltip,
 } from '@mui/material';
@@ -23,15 +23,13 @@ import {
   Speed,
   Refresh,
   Download,
-  Info,
+
 } from '@mui/icons-material';
 import {
-  LineChart,
-  Line,
+
   AreaChart,
   Area,
-  BarChart,
-  Bar,
+
   PieChart,
   Pie,
   Cell,
@@ -45,43 +43,43 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 
-interface DashboardMetrics {
-  totalMembers: number;
-  membershipGrowth: {
-    current: number;
-    previous: number;
-    percentage: number;
-  };
-  geographicDistribution: {
-    provinces: number;
-    regions: number;
-    subRegions: number;
-    wards: number;
-    votingDistricts: number;
-  };
-  membershipTrends: Array<{
-    month: string;
-    members: number;
-    newMembers: number;
-    renewals: number;
-  }>;
-  demographics: {
-    ageGroups: Array<{ name: string; value: number; color: string }>;
-    genderDistribution: Array<{ name: string; value: number; color: string }>;
-  };
-  systemPerformance: {
-    responseTime: number;
-    uptime: number;
-    activeUsers: number;
-    dataQuality: number;
-  };
-  topPerformingAreas: Array<{
-    name: string;
-    memberCount: number;
-    growthRate: number;
-    type: string;
-  }>;
-}
+// interface DashboardMetrics {
+//   totalMembers: number;
+//   membershipGrowth: {
+//     current: number;
+//     previous: number;
+//     percentage: number;
+//   };
+//   geographicDistribution: {
+//     provinces: number;
+//     regions: number;
+//     subRegions: number;
+//     wards: number;
+//     votingDistricts: number;
+//   };
+//   membershipTrends: Array<{
+//     month: string;
+//     members: number;
+//     newMembers: number;
+//     renewals: number;
+//   }>;
+//   demographics: {
+//     ageGroups: Array<{ name: string; value: number; color: string }>;
+//     genderDistribution: Array<{ name: string; value: number; color: string }>;
+//   };
+//   systemPerformance: {
+//     responseTime: number;
+//     uptime: number;
+//     activeUsers: number;
+//     dataQuality: number;
+//   };
+//   topPerformingAreas: Array<{
+//     name: string;
+//     memberCount: number;
+//     growthRate: number;
+//     type: string;
+//   }>;
+// }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -324,7 +322,7 @@ const PerformanceDashboard: React.FC = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {dashboardData.demographics.ageGroups.map((entry, index) => (
+                    {dashboardData.demographics.ageGroups.map((_entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -396,7 +394,7 @@ const PerformanceDashboard: React.FC = () => {
                 Top Performing Areas
               </Typography>
               <Box sx={{ mt: 2 }}>
-                {dashboardData.topPerformingAreas.map((area, index) => (
+                {dashboardData.topPerformingAreas.map((area: any, index: number) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Typography variant="body1" fontWeight="medium">

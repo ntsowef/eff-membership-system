@@ -20,42 +20,31 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
-  TrendingUp,
-  TrendingDown,
+
   Warning,
   CheckCircle,
   Lightbulb,
   Assessment,
   Download,
-  Print,
+
   Refresh,
-  ArrowUpward,
-  ArrowDownward,
+
   Timeline,
-  PieChart,
+
   BarChart,
 } from '@mui/icons-material';
 import {
-  LineChart,
-  Line,
+
   AreaChart,
   Area,
-  BarChart as RechartsBarChart,
-  Bar,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
+
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
+
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -117,7 +106,7 @@ interface StrategicInsightsData {
   };
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+// const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 const StrategicInsights: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -306,7 +295,7 @@ const StrategicInsights: React.FC = () => {
                   <Chip
                     label={strategicData.executiveSummary.riskLevel}
                     color={getRiskColor(strategicData.executiveSummary.riskLevel) as any}
-                    size="large"
+                    size="medium"
                     sx={{ fontSize: '1.2rem', py: 2 }}
                   />
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

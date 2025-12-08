@@ -228,6 +228,7 @@ export const dateRangeSchema = Joi.object({
 // Filter validation for member queries
 export const memberFilterSchema = Joi.object({
   ward_code: Joi.string().min(5).max(15).optional(),
+  voting_district_code: Joi.string().min(5).max(20).optional(),
   municipality_code: Joi.string().min(3).max(10).optional(),
   municipal_code: Joi.string().min(3).max(10).optional(), // Support both naming conventions
   district_code: Joi.string().min(3).max(10).optional(),
@@ -237,6 +238,7 @@ export const memberFilterSchema = Joi.object({
   age_min: Joi.number().integer().min(0).max(120).optional(),
   age_max: Joi.number().integer().min(Joi.ref('age_min')).max(120).optional(),
   status_id: Joi.number().integer().min(1).max(5).optional(),
+  membership_type: Joi.string().max(50).optional(), // Add membership type filter
   has_email: Joi.boolean().optional(),
   has_cell_number: Joi.boolean().optional(),
   q: Joi.string().min(1).max(100).optional() // Add search parameter

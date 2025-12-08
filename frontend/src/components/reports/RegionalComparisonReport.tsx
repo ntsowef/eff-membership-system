@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -29,8 +29,7 @@ import {
   TableHead,
   TableRow,
   Autocomplete,
-  IconButton,
-  Tooltip,
+
 } from '@mui/material';
 import {
   PictureAsPdf,
@@ -38,13 +37,11 @@ import {
   LocationOn,
   Download,
   Refresh,
-  Add,
-  Remove,
+
   TrendingUp,
   TrendingDown,
   Analytics,
-  Clear,
-  Search,
+
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -210,14 +207,14 @@ const RegionalComparisonReport: React.FC = () => {
   const handleGeneratePDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      const regionCodes = selectedRegions.map(r => r.code).join(',');
-      const params = new URLSearchParams({
-        regions: regionCodes,
-        region_type: regionType,
-        comparison_type: comparisonType,
-        title: pdfOptions.title,
-        include_charts: pdfOptions.include_charts.toString(),
-      });
+      // const _regionCodes = selectedRegions.map(r => r.code).join(',');
+      // const _params = new URLSearchParams({
+      //   regions: regionCodes,
+      //   region_type: regionType,
+      //   comparison_type: comparisonType,
+      //   title: pdfOptions.title,
+      //   include_charts: pdfOptions.include_charts.toString(),
+      // });
 
       // Show message that PDF generation is being implemented
       alert('PDF generation for Regional Comparison is being implemented. The comparison data is available in the interface above. Please check back soon for PDF export functionality.');

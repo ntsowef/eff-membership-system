@@ -134,19 +134,67 @@ export class EmailService {
     applicantName: string,
     applicationNumber: string,
     status: string,
-    rejectionReason?: string
+    rejectionReason?: string,
+    membershipNumber?: string
   ): Promise<boolean> {
     const templates = {
       'Submitted': {
-        subject: 'Application Submitted - ' + applicationNumber,
+        subject: 'EFF Membership Application Received - ' + applicationNumber,
         html: `
-          <h2>Application Submitted Successfully</h2>
-          <p>Dear ${applicantName},</p>
-          <p>Your membership application <strong>${applicationNumber}</strong> has been submitted successfully.</p>
-          <p>We will review your application and notify you of the outcome within 5-10 business days.</p>
-          <p>Thank you for your interest in joining our organization.</p>
-          <br>
-          <p>Best regards,<br>Membership Team</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #DC143C; color: white; padding: 20px; text-align: center; }
+              .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
+              .app-number { background-color: #fff; padding: 15px; border-left: 4px solid #DC143C; margin: 20px 0; font-size: 18px; font-weight: bold; }
+              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+              .important { color: #DC143C; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Economic Freedom Fighters</h1>
+                <p>Membership Application Confirmation</p>
+              </div>
+              <div class="content">
+                <h2>Application Submitted Successfully! ✅</h2>
+                <p>Dear <strong>${applicantName}</strong>,</p>
+                <p>Thank you for applying to join the Economic Freedom Fighters (EFF). Your membership application has been received and is being processed.</p>
+
+                <div class="app-number">
+                  📋 Your Application Reference Number: <span class="important">${applicationNumber}</span>
+                </div>
+
+                <p><strong>Please keep this reference number safe.</strong> You will need it to:</p>
+                <ul>
+                  <li>Track your application status</li>
+                  <li>Make payment for your membership</li>
+                  <li>Communicate with our membership team</li>
+                </ul>
+
+                <h3>What Happens Next?</h3>
+                <ol>
+                  <li><strong>Payment Processing:</strong> Complete your membership payment using your application reference number</li>
+                  <li><strong>Document Verification:</strong> Our team will verify your submitted information</li>
+                  <li><strong>Application Review:</strong> Your application will be reviewed within 5-10 business days</li>
+                  <li><strong>Notification:</strong> You will receive an SMS and email notification once your application is approved</li>
+                </ol>
+
+                <p>If you have any questions, please contact our membership team and quote your application reference number: <strong>${applicationNumber}</strong></p>
+
+                <p style="margin-top: 30px;">Aluta Continua!<br><strong>EFF Membership Team</strong></p>
+              </div>
+              <div class="footer">
+                <p>Economic Freedom Fighters | Membership Department</p>
+                <p>This is an automated message. Please do not reply to this email.</p>
+              </div>
+            </div>
+          </body>
+          </html>
         `
       },
       'Under Review': {
@@ -161,14 +209,70 @@ export class EmailService {
         `
       },
       'Approved': {
-        subject: 'Application Approved - ' + applicationNumber,
+        subject: '🎉 EFF Membership Approved - Welcome to the Movement!',
         html: `
-          <h2>Congratulations! Application Approved</h2>
-          <p>Dear ${applicantName},</p>
-          <p>We are pleased to inform you that your membership application <strong>${applicationNumber}</strong> has been approved.</p>
-          <p>Welcome to our organization! You will receive your membership details shortly.</p>
-          <br>
-          <p>Best regards,<br>Membership Team</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #DC143C; color: white; padding: 30px; text-align: center; }
+              .header h1 { margin: 0; font-size: 28px; }
+              .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
+              .membership-box { background-color: #fff; border: 2px solid #DC143C; padding: 20px; margin: 20px 0; text-align: center; }
+              .membership-number { font-size: 24px; font-weight: bold; color: #DC143C; margin: 10px 0; }
+              .footer { background-color: #333; color: white; padding: 20px; text-align: center; font-size: 12px; }
+              .button { display: inline-block; padding: 12px 30px; background-color: #DC143C; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🎉 Congratulations!</h1>
+                <p style="margin: 10px 0 0 0; font-size: 18px;">Your EFF Membership Has Been Approved</p>
+              </div>
+
+              <div class="content">
+                <p>Dear <strong>${applicantName}</strong>,</p>
+
+                <p>We are thrilled to inform you that your Economic Freedom Fighters (EFF) membership application <strong>${applicationNumber}</strong> has been <strong style="color: #DC143C;">APPROVED</strong>!</p>
+
+                ${membershipNumber ? `
+                <div class="membership-box">
+                  <p style="margin: 0; font-size: 16px;">Your Membership Number</p>
+                  <div class="membership-number">${membershipNumber}</div>
+                  <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Please keep this number for your records</p>
+                </div>
+                ` : ''}
+
+                <h3 style="color: #DC143C;">Welcome to the Movement!</h3>
+                <p>You are now officially part of the Economic Freedom Fighters - a revolutionary movement committed to economic emancipation and social justice.</p>
+
+                <h3 style="color: #DC143C;">What's Next?</h3>
+                <ul>
+                  <li>You will receive your membership card shortly</li>
+                  <li>Stay connected with your local branch for meetings and activities</li>
+                  <li>Participate in our campaigns and community programs</li>
+                  <li>Access member-only resources and benefits</li>
+                </ul>
+
+                <p><strong>Together, we fight for economic freedom in our lifetime!</strong></p>
+
+                <p style="margin-top: 30px;">
+                  <strong>Aluta Continua!</strong><br>
+                  EFF Membership Team
+                </p>
+              </div>
+
+              <div class="footer">
+                <p><strong>Economic Freedom Fighters</strong></p>
+                <p>For inquiries, contact us at: info@effonline.org</p>
+                <p>&copy; ${new Date().getFullYear()} Economic Freedom Fighters. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
         `
       },
       'Rejected': {
@@ -329,6 +433,163 @@ export class EmailService {
         <br>
         <p>Welcome aboard!</p>
         <p>Best regards,<br>Membership Team</p>
+      `
+    });
+  }
+
+  // Send new user credentials email
+  async sendNewUserCredentials(
+    email: string,
+    userName: string,
+    loginEmail: string,
+    temporaryPassword: string,
+    adminLevel: string,
+    roleName: string
+  ): Promise<boolean> {
+    const loginUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    return await this.sendEmail({
+      to: email,
+      subject: 'Welcome to EFF Membership Portal - Your Account Details',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #DC143C; color: white; padding: 20px; text-align: center; }
+            .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
+            .credentials { background-color: #fff; padding: 20px; border-left: 4px solid #DC143C; margin: 20px 0; }
+            .credentials p { margin: 10px 0; }
+            .credentials strong { color: #DC143C; }
+            .button { display: inline-block; padding: 12px 30px; background-color: #DC143C; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+            .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 Welcome to EFF Membership Portal</h1>
+            </div>
+            <div class="content">
+              <h2>Hello ${userName},</h2>
+              <p>Your administrator account has been successfully created! You now have access to the EFF Membership Management System.</p>
+
+              <div class="credentials">
+                <h3>📋 Your Account Details:</h3>
+                <p><strong>Name:</strong> ${userName}</p>
+                <p><strong>Email/Username:</strong> ${loginEmail}</p>
+                <p><strong>Temporary Password:</strong> <code style="background: #f0f0f0; padding: 5px 10px; border-radius: 3px;">${temporaryPassword}</code></p>
+                <p><strong>Admin Level:</strong> ${adminLevel.charAt(0).toUpperCase() + adminLevel.slice(1)}</p>
+                <p><strong>Role:</strong> ${roleName}</p>
+              </div>
+
+              <div class="warning">
+                <strong>⚠️ Important Security Notice:</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                  <li>This is a temporary password. Please change it immediately after your first login.</li>
+                  <li>Never share your password with anyone.</li>
+                  <li>Use a strong, unique password for your account.</li>
+                  <li>Enable Two-Factor Authentication (2FA) for additional security.</li>
+                </ul>
+              </div>
+
+              <div style="text-align: center;">
+                <a href="${loginUrl}/login" class="button">Login to Your Account</a>
+              </div>
+
+              <h3>🚀 Getting Started:</h3>
+              <ol>
+                <li>Click the button above or visit: <a href="${loginUrl}/login">${loginUrl}/login</a></li>
+                <li>Enter your email and temporary password</li>
+                <li>Change your password when prompted</li>
+                <li>Complete your profile setup</li>
+                <li>Enable Two-Factor Authentication (recommended)</li>
+              </ol>
+
+              <h3>📚 Your Responsibilities:</h3>
+              <p>As a <strong>${adminLevel}</strong> administrator, you have access to:</p>
+              <ul>
+                <li>Member management and records</li>
+                <li>Administrative functions for your assigned area</li>
+                <li>Reports and analytics</li>
+                <li>Communication tools</li>
+              </ul>
+
+              <p>Please ensure you:</p>
+              <ul>
+                <li>Keep member information confidential</li>
+                <li>Follow data protection policies</li>
+                <li>Report any security concerns immediately</li>
+                <li>Use the system responsibly and ethically</li>
+              </ul>
+
+              <h3>📞 Need Help?</h3>
+              <p>If you have any questions or need assistance:</p>
+              <ul>
+                <li>Contact your system administrator</li>
+                <li>Check the help documentation in the portal</li>
+                <li>Email: support@effmemberportal.org</li>
+              </ul>
+
+              <p style="margin-top: 30px;">Welcome to the team! We're excited to have you on board.</p>
+
+              <p><strong>Aluta Continua!</strong></p>
+            </div>
+            <div class="footer">
+              <p>This is an automated message from the EFF Membership Portal.</p>
+              <p>Please do not reply to this email.</p>
+              <p>&copy; ${new Date().getFullYear()} Economic Freedom Fighters. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Welcome to EFF Membership Portal!
+
+Hello ${userName},
+
+Your administrator account has been successfully created!
+
+YOUR ACCOUNT DETAILS:
+- Name: ${userName}
+- Email/Username: ${loginEmail}
+- Temporary Password: ${temporaryPassword}
+- Admin Level: ${adminLevel.charAt(0).toUpperCase() + adminLevel.slice(1)}
+- Role: ${roleName}
+
+IMPORTANT SECURITY NOTICE:
+⚠️ This is a temporary password. Please change it immediately after your first login.
+⚠️ Never share your password with anyone.
+⚠️ Enable Two-Factor Authentication (2FA) for additional security.
+
+GETTING STARTED:
+1. Visit: ${loginUrl}/login
+2. Enter your email and temporary password
+3. Change your password when prompted
+4. Complete your profile setup
+5. Enable Two-Factor Authentication (recommended)
+
+YOUR RESPONSIBILITIES:
+As a ${adminLevel} administrator, please ensure you:
+- Keep member information confidential
+- Follow data protection policies
+- Report any security concerns immediately
+- Use the system responsibly and ethically
+
+NEED HELP?
+Contact your system administrator or email: support@effmemberportal.org
+
+Welcome to the team!
+
+Aluta Continua!
+
+---
+This is an automated message from the EFF Membership Portal.
+© ${new Date().getFullYear()} Economic Freedom Fighters. All rights reserved.
       `
     });
   }

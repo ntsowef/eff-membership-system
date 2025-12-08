@@ -16,29 +16,29 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  // FormControl,
+  // InputLabel,
+  // Select,
+  // MenuItem,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  // Table,
+  // TableBody,
+  // TableCell,
+  // TableContainer,
+  // TableHead,
+  // TableRow,
   Tabs,
   Tab,
   IconButton,
   Tooltip,
   Breadcrumbs,
   Link,
-  Avatar,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction
+  // Avatar,
+  // List,
+  // ListItem,
+  // ListItemIcon,
+  // ListItemText,
+  // ListItemSecondaryAction
 } from '@mui/material';
 import {
   Assignment,
@@ -46,32 +46,35 @@ import {
   LocationOn,
   Email,
   Phone,
-  CalendarToday,
+  // CalendarToday,
   CheckCircle,
   Cancel,
   Pending,
-  Edit,
-  Visibility,
+  // Edit,
+  // Visibility,
   ArrowBack,
   Payment,
-  Receipt,
+  // Receipt,
   Gavel,
   History,
-  Warning,
+  // Warning,
   Info,
   Home,
-  Business,
+  // Business,
   AccountBalance,
   VerifiedUser,
   Language,
   Work,
   School,
-  Flag,
-  Create
+  // Flag,
+  // Create,
+  Delete,
+  TrendingUp
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { applicationsApi, twoTierApprovalApi } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
+import { useAuth } from '../../store';
 import FinancialReviewPanel from '../../components/applications/FinancialReviewPanel';
 import RenewalFinancialReviewPanel from '../../components/renewals/RenewalFinancialReviewPanel';
 import FinalReviewPanel from '../../components/applications/FinalReviewPanel';
@@ -85,6 +88,7 @@ interface TabPanelProps {
 
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
+
   return (
     <div
       role="tabpanel"
@@ -108,22 +112,28 @@ const ApplicationDetailPage: React.FC = () => {
   const isRenewalView = type === 'renewal';
   const entityType = isRenewalView ? 'renewal' : 'application';
 
-  // Get current user info from localStorage or context
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const userRole = currentUser.role_name || '';
-  const userId = currentUser.id || 0;
+  // Get current user info from Zustand auth store
+  const { user: currentUser } = useAuth();
+  const userRole = currentUser?.role_name || (currentUser as any)?.role || '';
+  const userId = currentUser?.id || 0;
+  const adminLevel = currentUser?.admin_level || '';
 
   // Role-based access control
+  const isNationalAdmin = adminLevel === 'national';
   const isFinancialReviewer = userRole === 'financial_reviewer' || userRole === 'financial.approver';
   const isMembershipApprover = userRole === 'membership_approver' || userRole === 'membership.approver';
   const isSuperAdmin = userRole === 'super_admin';
-  const canAccessApplication = isFinancialReviewer || isMembershipApprover || isSuperAdmin;
+
+  // National Admin has full access to all applications
+  const canAccessApplication = isNationalAdmin || isFinancialReviewer || isMembershipApprover || isSuperAdmin;
 
   const [activeTab, setActiveTab] = useState(0);
   const [reviewDialog, setReviewDialog] = useState<{
     open: boolean;
     action: 'approve' | 'reject' | null;
   }>({ open: false, action: null });
+
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   const [reviewForm, setReviewForm] = useState({
     status: 'Approved' as 'Approved' | 'Rejected',
@@ -140,7 +150,7 @@ const ApplicationDetailPage: React.FC = () => {
 
       if (isRenewalView) {
         // Fetch renewal details
-        if (isFinancialReviewer || isMembershipApprover) {
+        if (isNationalAdmin || isFinancialReviewer || isMembershipApprover) {
           const response = await twoTierApprovalApi.getRenewalDetails(id);
           return response.data.renewal;
         } else {
@@ -150,7 +160,7 @@ const ApplicationDetailPage: React.FC = () => {
         }
       } else {
         // Fetch application details
-        if (isFinancialReviewer || isMembershipApprover) {
+        if (isNationalAdmin || isFinancialReviewer || isMembershipApprover) {
           try {
             const response = await twoTierApprovalApi.getApplicationWithRoleAccess(id);
             return response.data.application;
@@ -239,6 +249,22 @@ const ApplicationDetailPage: React.FC = () => {
     },
   });
 
+  // Submit application mutation (Draft -> Submitted)
+  const submitApplicationMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('Application ID is required');
+      return applicationsApi.submitApplication(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      showNotification('Application submitted successfully', 'success');
+    },
+    onError: (error: any) => {
+      showNotification(error.message || 'Failed to submit application', 'error');
+    },
+  });
+
   // Set under review mutation
   const setUnderReviewMutation = useMutation({
     mutationFn: async () => {
@@ -251,6 +277,23 @@ const ApplicationDetailPage: React.FC = () => {
     },
     onError: (error: any) => {
       showNotification(error.message || 'Failed to set application under review', 'error');
+    },
+  });
+
+  // Delete application mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('Application ID is required');
+      return applicationsApi.deleteApplication(id);
+    },
+    onSuccess: () => {
+      showNotification('Application deleted successfully', 'success');
+      setDeleteDialog(false);
+      // Navigate back to applications list
+      navigate('/admin/applications');
+    },
+    onError: (error: any) => {
+      showNotification(error.message || 'Failed to delete application', 'error');
     },
   });
 
@@ -268,6 +311,10 @@ const ApplicationDetailPage: React.FC = () => {
 
   const handleSubmitReview = () => {
     reviewMutation.mutate(reviewForm);
+  };
+
+  const handleDeleteApplication = () => {
+    deleteMutation.mutate();
   };
 
   const getStatusColor = (status: string) => {
@@ -377,6 +424,19 @@ const ApplicationDetailPage: React.FC = () => {
               size="medium"
             />
 
+            {/* Submit button for Draft applications */}
+            {application.status === 'Draft' && (isNationalAdmin || isSuperAdmin) && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Assignment />}
+                onClick={() => submitApplicationMutation.mutate()}
+                disabled={submitApplicationMutation.isPending}
+              >
+                {submitApplicationMutation.isPending ? 'Submitting...' : 'Submit Application'}
+              </Button>
+            )}
+
             {application.status === 'Submitted' && (
               <Button
                 variant="outlined"
@@ -409,6 +469,20 @@ const ApplicationDetailPage: React.FC = () => {
                 </Button>
               </>
             )}
+
+            {/* Delete button - only for National Admin and Super Admin */}
+            {(isNationalAdmin || isSuperAdmin) && application.status !== 'Approved' && (
+              <Tooltip title="Delete Application">
+                <IconButton
+                  color="error"
+                  onClick={() => setDeleteDialog(true)}
+                  disabled={deleteMutation.isPending}
+                  sx={{ ml: 1 }}
+                >
+                  <Delete />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </Box>
       </Box>
@@ -427,30 +501,29 @@ const ApplicationDetailPage: React.FC = () => {
 
       {/* Main Content */}
       <Paper sx={{ mb: 3 }}>
-        <Tabs value={activeTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          {/* Show different tabs based on user role */}
-          {isFinancialReviewer ? (
-            <>
-              <Tab label="Payment Information" icon={<Payment />} iconPosition="start" />
-              <Tab label="Financial Review" icon={<AccountBalance />} iconPosition="start" />
-            </>
-          ) : isMembershipApprover ? (
-            <>
-              <Tab label="Personal Information" icon={<Person />} iconPosition="start" />
-              <Tab label="Contact & Location" icon={<LocationOn />} iconPosition="start" />
-              <Tab label="Payment Information" icon={<Payment />} iconPosition="start" />
-              <Tab label="Final Review" icon={<Gavel />} iconPosition="start" />
-              <Tab label="Review & History" icon={<History />} iconPosition="start" />
-            </>
-          ) : (
-            <>
-              <Tab label="Personal Information" icon={<Person />} iconPosition="start" />
-              <Tab label="Contact & Location" icon={<LocationOn />} iconPosition="start" />
-              <Tab label="Payment Information" icon={<Payment />} iconPosition="start" />
-              <Tab label="Review & History" icon={<History />} iconPosition="start" />
-            </>
-          )}
-        </Tabs>
+        {/* Render different Tabs based on user role to avoid conditional rendering issues */}
+        {isFinancialReviewer ? (
+          <Tabs value={activeTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tab label="Payment Information" icon={<Payment />} iconPosition="start" />
+            <Tab label="Financial Review" icon={<AccountBalance />} iconPosition="start" />
+          </Tabs>
+        ) : isMembershipApprover || isNationalAdmin || isSuperAdmin ? (
+          <Tabs value={activeTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tab label="Personal Information" icon={<Person />} iconPosition="start" />
+            <Tab label="Contact & Location" icon={<LocationOn />} iconPosition="start" />
+            <Tab label="Payment Information" icon={<Payment />} iconPosition="start" />
+            <Tab label="Financial Review" icon={<AccountBalance />} iconPosition="start" />
+            <Tab label="Final Review" icon={<Gavel />} iconPosition="start" />
+            <Tab label="Review & History" icon={<History />} iconPosition="start" />
+          </Tabs>
+        ) : (
+          <Tabs value={activeTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tab label="Personal Information" icon={<Person />} iconPosition="start" />
+            <Tab label="Contact & Location" icon={<LocationOn />} iconPosition="start" />
+            <Tab label="Payment Information" icon={<Payment />} iconPosition="start" />
+            <Tab label="Review & History" icon={<History />} iconPosition="start" />
+          </Tabs>
+        )}
 
         {/* Role-based TabPanel Content */}
         {isFinancialReviewer ? (
@@ -585,21 +658,21 @@ const ApplicationDetailPage: React.FC = () => {
                   renewal={application}
                   payments={payments || []}
                   approvalStatus={approvalStatus}
-                  canReview={isFinancialReviewer}
+                  canReview={isNationalAdmin || isFinancialReviewer}
                 />
               ) : (
                 <FinancialReviewPanel
                   application={application}
                   payments={payments || []}
                   approvalStatus={approvalStatus}
-                  canReview={isFinancialReviewer}
+                  canReview={isNationalAdmin || isFinancialReviewer}
                 />
               )}
             </TabPanel>
           </>
-        ) : isMembershipApprover ? (
+        ) : isMembershipApprover || isNationalAdmin || isSuperAdmin ? (
           <>
-            {/* Membership Approver - Personal Information Tab */}
+            {/* Membership Approver / National Admin / Super Admin - Personal Information Tab */}
             <TabPanel value={activeTab} index={0}>
               <Grid container spacing={3}>
                 {/* Basic Information */}
@@ -949,17 +1022,36 @@ const ApplicationDetailPage: React.FC = () => {
               </Grid>
             </TabPanel>
 
-            {/* Membership Approver - Final Review Tab */}
+            {/* National Admin / Membership Approver - Financial Review Tab */}
             <TabPanel value={activeTab} index={3}>
+              {isRenewalView ? (
+                <RenewalFinancialReviewPanel
+                  renewal={application}
+                  payments={payments || []}
+                  approvalStatus={approvalStatus}
+                  canReview={isNationalAdmin || isFinancialReviewer}
+                />
+              ) : (
+                <FinancialReviewPanel
+                  application={application}
+                  payments={payments || []}
+                  approvalStatus={approvalStatus}
+                  canReview={isNationalAdmin || isFinancialReviewer}
+                />
+              )}
+            </TabPanel>
+
+            {/* Membership Approver - Final Review Tab */}
+            <TabPanel value={activeTab} index={4}>
               <FinalReviewPanel
                 application={application}
-                canReview={isMembershipApprover}
+                canReview={isNationalAdmin || isMembershipApprover}
                 currentUserId={userId}
               />
             </TabPanel>
 
             {/* Membership Approver - Review & History Tab */}
-            <TabPanel value={activeTab} index={4}>
+            <TabPanel value={activeTab} index={5}>
               <Grid container spacing={3}>
                 {/* Application Timeline */}
                 <Grid item xs={12} md={6}>
@@ -1054,34 +1146,7 @@ const ApplicationDetailPage: React.FC = () => {
               </Grid>
             </TabPanel>
           </>
-        ) : (
-          <>
-            {/* Super Admin or Default - All Tabs */}
-            <TabPanel value={activeTab} index={0}>
-              <Typography variant="h6" color="text.secondary">
-                Personal Information content for Super Admin
-              </Typography>
-            </TabPanel>
-
-            <TabPanel value={activeTab} index={1}>
-              <Typography variant="h6" color="text.secondary">
-                Contact & Location content for Super Admin
-              </Typography>
-            </TabPanel>
-
-            <TabPanel value={activeTab} index={2}>
-              <Typography variant="h6" color="text.secondary">
-                Payment Information content for Super Admin
-              </Typography>
-            </TabPanel>
-
-            <TabPanel value={activeTab} index={3}>
-              <Typography variant="h6" color="text.secondary">
-                Review & History content for Super Admin
-              </Typography>
-            </TabPanel>
-          </>
-        )}
+        ) : null}
       </Paper>
 
       {/* Review Dialog */}
@@ -1136,6 +1201,48 @@ const ApplicationDetailPage: React.FC = () => {
             disabled={reviewMutation.isPending || (reviewDialog.action === 'reject' && !reviewForm.rejection_reason)}
           >
             {reviewMutation.isPending ? 'Processing...' : `${reviewDialog.action === 'approve' ? 'Approve' : 'Reject'} Application`}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Delete color="error" />
+            Delete Application
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Warning: This action cannot be undone!
+            </Typography>
+            <Typography variant="body2">
+              You are about to delete the application for <strong>{application.first_name} {application.last_name}</strong> (Application #{application.application_number}).
+            </Typography>
+          </Alert>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            The application will be marked as "Rejected" and will no longer be accessible for review or approval.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)} disabled={deleteMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteApplication}
+            variant="contained"
+            color="error"
+            startIcon={<Delete />}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete Application'}
           </Button>
         </DialogActions>
       </Dialog>

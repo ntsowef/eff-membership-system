@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -23,28 +23,18 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  People,
   LocationOn,
   Timeline,
-  Assessment,
   Warning,
   CheckCircle,
   Refresh,
   Download,
-  FilterList,
   Insights,
   Psychology,
 } from '@mui/icons-material';
 import {
-  LineChart,
   Line,
-  AreaChart,
   Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -52,8 +42,6 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
-  Scatter,
-  ScatterChart,
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../lib/analyticsApi';
@@ -135,27 +123,27 @@ const BusinessIntelligenceDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Get province context for provincial admin restrictions
-  const provinceContext = useProvinceContext();
+  useProvinceContext();
   const pageTitle = useProvincePageTitle('Business Intelligence');
 
   // Fetch business intelligence data
   const { data: biData, isLoading: biLoading, error: biError } = useQuery({
     queryKey: ['business-intelligence', timeRange],
-    queryFn: () => analyticsApi.getBusinessIntelligence({ timeRange }),
+    queryFn: () => analyticsApi.getBusinessIntelligence({ timeRange } as any),
     refetchInterval: 30000, // Refresh every 30 seconds for real-time feel
   });
 
   // Fetch membership analytics data for fallback
   const { data: membershipData, isLoading: membershipLoading, error: membershipError } = useQuery({
     queryKey: ['membership-analytics', timeRange],
-    queryFn: () => analyticsApi.getMembershipAnalytics({ timeRange }),
+    queryFn: () => analyticsApi.getMembershipAnalytics({ timeRange } as any),
     refetchInterval: 30000,
   });
 
   // Fetch dashboard stats for fallback
   const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
     queryKey: ['dashboard-stats', timeRange],
-    queryFn: () => analyticsApi.getDashboardStats({ timeRange }),
+    queryFn: () => analyticsApi.getDashboardStats({ timeRange } as any),
     refetchInterval: 30000,
   });
 
@@ -254,20 +242,19 @@ const BusinessIntelligenceDashboard: React.FC = () => {
   const calculateChurnRisk = (analytics: any): number => {
     // Simplified churn risk calculation based on growth patterns
     const totalMembers = analytics.total_members;
-    const activeMembers = analytics.active_members;
     const inactiveMembers = analytics.inactive_members;
-    
+
     if (totalMembers === 0) return 0;
-    
+
     const inactiveRate = (inactiveMembers / totalMembers) * 100;
     return Math.min(inactiveRate, 100);
   };
 
   const calculateEngagementScore = (stats: any): number => {
     // Simplified engagement score based on active vs total members
-    const activeMembers = stats.active_members || 0;
     const totalMembers = stats.total_members || 1;
-    
+    const activeMembers = stats.active_members || 0;
+
     return Math.round((activeMembers / totalMembers) * 100);
   };
 
@@ -316,7 +303,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
     return opportunities;
   };
 
-  const analyzeSeasonalPatterns = (growthData: any[]): SeasonalPattern[] => {
+  const analyzeSeasonalPatterns = (_growthData: any[]): SeasonalPattern[] => {
     // Simplified seasonal analysis
     return [
       {
@@ -378,7 +365,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
     return opportunities;
   };
 
-  const predictResourceNeeds = (analytics: any): ResourcePrediction[] => {
+  const predictResourceNeeds = (_analytics: any): ResourcePrediction[] => {
     return [
       {
         resource: 'Staff',
@@ -390,7 +377,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
     ];
   };
 
-  const calculateKPIs = (analytics: any, stats: any): KPI[] => {
+  const calculateKPIs = (_analytics: any, stats: any): KPI[] => {
     return [
       {
         name: 'Member Growth Rate',
@@ -442,7 +429,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
     ];
   };
 
-  const calculateAchievements = (analytics: any, stats: any): Achievement[] => {
+  const calculateAchievements = (_analytics: any, _stats: any): Achievement[] => {
     return [
       {
         title: 'Gender Balance Achieved',
@@ -462,7 +449,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
     return 'low';
   };
 
-  const identifyRiskFactors = (analytics: any): RiskFactor[] => {
+  const identifyRiskFactors = (_analytics: any): RiskFactor[] => {
     return [
       {
         factor: 'Low Youth Engagement',
@@ -479,7 +466,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
     ];
   };
 
-  const generateMitigationStrategies = (analytics: any): MitigationStrategy[] => {
+  const generateMitigationStrategies = (_analytics: any): MitigationStrategy[] => {
     return [
       {
         risk: 'Low Youth Engagement',
@@ -492,9 +479,9 @@ const BusinessIntelligenceDashboard: React.FC = () => {
   };
 
   const generateRecommendations = (
-    insights: MembershipInsights,
-    predictions: PredictiveAnalytics,
-    risks: RiskAnalysis
+    _insights: MembershipInsights,
+    _predictions: PredictiveAnalytics,
+    _risks: RiskAnalysis
   ): Recommendation[] => {
     return [
       {
@@ -783,7 +770,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
                   Top Strategic Recommendations
                 </Typography>
                 <Grid container spacing={2}>
-                  {processedBiData.recommendations.slice(0, 3).map((rec, index) => (
+                  {processedBiData.recommendations.slice(0, 3).map((rec) => (
                     <Grid item xs={12} md={4} key={rec.id}>
                       <Paper sx={{ p: 2, height: '100%', border: '1px solid', borderColor: 'divider' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -1165,7 +1152,7 @@ const BusinessIntelligenceDashboard: React.FC = () => {
       {/* Recommendations Tab */}
       {activeTab === 4 && (
         <Grid container spacing={3}>
-          {processedBiData.recommendations.map((rec, index) => (
+          {processedBiData.recommendations.map((rec) => (
             <Grid item xs={12} md={6} lg={4} key={rec.id}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>

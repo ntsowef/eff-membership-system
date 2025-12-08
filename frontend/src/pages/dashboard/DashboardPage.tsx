@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -25,11 +25,11 @@ import {
   Assignment,
   Groups,
   AccountBalance,
-  Dashboard as DashboardIcon,
+  // Dashboard as DashboardIcon,
   Analytics,
-  SupervisorAccount,
+  // SupervisorAccount,
   Refresh,
-  Add as AddIcon,
+  // Add as AddIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../../lib/api';
@@ -37,35 +37,40 @@ import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
 import ExpiredMembersSection from '../../components/dashboard/ExpiredMembersSection';
+import MembershipFilterBar from '../../components/dashboard/MembershipFilterBar';
+import MembershipAnalyticsCards from '../../components/dashboard/MembershipAnalyticsCards';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
+import type { MembershipFilterType } from '../../types/membership';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
 import MunicipalityContextBanner from '../../components/common/MunicipalityContextBanner';
 import { useSecureApi } from '../../hooks/useSecureApi';
 
-// Interface definitions
+// Interface definitions (currently unused but kept for future use)
+// interface MembershipApplication {
+//   application_id: number;
+//   firstname: string;
+//   surname: string;
+//   status: string;
+//   created_at: string;
+//   membership_type?: string;
+// }
 
-interface MembershipApplication {
-  application_id: number;
-  firstname: string;
-  surname: string;
-  status: string;
-  created_at: string;
-  membership_type?: string;
-}
-
-interface Meeting {
-  meeting_id: number;
-  meeting_title: string;
-  start_datetime: string;
-  meeting_type: string;
-  meeting_status: string;
-  hierarchy_level: string;
-}
+// interface Meeting {
+//   meeting_id: number;
+//   meeting_title: string;
+//   start_datetime: string;
+//   meeting_type: string;
+//   meeting_status: string;
+//   hierarchy_level: string;
+// }
 
 const DashboardPage: React.FC = () => {
   // Add refresh timestamp to force cache invalidation
   const [refreshTimestamp, setRefreshTimestamp] = React.useState(Date.now());
+
+  // Membership status filter state
+  const [membershipFilter, setMembershipFilter] = useState<MembershipFilterType>('all');
 
   // Get province context for provincial admin restrictions
   const provinceContext = useProvinceContext();
@@ -88,13 +93,18 @@ const DashboardPage: React.FC = () => {
       baseParams.province_code = provinceFilter;
     }
 
+    // Apply membership status filter
+    if (membershipFilter !== 'all') {
+      baseParams.membership_status = membershipFilter;
+    }
+
     // Apply municipality filtering for municipality admin
     return applyMunicipalityFilter(baseParams, municipalityContext);
   };
 
   // Fetch comprehensive dashboard statistics with geographic filtering
   const { data: dashboardData, isLoading: statsLoading, error: statsError, refetch: refetchDashboard } = useQuery({
-    queryKey: ['dashboard-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
+    queryKey: ['dashboard-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter(), membershipFilter],
     queryFn: async () => {
       console.log('🔍 Dashboard API Call - Making request to /statistics/dashboard');
       console.log('🔍 Filter params:', getFilterParams());
@@ -111,8 +121,16 @@ const DashboardPage: React.FC = () => {
     refetchInterval: 60 * 1000, // Refetch every minute
   });
 
+  // Fetch membership status breakdown analytics
+  const { data: membershipBreakdownData, isLoading: breakdownLoading, refetch: refetchBreakdown } = useQuery({
+    queryKey: ['membership-status-breakdown', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
+    queryFn: () => secureGet('/statistics/membership-status-breakdown', getFilterParams()),
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+  });
+
   // Fetch analytics data for additional metrics with geographic filtering
-  const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
+  const { data: _analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
     queryKey: ['analytics-dashboard', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/analytics/dashboard', getFilterParams()),
     staleTime: 30 * 1000, // 30 seconds
@@ -140,69 +158,54 @@ const DashboardPage: React.FC = () => {
     setRefreshTimestamp(Date.now());
     refetchDashboard();
     refetchAnalytics();
+    refetchBreakdown();
   };
 
-  const systemStats = (dashboardData as any)?.system || {};
-  const analyticsStats = (analyticsData as any)?.statistics || {};
+  // Extract data from API response (handles both { data: {...} } and direct {...} structures)
+  const dashboardDataExtracted = (dashboardData as any)?.data || dashboardData;
+  const systemStats = dashboardDataExtracted?.system || {};
+  // const _analyticsStats = (analyticsData as any)?.statistics || {};
 
   // Debug logging
   console.log('🔍 Dashboard Data:', dashboardData);
+  console.log('🔍 Dashboard Data Extracted:', dashboardDataExtracted);
   console.log('🔍 System Stats:', systemStats);
 
   // Extract the actual data from the nested API response structure
   const totals = systemStats.totals || {};
   const growth = systemStats.growth || {};
-  const alerts = (dashboardData as any)?.alerts || {};
+  // const _alerts = dashboardDataExtracted?.alerts || {};
 
   console.log('🔍 Totals:', totals);
   console.log('🔍 Growth:', growth);
 
-  // Mock data for applications and meetings (since endpoints don't exist yet)
-  const recentApplications = [
-    {
-      application_id: 1001,
-      firstname: 'Thabo',
-      surname: 'Mthembu',
-      status: 'pending',
-      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      membership_type: 'Regular'
+  // Fetch recent applications
+  const { data: applicationsData } = useQuery({
+    queryKey: ['recent-applications'],
+    queryFn: async () => {
+      const result = await apiGet('/membership-applications', {
+        limit: 5,
+        page: 1,
+        sort_by: 'created_at',
+        sort_order: 'desc'
+      });
+      return result;
     },
-    {
-      application_id: 1002,
-      firstname: 'Nomsa',
-      surname: 'Dlamini',
-      status: 'under_review',
-      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      membership_type: 'Student'
-    },
-    {
-      application_id: 1003,
-      firstname: 'Sipho',
-      surname: 'Ndlovu',
-      status: 'approved',
-      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      membership_type: 'Regular'
-    }
-  ];
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-  const upcomingMeetings = [
-    {
-      meeting_id: 1,
-      meeting_title: 'Ward Committee Meeting - Ward 9',
-      start_datetime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      meeting_type: 'Ward Committee',
-      meeting_status: 'Scheduled',
-      hierarchy_level: 'Ward'
+  // Fetch upcoming meetings
+  const { data: meetingsData } = useQuery({
+    queryKey: ['upcoming-meetings'],
+    queryFn: async () => {
+      const result = await apiGet('/meetings/upcoming/list', { limit: 5 });
+      return result;
     },
-    {
-      meeting_id: 2,
-      meeting_title: 'Municipal Executive Meeting',
-      start_datetime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      meeting_type: 'Executive',
-      meeting_status: 'Scheduled',
-      hierarchy_level: 'Municipality'
-    }
-  ];
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  const recentApplications = (applicationsData as any)?.data?.applications || [];
+  const upcomingMeetings = (meetingsData as any)?.data?.upcoming_meetings || [];
 
   // Create stats cards with real data from statistics API
   const statsCards = [
@@ -336,6 +339,20 @@ const DashboardPage: React.FC = () => {
         <MunicipalityContextBanner variant="banner" sx={{ mb: 3 }} />
         <ProvinceContextBanner variant="banner" sx={{ mb: 3 }} />
 
+        {/* Membership Filter Bar */}
+        <MembershipFilterBar
+          value={membershipFilter}
+          onChange={setMembershipFilter}
+        />
+
+        {/* Membership Analytics Cards */}
+        <Box sx={{ mb: 4 }}>
+          <MembershipAnalyticsCards
+            data={(membershipBreakdownData as any)?.data || membershipBreakdownData as any}
+            isLoading={breakdownLoading}
+          />
+        </Box>
+
         {/* Quick Insights */}
       {!isLoading && totals.members && (
         <Alert severity="info" sx={{ mb: 4 }}>
@@ -393,7 +410,7 @@ const DashboardPage: React.FC = () => {
             <ExpiredMembersSection
               onViewExpiredMembers={() => {
                 // Navigate to expired members management page
-                window.location.href = '/admin/membership/expiration';
+                window.location.href = '/admin/membership-expiration';
               }}
               onFilterByProvince={(provinceCode) => {
                 // Handle province filtering - could update URL params or state
@@ -412,17 +429,17 @@ const DashboardPage: React.FC = () => {
             </Typography>
             {recentApplications.length > 0 ? (
               <List>
-                {recentApplications.map((app: MembershipApplication, index: number) => (
-                  <ListItem key={app.application_id} divider={index < recentApplications.length - 1}>
+                {recentApplications.map((app: any, index: number) => (
+                  <ListItem key={app.id} divider={index < recentApplications.length - 1}>
                     <ListItemIcon>
                       <Assignment />
                     </ListItemIcon>
                     <ListItemText
-                      primary={`${app.firstname} ${app.surname || ''}`}
+                      primary={`${app.first_name} ${app.last_name || ''}`}
                       secondary={
                         <>
                           <span style={{ display: 'block', fontSize: '0.75rem' }}>
-                            ID: {app.application_id} • {app.membership_type || 'Regular'} Membership
+                            ID: {app.id} • {app.membership_type || 'Regular'} Membership
                           </span>
                           <span style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
                             Submitted {new Date(app.created_at).toLocaleDateString()}
@@ -454,8 +471,8 @@ const DashboardPage: React.FC = () => {
             </Typography>
             {upcomingMeetings.length > 0 ? (
               <List>
-                {upcomingMeetings.map((meeting: Meeting, index: number) => (
-                  <ListItem key={meeting.meeting_id} divider={index < upcomingMeetings.length - 1}>
+                {upcomingMeetings.map((meeting: any, index: number) => (
+                  <ListItem key={meeting.id} divider={index < upcomingMeetings.length - 1}>
                     <ListItemIcon>
                       <Event />
                     </ListItemIcon>
@@ -467,7 +484,7 @@ const DashboardPage: React.FC = () => {
                             {new Date(meeting.start_datetime).toLocaleDateString()} at {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           <span style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                            {meeting.hierarchy_level} • {meeting.meeting_type}
+                            {meeting.hierarchy_level} • {meeting.entity_name || 'National'}
                           </span>
                         </>
                       }

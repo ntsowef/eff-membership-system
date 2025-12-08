@@ -85,10 +85,10 @@ const UserRoleDebug: React.FC = () => {
               <Typography variant="body2" sx={{ minWidth: 200 }}>
                 {permission}:
               </Typography>
-              <Chip 
-                label={hasPermission(permission) ? 'GRANTED' : 'DENIED'} 
-                color={hasPermission(permission) ? 'success' : 'error'} 
-                size="small" 
+              <Chip
+                label={hasPermission(permission as any) ? 'GRANTED' : 'DENIED'}
+                color={hasPermission(permission as any) ? 'success' : 'error'}
+                size="small"
               />
             </Box>
           ))}

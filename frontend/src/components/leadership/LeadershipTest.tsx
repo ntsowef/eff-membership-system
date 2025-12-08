@@ -41,7 +41,7 @@ const LeadershipTest: React.FC = () => {
   const { addNotification } = useUI();
 
   // Test API connectivity
-  const { data: structuresData, isLoading, error } = useQuery({
+  const { data: _structuresData, isLoading: _isLoading, error: _error } = useQuery({
     queryKey: ['test-leadership-structures'],
     queryFn: () => LeadershipAPI.getOrganizationalStructures(),
     enabled: false, // Don't auto-run
@@ -89,14 +89,14 @@ const LeadershipTest: React.FC = () => {
         test: () => {
           try {
             // Test if we can create the basic structure for components
-            const testData = {
-              position_id: 1,
-              member_id: 123,
-              hierarchy_level: 'National' as const,
-              entity_id: 1,
-              appointment_type: 'Appointed' as const,
-              start_date: '2024-01-01'
-            };
+            // const _testData = {
+            //   position_id: 1,
+            //   member_id: 123,
+            //   hierarchy_level: 'National' as const,
+            //   entity_id: 1,
+            //   appointment_type: 'Appointed' as const,
+            //   start_date: '2024-01-01'
+            // };
             return { success: true, message: 'TypeScript interfaces working correctly' };
           } catch (error) {
             return { success: false, message: 'TypeScript interface issues' };

@@ -70,7 +70,7 @@ export class ImportExportService {
       // Log import start
       await executeQuery(`
         INSERT INTO import_export_logs (import_id, user_id, operation_type, entity_type, total_records, status, created_at)
-        EXCLUDED.? , , 'import', 'members', $3, 'processing', CURRENT_TIMESTAMP
+        VALUES ($1, $2, 'import', 'members', $3, 'processing', CURRENT_TIMESTAMP)
       `, [importId, userId, data.length]);
 
       // Process in batches
@@ -123,7 +123,7 @@ export class ImportExportService {
           m.expiry_date,
           m.created_at,
           m.updated_at
-        FROM members m
+        FROM members_consolidated m
         WHERE 1= TRUE
       `;
 
@@ -332,7 +332,7 @@ export class ImportExportService {
           la.created_at
         FROM leadership_appointments la
         LEFT JOIN leadership_positions lp ON la.position_id = lp.id
-        LEFT JOIN members m ON la.member_id = m.id
+        LEFT JOIN members_consolidated m ON la.member_id = m.id
         LEFT JOIN users appointed_by ON la.appointed_by = appointed_by.id
         WHERE 1= TRUE
       `;
@@ -499,7 +499,7 @@ export class ImportExportService {
 
     // Check for duplicate email
     if (row.email) {
-      const existing = await executeQuerySingle('SELECT id FROM members WHERE email = ? ', [row.email]);
+      const existing = await executeQuerySingle('SELECT id FROM members_consolidated WHERE email = ? ', [row.email]);
       if (existing) {
         result.errors.push({
           row : rowIndex,
@@ -515,11 +515,11 @@ export class ImportExportService {
     const memberId = await this.generateMemberId();
     
     await executeQuery(`
-      INSERT INTO members (
+      INSERT INTO members_consolidated (
         member_id, firstname, surname, email, phone, date_of_birth, gender,
         id_number, address, city, province, postal_code, hierarchy_level,
         entity_id, membership_type, membership_status, join_date, created_by, created_at
-      ) EXCLUDED.? , , $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'Active', CURRENT_TIMESTAMP, $16, CURRENT_TIMESTAMP
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'Active', CURRENT_TIMESTAMP, $16, CURRENT_TIMESTAMP)
     `, [
       memberId, row.firstname, row.surname, row.email, row.phone,
       row.date_of_birth, row.gender, row.id_number, row.address,
@@ -548,7 +548,7 @@ export class ImportExportService {
       INSERT INTO meetings (
         title, description, meeting_type_id, hierarchy_level, entity_id,
         scheduled_date, duration_minutes, location, virtual_link, status, created_by, created_at
-      ) EXCLUDED.? , , $3, $4, $5, $6, $7, $8, $9, 'Scheduled', $10, CURRENT_TIMESTAMP
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Scheduled', $10, CURRENT_TIMESTAMP)
     `, [
       row.title, row.description, row.meeting_type_id || 1, row.hierarchy_level,
       row.entity_id || 1, row.scheduled_date, row.duration_minutes || 60,
@@ -563,7 +563,7 @@ export class ImportExportService {
   private static async generateMemberId(): Promise<string> {
     const year = new Date().getFullYear();
     const count = await executeQuerySingle(
-      'SELECT COUNT(*) as count FROM members WHERE member_id LIKE ? ',
+      'SELECT COUNT(*) as count FROM members_consolidated WHERE member_id LIKE ? ',
       ['' + year + '%']
     );
     const sequence = (count?.count || 0) + 1;
@@ -578,7 +578,7 @@ export class ImportExportService {
         membership_status,
         COUNT(*) as count,
         AVG((CURRENT_TIMESTAMP::DATE - join_date::DATE)) as avg_tenure_days
-      FROM members
+      FROM members_consolidated
       WHERE 1= TRUE
       GROUP BY hierarchy_level, membership_status
       ORDER BY hierarchy_level, membership_status
@@ -610,7 +610,7 @@ export class ImportExportService {
         la.status
       FROM leadership_appointments la
       JOIN leadership_positions lp ON la.position_id = lp.id
-      JOIN members m ON la.member_id = m.id
+      JOIN members_consolidated m ON la.member_id = m.id
       ORDER BY la.start_date DESC
     `);
   }
@@ -626,7 +626,7 @@ export class ImportExportService {
       FROM elections e
       JOIN leadership_positions lp ON e.position_id = lp.id
       JOIN election_candidates ec ON e.id = ec.election_id
-      JOIN members m ON ec.member_id = m.id
+      JOIN members_consolidated m ON ec.member_id = m.id
       LEFT JOIN election_votes ev ON ec.id = ev.candidate_id
       GROUP BY e.id, ec.id
       ORDER BY e.created_at DESC, votes_received DESC
