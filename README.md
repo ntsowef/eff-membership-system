@@ -1,4 +1,4 @@
-# GEOMAPS Membership Management System
+# Membership Management System
 
 A comprehensive, enterprise-grade membership management system built with Node.js, TypeScript, and MySQL. This system provides complete functionality for managing organizational membership, leadership, elections, meetings, and analytics.
 
