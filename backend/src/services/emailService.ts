@@ -616,6 +616,182 @@ This is an automated message from the EFF Membership Portal.
       };
     }
   }
+
+  // Send bulk upload completion email notification with report and attendance register attachments
+  async sendBulkUploadCompletionEmail(
+    email: string,
+    userName: string,
+    fileName: string,
+    results: {
+      totalRecords: number;
+      successfulRecords: number;
+      failedRecords: number;
+      duplicates: number;
+      processingDuration: string;
+      reportPath?: string;
+    },
+    errors?: Array<{ row?: number; id_number?: string; error: string }>,
+    attachmentPaths?: string[] // Array of file paths to attach (report + attendance registers)
+  ): Promise<boolean> {
+    const successRate = results.totalRecords > 0
+      ? ((results.successfulRecords / results.totalRecords) * 100).toFixed(1)
+      : '0';
+
+    const statusColor = results.failedRecords === 0 ? '#4caf50' : results.failedRecords > results.successfulRecords ? '#f44336' : '#ff9800';
+    const statusText = results.failedRecords === 0 ? 'Completed Successfully' : 'Completed with Errors';
+
+    // Build error summary if there are errors
+    let errorSummaryHtml = '';
+    if (errors && errors.length > 0) {
+      const displayErrors = errors.slice(0, 10); // Show first 10 errors
+      errorSummaryHtml = `
+        <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+          <h3 style="color: #856404; margin: 0 0 10px 0;">⚠️ Error Summary (First ${displayErrors.length} of ${errors.length})</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background-color: #ffeeba;">
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Row</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">ID Number</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${displayErrors.map(err => `
+                <tr>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${err.row || 'N/A'}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${err.id_number || 'N/A'}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${err.error}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${errors.length > 10 ? `<p style="margin-top: 10px; color: #856404;">...and ${errors.length - 10} more errors. See the full report for details.</p>` : ''}
+        </div>
+      `;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Bulk Upload Complete</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #1a237e 0%, #c62828 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">📊 Bulk Upload Complete</h1>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 0 0 8px 8px;">
+          <p>Dear ${userName || 'Administrator'},</p>
+
+          <p>Your bulk membership file has finished processing:</p>
+
+          <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid ${statusColor};">
+            <h3 style="margin: 0 0 10px 0; color: ${statusColor};">${statusText}</h3>
+            <p style="margin: 5px 0;"><strong>File:</strong> ${fileName}</p>
+            <p style="margin: 5px 0;"><strong>Processing Time:</strong> ${results.processingDuration}</p>
+          </div>
+
+          <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #1a237e;">📈 Processing Summary</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr style="background-color: #e3f2fd;">
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Total Records</strong></td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">${results.totalRecords}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; color: #4caf50;"><strong>✅ Successful</strong></td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; color: #4caf50;">${results.successfulRecords}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; color: #f44336;"><strong>❌ Failed</strong></td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; color: #f44336;">${results.failedRecords}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; color: #ff9800;"><strong>🔄 Duplicates</strong></td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; color: #ff9800;">${results.duplicates}</td>
+              </tr>
+              <tr style="background-color: #e8f5e9;">
+                <td style="padding: 10px;"><strong>Success Rate</strong></td>
+                <td style="padding: 10px; text-align: right;"><strong>${successRate}%</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          ${errorSummaryHtml}
+
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #1a237e;">
+            <h3 style="margin: 0 0 10px 0; color: #1a237e;">📎 Attachments</h3>
+            <p style="margin: 5px 0;">The following files are attached to this email:</p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li><strong>Processing Report</strong> - Complete Excel report with all upload details</li>
+              <li><strong>Attendance Registers</strong> - PDF attendance registers for compliant wards (if any)</li>
+            </ul>
+          </div>
+
+          <p style="margin-top: 20px;">Best regards,<br><strong>EFF Membership System</strong></p>
+        </div>
+
+        <div style="text-align: center; padding: 15px; color: #666; font-size: 12px;">
+          <p>This is an automated message from the EFF Membership Portal.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const textContent = `
+Bulk Upload Complete
+
+Dear ${userName || 'Administrator'},
+
+Your bulk membership file has finished processing.
+
+File: ${fileName}
+Status: ${statusText}
+Processing Time: ${results.processingDuration}
+
+PROCESSING SUMMARY:
+- Total Records: ${results.totalRecords}
+- Successful: ${results.successfulRecords}
+- Failed: ${results.failedRecords}
+- Duplicates: ${results.duplicates}
+- Success Rate: ${successRate}%
+
+${errors && errors.length > 0 ? `\nERRORS (First 10):\n${errors.slice(0, 10).map(e => `Row ${e.row || 'N/A'}: ${e.error}`).join('\n')}` : ''}
+
+ATTACHMENTS:
+- Processing Report (Excel)
+- Attendance Registers (PDF) for compliant wards
+
+Best regards,
+EFF Membership System
+    `;
+
+    // Build attachments array from provided paths
+    const attachments: Array<{ filename: string; path: string }> = [];
+    if (attachmentPaths && attachmentPaths.length > 0) {
+      const fs = require('fs');
+      const path = require('path');
+
+      for (const filePath of attachmentPaths) {
+        if (filePath && fs.existsSync(filePath)) {
+          attachments.push({
+            filename: path.basename(filePath),
+            path: filePath
+          });
+        }
+      }
+    }
+
+    return await this.sendEmail({
+      to: email,
+      subject: `Bulk Upload ${statusText}: ${fileName} - ${results.successfulRecords}/${results.totalRecords} records processed`,
+      html: htmlContent,
+      text: textContent,
+      attachments: attachments.length > 0 ? attachments : undefined
+    });
+  }
 }
 
 // Create singleton instance

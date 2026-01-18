@@ -19,8 +19,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  Legend,
-  Cell
+  Legend
 } from 'recharts';
 import StatsCard from '../ui/StatsCard';
 
@@ -173,7 +172,7 @@ const VoterRegistrationStats: React.FC<VoterRegistrationStatsProps> = ({
 
       {/* Summary Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatsCard
             title="Registered Voters"
             value={summary.registered_voters.toLocaleString()}
@@ -182,7 +181,7 @@ const VoterRegistrationStats: React.FC<VoterRegistrationStatsProps> = ({
             color="success"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatsCard
             title="Not Registered"
             value={summary.not_registered_voters.toLocaleString()}
@@ -191,22 +190,13 @@ const VoterRegistrationStats: React.FC<VoterRegistrationStatsProps> = ({
             color="error"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatsCard
             title="Total Members"
             value={summary.total_members.toLocaleString()}
             subtitle="All members"
             icon={HowToVote}
             color="primary"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatsCard
-            title="Special VD (222222222)"
-            value={summary.special_voting_district.toLocaleString()}
-            subtitle="Special Voting District"
-            icon={HowToVote}
-            color="info"
           />
         </Grid>
       </Grid>
@@ -295,83 +285,6 @@ const VoterRegistrationStats: React.FC<VoterRegistrationStatsProps> = ({
         </Card>
       )}
 
-      {/* Percentage Comparison Chart - Vertical for provinces, Horizontal for others */}
-      {chartData.length > 0 && breakdownType === 'province' && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Registration Rate by {getBreakdownLabel()} (%)
-            </Typography>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart
-                data={chartData}
-                layout="horizontal"
-                margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                <XAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fontSize: 11 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                />
-                <YAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                <RechartsTooltip
-                  formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-                />
-                <Legend wrapperStyle={{ paddingTop: 10 }} />
-                <Bar
-                  dataKey="registeredPct"
-                  name="Registered %"
-                  fill={COLORS.registered}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS.registered} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {chartData.length > 0 && breakdownType !== 'province' && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Registration Rate by {getBreakdownLabel()} (%)
-            </Typography>
-            <ResponsiveContainer width="100%" height={Math.max(350, chartData.length * 45)}>
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 20, right: 30, left: 140, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={130}
-                  tick={{ fontSize: 11 }}
-                />
-                <RechartsTooltip
-                  formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-                />
-                <Legend />
-                <Bar
-                  dataKey="registeredPct"
-                  name="Registered %"
-                  fill={COLORS.registered}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
     </Box>
   );
 };

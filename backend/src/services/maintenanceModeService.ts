@@ -53,7 +53,8 @@ export class MaintenanceModeService {
       if (redisService.isRedisConnected()) {
         const cached = await redisService.get(this.CACHE_KEY);
         if (cached) {
-          return JSON.parse(cached);
+          // redisService.get() already parses JSON, so return directly
+          return cached as MaintenanceStatus;
         }
       } else {
         // Fallback to memory cache

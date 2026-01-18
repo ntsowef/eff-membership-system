@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { MeetingModel, CreateMeetingData, UpdateMeetingData, MeetingFilters, CreateAttendanceData, UpdateAttendanceData } from '../models/meetings';
 import { NotificationModel } from '../models/notifications';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
+import { authenticate } from '../middleware/auth';
 // import { logAudit } from '../middleware/auditLogger';
 // import { AuditAction, EntityType } from '../models/auditLogs';
 import { MeetingInvitationService } from '../services/meetingInvitationService';
@@ -48,7 +49,7 @@ const bulkAttendanceSchema = Joi.object({
 });
 
 // Create new meeting
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = createMeetingSchema.validate(req.body);
     if (error) {
@@ -77,7 +78,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       end_time: endDateTimeStr ? endDateTimeStr.split('T')[1]?.substring(0, 5) : undefined, // Only HH:MM format
       location: value.location,
       virtual_meeting_link: value.virtual_meeting_link,
-      created_by: 1 // Default admin user for development
+      created_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const meetingId = await MeetingModel.createMeeting(meetingData);
@@ -424,7 +425,7 @@ router.get('/:id/attendance', async (req: Request, res: Response, next: NextFunc
 });
 
 // Record attendance for a member
-router.post('/:id/attendance', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/attendance', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.id);
     if (isNaN(meetingId)) {
@@ -445,7 +446,7 @@ router.post('/:id/attendance', async (req: Request, res: Response, next: NextFun
     const attendanceData: CreateAttendanceData = {
       meeting_id: meetingId,
       ...value,
-      recorded_by: 1 // Default admin user for development
+      recorded_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const attendanceId = await MeetingModel.recordAttendance(attendanceData);
@@ -475,7 +476,7 @@ router.post('/:id/attendance', async (req: Request, res: Response, next: NextFun
 });
 
 // Bulk record attendance
-router.post('/:id/attendance/bulk', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/attendance/bulk', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const meetingId = parseInt(req.params.id);
     if (isNaN(meetingId)) {
@@ -494,10 +495,11 @@ router.post('/:id/attendance/bulk', async (req: Request, res: Response, next: Ne
     }
 
     // Add meeting_id and recorded_by to each record
+    const userId = (req as any).user?.id || (req as any).user?.user_id;
     const attendanceRecords: CreateAttendanceData[] = value.attendance_records.map((record: any) => ({
       meeting_id: meetingId,
       ...record,
-      recorded_by: 1 // Default admin user for development
+      recorded_by: userId
     }));
 
     const result = await MeetingModel.bulkRecordAttendance(attendanceRecords);
@@ -527,7 +529,7 @@ router.post('/:id/attendance/bulk', async (req: Request, res: Response, next: Ne
 });
 
 // Update attendance record
-router.put('/attendance/:attendanceId', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/attendance/:attendanceId', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const attendanceId = parseInt(req.params.attendanceId);
     if (isNaN(attendanceId)) {
@@ -536,7 +538,7 @@ router.put('/attendance/:attendanceId', async (req: Request, res: Response, next
 
     const updateData: UpdateAttendanceData = {
       ...req.body,
-      recorded_by: 1 // Default admin user for development
+      recorded_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     await MeetingModel.updateAttendance(attendanceId, updateData);

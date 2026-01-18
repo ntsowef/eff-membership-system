@@ -138,6 +138,7 @@ router.post('/bulk-upload',
         uploadedBy: req.user.email || `user_${req.user.id}`,
         userId: req.user.id.toString(),
         userRole: req.user.role_name,
+        userEmail: req.user.email, // Pass user email for completion notification
         fileId: uploadedFile.file_id // Pass file_id for status sync with uploaded_files table
       });
 

@@ -245,10 +245,10 @@ export class BulkUploadOrchestrator {
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const reportFileName = `bulk-upload-report-${timestamp}.xlsx`;
-      const reportPath = path.join(this.reportsDir, reportFileName);
+      const reportOutputPath = path.join(this.reportsDir, reportFileName);
 
-      await ExcelReportService.generateReport(
-        reportPath,
+      const { reportPath, attendanceRegisterPaths } = await ExcelReportService.generateReport(
+        reportOutputPath,
         originalData,
         validationResult,
         iecResults,
@@ -277,6 +277,7 @@ export class BulkUploadOrchestrator {
         database_operations: dbResult,
         report_path: reportPath,
         report_filename: reportFileName,
+        attendance_register_paths: attendanceRegisterPaths,
         status: 'completed', // Always complete since we insert ALL records (matching Python behavior)
         error_message: rateLimitHit
           ? `IEC API rate limit hit. Verified ${rateLimitInfo?.rows_processed_before_limit || 0}/${recordsToVerify.length} records. Unverified records inserted with special VD codes.`

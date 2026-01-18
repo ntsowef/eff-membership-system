@@ -3,6 +3,7 @@ import { HierarchicalMeetingService } from '../services/hierarchicalMeetingServi
 import { MeetingModel, CreateMeetingData } from '../models/meetings';
 import { MeetingNotificationService } from '../services/meetingNotificationService';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
+import { authenticate } from '../middleware/auth';
 import Joi from 'joi';
 
 const router = Router();
@@ -223,7 +224,7 @@ router.post('/invitation-preview', async (req: Request, res: Response, next: Nex
 /**
  * Create hierarchical meeting with automatic invitations
  */
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = createHierarchicalMeetingSchema.validate(req.body);
     if (error) {
@@ -276,7 +277,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       quorum_required: value.quorum_required || 0,
       meeting_chair_id: value.meeting_chair_id,
       meeting_secretary_id: value.meeting_secretary_id,
-      created_by: 1, // TODO: Get from authenticated user
+      created_by: (req as any).user?.id || (req as any).user?.user_id,
       auto_send_invitations: value.auto_send_invitations || false
     };
 

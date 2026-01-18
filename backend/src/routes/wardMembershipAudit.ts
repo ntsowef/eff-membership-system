@@ -1139,17 +1139,174 @@ router.get('/export',
           res.setHeader('Content-Length', pdfBuffer.length);
 
           return res.send(pdfBuffer);
-        } else {
-          // For Excel/CSV formats, return 501 for now
-          return res.status(501).json({
-            success: false,
-            message: `Ward audit export in ${format} format is not yet implemented`,
-            data: {
-              format: format,
-              type: 'ward',
-              total_records: wards.length,
-              note: 'PDF export is available. Excel/CSV formats will be available in a future update.'
+        } else if (format === 'excel') {
+          // Generate Excel using ExcelJS
+          const ExcelJS = require('exceljs');
+          const workbook = new ExcelJS.Workbook();
+          const worksheet = workbook.addWorksheet('Ward Audit Report');
+
+          // Add title
+          worksheet.mergeCells('A1:M1');
+          const titleCell = worksheet.getCell('A1');
+          titleCell.value = 'Ward Membership Audit Report';
+          titleCell.font = { bold: true, size: 16 };
+          titleCell.alignment = { horizontal: 'center' };
+
+          // Add date
+          worksheet.mergeCells('A2:M2');
+          const dateCell = worksheet.getCell('A2');
+          dateCell.value = `Generated on: ${new Date().toLocaleDateString('en-ZA')}`;
+          dateCell.alignment = { horizontal: 'center' };
+
+          // Add filter info
+          let filterInfo = 'Filters: ';
+          const filterParts: string[] = [];
+          if (standing) filterParts.push(`Standing: ${standing}`);
+          if (municipalityCode) filterParts.push(`Municipality: ${municipalityCode}`);
+          if (province_code) filterParts.push(`Province: ${province_code}`);
+          if (search) filterParts.push(`Search: ${search}`);
+          filterInfo += filterParts.length > 0 ? filterParts.join(', ') : 'None';
+
+          worksheet.mergeCells('A3:M3');
+          const filterCell = worksheet.getCell('A3');
+          filterCell.value = filterInfo;
+          filterCell.alignment = { horizontal: 'center' };
+
+          // Empty row
+          worksheet.addRow([]);
+
+          // Add headers (row 5)
+          worksheet.columns = [
+            { header: 'Ward Code', key: 'ward_code', width: 15 },
+            { header: 'Ward Name', key: 'ward_name', width: 25 },
+            { header: 'Municipality', key: 'municipality_name', width: 25 },
+            { header: 'District', key: 'district_name', width: 25 },
+            { header: 'Province', key: 'province_name', width: 20 },
+            { header: 'Active Members', key: 'active_members', width: 15 },
+            { header: 'Expired Members', key: 'expired_members', width: 15 },
+            { header: 'Inactive Members', key: 'inactive_members', width: 15 },
+            { header: 'Total Members', key: 'total_members', width: 15 },
+            { header: 'Standing', key: 'ward_standing', width: 18 },
+            { header: 'Active %', key: 'active_percentage', width: 12 },
+            { header: 'Target %', key: 'target_achievement_percentage', width: 12 },
+            { header: 'Members Needed', key: 'members_needed_next_level', width: 15 }
+          ];
+
+          // Style header row
+          const headerRow = worksheet.getRow(5);
+          headerRow.values = ['Ward Code', 'Ward Name', 'Municipality', 'District', 'Province',
+                              'Active Members', 'Expired Members', 'Inactive Members', 'Total Members',
+                              'Standing', 'Active %', 'Target %', 'Members Needed'];
+          headerRow.font = { bold: true };
+          headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+          };
+          headerRow.eachCell((cell: any) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.alignment = { horizontal: 'center' };
+          });
+
+          // Add data rows
+          wards.forEach((ward: any) => {
+            const row = worksheet.addRow({
+              ward_code: ward.ward_code,
+              ward_name: ward.ward_name,
+              municipality_name: ward.municipality_name,
+              district_name: ward.district_name,
+              province_name: ward.province_name,
+              active_members: ward.active_members || 0,
+              expired_members: ward.expired_members || 0,
+              inactive_members: ward.inactive_members || 0,
+              total_members: ward.total_members || 0,
+              ward_standing: ward.ward_standing,
+              active_percentage: ward.active_percentage ? `${ward.active_percentage}%` : '0%',
+              target_achievement_percentage: ward.target_achievement_percentage ? `${ward.target_achievement_percentage}%` : '0%',
+              members_needed_next_level: ward.members_needed_next_level || 0
+            });
+
+            // Color code standing column
+            const standingCell = row.getCell('ward_standing');
+            if (ward.ward_standing === 'Good Standing') {
+              standingCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+            } else if (ward.ward_standing === 'Acceptable Standing') {
+              standingCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
+            } else if (ward.ward_standing === 'Needs Improvement') {
+              standingCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B6B' } };
             }
+          });
+
+          // Add summary row
+          worksheet.addRow([]);
+          const summaryRow = worksheet.addRow({
+            ward_code: 'TOTAL',
+            ward_name: `${wards.length} Wards`,
+            municipality_name: '',
+            district_name: '',
+            province_name: '',
+            active_members: wards.reduce((sum: number, w: any) => sum + (w.active_members || 0), 0),
+            expired_members: wards.reduce((sum: number, w: any) => sum + (w.expired_members || 0), 0),
+            inactive_members: wards.reduce((sum: number, w: any) => sum + (w.inactive_members || 0), 0),
+            total_members: wards.reduce((sum: number, w: any) => sum + (w.total_members || 0), 0),
+            ward_standing: '',
+            active_percentage: '',
+            target_achievement_percentage: '',
+            members_needed_next_level: ''
+          });
+          summaryRow.font = { bold: true };
+          summaryRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+          };
+
+          // Set response headers for Excel download
+          const filename = `ward-audit-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+          // Write to response
+          await workbook.xlsx.write(res);
+          return res.end();
+        } else if (format === 'csv') {
+          // Generate CSV
+          const headers = ['Ward Code', 'Ward Name', 'Municipality', 'District', 'Province',
+                          'Active Members', 'Expired Members', 'Inactive Members', 'Total Members',
+                          'Standing', 'Active %', 'Target %', 'Members Needed'];
+
+          const csvRows = [headers.join(',')];
+
+          wards.forEach((ward: any) => {
+            const row = [
+              `"${ward.ward_code || ''}"`,
+              `"${(ward.ward_name || '').replace(/"/g, '""')}"`,
+              `"${(ward.municipality_name || '').replace(/"/g, '""')}"`,
+              `"${(ward.district_name || '').replace(/"/g, '""')}"`,
+              `"${(ward.province_name || '').replace(/"/g, '""')}"`,
+              ward.active_members || 0,
+              ward.expired_members || 0,
+              ward.inactive_members || 0,
+              ward.total_members || 0,
+              `"${ward.ward_standing || ''}"`,
+              ward.active_percentage || 0,
+              ward.target_achievement_percentage || 0,
+              ward.members_needed_next_level || 0
+            ];
+            csvRows.push(row.join(','));
+          });
+
+          const csvContent = csvRows.join('\n');
+          const filename = `ward-audit-report-${new Date().toISOString().split('T')[0]}.csv`;
+
+          res.setHeader('Content-Type', 'text/csv');
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+          return res.send(csvContent);
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: `Unsupported export format: ${format}. Supported formats: pdf, excel, csv`
           });
         }
 

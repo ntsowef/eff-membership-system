@@ -66,7 +66,7 @@ export class ExcelReportService {
    * @param dbResult - Database operation results
    * @param userEmail - Optional: User email for sending attendance register PDFs
    * @param userName - Optional: User name for email personalization
-   * @returns Path to generated report
+   * @returns Object with report path and attendance register paths
    */
   static async generateReport(
     outputPath: string,
@@ -76,7 +76,7 @@ export class ExcelReportService {
     dbResult: DatabaseOperationsBatchResult,
     userEmail?: string,
     userName?: string
-  ): Promise<string> {
+  ): Promise<{ reportPath: string; attendanceRegisterPaths: string[] }> {
     console.log(`\n📊 EXCEL REPORT: Generating report...`);
 
 	    const workbook = new ExcelJS.Workbook();
@@ -162,6 +162,8 @@ export class ExcelReportService {
 
     // Generate attendance registers for compliant wards (200+ registered voters)
     const compliantWards = wardComplianceData.filter(w => w.is_compliant);
+    const attendanceRegisterPaths: string[] = [];
+
     if (compliantWards.length > 0) {
       const reportDir = path.dirname(outputPath);
       const generatedRegisters = await this.generateAttendanceRegistersForCompliantWards(
@@ -175,11 +177,12 @@ export class ExcelReportService {
         console.log(`\n📋 ATTENDANCE REGISTERS: Generated ${generatedRegisters.length} attendance register(s):`);
         generatedRegisters.forEach(reg => {
           console.log(`   📄 Ward ${reg.ward_code}: ${reg.file_path} (${reg.member_count} members)`);
+          attendanceRegisterPaths.push(reg.file_path);
         });
       }
     }
 
-    return outputPath;
+    return { reportPath: outputPath, attendanceRegisterPaths };
   }
 
 	  /**
@@ -491,33 +494,37 @@ export class ExcelReportService {
         }
 
         // Get members for this ward using ViewsService
-        // include_all_members=true to get all members regardless of expiry date
+        // Filter for active members only (membership_status = 'active')
         const filters = {
           ward_code: ward.ward_code,
-          include_all_members: true,
+          membership_status: 'active', // Only active/good standing members (membership_status_id = 1)
           limit: '10000' // Get all members
         };
         const result = await ViewsService.getMembersWithVotingDistricts(filters);
         const allMembers = result.members || [];
 
-        // Filter to only registered voters
+        // Filter to only registered voters who are active
         // voter_registration_id: 1 = Registered, 2 = Not Registered
-        // Exclude members with voter_registration_id = 2 (Not Registered to Vote)
-        const registeredMembers = allMembers.filter((member: any) => {
+        // membership_status_id: 1 = Active/Good Standing
+        // Exclude members who are not registered to vote
+        const activeRegisteredMembers = allMembers.filter((member: any) => {
           // voter_registration_id = 2 means "Not Registered to Vote" - exclude these
           const isRegisteredVoter = member.voter_registration_id !== 2;
-          return isRegisteredVoter;
+          // membership_status_id = 1 means "Active/Good Standing" - already filtered by ViewsService
+          // but double-check to be safe
+          const isActive = member.membership_status_id === 1;
+          return isRegisteredVoter && isActive;
         });
 
-        console.log(`   📊 Ward ${ward.ward_code}: ${registeredMembers.length} registered voters (filtered from ${allMembers.length} total)`);
+        console.log(`   📊 Ward ${ward.ward_code}: ${activeRegisteredMembers.length} active registered voters (filtered from ${allMembers.length} total)`);
 
-        if (registeredMembers.length === 0) {
-          console.log(`   ⚠️ No registered voters found for ward ${ward.ward_code}, skipping...`);
+        if (activeRegisteredMembers.length === 0) {
+          console.log(`   ⚠️ No active registered voters found for ward ${ward.ward_code}, skipping...`);
           continue;
         }
 
         // Generate the PDF document using HtmlPdfService
-        const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, registeredMembers);
+        const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, activeRegisteredMembers);
 
         // Save the file
         const timestamp = new Date().toISOString().split('T')[0];
@@ -531,10 +538,10 @@ export class ExcelReportService {
         generatedRegisters.push({
           ward_code: ward.ward_code,
           file_path: filePath,
-          member_count: registeredMembers.length
+          member_count: activeRegisteredMembers.length
         });
 
-        console.log(`   ✅ Generated: ${filename} (${registeredMembers.length} members)`);
+        console.log(`   ✅ Generated: ${filename} (${activeRegisteredMembers.length} active members)`);
 
         // Send email with PDF attachment if user email is provided
         if (userEmail) {
@@ -550,13 +557,14 @@ export class ExcelReportService {
                   <li><strong>Ward:</strong> ${wardNumber}</li>
                   <li><strong>Municipality:</strong> ${wardInfo.municipality_name}</li>
                   <li><strong>Province:</strong> ${wardInfo.province_name}</li>
-                  <li><strong>Registered Voters:</strong> ${registeredMembers.length}</li>
+                  <li><strong>Active Registered Voters:</strong> ${activeRegisteredMembers.length}</li>
                 </ul>
+                <p>This document includes only <strong>active members in good standing</strong> who are <strong>registered to vote</strong>.</p>
                 <p>This document was automatically generated from the bulk upload process.</p>
                 <p>Best regards,<br>EFF Membership System</p>
               </div>
             `;
-            const emailText = `Ward Attendance Register\n\nDear ${displayName},\n\nPlease find attached the attendance register for Ward ${wardNumber} - ${wardInfo.municipality_name} (${registeredMembers.length} registered voters).\n\nBest regards,\nEFF Membership System`;
+            const emailText = `Ward Attendance Register\n\nDear ${displayName},\n\nPlease find attached the attendance register for Ward ${wardNumber} - ${wardInfo.municipality_name} (${activeRegisteredMembers.length} active registered voters).\n\nThis document includes only active members in good standing who are registered to vote.\n\nBest regards,\nEFF Membership System`;
 
             const emailSent = await emailService.sendEmail({
               to: userEmail,

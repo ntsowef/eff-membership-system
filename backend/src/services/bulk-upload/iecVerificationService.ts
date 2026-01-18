@@ -36,7 +36,7 @@ interface BatchVerificationResult {
  * - Rate limiter handles throttling, no need for long delays
  */
 export class IECVerificationService {
-  private static readonly BATCH_SIZE = 10; // Process 10 records at a time (increased from 5)
+  private static readonly BATCH_SIZE = 25; // Process 25 records at a time (increased from 10)
   private static readonly BATCH_DELAY_MS = 100; // 100ms delay between batches (reduced from 1000ms)
   private static readonly VD_CODE_REGISTERED_NO_VD = '22222222'; // Registered voters without VD code (8 digits)
   private static readonly VD_CODE_NOT_REGISTERED = '99999999'; // Non-registered voters (8 digits)

@@ -106,6 +106,7 @@ import selfDataManagementRoutes from './routes/selfDataManagement';
 import internalRoutes from './routes/internal';
 import bulkUploadRoutes from './routes/bulkUploadRoutes';
 import metricsRoutes from './routes/metrics';
+import whatsappBotRoutes from './routes/whatsappBot';
 import { createAuthRoutes } from './middleware/auth';
 import { cacheService } from './services/cacheService';
 import { cacheMetricsMiddleware } from './middleware/cacheMetrics';
@@ -214,7 +215,9 @@ app.use(maintenanceModeMiddleware({
     '/api/v1/maintenance/status',
     '/api/v1/maintenance/toggle',
     '/api/v1/maintenance/config',
-    '/api/v1/health'
+    '/api/v1/health',
+    '/api/v1/whatsapp/webhook', // WhatsApp bot webhook
+    '/' // Root webhook fallback
   ]
 }));
 
@@ -296,8 +299,38 @@ app.use(`${apiPrefix}/reports`, reportsRoutes);
 app.use(`${apiPrefix}/self-data-management`, selfDataManagementRoutes);
 app.use(`${apiPrefix}/internal`, internalRoutes); // Internal API for Python scripts
 app.use(`${apiPrefix}/bulk-upload`, bulkUploadRoutes); // New bulk upload API
+app.use(`${apiPrefix}/whatsapp`, whatsappBotRoutes); // WhatsApp Bot (WasenderAPI)
 
-// Root endpoint
+// Root endpoint - POST handler for WasenderAPI webhook (fallback)
+app.post('/', async (req: Request, res: Response) => {
+  // Forward to WhatsApp webhook handler if it looks like a WasenderAPI payload
+  if (req.body?.event || req.body?.data) {
+    const { WhatsAppBotService } = await import('./services/whatsappBotService');
+    const { logger } = await import('./utils/logger');
+
+    // Respond immediately
+    res.status(200).json({ received: true });
+
+    try {
+      const payload = req.body;
+      logger.info('WhatsApp webhook received at root /', { event: payload.event });
+
+      if (payload.event === 'messages.received' || payload.event === 'messages.upsert') {
+        if (payload.data?.messages) {
+          await WhatsAppBotService.handleIncomingMessage(payload.data.messages);
+        }
+      }
+    } catch (error: any) {
+      logger.error('Error processing WhatsApp webhook at /', { error: error.message });
+    }
+    return;
+  }
+
+  // Default response for non-webhook requests
+  res.json({ success: true, message: 'EFF Membership Backend API' });
+});
+
+// Root endpoint - GET
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     success: true,
@@ -381,19 +414,24 @@ const startServer = async (): Promise<void> => {
     //   console.warn('⚠️  Failed to create voting district views:', error);
     // }
 
-    // Initialize Redis connection
-    if (verbose) console.log('DEBUG: Connecting to Redis...');
-    try {
-      await redisService.connect();
-      if (verbose) console.log('✅ Redis connected successfully');
-    } catch (error) {
-      console.warn('⚠️  Redis connection failed, using fallback cache:', error);
-    }
+    // Initialize Redis connection (skip if Redis is disabled)
+    const redisEnabled = process.env.REDIS_ENABLED !== 'false';
+    if (redisEnabled) {
+      if (verbose) console.log('DEBUG: Connecting to Redis...');
+      try {
+        await redisService.connect();
+        if (verbose) console.log('✅ Redis connected successfully');
+      } catch (error) {
+        console.warn('⚠️  Redis connection failed, using fallback cache:', error);
+      }
 
-    // Initialize cache service
-    if (verbose) console.log('DEBUG: Initializing cache service...');
-    await cacheService.connect();
-    if (verbose) console.log('DEBUG: Cache service initialized');
+      // Initialize cache service
+      if (verbose) console.log('DEBUG: Initializing cache service...');
+      await cacheService.connect();
+      if (verbose) console.log('DEBUG: Cache service initialized');
+    } else {
+      console.log('⚠️  Redis disabled via REDIS_ENABLED=false - skipping Redis/cache initialization');
+    }
 
     // Initialize queue service (after database is ready)
     if (verbose) console.log('DEBUG: Initializing queue service...');
@@ -405,10 +443,14 @@ const startServer = async (): Promise<void> => {
     await FileStorageService.ensureUploadDirectories();
     if (verbose) console.log('✅ Upload directories ensured');
 
-    // Start upload queue workers
-    if (verbose) console.log('DEBUG: Starting upload queue workers...');
-    startAllQueueWorkers();
-    if (verbose) console.log('✅ Upload queue workers started');
+    // Start upload queue workers (skip if Redis is disabled)
+    if (redisEnabled) {
+      if (verbose) console.log('DEBUG: Starting upload queue workers...');
+      startAllQueueWorkers();
+      if (verbose) console.log('✅ Upload queue workers started');
+    } else {
+      console.log('⚠️  Redis disabled - upload queue workers skipped');
+    }
 
     // Start performance monitoring
     if (verbose) console.log('DEBUG: Starting performance monitoring...');
@@ -437,10 +479,14 @@ const startServer = async (): Promise<void> => {
     await queueManager.startProcessing();
     if (verbose) console.log('DEBUG: Queue processing started');
 
-    // Initialize bulk upload queue worker
-    if (verbose) console.log('DEBUG: Initializing bulk upload queue worker...');
-    initializeBulkUploadWorker();
-    if (verbose) console.log('DEBUG: Bulk upload queue worker initialized');
+    // Initialize bulk upload queue worker (skip if Redis is disabled)
+    if (redisEnabled) {
+      if (verbose) console.log('DEBUG: Initializing bulk upload queue worker...');
+      initializeBulkUploadWorker();
+      if (verbose) console.log('DEBUG: Bulk upload queue worker initialized');
+    } else {
+      console.log('⚠️  Redis disabled - bulk upload queue worker skipped');
+    }
 
     // Start bulk upload file monitor
     if (verbose) console.log('DEBUG: Starting bulk upload file monitor...');

@@ -59,19 +59,22 @@ export interface LeadershipAppointment {
 }
 
 export interface LeadershipElection {
-  id: number;
+  election_id: number;
   election_name: string;
-  position_id: number;
   hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
   entity_id: number;
-  election_date: string;
+  election_type: string;
+  election_status: 'Planned' | 'Nominations Open' | 'Nominations Closed' | 'Voting Open' | 'Voting Closed' | 'Completed' | 'Cancelled';
   nomination_start_date: string;
   nomination_end_date: string;
-  voting_start_datetime: string;
-  voting_end_datetime: string;
-  election_status: 'Planned' | 'Nominations Open' | 'Nominations Closed' | 'Voting Open' | 'Voting Closed' | 'Completed' | 'Cancelled';
+  voting_start_date: string;
+  voting_end_date: string;
+  max_nominations_per_position?: number;
+  requires_seconder?: boolean;
+  voting_method?: string;
   total_eligible_voters: number;
   total_votes_cast: number;
+  results_published_at?: string;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -110,6 +113,7 @@ export interface LeadershipAppointmentDetails extends LeadershipAppointment {
 }
 
 export interface ElectionDetails extends LeadershipElection {
+  position_id?: number;
   position_name: string;
   position_code: string;
   created_by_name: string;
@@ -206,14 +210,16 @@ export interface AppointmentTemplate {
 
 export interface CreateElectionData {
   election_name: string;
-  position_id: number;
   hierarchy_level: 'National' | 'Province' | 'District' | 'Municipality' | 'Ward';
   entity_id: number;
-  election_date: string;
+  election_type?: string;
   nomination_start_date: string;
   nomination_end_date: string;
-  voting_start_datetime: string;
-  voting_end_datetime: string;
+  voting_start_date: string;
+  voting_end_date: string;
+  max_nominations_per_position?: number;
+  requires_seconder?: boolean;
+  voting_method?: string;
   created_by: number;
 }
 
@@ -798,22 +804,25 @@ export class LeadershipModel {
     try {
       const query = `
         INSERT INTO leadership_elections (
-          election_name, position_id, hierarchy_level, entity_id, election_date,
-          nomination_start_date, nomination_end_date, voting_start_datetime, voting_end_datetime,
+          election_name, hierarchy_level, entity_id, election_type,
+          nomination_start_date, nomination_end_date, voting_start_date, voting_end_date,
+          max_nominations_per_position, requires_seconder, voting_method,
           election_status, total_eligible_voters, total_votes_cast, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', 0, 0, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', 0, 0, ?)
       `;
 
       const params = [
         electionData.election_name,
-        electionData.position_id,
         electionData.hierarchy_level,
         electionData.entity_id,
-        electionData.election_date,
+        electionData.election_type || 'Regular',
         electionData.nomination_start_date,
         electionData.nomination_end_date,
-        electionData.voting_start_datetime,
-        electionData.voting_end_datetime,
+        electionData.voting_start_date,
+        electionData.voting_end_date,
+        electionData.max_nominations_per_position || 1,
+        electionData.requires_seconder ?? true,
+        electionData.voting_method || 'Secret Ballot',
         electionData.created_by
       ];
 
@@ -832,6 +841,7 @@ export class LeadershipModel {
           le.*,
           lp.position_name,
           lp.position_code,
+          lec.position_id,
           CONCAT(creator.firstname, ' ', creator.surname) as created_by_name,
           COUNT(ec.id) as candidates_count,
           CONCAT(winner.firstname, ' ', winner.surname) as winner_name,
@@ -846,8 +856,8 @@ export class LeadershipModel {
         LEFT JOIN leadership_election_candidates lec ON le.election_id = lec.election_id
         LEFT JOIN leadership_positions lp ON lec.position_id = lp.id
         LEFT JOIN members_consolidated creator ON le.created_by = creator.member_id
-        LEFT JOIN election_candidates ec ON le.id = ec.election_id
-        LEFT JOIN election_candidates winner_ec ON le.id = winner_ec.election_id AND winner_ec.is_winner = TRUE
+        LEFT JOIN election_candidates ec ON le.election_id = ec.election_id
+        LEFT JOIN election_candidates winner_ec ON le.election_id = winner_ec.election_id AND winner_ec.is_winner = TRUE
         LEFT JOIN members_consolidated winner ON winner_ec.member_id = winner.member_id
         LEFT JOIN provinces p ON le.entity_id = p.province_id AND le.hierarchy_level = 'Province'
         LEFT JOIN municipalities mun ON le.entity_id = mun.municipality_id AND le.hierarchy_level = 'Municipality'
@@ -868,7 +878,7 @@ export class LeadershipModel {
       }
 
       if (filters.position_id) {
-        conditions.push('le.position_id = ?');
+        conditions.push('lec.position_id = ?');
         params.push(filters.position_id);
       }
 
@@ -878,12 +888,12 @@ export class LeadershipModel {
       }
 
       if (filters.election_date_from) {
-        conditions.push('le.election_date >= ?');
+        conditions.push('le.voting_start_date >= ?');
         params.push(filters.election_date_from);
       }
 
       if (filters.election_date_to) {
-        conditions.push('le.election_date <= ?');
+        conditions.push('le.voting_end_date <= ?');
         params.push(filters.election_date_to);
       }
 
@@ -896,7 +906,7 @@ export class LeadershipModel {
         query += ' WHERE ' + conditions.join(' AND ');
       }
 
-      query += ' GROUP BY le.id ORDER BY le.election_date DESC';
+      query += ' GROUP BY le.election_id, lp.position_name, lp.position_code, lec.position_id, creator.firstname, creator.surname, p.province_name, mun.municipality_name, w.ward_number ORDER BY le.voting_start_date DESC';
 
       return await executeQuery(query, params);
     } catch (error) {
@@ -908,7 +918,7 @@ export class LeadershipModel {
   static async getElectionById(electionId: number): Promise<ElectionDetails | null> {
     try {
       const elections = await this.getElections({});
-      return elections.find(e => e.id === electionId) || null;
+      return elections.find(e => e.election_id === electionId) || null;
     } catch (error) {
       throw createDatabaseError('Failed to get election by ID', error);
     }
@@ -920,7 +930,7 @@ export class LeadershipModel {
       const query = `
         UPDATE leadership_elections
         SET election_status = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE election_id = ?
       `;
 
       const result = await executeQuery(query, [status, electionId]);
@@ -1019,7 +1029,7 @@ export class LeadershipModel {
           ROUND((ec.votes_received * 100.0 / NULLIF(le.total_votes_cast, 0)), 2) as vote_percentage
         FROM election_candidates ec
         LEFT JOIN members_consolidated m ON ec.member_id = m.member_id
-        LEFT JOIN leadership_elections le ON ec.election_id = le.id
+        LEFT JOIN leadership_elections le ON ec.election_id = le.election_id
         WHERE ec.election_id = ?
         ORDER BY ec.votes_received DESC, ec.nomination_date ASC
       `;
@@ -1053,7 +1063,7 @@ export class LeadershipModel {
 
       // Create leadership appointment for the winner
       const election = await this.getElectionById(electionId);
-      if (election) {
+      if (election && election.position_id) {
         const appointmentData: CreateAppointmentData = {
           position_id: election.position_id,
           member_id: winner.member_id,

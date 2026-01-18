@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { MeetingDocumentModel } from '../models/meetingDocuments';
 import { ValidationError } from '../middleware/errorHandler';
+import { authenticate } from '../middleware/auth';
 import Joi from 'joi';
 
 const router = Router();
@@ -102,7 +103,7 @@ router.get('/templates/:id', async (req: Request, res: Response, next: NextFunct
  * Create meeting document
  * POST /meeting-documents
  */
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = createDocumentSchema.validate(req.body);
     if (error) {
@@ -111,7 +112,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const documentData = {
       ...value,
-      created_by: 1 // TODO: Get from authenticated user
+      created_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const documentId = await MeetingDocumentModel.createDocument(documentData);
@@ -238,7 +239,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
  * Create action item
  * POST /meeting-documents/action-items
  */
-router.post('/action-items', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/action-items', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = createActionItemSchema.validate(req.body);
     if (error) {
@@ -247,7 +248,7 @@ router.post('/action-items', async (req: Request, res: Response, next: NextFunct
 
     const actionData = {
       ...value,
-      created_by: 1 // TODO: Get from authenticated user
+      created_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const actionId = await MeetingDocumentModel.createActionItem(actionData);
@@ -298,7 +299,7 @@ router.get('/action-items/meeting/:meetingId', async (req: Request, res: Respons
  * Create meeting decision
  * POST /meeting-documents/decisions
  */
-router.post('/decisions', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/decisions', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { error, value } = createDecisionSchema.validate(req.body);
     if (error) {
@@ -307,7 +308,7 @@ router.post('/decisions', async (req: Request, res: Response, next: NextFunction
 
     const decisionData = {
       ...value,
-      created_by: 1 // TODO: Get from authenticated user
+      created_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const decisionId = await MeetingDocumentModel.createDecision(decisionData);

@@ -22,14 +22,16 @@ const createAppointmentSchema = Joi.object({
 
 const createElectionSchema = Joi.object({
   election_name: Joi.string().min(3).max(255).required(),
-  position_id: Joi.number().integer().positive().required(),
   hierarchy_level: Joi.string().valid('National', 'Province', 'Region', 'Municipality', 'Ward').required(),
   entity_id: Joi.number().integer().positive().required(),
-  election_date: Joi.date().iso().required(),
+  election_type: Joi.string().valid('Regular', 'By-Election', 'Re-Election').optional(),
   nomination_start_date: Joi.date().iso().required(),
   nomination_end_date: Joi.date().iso().required(),
-  voting_start_datetime: Joi.date().iso().required(),
-  voting_end_datetime: Joi.date().iso().required()
+  voting_start_date: Joi.date().iso().required(),
+  voting_end_date: Joi.date().iso().required(),
+  max_nominations_per_position: Joi.number().integer().positive().optional(),
+  requires_seconder: Joi.boolean().optional(),
+  voting_method: Joi.string().valid('Secret Ballot', 'Open Vote', 'Ranked Choice').optional()
 });
 
 const addCandidateSchema = Joi.object({
@@ -200,7 +202,7 @@ router.post('/appointments',
 
     const appointmentData = {
       ...value,
-      appointed_by: 1 // Default system user for development
+      appointed_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const appointmentId = await LeadershipService.createAppointment(appointmentData);
@@ -579,11 +581,11 @@ router.get('/elections/:id', async (req: Request, res: Response, next: NextFunct
 });
 
 // Create new election
-router.post('/elections', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/elections', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const electionData = {
       ...req.body,
-      created_by: 1 // Default admin user for development
+      created_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const electionId = await LeadershipModel.createElection(electionData);
@@ -832,7 +834,7 @@ router.post('/war-council/appointments', authenticate, requireWarCouncilManageme
     // Add appointed_by from authenticated user
     const appointmentData = {
       ...value,
-      appointed_by: req.user?.id || 0
+      appointed_by: (req as any).user?.id || (req as any).user?.user_id
     };
 
     const appointmentId = await LeadershipService.createWarCouncilAppointment(appointmentData);

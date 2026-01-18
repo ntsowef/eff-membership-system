@@ -16,7 +16,7 @@ const requiredEnvVars = [
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
+  console.error(' Missing required environment variables:', missingEnvVars.join(', '));
   console.error('Please check your .env file and ensure all required variables are set.');
   process.exit(1);
 }
@@ -103,6 +103,14 @@ interface Config {
     password: string;
     timeout: number;
     rateLimit: number;
+  };
+  wasender: {
+    enabled: boolean;
+    apiUrl: string;
+    apiKey: string;
+    webhookSecret: string;
+    sessionId: string;
+    sessionTimeoutMinutes: number;
   };
 }
 
@@ -195,6 +203,16 @@ export const config: Config = {
     password: process.env.IEC_API_PASSWORD || '',
     timeout: parseInt(process.env.IEC_API_TIMEOUT || '30000', 10),
     rateLimit: parseInt(process.env.IEC_API_RATE_LIMIT || '100', 10)
+  },
+
+  // WasenderAPI WhatsApp Bot Configuration
+  wasender: {
+    enabled: process.env.WHATSAPP_BOT_ENABLED === 'true',
+    apiUrl: process.env.WASENDER_API_URL || 'https://www.wasenderapi.com/api',
+    apiKey: process.env.WASENDER_API_KEY || '',
+    webhookSecret: process.env.WASENDER_WEBHOOK_SECRET || '',
+    sessionId: process.env.WASENDER_SESSION_ID || '',
+    sessionTimeoutMinutes: parseInt(process.env.WHATSAPP_SESSION_TIMEOUT_MINUTES || '30', 10)
   }
 };
 

@@ -1725,16 +1725,17 @@ router.get('/voter-registration',
         geographicBreakdown = await executeQuery(municipalityBreakdownQuery, [provinceCode]);
       } else {
         // National admin - breakdown by province
+        // Group by province_code only, use MAX for province_name to prevent duplicates
         const provinceBreakdownQuery = `
           SELECT
             province_code,
-            COALESCE(province_name, 'Province ' || province_code) as province_name,
+            MAX(COALESCE(province_name, 'Province ' || province_code)) as province_name,
             COUNT(*) as total_members,
             COUNT(CASE WHEN voter_registration_id = 1 OR (voter_registration_id IS NULL AND voting_district_code != '222222222' AND is_registered_voter = true) THEN 1 END) as registered_voters,
             COUNT(CASE WHEN voter_registration_id = 2 OR (voter_registration_id IS NULL AND is_registered_voter = false) THEN 1 END) as not_registered_voters
           FROM members_consolidated
           WHERE province_code IS NOT NULL
-          GROUP BY province_code, province_name
+          GROUP BY province_code
           ORDER BY registered_voters DESC
         `;
         geographicBreakdown = await executeQuery(provinceBreakdownQuery, []);

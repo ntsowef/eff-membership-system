@@ -233,6 +233,7 @@ export interface ProcessingResult {
   // Report generation
   report_path: string;
   report_filename: string;
+  attendance_register_paths?: string[]; // Paths to generated attendance register PDFs
 
   // Processing status
   status: 'completed' | 'failed' | 'partial' | 'rate_limited';
