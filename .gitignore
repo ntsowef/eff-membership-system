@@ -142,4 +142,19 @@ test-results/
 coverage/
 
 # Compiled TypeScript
-*.tsbuildinfo
+
+# Large generated files and backups
+*.dump
+*.docx
+# General Binaries
+*.xlsx
+*.pdf
+test/bulk-upload-poc/reports/*.xlsx
+test/**/*.xlsx
+test/**/*.pdf
+deployment/
+
+
+
+
+
