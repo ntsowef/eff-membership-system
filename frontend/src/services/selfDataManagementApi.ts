@@ -226,3 +226,229 @@ export const getMembershipStatuses = async (): Promise<Array<{ status_id: number
   return response.data?.data || [];
 };
 
+// =====================================================
+// Bulk Removal / Expulsion APIs
+// =====================================================
+
+export interface MemberForRemoval {
+  member_id: number;
+  id_number: string;
+  firstname: string;
+  surname: string;
+  cell_number?: string;
+  email?: string;
+  province_code?: string;
+  province_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+  ward_code?: string;
+  ward_name?: string;
+  expiry_date?: string;
+  membership_status: string;
+}
+
+export interface PreviewByIdsResult {
+  found: MemberForRemoval[];
+  not_found: string[];
+  total_requested: number;
+  total_found: number;
+}
+
+export interface ExcelPreviewRow {
+  row_number: number;
+  excel_data: {
+    subregion?: string;
+    ward_no?: string;
+    name_and_surname?: string;
+    id_number?: string | null;
+  };
+  member?: MemberForRemoval;
+  members?: MemberForRemoval[];
+  search_method: string;
+  match_confidence: string;
+  requires_selection?: boolean;
+}
+
+export interface PreviewExcelResult {
+  found: ExcelPreviewRow[];
+  not_found: Array<{
+    row_number: number;
+    excel_data: any;
+    reason: string;
+  }>;
+  total_rows: number;
+  total_found: number;
+  requires_selection: boolean;
+}
+
+export interface BulkRemovalResult {
+  total: number;
+  successful: number;
+  failed: number;
+  batch_id: string;
+  archived: Array<{
+    member_id: number;
+    id_number: string;
+    name: string;
+  }>;
+  errors: Array<{
+    member_id: number;
+    id_number?: string;
+    error: string;
+  }>;
+}
+
+export interface ExpelledMember {
+  id: number;
+  row_number?: number;
+  subregion?: string;
+  ward_no?: string;
+  name_and_surname?: string;
+  id_number?: string;
+  firstname?: string;
+  surname?: string;
+  original_member_id?: number;
+  province_code?: string;
+  province_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+  ward_code?: string;
+  ward_name?: string;
+  cell_number?: string;
+  email?: string;
+  removal_reason?: string;
+  removal_type?: string;
+  removal_date?: string;
+  removed_by_user_id?: number;
+  search_method?: string;
+  match_confidence?: string;
+  batch_id?: string;
+  source_file?: string;
+  created_at?: string;
+}
+
+export interface ExpelledMembersResult {
+  members: ExpelledMember[];
+  total: number;
+}
+
+/**
+ * Preview members to be removed by ID numbers
+ */
+export const previewRemovalByIds = async (idNumbers: string[]): Promise<PreviewByIdsResult> => {
+  const response = await apiPost<PreviewByIdsResult>(
+    '/self-data-management/bulk-removal/preview-ids',
+    { id_numbers: idNumbers }
+  );
+  if (!response.data) {
+    throw new Error('No data returned from preview');
+  }
+  return response.data;
+};
+
+/**
+ * Remove members by ID numbers (archive and delete)
+ */
+export const removeByIds = async (
+  idNumbers: string[],
+  removalReason: string = 'Termination of Membership',
+  removalType: string = 'terminated'
+): Promise<BulkRemovalResult> => {
+  const response = await apiPost<BulkRemovalResult>(
+    '/self-data-management/bulk-removal/remove-by-ids',
+    {
+      id_numbers: idNumbers,
+      removal_reason: removalReason,
+      removal_type: removalType,
+      confirmation: 'CONFIRM'
+    }
+  );
+  if (!response.data) {
+    throw new Error('No data returned from removal');
+  }
+  return response.data;
+};
+
+/**
+ * Preview members from uploaded Excel file
+ */
+export const previewRemovalByExcel = async (file: File): Promise<PreviewExcelResult> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post<ApiResponse<PreviewExcelResult>>(
+    '/self-data-management/bulk-removal/preview-excel',
+    formData,
+    {
+      headers: {
+        'Content-Type': undefined,
+      },
+      transformRequest: [(data) => data],
+      timeout: 120000,
+    }
+  );
+
+  if (!response.data.data) {
+    throw new Error('No data returned from preview');
+  }
+  return response.data.data;
+};
+
+/**
+ * Remove members based on Excel preview results
+ */
+export const removeByExcel = async (
+  membersToRemove: Array<{
+    member_id: number;
+    id_number?: string;
+    row_number?: number;
+    subregion?: string;
+    ward_no?: string;
+    name_and_surname?: string;
+    province_name?: string;
+    search_method?: string;
+    match_confidence?: string;
+  }>,
+  removalReason: string = 'Termination of Membership',
+  removalType: string = 'terminated',
+  sourceFile?: string
+): Promise<BulkRemovalResult> => {
+  const response = await apiPost<BulkRemovalResult>(
+    '/self-data-management/bulk-removal/remove-by-excel',
+    {
+      members_to_remove: membersToRemove,
+      removal_reason: removalReason,
+      removal_type: removalType,
+      source_file: sourceFile,
+      confirmation: 'CONFIRM'
+    }
+  );
+  if (!response.data) {
+    throw new Error('No data returned from removal');
+  }
+  return response.data;
+};
+
+/**
+ * Get expelled/suspended members list
+ */
+export const getExpelledMembers = async (params?: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  removal_type?: string;
+  province?: string;
+  batch_id?: string;
+  from_date?: string;
+  to_date?: string;
+}): Promise<ExpelledMembersResult> => {
+  const response = await apiGet<ExpelledMembersResult>(
+    '/self-data-management/bulk-removal/expelled-members',
+    params
+  );
+  if (!response.data) {
+    throw new Error('No data returned from expelled members');
+  }
+  return response.data;
+};
+

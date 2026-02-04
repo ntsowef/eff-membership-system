@@ -8,7 +8,7 @@ export interface CommunicationAnalytics {
   total_messages_sent: number;
   total_messages_delivered: number;
   overall_delivery_rate: number;
-  
+
   // Channel statistics
   email_stats: {
     sent: number;
@@ -18,37 +18,47 @@ export interface CommunicationAnalytics {
     bounced: number;
     unsubscribed: number;
   };
-  
+
   sms_stats: {
     sent: number;
     delivered: number;
     failed: number;
   };
-  
+
   in_app_stats: {
     sent: number;
     delivered: number;
     read: number;
   };
-  
+
+  whatsapp_stats: {
+    sent: number;
+    delivered: number;
+    failed: number;
+  };
+
   // Performance metrics
   channel_performance: {
-    email: { 
-      delivery_rate: number; 
-      open_rate: number; 
-      click_rate: number; 
+    email: {
+      delivery_rate: number;
+      open_rate: number;
+      click_rate: number;
       bounce_rate: number;
     };
-    sms: { 
-      delivery_rate: number; 
+    sms: {
+      delivery_rate: number;
       failure_rate: number;
     };
-    in_app: { 
-      delivery_rate: number; 
-      read_rate: number; 
+    in_app: {
+      delivery_rate: number;
+      read_rate: number;
+    };
+    whatsapp: {
+      delivery_rate: number;
+      failure_rate: number;
     };
   };
-  
+
   // Time-based data
   daily_stats: Array<{
     date: string;
@@ -56,7 +66,7 @@ export interface CommunicationAnalytics {
     messages_delivered: number;
     campaigns_launched: number;
   }>;
-  
+
   // Geographic breakdown
   geographic_stats: Array<{
     province_code: string;
@@ -65,7 +75,7 @@ export interface CommunicationAnalytics {
     delivery_rate: number;
     engagement_rate: number;
   }>;
-  
+
   // Campaign performance
   top_campaigns: Array<{
     id: number;
@@ -93,22 +103,22 @@ export class AnalyticsService {
     try {
       const dateFilter = this.buildDateFilter(filters);
       const campaignFilter = this.buildCampaignFilter(filters);
-      
+
       // Get overview metrics
       const overview = await this.getOverviewMetrics(dateFilter, campaignFilter);
-      
+
       // Get channel statistics
       const channelStats = await this.getChannelStatistics(dateFilter, campaignFilter);
-      
+
       // Get daily statistics
       const dailyStats = await this.getDailyStatistics(filters);
-      
+
       // Get geographic breakdown
       const geographicStats = await this.getGeographicStatistics(filters);
-      
+
       // Get top performing campaigns
       const topCampaigns = await this.getTopCampaigns(filters);
-      
+
       return {
         ...overview,
         ...channelStats,
@@ -179,6 +189,17 @@ export class AnalyticsService {
       WHERE md.delivery_channel = 'In-App' ${dateFilter.replace('c.', 'c.')} ${campaignFilter.replace('c.', 'c.')}
     `);
 
+    // WhatsApp statistics
+    const whatsappStats = await executeQuerySingle(`
+        SELECT
+        COUNT(*) as sent,
+        SUM(CASE WHEN delivery_status IN ('Delivered', 'Read', 'Sent') THEN 1 ELSE 0 END) as delivered,
+        SUM(CASE WHEN delivery_status = 'Failed' THEN 1 ELSE 0 END) as failed
+      FROM message_deliveries md
+      JOIN communication_campaigns c ON md.campaign_id = c.id
+      WHERE md.delivery_channel = 'WhatsApp' ${dateFilter.replace('c.', 'c.')} ${campaignFilter.replace('c.', 'c.')}
+    `);
+
     // Calculate performance metrics
     const emailPerformance = {
       delivery_rate: emailStats.sent > 0 ? Math.round((emailStats.delivered / emailStats.sent) * 100) : 0,
@@ -204,8 +225,13 @@ export class AnalyticsService {
       channel_performance: {
         email: emailPerformance,
         sms: smsPerformance,
-        in_app: inAppPerformance
-      }
+        in_app: inAppPerformance,
+        whatsapp: {
+          delivery_rate: whatsappStats.sent > 0 ? Math.round((whatsappStats.delivered / whatsappStats.sent) * 100) : 0,
+          failure_rate: whatsappStats.sent > 0 ? Math.round((whatsappStats.failed / whatsappStats.sent) * 100) : 0
+        }
+      },
+      whatsapp_stats: whatsappStats
     };
   }
 

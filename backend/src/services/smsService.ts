@@ -1,6 +1,7 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { DatabaseError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
+import { renderTemplateString } from '../utils/templateRenderer';
 import axios from 'axios';
 import { config } from '../config/config';
 
@@ -624,26 +625,39 @@ export class SMSService {
 
   // Personalize SMS message with member data
   private static personalizeMessage(template: string, member: any): string {
-    let personalizedMessage = template;
-    
-    // Replace placeholders with actual member data
-    personalizedMessage = personalizedMessage.replace(/{firstName}/g, member.first_name || 'Member');
-    personalizedMessage = personalizedMessage.replace(/{lastName}/g, member.last_name || '');
-    personalizedMessage = personalizedMessage.replace(/{daysUntilExpiration}/g, member.days_until_expiration?.toString() || '0');
-    personalizedMessage = personalizedMessage.replace(/{daysSinceExpiration}/g, member.days_until_expiration.toString() || '0');
-    
     // Format expiry date
+    let formattedExpiryDate = '';
     if (member.membership_expiry_date) {
       const expiryDate = new Date(member.membership_expiry_date);
-      const formattedDate = expiryDate.toLocaleDateString('en-US', { 
-        year : 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      formattedExpiryDate = expiryDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
-      personalizedMessage = personalizedMessage.replace(/{expiryDate}/g, formattedDate);
     }
 
-    return personalizedMessage;
+    const variables = {
+      // name variants
+      firstName: member.first_name || 'Member',
+      lastName: member.last_name || '',
+      firstname: member.first_name || 'Member',
+      surname: member.last_name || '',
+      first_name: member.first_name || 'Member',
+      last_name: member.last_name || '',
+      full_name: `${member.first_name || ''} ${member.last_name || ''}`.trim(),
+      member_name: `${member.first_name || ''} ${member.last_name || ''}`.trim(),
+
+      // expiry/interval variants
+      daysUntilExpiration: member.days_until_expiration?.toString?.() || '0',
+      days_until_expiration: member.days_until_expiration?.toString?.() || '0',
+      daysSinceExpiration: member.days_until_expiration?.toString?.() || '0',
+      days_since_expiration: member.days_until_expiration?.toString?.() || '0',
+      expiryDate: formattedExpiryDate,
+      expiry_date: formattedExpiryDate,
+      membership_number: member.membership_number || member.membershipNumber || ''
+    };
+
+    return renderTemplateString(template, variables, { keepUnmatched: true });
   }
 
   // Send individual SMS using the provider (internal method)

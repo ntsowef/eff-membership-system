@@ -649,8 +649,8 @@ router.get('/statistics',
       const mfaStats = await executeQuerySingle(`
         SELECT
           COUNT(*) as total_users,
-          SUM(CASE WHEN mfa_enabled = 1 THEN 1 ELSE 0 END) as mfa_enabled_count,
-          ROUND((SUM(CASE WHEN mfa_enabled = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 2) as mfa_adoption_percentage
+          SUM(CASE WHEN mfa_enabled = true THEN 1 ELSE 0 END) as mfa_enabled_count,
+          ROUND((SUM(CASE WHEN mfa_enabled = true THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0)) * 100, 2) as mfa_adoption_percentage
         FROM users
         WHERE admin_level IS NOT NULL AND admin_level != 'none'
       `);

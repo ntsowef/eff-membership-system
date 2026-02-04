@@ -147,6 +147,111 @@ export const reportsApi = {
   },
 
   /**
+   * Generate and download Expired Members Report
+   * Contains members whose membership has expired
+   */
+  downloadExpiredMembersReport: async (filters: ReportFilters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      params.append('format', 'excel');
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/expired-members?${params.toString()}`,
+        {
+          responseType: 'blob',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Expired_Members_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Expired Members Report downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading Expired Members Report:', error);
+      throw new Error(error.response?.data?.message || 'Failed to download Expired Members Report');
+    }
+  },
+
+  /**
+   * Generate and download Not Registered Members Report
+   * Contains members who are not registered to vote (voting_district_code = '99999999')
+   */
+  downloadNotRegisteredMembersReport: async (filters: ReportFilters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      params.append('format', 'excel');
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/not-registered?${params.toString()}`,
+        {
+          responseType: 'blob',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Not_Registered_Members_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Not Registered Members Report downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading Not Registered Members Report:', error);
+      throw new Error(error.response?.data?.message || 'Failed to download Not Registered Members Report');
+    }
+  },
+
+  /**
+   * Generate and download Different Ward Members Report
+   * Contains members registered to a different ward than their membership ward (voting_district_code = '22222222')
+   */
+  downloadDifferentWardMembersReport: async (filters: ReportFilters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      params.append('format', 'excel');
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/different-ward?${params.toString()}`,
+        {
+          responseType: 'blob',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Different_Ward_Members_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Different Ward Members Report downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading Different Ward Members Report:', error);
+      throw new Error(error.response?.data?.message || 'Failed to download Different Ward Members Report');
+    }
+  },
+
+  /**
    * Generate all three reports at once
    */
   generateAllReports: async (filters: ReportFilters = {}) => {
@@ -208,6 +313,33 @@ export const reportsApi = {
         format: 'Excel',
         icon: 'Groups',
         category: 'Leadership Reports',
+      },
+      {
+        id: 'expired-members',
+        name: 'Expired Members Report',
+        description: 'List of members whose membership has expired',
+        sheets: 1,
+        format: 'Excel',
+        icon: 'EventBusy',
+        category: 'Membership Reports',
+      },
+      {
+        id: 'not-registered',
+        name: 'Not Registered Members Report',
+        description: 'Members who are not registered to vote',
+        sheets: 1,
+        format: 'Excel',
+        icon: 'HowToReg',
+        category: 'Membership Reports',
+      },
+      {
+        id: 'different-ward',
+        name: 'Different Ward Members Report',
+        description: 'Members registered to a different ward than their membership ward',
+        sheets: 1,
+        format: 'Excel',
+        icon: 'CompareArrows',
+        category: 'Membership Reports',
       },
     ];
   },

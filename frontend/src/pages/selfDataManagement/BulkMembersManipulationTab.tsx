@@ -24,8 +24,10 @@ import {
   Snackbar,
   CircularProgress,
   Chip,
+  Tabs,
+  Tab,
 } from '@mui/material';
-import { Search, Delete, Edit } from '@mui/icons-material';
+import { Search, Delete, Edit, PersonRemove, UploadFile } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   searchMembers,
@@ -34,8 +36,26 @@ import {
   getMembershipStatuses,
   type MemberSearchResult,
 } from '../../services/selfDataManagementApi';
+import RemoveByIdNumbersTab from './RemoveByIdNumbersTab';
+import RemoveByExcelTab from './RemoveByExcelTab';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
 
 const BulkMembersManipulationTab: React.FC = () => {
+  const [subTabValue, setSubTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MemberSearchResult[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]); // For search results checkboxes
@@ -222,8 +242,9 @@ const BulkMembersManipulationTab: React.FC = () => {
     }
   };
 
-  return (
-    <Box sx={{ px: 3 }}>
+  // Content for Search & Manipulate sub-tab
+  const SearchManipulateContent = () => (
+    <>
       {/* Search Section */}
       <Paper sx={{ p: 3, mb: 4 }}>
         <Typography variant="h6" gutterBottom>
@@ -503,6 +524,30 @@ const BulkMembersManipulationTab: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+    </>
+  );
+
+  return (
+    <Box sx={{ px: 3 }}>
+      {/* Sub-tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={subTabValue} onChange={(_, newValue) => setSubTabValue(newValue)}>
+          <Tab icon={<Search />} iconPosition="start" label="Search & Manipulate" />
+          <Tab icon={<PersonRemove />} iconPosition="start" label="Remove by ID Numbers" />
+          <Tab icon={<UploadFile />} iconPosition="start" label="Remove by Excel Upload" />
+        </Tabs>
+      </Box>
+
+      {/* Tab Panels */}
+      <TabPanel value={subTabValue} index={0}>
+        <SearchManipulateContent />
+      </TabPanel>
+      <TabPanel value={subTabValue} index={1}>
+        <RemoveByIdNumbersTab />
+      </TabPanel>
+      <TabPanel value={subTabValue} index={2}>
+        <RemoveByExcelTab />
+      </TabPanel>
     </Box>
   );
 };

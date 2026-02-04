@@ -140,6 +140,217 @@ export class DigitalMembershipCardModel {
     }
   }
 
+  // Generate membership card as PNG image (for WhatsApp)
+  static async generateMembershipCardImage(memberId: string, options: {
+    template?: string;
+    issued_by: string;
+    custom_expiry?: string;
+  }): Promise<{
+    card: DigitalMembershipCard;
+    image_buffer: Buffer;
+    qr_code_url: string;
+  }> {
+    try {
+      // Get member information
+      const memberQuery = `
+        SELECT
+          member_id,
+          membership_number,
+          firstname as first_name,
+          COALESCE(surname, '') as last_name,
+          COALESCE(email, '') as email,
+          COALESCE(cell_number, '') as phone_number,
+          province_code,
+          province_name,
+          municipality_name,
+          ward_code,
+          voting_station_name,
+          membership_type,
+          join_date,
+          expiry_date,
+          membership_status_name
+        FROM vw_member_details_optimized
+        WHERE member_id = $1
+      `;
+
+      const memberData = await executeQuerySingle<MemberCardData>(memberQuery, [memberId]);
+
+      if (!memberData) {
+        throw new Error(`Member not found: ${memberId}`);
+      }
+
+      // Generate unique card ID and number
+      const cardId = `CARD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const cardNumber = `DC${Date.now().toString().slice(-8)}`;
+
+      // Create security hash
+      const securityData = `${memberData.member_id}:${memberData.membership_number}:${cardNumber}:${Date.now()}`;
+      const securityHash = crypto.createHash('sha256').update(securityData).digest('hex');
+
+      // Generate QR code data
+      const qrCodeData = JSON.stringify({
+        card_id: cardId,
+        member_id: memberData.member_id,
+        membership_number: memberData.membership_number,
+        card_number: cardNumber,
+        name: `${memberData.first_name} ${memberData.last_name}`,
+        expiry_date: options.custom_expiry || memberData.expiry_date,
+        security_hash: securityHash ? securityHash.substring(0, 16) : 'N/A',
+        issued: new Date().toISOString()
+      });
+
+      // Generate QR code image
+      const qrCodeUrl = await QRCode.toDataURL(qrCodeData, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
+      // Create digital card object
+      const digitalCard: DigitalMembershipCard = {
+        card_id: cardId,
+        member_id: memberData.member_id,
+        card_number: cardNumber,
+        issue_date: new Date().toISOString().split('T')[0],
+        expiry_date: options.custom_expiry || memberData.expiry_date,
+        status: 'active',
+        qr_code_data: qrCodeData,
+        security_hash: securityHash,
+        card_design_template: options.template || 'standard',
+        issued_by: options.issued_by,
+        last_updated: new Date().toISOString()
+      };
+
+      // Generate PNG image
+      const imageBuffer = await this.generateCardPNG(memberData, digitalCard, qrCodeUrl);
+
+      return {
+        card: digitalCard,
+        image_buffer: imageBuffer,
+        qr_code_url: qrCodeUrl
+      };
+    } catch (error) {
+      throw new DatabaseError('Failed to generate digital membership card image', error);
+    }
+  }
+
+  // Generate PNG membership card image using canvas with template
+  private static async generateCardPNG(
+    memberData: MemberCardData,
+    cardData: DigitalMembershipCard,
+    qrCodeUrl: string
+  ): Promise<Buffer> {
+    // Dynamic import of canvas (it's a native module)
+    const { createCanvas, loadImage } = await import('canvas');
+    const path = await import('path');
+    const fs = await import('fs');
+
+    // Card dimensions matching the template (credit card aspect ratio 1.586:1)
+    // Template image is approximately 550x347 pixels based on frontend usage
+    const width = 550;
+    const height = 347;
+
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // Load and draw the template background image
+    try {
+      // Try multiple possible paths for the template image
+      const possiblePaths = [
+        path.join(__dirname, '../assets/images/Eff_first.png'),
+        path.join(__dirname, '../../assets/images/Eff_first.png'),
+        path.join(process.cwd(), 'src/assets/images/Eff_first.png'),
+        path.join(process.cwd(), 'dist/assets/images/Eff_first.png'),
+      ];
+
+      let templateImage: Awaited<ReturnType<typeof loadImage>> | null = null;
+      for (const templatePath of possiblePaths) {
+        if (fs.existsSync(templatePath)) {
+          templateImage = await loadImage(templatePath);
+          console.log(`📷 Loaded card template from: ${templatePath}`);
+          break;
+        }
+      }
+
+      if (templateImage) {
+        // Draw the template as background
+        ctx.drawImage(templateImage, 0, 0, width, height);
+      } else {
+        console.warn('⚠️ Card template image not found, using fallback design');
+        // Fallback: Draw a simple background
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, width, height);
+      }
+    } catch (e) {
+      console.error('Error loading template image:', e);
+      // Fallback background
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    // Helper function to get province code
+    const getProvinceCode = (provinceName: string | null): string => {
+      if (!provinceName) return 'N/A';
+      const provinceMap: { [key: string]: string } = {
+        'Eastern Cape': 'EC',
+        'Free State': 'FS',
+        'Gauteng': 'GP',
+        'KwaZulu-Natal': 'KZN',
+        'Limpopo': 'LP',
+        'Mpumalanga': 'MP',
+        'Northern Cape': 'NC',
+        'North West': 'NW',
+        'Western Cape': 'WC'
+      };
+      return provinceMap[provinceName] || provinceName.substring(0, 2).toUpperCase();
+    };
+
+    // Set text color to white for overlay on template
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+
+    // Top Left: Expiry Date with "EXP:" label (position: top 16px, left 16px)
+    ctx.font = 'bold 14px Arial';
+    const expiryDate = cardData.expiry_date
+      ? new Date(cardData.expiry_date).toLocaleDateString('en-ZA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        })
+      : 'N/A';
+    ctx.fillText(`EXP: ${expiryDate}`, 16, 26);
+
+    // Top Right: Province Code (position: top 16px, right 16px)
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 24px Arial';
+    const provinceCode = getProvinceCode(memberData.province_name);
+    ctx.fillText(provinceCode, width - 16, 30);
+
+    // Member Name - Center (position: approximately 42% from top)
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px Arial';
+    const fullName = `${memberData.first_name} ${memberData.last_name}`.toUpperCase();
+    ctx.fillText(fullName, width / 2, height * 0.45);
+
+    // ID Number - Center (position: approximately 58% from top)
+    ctx.font = 'bold 16px Arial';
+    // Note: We don't have id_number in MemberCardData, using membership_number or member_id
+    const idDisplay = memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
+    ctx.fillText(idDisplay, width / 2, height * 0.60);
+
+    // Sub-region and Ward - Center (position: approximately 73% from top)
+    ctx.font = 'bold 14px Arial';
+    const subRegion = memberData.municipality_name || 'N/A';
+    const ward = memberData.ward_code || 'N/A';
+    ctx.fillText(`${subRegion} | ${ward}`, width / 2, height * 0.75);
+
+    // Return as PNG buffer
+    return canvas.toBuffer('image/png');
+  }
+
   // Generate PDF membership card
   private static async generateCardPDF(
     memberData: MemberCardData,

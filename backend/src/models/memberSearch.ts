@@ -861,24 +861,22 @@ export class MemberSearchModel {
     try {
       const query = `
         SELECT * FROM vw_member_search_consolidated
-        WHERE search_text LIKE ?
+        WHERE search_text ILIKE $1
         ORDER BY
           CASE
-            WHEN firstname LIKE ? OR surname LIKE ? THEN 1
-            WHEN id_number LIKE ? THEN 2
-            WHEN email LIKE ? THEN 3
+            WHEN firstname ILIKE $2 OR surname ILIKE $2 THEN 1
+            WHEN id_number ILIKE $2 THEN 2
+            WHEN email ILIKE $2 THEN 3
             ELSE 4
           END,
           firstname ASC
-        LIMIT ?
+        LIMIT $3
       `;
 
       const searchPattern = `%${searchTerm}%`;
       const exactPattern = `${searchTerm}%`;
 
-      return await executeQuery(query, [
-        searchPattern, exactPattern, exactPattern, exactPattern, exactPattern, limit
-      ]);
+      return await executeQuery(query, [searchPattern, exactPattern, limit]);
     } catch (error) {
       throw createDatabaseError('Failed to perform quick search', error);
     }

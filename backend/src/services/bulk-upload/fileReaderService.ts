@@ -42,6 +42,11 @@ export class FileReaderService {
         normalized.Name = normalized.Firstname;
       }
 
+      // Normalize "Last Payment Date" to "Last Payment" (handle column name variation)
+      if (normalized['Last Payment Date'] && !normalized['Last Payment']) {
+        normalized['Last Payment'] = normalized['Last Payment Date'];
+      }
+
       // Parse dates from Excel serial numbers
       if (normalized['Last Payment']) {
         normalized['Last Payment'] = this.parseDate(normalized['Last Payment']);

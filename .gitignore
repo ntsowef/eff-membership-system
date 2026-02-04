@@ -141,7 +141,7 @@ yarn.lock
 *local.conf
 *local.config
 
-# Test results
+# Test results.git
 test-results/
 coverage/
 
@@ -149,3 +149,7 @@ coverage/
 *.tsbuildinfo
 production_database.dump
 wards_backup.dump
+reports/*
+!reports/.gitkeep
+_upload_fiel_directory/*
+!_upload_fiel_directory/.gitkeep

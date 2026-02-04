@@ -7,13 +7,15 @@ import { IECVerificationService } from './iecVerificationService';
 import { DatabaseOperationsService } from './databaseOperationsService';
 import { ExcelReportService } from './excelReportService';
 import { WebSocketService } from '../websocketService';
+import { MembershipStatusService } from './membershipStatusService';
 import {
   BulkUploadRecord,
   ValidationResult,
   IECVerificationResult,
   DatabaseOperationsBatchResult,
   ProcessingResult,
-  IECVerificationBatchResult
+  IECVerificationBatchResult,
+  MemberStatusUpdateBatchResult
 } from './types';
 
 /**
@@ -37,6 +39,8 @@ export interface OrchestratorConfig {
   // For sending attendance register emails
   userEmail?: string;
   userName?: string;
+  // Toggle for attendance register generation (default: true)
+  generateAttendanceRegisters?: boolean;
 }
 
 /**
@@ -58,6 +62,7 @@ export class BulkUploadOrchestrator {
   private jobId?: string;
   private userEmail?: string;
   private userName?: string;
+  private generateAttendanceRegisters: boolean;
 
   constructor(config: OrchestratorConfig) {
     this.dbPool = config.dbPool;
@@ -68,6 +73,7 @@ export class BulkUploadOrchestrator {
     this.jobId = config.jobId;
     this.userEmail = config.userEmail;
     this.userName = config.userName;
+    this.generateAttendanceRegisters = config.generateAttendanceRegisters ?? true;
   }
 
   /**
@@ -105,7 +111,7 @@ export class BulkUploadOrchestrator {
         this.dbPool
       );
 
-      this.logProgress('validation', 40, 
+      this.logProgress('validation', 40,
         `✅ Validation complete: ${validationResult.validation_stats.valid_ids} valid, ` +
         `${validationResult.validation_stats.invalid_ids} invalid, ` +
         `${validationResult.validation_stats.duplicates} duplicates`
@@ -208,7 +214,10 @@ export class BulkUploadOrchestrator {
           inserts: 0,
           updates: 0,
           skipped: 0,
-          failures: 0
+          failures: 0,
+          renewals: 0,
+          early_renewals: 0,
+          expired_member_renewals: 0
         },
         successful_operations: [],
         failed_operations: []
@@ -216,32 +225,72 @@ export class BulkUploadOrchestrator {
 
       // IMPORTANT: Process ALL records even if rate limit was hit
       // Matching Python behavior: records without IEC verification still get inserted with special VD codes
-      if (recordsToVerify.length > 0) {
+      const totalDbRecords = validationResult.new_members.length +
+        validationResult.existing_members.length +
+        validationResult.renewal_records.length;
+
+      if (totalDbRecords > 0) {
         if (rateLimitHit) {
           this.logProgress('database_operations', 65,
-            `💾 Processing ${recordsToVerify.length} database operations (IEC rate limit hit - using special VD codes for unverified records)...`
+            `💾 Processing ${totalDbRecords} database operations (IEC rate limit hit - using special VD codes for unverified records)...`
           );
         } else {
-          this.logProgress('database_operations', 65, `💾 Processing ${recordsToVerify.length} database operations...`);
+          this.logProgress('database_operations', 65, `💾 Processing ${totalDbRecords} database operations...`);
         }
 
         dbResult = await DatabaseOperationsService.processRecordsBatch(
           validationResult.new_members,
           validationResult.existing_members,
           iecResults,
-          this.dbPool
+          this.dbPool,
+          validationResult.renewal_records
         );
 
         this.logProgress('database_operations', 80,
           `✅ Database operations complete: ${dbResult.operation_stats.inserts} inserts, ` +
-          `${dbResult.operation_stats.updates} updates, ${dbResult.operation_stats.failures} failures`
+          `${dbResult.operation_stats.updates} updates, ${dbResult.operation_stats.renewals} renewals, ` +
+          `${dbResult.operation_stats.failures} failures`
         );
       } else {
         this.logProgress('database_operations', 80, '⏭️  No database operations needed');
       }
 
+      // Step 4.5: Membership Status Updates (calculate missing expiry dates, update statuses)
+      let statusUpdateResult: MemberStatusUpdateBatchResult = {
+        updates: [],
+        stats: {
+          total_processed: 0,
+          expiry_dates_calculated: 0,
+          statuses_changed: 0,
+          protected_skipped: 0,
+          no_payment_date_skipped: 0,
+          already_correct_skipped: 0,
+          errors: 0
+        }
+      };
+
+      // Extract member IDs from successful database operations (both updates and renewals)
+      const successfulMemberIds = dbResult.successful_operations
+        .filter(op => op.member_id && (op.operation === 'update' || op.operation === 'renewal'))
+        .map(op => op.member_id!);
+
+      if (successfulMemberIds.length > 0) {
+        this.logProgress('status_updates', 82, `📊 Processing ${successfulMemberIds.length} members for status updates...`);
+        statusUpdateResult = await MembershipStatusService.processStatusUpdatesBatch(
+          successfulMemberIds,
+          this.dbPool
+        );
+        this.logProgress('status_updates', 84,
+          `✅ Status updates: ${statusUpdateResult.stats.expiry_dates_calculated} expiry dates calculated, ` +
+          `${statusUpdateResult.stats.statuses_changed} statuses changed`
+        );
+      } else {
+        this.logProgress('status_updates', 84, '⏭️  No members for status updates');
+      }
+
       // Step 5: Generate Excel Report (generate even on rate limit for partial results)
       this.logProgress('report_generation', 85, '📊 Generating Excel report...');
+      console.log(`   📋 Attendance register generation: ${this.generateAttendanceRegisters ? 'ENABLED' : 'DISABLED'}`);
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const reportFileName = `bulk-upload-report-${timestamp}.xlsx`;
@@ -254,7 +303,9 @@ export class BulkUploadOrchestrator {
         iecResults,
         dbResult,
         this.userEmail,
-        this.userName
+        this.userName,
+        this.generateAttendanceRegisters,
+        statusUpdateResult
       );
 
       this.logProgress('report_generation', 95, `✅ Report generated: ${reportFileName}`);

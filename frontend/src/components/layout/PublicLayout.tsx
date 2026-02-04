@@ -1,28 +1,54 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import {
   Box,
+  Typography,
+  Container,
   AppBar,
   Toolbar,
-  Typography,
   Button,
-  Container,
   IconButton,
+  Menu,
+  MenuItem,
+  useMediaQuery,
+  useTheme,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
-  Brightness4,
-  Brightness7,
+  Menu as MenuIcon,
+  Home,
+  PersonAdd,
+  Search,
+  AdminPanelSettings,
 } from '@mui/icons-material';
-
-import { useUI } from '../../store';
 
 const PublicLayout: React.FC = () => {
   const navigate = useNavigate();
-  const { theme: currentTheme, setTheme } = useUI();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
 
-  const handleThemeToggle = () => {
-    setTheme(currentTheme === 'light' ? 'dark' : 'light');
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
   };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    handleMenuClose();
+  };
+
+  const navItems = [
+    { label: 'Home', path: '/', icon: <Home /> },
+    { label: 'Apply', path: '/apply', icon: <PersonAdd /> },
+    { label: 'Status', path: '/application-status', icon: <Search /> },
+    { label: 'Admin', path: '/admin', icon: <AdminPanelSettings /> },
+  ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -31,17 +57,17 @@ const PublicLayout: React.FC = () => {
         position="static"
         elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #FE0000 0%, #E20202 100%)',
-          borderBottom: '3px solid #FFAB00',
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+          borderBottom: '2px solid #DC143C',
         }}
       >
-        <Toolbar sx={{ py: 1 }}>
+        <Toolbar sx={{ py: 1, justifyContent: 'space-between' }}>
+          {/* Logo */}
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               cursor: 'pointer',
-              flexGrow: 1,
             }}
             onClick={() => navigate('/')}
           >
@@ -50,14 +76,15 @@ const PublicLayout: React.FC = () => {
                 width: 40,
                 height: 40,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #FFAB00 0%, #FF8F00 100%)',
+                background: 'linear-gradient(135deg, #DC143C 0%, #B01030 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                mr: 2,
+                mr: 1.5,
                 fontWeight: 700,
-                color: '#000000',
-                fontSize: '1.2rem',
+                color: '#FFFFFF',
+                fontSize: '0.9rem',
+                border: '2px solid #FFAB00',
               }}
             >
               EFF
@@ -68,89 +95,120 @@ const PublicLayout: React.FC = () => {
                 component="div"
                 sx={{
                   fontWeight: 700,
-                  fontSize: '1.3rem',
+                  fontSize: { xs: '1rem', sm: '1.2rem' },
                   lineHeight: 1.2,
+                  color: '#FFFFFF',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
                 }}
               >
-                Economic Freedom Fighters
+                Economic Freedom
               </Typography>
               <Typography
                 variant="caption"
                 sx={{
-                  color: '#FFAB00',
-                  fontWeight: 500,
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.05em',
+                  color: '#DC143C',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
                 }}
               >
-                MEMBERSHIP PORTAL
+                Fighters
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button
-              color="inherit"
-              onClick={() => navigate('/apply')}
-              sx={{
-                fontWeight: 500,
-                textTransform: 'none',
-                px: 2,
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 171, 0, 0.1)',
-                },
-              }}
-            >
-              Join the Fight
-            </Button>
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {navItems.map((item) => (
+                <Button
+                  key={item.path}
+                  color="inherit"
+                  startIcon={item.icon}
+                  onClick={() => handleNavigate(item.path)}
+                  sx={{
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    px: 2,
+                    color: '#FFFFFF',
+                    '&:hover': {
+                      backgroundColor: 'rgba(220, 20, 60, 0.2)',
+                    },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Box>
+          )}
 
-            <Button
-              color="inherit"
-              onClick={() => navigate('/application-status')}
-              sx={{
-                fontWeight: 500,
-                textTransform: 'none',
-                px: 2,
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 171, 0, 0.1)',
-                },
-              }}
-            >
-              Check Status
-            </Button>
-
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/admin')}
-              sx={{
-                borderColor: '#FFAB00',
-                color: '#FFAB00',
-                fontWeight: 500,
-                textTransform: 'none',
-                px: 2,
-                ml: 1,
-                '&:hover': {
-                  borderColor: '#FFAB00',
-                  backgroundColor: 'rgba(255, 171, 0, 0.1)',
-                },
-              }}
-            >
-              Admin Portal
-            </Button>
-
+          {/* Mobile Menu Button */}
+          {isMobile && (
             <IconButton
-              color="inherit"
-              onClick={handleThemeToggle}
+              onClick={handleMenuOpen}
               sx={{
-                ml: 1,
+                color: '#FFFFFF',
+                bgcolor: 'rgba(220, 20, 60, 0.3)',
+                border: '2px solid #DC143C',
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 171, 0, 0.1)',
+                  bgcolor: 'rgba(220, 20, 60, 0.5)',
                 },
               }}
             >
-              {currentTheme === 'dark' ? <Brightness7 /> : <Brightness4 />}
+              <MenuIcon />
             </IconButton>
-          </Box>
+          )}
+
+          {/* Mobile Menu Dropdown */}
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                bgcolor: '#1a1a1a',
+                border: '2px solid #DC143C',
+                borderRadius: 2,
+                minWidth: 200,
+                boxShadow: '0 4px 20px rgba(220, 20, 60, 0.3)',
+              },
+            }}
+          >
+            {navItems.map((item) => (
+              <MenuItem
+                key={item.path}
+                onClick={() => handleNavigate(item.path)}
+                sx={{
+                  py: 1.5,
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    bgcolor: 'rgba(220, 20, 60, 0.2)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: '#DC143C', minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: 500,
+                  }}
+                />
+              </MenuItem>
+            ))}
+          </Menu>
         </Toolbar>
       </AppBar>
 

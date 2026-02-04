@@ -37,25 +37,31 @@ export const validate = (schema: {
 
     // Validate request body
     if (schema.body) {
-      const { error } = schema.body.validate(req.body, { abortEarly: false });
+      const { value, error } = schema.body.validate(req.body, { abortEarly: false });
       if (error) {
         errors.push(...error.details.map(detail => `Body: ${detail.message}`));
+      } else {
+        req.body = value;
       }
     }
 
     // Validate query parameters
     if (schema.query) {
-      const { error } = schema.query.validate(req.query, { abortEarly: false });
+      const { value, error } = schema.query.validate(req.query, { abortEarly: false });
       if (error) {
         errors.push(...error.details.map(detail => `Query: ${detail.message}`));
+      } else {
+        req.query = value;
       }
     }
 
     // Validate route parameters
     if (schema.params) {
-      const { error } = schema.params.validate(req.params, { abortEarly: false });
+      const { value, error } = schema.params.validate(req.params, { abortEarly: false });
       if (error) {
         errors.push(...error.details.map(detail => `Params: ${detail.message}`));
+      } else {
+        req.params = value;
       }
     }
 

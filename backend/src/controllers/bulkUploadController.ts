@@ -90,18 +90,27 @@ export class BulkUploadController {
 
       console.log(`✅ Bulk upload job queued: ${jobId}`);
 
-      // Return immediately with job ID (processing happens async)
+      // Get queue position for immediate feedback
+      const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
+      const queuePosition = await QueueStatusService.getJobQueuePosition(jobId);
+
+      // Return immediately with job ID and queue position
       sendSuccess(res, {
         job_id: jobId,
         status: 'pending',
         file_name: originalName,
-        message: 'File uploaded successfully. Processing will begin shortly.',
-        queue_position: 'Job added to queue'
+        message: queuePosition
+          ? `File uploaded successfully. Your file is #${queuePosition.position} in queue.`
+          : 'File uploaded successfully. Processing will begin shortly.',
+        queue_position: queuePosition?.position || 1,
+        estimated_wait_minutes: queuePosition?.estimated_wait_minutes || 0,
+        estimated_start_time: queuePosition?.estimated_start_time || null,
+        jobs_ahead: queuePosition?.jobs_ahead || 0
       }, 'Bulk upload queued successfully');
 
     } catch (error: any) {
       console.error('❌ Error processing bulk upload:', error);
-      
+
       // Clean up uploaded file on error
       if (req.file?.path && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
@@ -729,4 +738,119 @@ export class BulkUploadController {
       sendError(res, error, error.message || 'Failed to get reports', 500);
     }
   }
+
+  // =====================================================================================
+  // QUEUE STATUS ENDPOINTS
+  // =====================================================================================
+
+  /**
+   * Get queue position for a specific job
+   * GET /api/v1/bulk-upload/queue/position/:jobId
+   * 
+   * Returns detailed queue position information including:
+   * - Current position in queue
+   * - Estimated wait time
+   * - Processing stage
+   * - Progress percentage
+   */
+  static async getQueuePosition(req: Request, res: Response): Promise<void> {
+    try {
+      const { jobId } = req.params;
+      const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
+
+      const position = await QueueStatusService.getJobQueuePosition(jobId);
+
+      if (!position) {
+        throw new NotFoundError('Job not found in queue');
+      }
+
+      sendSuccess(res, position, 'Queue position retrieved successfully');
+
+    } catch (error: any) {
+      console.error('❌ Error getting queue position:', error);
+      sendError(res, error, error.message || 'Failed to get queue position', 500);
+    }
+  }
+
+  /**
+   * Get queue status for the authenticated user's jobs
+   * GET /api/v1/bulk-upload/queue/user-status
+   * 
+   * Returns all jobs for the current user with their queue positions and status.
+   * This helps users see all their pending/processing uploads in one view.
+   */
+  static async getUserQueueStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id?.toString() || 'unknown';
+      const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
+
+      const userJobs = await QueueStatusService.getUserJobs(userId);
+
+      sendSuccess(res, {
+        user_id: userId,
+        jobs: userJobs,
+        total_jobs: userJobs.length,
+        waiting_jobs: userJobs.filter(j => j.status === 'waiting').length,
+        active_jobs: userJobs.filter(j => j.status === 'active').length,
+        completed_jobs: userJobs.filter(j => j.status === 'completed').length
+      }, 'User queue status retrieved successfully');
+
+    } catch (error: any) {
+      console.error('❌ Error getting user queue status:', error);
+      sendError(res, error, error.message || 'Failed to get user queue status', 500);
+    }
+  }
+
+  /**
+   * Get full queue dashboard status
+   * GET /api/v1/bulk-upload/queue/dashboard
+   * 
+   * Returns comprehensive queue information for dashboard display:
+   * - Overall queue statistics
+   * - User's own jobs with positions
+   * - All waiting jobs (for admins)
+   * - Currently active job
+   * - System messages (rate limits, high volume, etc.)
+   */
+  static async getQueueDashboard(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id?.toString();
+      const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
+
+      const dashboard = await QueueStatusService.getQueueDashboardStatus(userId);
+
+      sendSuccess(res, dashboard, 'Queue dashboard retrieved successfully');
+
+    } catch (error: any) {
+      console.error('❌ Error getting queue dashboard:', error);
+      sendError(res, error, error.message || 'Failed to get queue dashboard', 500);
+    }
+  }
+
+  /**
+   * Get processing stage information
+   * GET /api/v1/bulk-upload/queue/stages
+   * 
+   * Returns information about all processing stages for frontend display.
+   */
+  static async getProcessingStages(req: Request, res: Response): Promise<void> {
+    try {
+      const { STAGE_INFO, ProcessingStage } = await import('../services/bulk-upload/queueStatusService');
+
+      const stages = Object.entries(STAGE_INFO).map(([key, info]) => ({
+        stage: key,
+        ...info
+      }));
+
+      sendSuccess(res, {
+        stages,
+        stage_order: Object.values(ProcessingStage)
+      }, 'Processing stages retrieved successfully');
+
+    } catch (error: any) {
+      console.error('❌ Error getting processing stages:', error);
+      sendError(res, error, error.message || 'Failed to get processing stages', 500);
+    }
+  }
 }
+

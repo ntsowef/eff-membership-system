@@ -20,7 +20,7 @@ export class WebSocketService {
 
     this.io.use(this.authenticateSocket);
     this.io.on('connection', this.handleConnection);
-    
+
     console.log('🔌 WebSocket service initialized');
   }
 
@@ -42,7 +42,7 @@ export class WebSocketService {
 
       // Regular user authentication with JWT token
       const token = socket.handshake.auth.token ||
-                   socket.handshake.headers.authorization?.split(' ')[1];
+        socket.handshake.headers.authorization?.split(' ')[1];
 
       if (!token) {
         return next(new Error('Authentication token required'));
@@ -65,7 +65,7 @@ export class WebSocketService {
 
   private static handleConnection = (socket: any) => {
     console.log('🔌 Client connected: ' + socket.id + ' (User: ' + socket.userId + ')');
-    
+
     this.connectedClients.set(socket.id, {
       userId: socket.userId,
       userRole: socket.userRole,
@@ -75,7 +75,7 @@ export class WebSocketService {
 
     // Join user-specific room
     socket.join('user:' + socket.userId);
-    
+
     // Handle file processing subscriptions
     socket.on('subscribe_file_processing', () => {
       socket.join('file_processing');
@@ -136,6 +136,47 @@ export class WebSocketService {
       socket.emit('job_history', history);
     });
 
+    // NEW: Get user-specific queue position and job status
+    socket.on('get_user_queue_status', async () => {
+      try {
+        const { QueueStatusService } = await import('./bulk-upload/queueStatusService');
+        const userJobs = await QueueStatusService.getUserJobs(socket.userId);
+        socket.emit('user_queue_status', {
+          jobs: userJobs,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error getting user queue status:', error);
+        socket.emit('user_queue_status', { jobs: [], error: 'Failed to get queue status' });
+      }
+    });
+
+    // NEW: Get full queue dashboard status
+    socket.on('get_queue_dashboard', async () => {
+      try {
+        const { QueueStatusService } = await import('./bulk-upload/queueStatusService');
+        const dashboard = await QueueStatusService.getQueueDashboardStatus(socket.userId);
+        socket.emit('queue_dashboard', {
+          ...dashboard,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error getting queue dashboard:', error);
+        socket.emit('queue_dashboard', { error: 'Failed to get queue dashboard' });
+      }
+    });
+
+    // NEW: Subscribe to queue updates (position changes, etc.)
+    socket.on('subscribe_queue_updates', () => {
+      socket.join('queue_updates');
+      console.log('📡 User ' + socket.userId + ' subscribed to queue updates');
+    });
+
+    socket.on('unsubscribe_queue_updates', () => {
+      socket.leave('queue_updates');
+      console.log('📡 User ' + socket.userId + ' unsubscribed from queue updates');
+    });
+
     socket.on('cancel_job', async (data: { jobId: string }) => {
       await this.cancelJob(data.jobId, socket.userId);
     });
@@ -173,7 +214,7 @@ export class WebSocketService {
     try {
       const queueLength = await redisService.llen('excel_processing_queue');
       const currentJob = await this.getCurrentJob();
-      
+
       socket.emit('queue_status', {
         queueLength,
         currentJob,
@@ -232,7 +273,7 @@ export class WebSocketService {
       const job = await redisService.hgetall('job:' + jobId);
       if (job && job.status === 'queued') {
         await redisService.hset('job:' + jobId, 'status', 'cancelled');
-        
+
         this.broadcast('job_cancelled', {
           jobId,
           cancelledBy: userId,

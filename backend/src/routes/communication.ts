@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { 
-  MessageTemplateModel, 
-  CommunicationCampaignModel, 
+import {
+  MessageTemplateModel,
+  CommunicationCampaignModel,
   MessageModel,
-  CommunicationPreferencesModel 
+  CommunicationPreferencesModel
 } from '../models/communication';
 import { TemplateService, CampaignService, MessageService } from '../services/communicationService';
 import { asyncHandler, sendSuccess, sendPaginatedSuccess, NotFoundError, ValidationError } from '../middleware/errorHandler';
@@ -48,7 +48,7 @@ const checkSMSPermissions = (req: Request, res: Response, next: NextFunction): v
 const templateSchema = Joi.object({
   name: Joi.string().min(1).max(255).required(),
   description: Joi.string().max(1000).optional(),
-  template_type: Joi.string().valid('Email', 'SMS', 'In-App', 'Push').required(),
+  template_type: Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App', 'Push').required(),
   category: Joi.string().valid('System', 'Marketing', 'Announcement', 'Reminder', 'Welcome', 'Custom').default('Custom'),
   subject: Joi.string().max(500).optional(),
   content: Joi.string().min(1).required(),
@@ -61,7 +61,7 @@ const campaignSchema = Joi.object({
   description: Joi.string().max(1000).optional(),
   campaign_type: Joi.string().valid('Mass', 'Targeted', 'Individual').required(),
   template_id: Joi.number().integer().positive().optional(),
-  delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'In-App', 'Push')).min(1).required(),
+  delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App', 'Push')).min(1).required(),
   target_criteria: Joi.object({
     province_codes: Joi.array().items(Joi.string()).optional(),
     district_codes: Joi.array().items(Joi.string()).optional(),
@@ -92,7 +92,7 @@ const messageSchema = Joi.object({
   message_type: Joi.string().valid('Text', 'HTML', 'Template').default('Text'),
   template_id: Joi.number().integer().positive().optional(),
   template_data: Joi.object().optional(),
-  delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'In-App', 'Push')).min(1).required(),
+  delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App', 'Push')).min(1).required(),
   priority: Joi.string().valid('Low', 'Normal', 'High', 'Urgent').default('Normal'),
   is_reply: Joi.boolean().default(false),
   parent_message_id: Joi.number().integer().positive().optional(),
@@ -100,15 +100,16 @@ const messageSchema = Joi.object({
 });
 
 const templateFilterSchema = Joi.object({
-  template_type: Joi.array().items(Joi.string().valid('Email', 'SMS', 'In-App', 'Push')).optional(),
-  category: Joi.array().items(Joi.string().valid('System', 'Marketing', 'Announcement', 'Reminder', 'Welcome', 'Custom')).optional(),
+  template_type: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App', 'Push')).single().optional(),
+  category: Joi.array().items(Joi.string().valid('System', 'Marketing', 'Announcement', 'Reminder', 'Welcome', 'Custom')).single().optional(),
   is_active: Joi.boolean().optional(),
   created_by: Joi.number().integer().positive().optional()
 }).concat(commonSchemas.pagination);
 
 const campaignFilterSchema = Joi.object({
-  status: Joi.array().items(Joi.string().valid('Draft', 'Scheduled', 'Sending', 'Completed', 'Cancelled', 'Failed')).optional(),
-  campaign_type: Joi.array().items(Joi.string().valid('Mass', 'Targeted', 'Individual')).optional(),
+  status: Joi.array().items(Joi.string().valid('Draft', 'Scheduled', 'Sending', 'Completed', 'Cancelled', 'Failed')).single().optional(),
+  campaign_type: Joi.array().items(Joi.string().valid('Mass', 'Targeted', 'Individual')).single().optional(),
+  delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App', 'Push')).single().optional(),
   created_by: Joi.number().integer().positive().optional(),
   date_from: Joi.date().iso().optional(),
   date_to: Joi.date().iso().optional(),
@@ -121,10 +122,11 @@ const messageFilterSchema = Joi.object({
   sender_id: Joi.number().integer().positive().optional(),
   recipient_type: Joi.string().valid('Admin', 'Member', 'All').optional(),
   recipient_id: Joi.number().integer().positive().optional(),
-  delivery_status: Joi.array().items(Joi.string().valid('Draft', 'Queued', 'Sending', 'Sent', 'Delivered', 'Failed', 'Read')).optional(),
+  delivery_status: Joi.array().items(Joi.string().valid('Draft', 'Queued', 'Sending', 'Sent', 'Delivered', 'Failed', 'Read')).single().optional(),
+  delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App', 'Push')).single().optional(),
   date_from: Joi.date().iso().optional(),
   date_to: Joi.date().iso().optional(),
-  priority: Joi.array().items(Joi.string().valid('Low', 'Normal', 'High', 'Urgent')).optional()
+  priority: Joi.array().items(Joi.string().valid('Low', 'Normal', 'High', 'Urgent')).single().optional()
 }).concat(commonSchemas.pagination);
 
 // =============================================================================
@@ -180,7 +182,7 @@ router.get('/templates/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const template = await MessageTemplateModel.getTemplateById(parseInt(id));
-    
+
     if (!template) {
       throw new NotFoundError('Template not found');
     }
@@ -198,7 +200,7 @@ router.post('/templates',
   asyncHandler(async (req: Request, res: Response) => {
     const templateData: CreateTemplateData = req.body;
     const createdBy = (req as any).user?.id; // From auth middleware
-    
+
     const templateId = await TemplateService.createTemplate(templateData, createdBy);
     const template = await MessageTemplateModel.getTemplateById(templateId);
 
@@ -215,7 +217,7 @@ router.put('/templates/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const templateData: UpdateTemplateData = req.body;
-    
+
     const updated = await MessageTemplateModel.updateTemplate(parseInt(id), templateData);
     if (!updated) {
       throw new NotFoundError('Template not found');
@@ -232,7 +234,7 @@ router.delete('/templates/:id',
   requirePermission('communication.templates.delete'),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    
+
     const deleted = await MessageTemplateModel.deleteTemplate(parseInt(id));
     if (!deleted) {
       throw new NotFoundError('Template not found');
@@ -246,7 +248,7 @@ router.delete('/templates/:id',
 router.post('/templates/:id/preview',
   authenticate,
   requirePermission('communication.templates.read'),
-  validate({ 
+  validate({
     body: Joi.object({
       template_data: Joi.object().optional()
     })
@@ -254,7 +256,7 @@ router.post('/templates/:id/preview',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { template_data = {} } = req.body;
-    
+
     const template = await MessageTemplateModel.getTemplateById(parseInt(id));
     if (!template) {
       throw new NotFoundError('Template not found');
@@ -285,7 +287,8 @@ router.get('/campaigns',
       created_by,
       date_from,
       date_to,
-      template_id
+      template_id,
+      delivery_channels
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -298,7 +301,8 @@ router.get('/campaigns',
       created_by: created_by ? parseInt(created_by as string) : undefined,
       date_from: date_from as string,
       date_to: date_to as string,
-      template_id: template_id ? parseInt(template_id as string) : undefined
+      template_id: template_id ? parseInt(template_id as string) : undefined,
+      delivery_channels: delivery_channels as any
     };
 
     const [campaigns, total] = await Promise.all([
@@ -322,7 +326,7 @@ router.get('/campaigns/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const campaign = await CommunicationCampaignModel.getCampaignById(parseInt(id));
-    
+
     if (!campaign) {
       throw new NotFoundError('Campaign not found');
     }
@@ -340,7 +344,7 @@ router.post('/campaigns',
   asyncHandler(async (req: Request, res: Response) => {
     const campaignData: CreateCampaignData = req.body;
     const createdBy = (req as any).user?.id || 1; // From auth middleware
-    
+
     const campaignId = await CampaignService.createCampaign(campaignData, createdBy);
     const campaign = await CommunicationCampaignModel.getCampaignById(campaignId);
 
@@ -356,7 +360,7 @@ router.put('/campaigns/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const campaignData: UpdateCampaignData = req.body;
-    
+
     const updated = await CommunicationCampaignModel.updateCampaign(parseInt(id), campaignData);
     if (!updated) {
       throw new NotFoundError('Campaign not found');
@@ -373,7 +377,7 @@ router.post('/campaigns/:id/launch',
   requirePermission('communication.campaigns.send'),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    
+
     const success = await CampaignService.launchCampaign(parseInt(id));
     if (!success) {
       throw new Error('Failed to launch campaign');
@@ -391,10 +395,10 @@ router.get('/campaigns/:id/recipients',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { limit = 10 } = req.query;
-    
+
     const recipients = await CampaignService.getCampaignRecipients(parseInt(id));
     const preview = recipients.slice(0, parseInt(limit as string));
-    
+
     sendSuccess(res, {
       total_recipients: recipients.length,
       preview_recipients: preview
@@ -425,7 +429,8 @@ router.get('/messages',
       delivery_status,
       date_from,
       date_to,
-      priority
+      priority,
+      delivery_channels
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -441,7 +446,8 @@ router.get('/messages',
       delivery_status: delivery_status as any,
       date_from: date_from as string,
       date_to: date_to as string,
-      priority: priority as any
+      priority: priority as any,
+      delivery_channels: delivery_channels as any
     };
 
     const [messages, total] = await Promise.all([
@@ -592,6 +598,7 @@ router.put('/preferences/:memberId',
     body: Joi.object({
       email_enabled: Joi.boolean().optional(),
       sms_enabled: Joi.boolean().optional(),
+      whatsapp_enabled: Joi.boolean().optional(),
       in_app_enabled: Joi.boolean().optional(),
       push_enabled: Joi.boolean().optional(),
       marketing_emails: Joi.boolean().optional(),
@@ -634,9 +641,9 @@ router.get('/analytics/summary',
     query: Joi.object({
       date_from: Joi.date().iso().optional(),
       date_to: Joi.date().iso().optional(),
-      campaign_ids: Joi.array().items(Joi.number().integer()).optional(),
-      delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'In-App')).optional(),
-      province_codes: Joi.array().items(Joi.string()).optional()
+      campaign_ids: Joi.array().items(Joi.number().integer()).single().optional(),
+      delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App')).single().optional(),
+      province_codes: Joi.array().items(Joi.string()).single().optional()
     })
   }),
   asyncHandler(async (req: Request, res: Response) => {
@@ -662,7 +669,7 @@ router.get('/analytics/campaigns/compare',
   requirePermission('communication.analytics.read'),
   validate({
     query: Joi.object({
-      campaign_ids: Joi.array().items(Joi.number().integer()).min(1).max(10).required()
+      campaign_ids: Joi.array().items(Joi.number().integer()).min(1).max(10).single().required()
     })
   }),
   asyncHandler(async (req: Request, res: Response) => {
@@ -683,7 +690,7 @@ router.get('/analytics/engagement-trends',
     query: Joi.object({
       date_from: Joi.date().iso().optional(),
       date_to: Joi.date().iso().optional(),
-      delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'In-App')).optional()
+      delivery_channels: Joi.array().items(Joi.string().valid('Email', 'SMS', 'WhatsApp', 'In-App')).single().optional()
     })
   }),
   asyncHandler(async (req: Request, res: Response) => {

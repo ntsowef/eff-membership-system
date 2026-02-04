@@ -280,8 +280,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       throw new AuthenticationError('User not found or inactive');
     }
 
-    // Check if user requires MFA and has valid OTP session
-    const requiresMFA = OTPService.requiresMFA(user.admin_level || '', user.role_code);
+    // Check if user requires MFA and has valid OTP session (with bypass check)
+    const requiresMFA = await OTPService.requiresMFAWithBypassCheck(user.id, user.admin_level || '', user.role_code);
 
     if (requiresMFA) {
       // Check for OTP session token in headers
@@ -586,8 +586,8 @@ export const createAuthRoutes = () => {
 
         console.log(`✅ Password verified for user: ${user.name}`);
 
-        // User authenticated successfully - now check if MFA is required
-        const requiresMFA = OTPService.requiresMFA(user.admin_level || '', user.role_code);
+        // User authenticated successfully - now check if MFA is required (with bypass check)
+        const requiresMFA = await OTPService.requiresMFAWithBypassCheck(user.id, user.admin_level || '', user.role_code);
 
         if (requiresMFA) {
           console.log(`🔐 MFA required for user: ${user.name} (${user.admin_level})`);

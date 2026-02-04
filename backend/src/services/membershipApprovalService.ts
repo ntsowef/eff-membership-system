@@ -1,6 +1,8 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import { MembershipApplicationModel } from '../models/membershipApplications';
+import { renderTemplateString } from '../utils/templateRenderer';
+import { SMSService } from './smsService';
 
 export interface ApprovalResult {
   success: boolean;
@@ -84,6 +86,18 @@ export class MembershipApprovalService {
 
         // Commit transaction
         await executeQuery('COMMIT');
+
+        // 4. Send welcome SMS (non-blocking - don't fail approval if SMS fails)
+        if (application.cell_number) {
+          this.sendWelcomeSMS(
+            application.cell_number,
+            application.first_name,
+            application.last_name,
+            result.membership_number
+          ).catch((err: Error) => {
+            console.error('⚠️ Welcome SMS failed (non-blocking):', err.message);
+          });
+        }
 
         return {
           success: true,
@@ -435,7 +449,7 @@ export class MembershipApprovalService {
   static async getApprovalStatistics(): Promise<any> {
     try {
       const query = `
-        SELECT 
+        SELECT
           COUNT(*) as total_applications,
           SUM(CASE WHEN status = 'Submitted' THEN 1 ELSE 0 END) as pending_approval,
           SUM(CASE WHEN status = 'Under Review' THEN 1 ELSE 0 END) as under_review,
@@ -450,6 +464,59 @@ export class MembershipApprovalService {
 
     } catch (error) {
       throw createDatabaseError('Failed to get approval statistics', error);
+    }
+  }
+
+  /**
+   * Send welcome SMS to newly approved member
+   * Fetches WELCOME template from sms_templates and personalizes it
+   */
+  private static async sendWelcomeSMS(
+    cellNumber: string,
+    firstName: string,
+    lastName: string,
+    membershipNumber: string
+  ): Promise<void> {
+    try {
+      // Fetch the WELCOME template
+      const template = await executeQuerySingle<{ message_template: string }>(
+        `SELECT message_template FROM sms_templates
+         WHERE template_code = 'WELCOME' AND is_active = true
+         LIMIT 1`
+      );
+
+      if (!template || !template.message_template) {
+        console.log('⚠️ No active WELCOME SMS template found - skipping welcome SMS');
+        return;
+      }
+
+      // Build variables for template personalization
+      const variables = {
+        firstname: firstName,
+        surname: lastName,
+        lastname: lastName,
+        membership_number: membershipNumber,
+        membershipnumber: membershipNumber
+      };
+
+      // Render the template with personalized data
+      const personalizedMessage = renderTemplateString(
+        template.message_template,
+        variables,
+        { keepUnmatched: false }
+      );
+
+      // Send SMS via the SMS service
+      const result = await SMSService.sendSMS(cellNumber, personalizedMessage, 'EFF');
+
+      if (result.success) {
+        console.log(`✅ Welcome SMS sent to ${cellNumber} (ID: ${result.messageId})`);
+      } else {
+        console.error(`❌ Welcome SMS failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Error sending welcome SMS:', error);
+      throw error;
     }
   }
 }

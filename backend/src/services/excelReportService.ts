@@ -911,6 +911,214 @@ export class ExcelReportService {
   }
 
   /**
+   * Generate Expired Members Excel Report
+   * Lists members whose membership has expired
+   */
+  static async generateExpiredMembersReport(filters: {
+    province_code?: string;
+  } = {}): Promise<Buffer> {
+    try {
+      const { province_code } = filters;
+
+      // Create workbook with ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'EFF Membership System';
+      workbook.created = new Date();
+
+      // Query for expired members
+      const expiredMembersQuery = `
+        SELECT
+          CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
+          m.id_number AS "ID Number",
+          m.cell_number AS "Phone Number",
+          m.province_name AS "Province",
+          m.municipality_name AS "Municipality",
+          m.ward_code AS "Ward",
+          m.expiry_date AS "Expiry Date",
+          (CURRENT_DATE - m.expiry_date::DATE) AS "Days Expired"
+        FROM members_consolidated m
+        WHERE m.expiry_date::DATE < CURRENT_DATE
+          AND m.expiry_date IS NOT NULL
+          ${province_code ? 'AND m.province_code = $1' : ''}
+        ORDER BY m.province_name, m.municipality_name, m.expiry_date DESC
+      `;
+
+      const params = province_code ? [province_code] : [];
+      const expiredMembers = await executeQuery(expiredMembersQuery, params);
+
+      // Create worksheet
+      const worksheet = workbook.addWorksheet('Expired Members');
+
+      // Define columns
+      worksheet.columns = [
+        { header: 'Full Name', key: 'Full Name', width: 35 },
+        { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Phone Number', key: 'Phone Number', width: 18 },
+        { header: 'Province', key: 'Province', width: 20 },
+        { header: 'Municipality', key: 'Municipality', width: 30 },
+        { header: 'Ward', key: 'Ward', width: 15 },
+        { header: 'Expiry Date', key: 'Expiry Date', width: 15 },
+        { header: 'Days Expired', key: 'Days Expired', width: 15 }
+      ];
+
+      // Add data rows
+      expiredMembers.forEach((row: any) => {
+        worksheet.addRow({
+          'Full Name': row['Full Name'],
+          'ID Number': row['ID Number'],
+          'Phone Number': row['Phone Number'],
+          'Province': row['Province'],
+          'Municipality': row['Municipality'],
+          'Ward': row['Ward'],
+          'Expiry Date': row['Expiry Date'] ? new Date(row['Expiry Date']).toISOString().split('T')[0] : '',
+          'Days Expired': row['Days Expired']
+        });
+      });
+
+      // Apply styling
+      this.styleExcelJSSheet(worksheet, expiredMembers.length, 8);
+
+      // Generate buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+      return Buffer.from(buffer);
+
+    } catch (error: any) {
+      throw new Error(`Failed to generate expired members Excel report: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate Not Registered Members Excel Report
+   * Lists members who are not registered to vote (voting_district_code = '99999999')
+   */
+  static async generateNotRegisteredMembersReport(filters: {
+    province_code?: string;
+  } = {}): Promise<Buffer> {
+    try {
+      const { province_code } = filters;
+
+      // Create workbook with ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'EFF Membership System';
+      workbook.created = new Date();
+
+      // Query for not registered members
+      const notRegisteredQuery = `
+        SELECT
+          CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
+          m.id_number AS "ID Number",
+          m.province_name AS "Province",
+          m.municipality_name AS "Municipality",
+          m.ward_code AS "Ward",
+          CASE
+            WHEN m.membership_status_id = 1 THEN 'Active'
+            WHEN m.membership_status_id = 2 THEN 'Expired'
+            WHEN m.membership_status_id = 3 THEN 'Suspended'
+            WHEN m.membership_status_id = 4 THEN 'Cancelled'
+            WHEN m.membership_status_id = 5 THEN 'Pending'
+            WHEN m.membership_status_id = 7 THEN 'Paid - Pending Approval'
+            WHEN m.membership_status_id = 8 THEN 'Honorary'
+            ELSE 'Unknown'
+          END AS "Membership Status"
+        FROM members_consolidated m
+        WHERE m.voting_district_code = '99999999'
+          ${province_code ? 'AND m.province_code = $1' : ''}
+        ORDER BY m.province_name, m.municipality_name, m.surname
+      `;
+
+      const params = province_code ? [province_code] : [];
+      const notRegisteredMembers = await executeQuery(notRegisteredQuery, params);
+
+      // Create worksheet
+      const worksheet = workbook.addWorksheet('Not Registered Members');
+
+      // Define columns
+      worksheet.columns = [
+        { header: 'Full Name', key: 'Full Name', width: 35 },
+        { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Province', key: 'Province', width: 20 },
+        { header: 'Municipality', key: 'Municipality', width: 30 },
+        { header: 'Ward', key: 'Ward', width: 15 },
+        { header: 'Membership Status', key: 'Membership Status', width: 25 }
+      ];
+
+      // Add data rows
+      notRegisteredMembers.forEach((row: any) => worksheet.addRow(row));
+
+      // Apply styling
+      this.styleExcelJSSheet(worksheet, notRegisteredMembers.length, 6);
+
+      // Generate buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+      return Buffer.from(buffer);
+
+    } catch (error: any) {
+      throw new Error(`Failed to generate not registered members Excel report: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate Different Ward Members Excel Report
+   * Lists members registered to a different ward than their membership ward (voting_district_code = '22222222')
+   */
+  static async generateDifferentWardMembersReport(filters: {
+    province_code?: string;
+  } = {}): Promise<Buffer> {
+    try {
+      const { province_code } = filters;
+
+      // Create workbook with ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'EFF Membership System';
+      workbook.created = new Date();
+
+      // Query for different ward members
+      const differentWardQuery = `
+        SELECT
+          CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
+          m.id_number AS "ID Number",
+          m.ward_code AS "Membership Ward",
+          m.voter_district_code AS "Registered Ward",
+          m.province_name AS "Province",
+          m.municipality_name AS "Municipality"
+        FROM members_consolidated m
+        WHERE m.voting_district_code = '22222222'
+          ${province_code ? 'AND m.province_code = $1' : ''}
+        ORDER BY m.province_name, m.municipality_name, m.surname
+      `;
+
+      const params = province_code ? [province_code] : [];
+      const differentWardMembers = await executeQuery(differentWardQuery, params);
+
+      // Create worksheet
+      const worksheet = workbook.addWorksheet('Different Ward Members');
+
+      // Define columns
+      worksheet.columns = [
+        { header: 'Full Name', key: 'Full Name', width: 35 },
+        { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Membership Ward', key: 'Membership Ward', width: 20 },
+        { header: 'Registered Ward', key: 'Registered Ward', width: 20 },
+        { header: 'Province', key: 'Province', width: 20 },
+        { header: 'Municipality', key: 'Municipality', width: 30 }
+      ];
+
+      // Add data rows
+      differentWardMembers.forEach((row: any) => worksheet.addRow(row));
+
+      // Apply styling
+      this.styleExcelJSSheet(worksheet, differentWardMembers.length, 6);
+
+      // Generate buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+      return Buffer.from(buffer);
+
+    } catch (error: any) {
+      throw new Error(`Failed to generate different ward members Excel report: ${error.message}`);
+    }
+  }
+
+  /**
    * Save Excel report to file
    */
   static async saveReportToFile(buffer: Buffer, fileName: string): Promise<string> {

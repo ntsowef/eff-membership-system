@@ -94,6 +94,129 @@ router.get('/srpa-delegates',
 );
 
 /**
+ * GET /api/v1/reports/expired-members
+ * Generate expired members report
+ */
+router.get('/expired-members',
+  authenticate,
+  requirePermission('reports.read'),
+  validate({
+    query: Joi.object({
+      province_code: Joi.string().optional(),
+      format: Joi.string().valid('excel', 'pdf').default('excel')
+    })
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { province_code, format = 'excel' } = req.query;
+
+    if (format === 'excel') {
+      // Generate Excel report
+      const excelBuffer = await ExcelReportService.generateExpiredMembersReport({
+        province_code: province_code as string
+      });
+
+      // Set response headers for Excel download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="expired-members-report-${new Date().toISOString().split('T')[0]}.xlsx"`);
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      return res.send(excelBuffer);
+    } else {
+      return res.status(501).json({
+        success: false,
+        message: 'PDF format for expired members report is not yet implemented',
+        data: {
+          format: format,
+          note: 'Excel export is available. PDF format will be available in a future update.'
+        }
+      });
+    }
+  })
+);
+
+/**
+ * GET /api/v1/reports/not-registered
+ * Generate not registered members report (voting_district_code = '99999999')
+ */
+router.get('/not-registered',
+  authenticate,
+  requirePermission('reports.read'),
+  validate({
+    query: Joi.object({
+      province_code: Joi.string().optional(),
+      format: Joi.string().valid('excel', 'pdf').default('excel')
+    })
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { province_code, format = 'excel' } = req.query;
+
+    if (format === 'excel') {
+      // Generate Excel report
+      const excelBuffer = await ExcelReportService.generateNotRegisteredMembersReport({
+        province_code: province_code as string
+      });
+
+      // Set response headers for Excel download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="not-registered-members-report-${new Date().toISOString().split('T')[0]}.xlsx"`);
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      return res.send(excelBuffer);
+    } else {
+      return res.status(501).json({
+        success: false,
+        message: 'PDF format for not registered members report is not yet implemented',
+        data: {
+          format: format,
+          note: 'Excel export is available. PDF format will be available in a future update.'
+        }
+      });
+    }
+  })
+);
+
+/**
+ * GET /api/v1/reports/different-ward
+ * Generate different ward members report (voting_district_code = '22222222')
+ */
+router.get('/different-ward',
+  authenticate,
+  requirePermission('reports.read'),
+  validate({
+    query: Joi.object({
+      province_code: Joi.string().optional(),
+      format: Joi.string().valid('excel', 'pdf').default('excel')
+    })
+  }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { province_code, format = 'excel' } = req.query;
+
+    if (format === 'excel') {
+      // Generate Excel report
+      const excelBuffer = await ExcelReportService.generateDifferentWardMembersReport({
+        province_code: province_code as string
+      });
+
+      // Set response headers for Excel download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="different-ward-members-report-${new Date().toISOString().split('T')[0]}.xlsx"`);
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      return res.send(excelBuffer);
+    } else {
+      return res.status(501).json({
+        success: false,
+        message: 'PDF format for different ward members report is not yet implemented',
+        data: {
+          format: format,
+          note: 'Excel export is available. PDF format will be available in a future update.'
+        }
+      });
+    }
+  })
+);
+
+/**
  * POST /api/v1/reports/generate-all
  * Generate all three reports and save to reports directory
  */

@@ -308,7 +308,7 @@ router.get('/dashboard/stats', authenticate, requireSMSPermission(), async (req:
     `);
 
     const recentCampaignsResult = await executeQuery(`
-      SELECT id, name, status, created_at, messages_sent, messages_delivered
+      SELECT campaign_id, campaign_name, status, created_at, messages_sent, messages_delivered
       FROM sms_campaigns
       ORDER BY created_at DESC
       LIMIT 5
@@ -317,13 +317,18 @@ router.get('/dashboard/stats', authenticate, requireSMSPermission(), async (req:
     const campaignStats = Array.isArray(campaignStatsResult) ? campaignStatsResult : campaignStatsResult[0] || [];
     const templateStats = Array.isArray(templateStatsResult) ? templateStatsResult : templateStatsResult[0] || [];
     const recentCampaigns = Array.isArray(recentCampaignsResult) ? recentCampaignsResult : recentCampaignsResult[0] || [];
+    const processedRecentCampaigns = recentCampaigns.map((c: any) => ({
+      ...c,
+      id: c.campaign_id,
+      name: c.campaign_name
+    }));
 
     res.json({
       success: true,
       data: {
         campaign_statistics: campaignStats[0] || {},
         template_statistics: templateStats[0] || {},
-        recent_campaigns: recentCampaigns
+        recent_campaigns: processedRecentCampaigns
       }
     });
   } catch (error: any) {
@@ -345,10 +350,10 @@ router.post('/mock-send', authenticate, requireSMSPermission(), async (req: Requ
 
     // Simulate SMS sending
     const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Mock success/failure (90% success rate)
     const success = Math.random() > 0.1;
-    
+
     if (success) {
       res.json({
         success: true,

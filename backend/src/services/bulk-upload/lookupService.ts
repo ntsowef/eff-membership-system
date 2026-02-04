@@ -487,13 +487,18 @@ export class LookupService {
     fileWardCode?: string | null,
     iecWardCode?: string | null
   ): string | null {
+    // Check voter status for special cases (deceased, international, not verified, etc.)
+    const status = voterStatus?.toUpperCase() || '';
+
+    // Status-based special codes (take precedence over registration flag)
+    if (status === 'NOT VERIFIED' || status === 'VERIFICATION FAILED' || status.includes('LIMIT')) {
+      return '77777777'; // Special code for unverified records
+    }
+
     // Not registered voters get special code
     if (!isRegistered) {
       return '99999999';
     }
-
-    // Check voter status for special cases (deceased, international, etc.)
-    const status = voterStatus?.toUpperCase() || '';
     if (status.includes('DECEASED')) {
       return '11111111';
     }
@@ -632,8 +637,13 @@ export class LookupService {
       return { voterRegistrationId: 3, isRegisteredVoter: null };
     }
 
-    if (NOT_REGISTERED_CODES.has(vdCodeStr)) {
-      // Not Registered to vote
+    if (vdCodeStr === '77777777') {
+      // Verification Failed / Rate Limit hit
+      return { voterRegistrationId: 4, isRegisteredVoter: null };
+    }
+
+    if (NOT_REGISTERED_CODES.has(vdCodeStr) || vdCodeStr === '11111111') {
+      // Not Registered to vote (including Deceased)
       return { voterRegistrationId: 2, isRegisteredVoter: false };
     }
 

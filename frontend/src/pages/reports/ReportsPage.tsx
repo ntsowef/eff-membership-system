@@ -22,7 +22,13 @@ import {
   Alert,
   Snackbar,
   TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { geographicApi } from '../../services/api';
 import {
   Assessment,
   PictureAsPdf,
@@ -40,6 +46,9 @@ import {
   CalendarMonth,
   Groups,
   CalendarToday,
+  EventBusy,
+  HowToReg,
+  CompareArrows,
 } from '@mui/icons-material';
 import PerformanceDashboard from '../../components/reports/PerformanceDashboard';
 import StrategicInsights from '../../components/reports/StrategicInsights';
@@ -76,6 +85,20 @@ const ReportsPage: React.FC = () => {
     ward_code: '',
   });
 
+  // Fetch provinces for dropdown
+  const { data: provincesData } = useQuery({
+    queryKey: ['provinces'],
+    queryFn: () => geographicApi.getProvinces(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Extract provinces array from API response
+  const provinces = Array.isArray(provincesData?.data?.data)
+    ? provincesData.data.data
+    : Array.isArray(provincesData?.data)
+    ? provincesData.data
+    : [];
+
   // Excel Report Download Handler
   const handleDownloadExcelReport = async (reportType: string) => {
     setIsDownloading(true);
@@ -100,6 +123,21 @@ const ReportsPage: React.FC = () => {
             province_code: reportFilters.province_code,
             municipality_code: reportFilters.municipality_code,
             ward_code: reportFilters.ward_code,
+          });
+          break;
+        case 'expired-members':
+          result = await reportsApi.downloadExpiredMembersReport({
+            province_code: reportFilters.province_code,
+          });
+          break;
+        case 'not-registered':
+          result = await reportsApi.downloadNotRegisteredMembersReport({
+            province_code: reportFilters.province_code,
+          });
+          break;
+        case 'different-ward':
+          result = await reportsApi.downloadDifferentWardMembersReport({
+            province_code: reportFilters.province_code,
           });
           break;
         default:
@@ -309,6 +347,78 @@ const ReportsPage: React.FC = () => {
                   fullWidth
                   startIcon={isDownloading && downloadingReport === 'srpa-delegates' ? <CircularProgress size={16} /> : <Download />}
                   onClick={() => handleOpenFilterDialog('srpa-delegates')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <EventBusy color="error" />
+                  <Typography variant="h6">Expired Members</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  List of members whose membership has expired with days since expiry
+                </Typography>
+                <Chip label="1 Worksheet" size="small" color="error" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="error"
+                  startIcon={isDownloading && downloadingReport === 'expired-members' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('expired-members')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <HowToReg color="warning" />
+                  <Typography variant="h6">Not Registered Members</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Members who are not registered to vote (voting status unknown)
+                </Typography>
+                <Chip label="1 Worksheet" size="small" color="warning" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="warning"
+                  startIcon={isDownloading && downloadingReport === 'not-registered' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('not-registered')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <CompareArrows color="info" />
+                  <Typography variant="h6">Different Ward Members</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Members registered to a different ward than their membership ward
+                </Typography>
+                <Chip label="1 Worksheet" size="small" color="info" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="info"
+                  startIcon={isDownloading && downloadingReport === 'different-ward' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('different-ward')}
                   disabled={isDownloading}
                 >
                   Download Report
@@ -648,6 +758,9 @@ const ReportsPage: React.FC = () => {
           {selectedExcelReport === 'ward-audit' && 'Ward Audit Report Filters'}
           {selectedExcelReport === 'daily-report' && 'Daily Report Filters'}
           {selectedExcelReport === 'srpa-delegates' && 'SRPA Delegates Report Filters'}
+          {selectedExcelReport === 'expired-members' && 'Expired Members Report Filters'}
+          {selectedExcelReport === 'not-registered' && 'Not Registered Members Report Filters'}
+          {selectedExcelReport === 'different-ward' && 'Different Ward Members Report Filters'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -681,10 +794,33 @@ const ReportsPage: React.FC = () => {
                 helperText="Leave empty for all wards"
               />
             )}
+            {(selectedExcelReport === 'expired-members' || selectedExcelReport === 'not-registered' || selectedExcelReport === 'different-ward') && (
+              <FormControl fullWidth>
+                <InputLabel id="province-select-label">Province (Optional)</InputLabel>
+                <Select
+                  labelId="province-select-label"
+                  value={reportFilters.province_code}
+                  onChange={(e) => setReportFilters({ ...reportFilters, province_code: e.target.value })}
+                  label="Province (Optional)"
+                >
+                  <MenuItem value="">
+                    <em>All Provinces</em>
+                  </MenuItem>
+                  {provinces.map((province: { province_code: string; province_name: string }) => (
+                    <MenuItem key={province.province_code} value={province.province_code}>
+                      {province.province_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             <Alert severity="info">
               {selectedExcelReport === 'ward-audit' && 'This report contains 2 worksheets: Provincial Summary and Municipality Detail'}
               {selectedExcelReport === 'daily-report' && 'This report contains 2 worksheets: Municipality/District Analysis and IEC Wards Master List (~4,400 wards)'}
               {selectedExcelReport === 'srpa-delegates' && 'This report contains 10 worksheets: 9 provinces + National Summary'}
+              {selectedExcelReport === 'expired-members' && 'This report lists members whose membership has expired, including Member ID, Full Name, ID Number, Province, Municipality, Ward, Expiry Date, and Days Expired'}
+              {selectedExcelReport === 'not-registered' && 'This report lists members who are not registered to vote (voting_district_code = 99999999), including Member ID, Full Name, ID Number, Province, Municipality, Ward, and Membership Status'}
+              {selectedExcelReport === 'different-ward' && 'This report lists members registered to a different ward than their membership ward (voting_district_code = 22222222), including Member ID, Full Name, ID Number, Membership Ward, Registered Ward, Province, and Municipality'}
             </Alert>
           </Box>
         </DialogContent>

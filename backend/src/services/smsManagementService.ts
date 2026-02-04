@@ -1,5 +1,6 @@
 import { executeQuery } from '../config/database';
 import axios from 'axios';
+import { renderTemplateString } from '../utils/templateRenderer';
 
 // Create a simple logger if it doesn't exist
 const logger = {
@@ -69,13 +70,16 @@ export class SMSManagementService {
   static async createTemplate(template: SMSTemplate): Promise<number> {
     try {
       const result = await executeQuery(`
-        INSERT INTO sms_templates (template_name, template_content, template_type, is_active, created_by)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO sms_templates (template_name, template_code, message_template, category, subject, variables, is_active, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING template_id
       `, [
         template.name,
+        template.name.toUpperCase().replace(/\s+/g, '_'), // Generate template_code from name
         template.content,
         template.category,
+        template.description || '',
+        JSON.stringify(template.variables || []),
         template.is_active,
         template.created_by
       ]);
@@ -112,7 +116,7 @@ export class SMSManagementService {
       }
 
       if (filters.search) {
-        query += ` AND (template_name ILIKE $${paramIndex} OR template_content ILIKE $${paramIndex + 1})`;
+        query += ` AND (template_name ILIKE $${paramIndex} OR message_template ILIKE $${paramIndex + 1})`;
         const searchTerm = '%' + filters.search + '%';
         params.push(searchTerm, searchTerm);
         paramIndex += 2;
@@ -127,9 +131,9 @@ export class SMSManagementService {
         id: template.template_id,
         name: template.template_name,
         description: template.subject || '',
-        content: template.template_content || template.message_template,
+        content: template.message_template,
         variables: template.variables ? (typeof template.variables === 'string' ? JSON.parse(template.variables) : template.variables) : [],
-        category: template.category || template.template_type,
+        category: template.category,
         is_active: template.is_active,
         created_by: template.created_by
       }));
@@ -146,7 +150,7 @@ export class SMSManagementService {
         [id]
       );
 
-      const templates = Array.isArray(result) ? result  : result[0] || [];
+      const templates = Array.isArray(result) ? result : result[0] || [];
       if (templates.length === 0) return null;
 
       const template = templates[0];
@@ -154,9 +158,9 @@ export class SMSManagementService {
         id: template.template_id,
         name: template.template_name,
         description: template.subject || '',
-        content: template.template_content || template.message_template,
+        content: template.message_template,
         variables: template.variables ? (typeof template.variables === 'string' ? JSON.parse(template.variables) : template.variables) : [],
-        category: template.category || template.template_type,
+        category: template.category,
         is_active: template.is_active,
         created_by: template.created_by
       };
@@ -178,8 +182,18 @@ export class SMSManagementService {
         paramIndex++;
       }
       if (updates.content !== undefined) {
-        setClause.push(`template_content = $${paramIndex}`);
+        setClause.push(`message_template = $${paramIndex}`);
         params.push(updates.content);
+        paramIndex++;
+      }
+      if (updates.description !== undefined) {
+        setClause.push(`subject = $${paramIndex}`);
+        params.push(updates.description);
+        paramIndex++;
+      }
+      if (updates.variables !== undefined) {
+        setClause.push(`variables = $${paramIndex}`);
+        params.push(JSON.stringify(updates.variables));
         paramIndex++;
       }
       if (updates.category !== undefined) {
@@ -220,7 +234,7 @@ export class SMSManagementService {
         [id]
       );
 
-      const result = Array.isArray(deleteResult) ? deleteResult[0]  : deleteResult;
+      const result = Array.isArray(deleteResult) ? deleteResult[0] : deleteResult;
       logger.info('SMS template deleted: ' + id, { affectedRows: result.rowCount });
       return result.rowCount > 0;
     } catch (error: any) {
@@ -234,10 +248,10 @@ export class SMSManagementService {
     try {
       const createResult = await executeQuery(`
         INSERT INTO sms_campaigns (
-          name, description, template_id, message_content, target_type, target_criteria,
+          campaign_name, description, template_id, message_content, target_type, target_criteria,
           status, scheduled_at, priority, send_rate_limit, retry_failed, max_retries, created_by
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING id
+        RETURNING campaign_id
       `, [
         campaign.name,
         campaign.description || null,
@@ -255,8 +269,8 @@ export class SMSManagementService {
       ]);
 
       const result = Array.isArray(createResult) ? createResult[0] : createResult;
-      logger.info('SMS campaign created: ' + campaign.name, { campaignId: result.id });
-      return result.id;
+      logger.info('SMS campaign created: ' + campaign.name, { campaignId: result.campaign_id });
+      return result.campaign_id;
     } catch (error: any) {
       logger.error('Failed to create SMS campaign', { error: error.message, campaign });
       throw error;
@@ -299,7 +313,7 @@ export class SMSManagementService {
       }
 
       if (filters.search) {
-        whereClause += ` AND (name ILIKE $${paramIndex} OR description ILIKE $${paramIndex + 1})`;
+        whereClause += ` AND (campaign_name ILIKE $${paramIndex} OR description ILIKE $${paramIndex + 1})`;
         const searchTerm = '%' + filters.search + '%';
         params.push(searchTerm, searchTerm);
         paramIndex += 2;
@@ -327,6 +341,8 @@ export class SMSManagementService {
       const campaigns = Array.isArray(campaignsResultData) ? campaignsResultData : campaignsResultData[0] || [];
       const processedCampaigns = campaigns.map((campaign: any) => ({
         ...campaign,
+        id: campaign.campaign_id,
+        name: campaign.campaign_name,
         target_criteria: JSON.parse(campaign.target_criteria || '{}')
       }));
 
@@ -352,15 +368,17 @@ export class SMSManagementService {
         SELECT c.*, t.template_name as template_name
         FROM sms_campaigns c
         LEFT JOIN sms_templates t ON c.template_id = t.template_id
-        WHERE c.id = $1
+        WHERE c.campaign_id = $1
       `, [id]);
 
-      const campaigns = Array.isArray(campaignsResultData) ? campaignsResultData  : campaignsResultData[0] || [];
+      const campaigns = Array.isArray(campaignsResultData) ? campaignsResultData : campaignsResultData[0] || [];
       if (campaigns.length === 0) return null;
 
       const campaign = campaigns[0];
       return {
         ...campaign,
+        id: campaign.campaign_id,
+        name: campaign.campaign_name,
         target_criteria: JSON.parse(campaign.target_criteria || '{}')
       };
     } catch (error: any) {
@@ -371,14 +389,7 @@ export class SMSManagementService {
 
   // Message Processing
   static async processMessageVariables(content: string, variables: any): Promise<string> {
-    let processedContent = content;
-    
-    Object.keys(variables).forEach(key => {
-      const placeholder = '{' + key + '}';
-      processedContent = processedContent.replace(new RegExp(placeholder, 'g'), variables[key] || '');
-    });
-
-    return processedContent;
+    return renderTemplateString(content, variables || {}, { keepUnmatched: true });
   }
 
   static async calculateSMSParts(content: string): Promise<number> {
@@ -397,13 +408,13 @@ export class SMSManagementService {
           SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
           SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
-          SUM(total_cost) as total_cost,
-          AVG(sms_parts) as avg_sms_parts
+          SUM(cost_per_message) as total_cost,
+          NULL as avg_sms_parts
         FROM sms_messages
         WHERE campaign_id = $1
       `, [campaignId]);
 
-      const stats = Array.isArray(statsResultData) ? statsResultData  : statsResultData[0] || [];
+      const stats = Array.isArray(statsResultData) ? statsResultData : statsResultData[0] || [];
       return stats[0] || {
         total_messages: 0,
         sent_count: 0,
@@ -429,7 +440,7 @@ export class SMSManagementService {
 
       const sentTodayResult = await executeQuery(`
         SELECT COUNT(*) as count FROM sms_messages
-        WHERE DATE(created_at) = CURRENT_DATE AND status = 'sent'
+        WHERE created_at::date = CURRENT_DATE AND status = 'sent'
       `);
       const sentToday = Array.isArray(sentTodayResult) ? sentTodayResult[0]?.count || 0 : 0;
 
@@ -440,7 +451,7 @@ export class SMSManagementService {
       const activeCampaigns = Array.isArray(activeCampaignsResult) ? activeCampaignsResult[0]?.count || 0 : 0;
 
       const totalCostResult = await executeQuery(`
-        SELECT SUM(total_cost) as total FROM sms_messages
+        SELECT SUM(cost_per_message) as total FROM sms_messages
       `);
       const totalCost = Array.isArray(totalCostResult) ? totalCostResult[0]?.total || 0 : 0;
 
@@ -468,29 +479,29 @@ export class SMSManagementService {
     try {
       // Mock SMS sending - in production, integrate with real SMS provider
       const messageId = 'mock_${Date.now()}_' + Math.random().toString(36).substr(2, 9) + '';
-      
+
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Mock success/failure (90% success rate)
       const success = Math.random() > 0.1;
-      
+
       if (success) {
-        logger.info(`Mock SMS sent successfully`, { 
-          phone: message.recipient_phone, 
+        logger.info(`Mock SMS sent successfully`, {
+          phone: message.recipient_phone,
           messageId,
           content: message.message_content.substring(0, 50) + '...'
         });
-        
+
         return { success: true, messageId };
       } else {
         const error = 'Mock SMS delivery failed';
-        logger.error(`Mock SMS failed`, { 
-          phone: message.recipient_phone, 
+        logger.error(`Mock SMS failed`, {
+          phone: message.recipient_phone,
           error,
           content: message.message_content.substring(0, 50) + '...'
         });
-        
+
         return { success: false, error };
       }
     } catch (error: any) {

@@ -1,6 +1,6 @@
 // Frontend Communication Types (mirrors backend types)
 
-export type DeliveryChannel = 'Email' | 'SMS' | 'In-App' | 'Push';
+export type DeliveryChannel = 'Email' | 'SMS' | 'WhatsApp' | 'In-App' | 'Push';
 export type MessageType = 'Text' | 'HTML' | 'Template';
 export type SenderType = 'Admin' | 'Member' | 'System';
 export type RecipientType = 'Admin' | 'Member' | 'All';
@@ -39,7 +39,7 @@ export interface CreateTemplateData {
   is_active?: boolean;
 }
 
-export interface UpdateTemplateData extends Partial<CreateTemplateData> {}
+export interface UpdateTemplateData extends Partial<CreateTemplateData> { }
 
 // Campaign Interfaces
 export interface CommunicationCampaign {
@@ -72,22 +72,22 @@ export interface TargetCriteria {
   district_codes?: string[];
   municipality_codes?: string[];
   ward_codes?: string[];
-  
+
   // Demographic filters
   gender_ids?: number[];
   race_ids?: number[];
   age_min?: number;
   age_max?: number;
-  
+
   // Membership filters
   membership_status_ids?: number[];
   subscription_type_ids?: number[];
   membership_expires_within_days?: number;
-  
+
   // Contact filters
   has_email?: boolean;
   has_cell_number?: boolean;
-  
+
   // Custom member IDs (for targeted campaigns)
   member_ids?: number[];
 }
@@ -160,6 +160,7 @@ export interface CommunicationPreferences {
   member_id: number;
   email_enabled: boolean;
   sms_enabled: boolean;
+  whatsapp_enabled: boolean;
   in_app_enabled: boolean;
   push_enabled: boolean;
   marketing_emails: boolean;
@@ -174,7 +175,7 @@ export interface CommunicationPreferences {
   updated_at: string;
 }
 
-export interface UpdatePreferencesData extends Partial<Omit<CommunicationPreferences, 'id' | 'member_id' | 'created_at' | 'updated_at'>> {}
+export interface UpdatePreferencesData extends Partial<Omit<CommunicationPreferences, 'id' | 'member_id' | 'created_at' | 'updated_at'>> { }
 
 // Analytics Interfaces
 export interface CommunicationAnalytics {
@@ -259,22 +260,22 @@ export interface CommunicationState {
   templates: MessageTemplate[];
   selectedTemplate: MessageTemplate | null;
   templateLoading: boolean;
-  
+
   // Campaigns
   campaigns: CommunicationCampaign[];
   selectedCampaign: CommunicationCampaign | null;
   campaignLoading: boolean;
-  
+
   // Messages
   messages: Message[];
   conversations: ConversationSummary[];
   selectedConversation: string | null;
   messageLoading: boolean;
-  
+
   // Analytics
   analytics: CommunicationAnalytics | null;
   analyticsLoading: boolean;
-  
+
   // UI State
   activeTab: 'dashboard' | 'campaigns' | 'templates' | 'messages' | 'analytics';
   showCreateCampaignDialog: boolean;
@@ -295,8 +296,22 @@ export interface TemplateFormData extends CreateTemplateData {
   test_data?: Record<string, any>;
 }
 
+
 export interface MessageFormData extends CreateMessageData {
   // Additional UI-specific fields
   recipient_search?: string;
   selected_recipients?: any[];
+}
+
+// Group Interfaces
+export interface CommunicationGroup {
+  id: number;
+  name: string;
+  description?: string;
+  group_type: 'STATIC' | 'DYNAMIC';
+  query_config?: any;
+  created_by: number;
+  is_active: boolean;
+  created_at: string;
+  static_member_count?: number;
 }

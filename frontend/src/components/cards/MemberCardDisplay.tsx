@@ -26,6 +26,8 @@ import {
   Warning,
   Fullscreen,
   Close,
+  Image,
+  ArrowBack,
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -202,6 +204,7 @@ const MemberCardDisplay: React.FC = () => {
 
   // Download card PDF - using client-side generation
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingPNG, setIsGeneratingPNG] = useState(false);
 
   const handleViewCard = () => {
     const trimmedId = idNumber.trim();
@@ -310,9 +313,75 @@ const MemberCardDisplay: React.FC = () => {
     }
   };
 
+  // Download card as PNG image
+  const handleDownloadPNG = async () => {
+    if (!memberData || !showCard) return;
+
+    setIsGeneratingPNG(true);
+
+    try {
+      // Get the currently visible card side
+      const cardElement = isFlipped
+        ? document.querySelector('.card-side-back') as HTMLElement
+        : document.querySelector('.card-side-front') as HTMLElement;
+
+      if (!cardElement) {
+        throw new Error('Card element not found');
+      }
+
+      // Clone the card for capture
+      const cardClone = cardElement.cloneNode(true) as HTMLElement;
+
+      // Create a temporary container
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      document.body.appendChild(tempContainer);
+
+      // Reset transforms for clone
+      cardClone.style.transform = 'none';
+      cardClone.style.position = 'relative';
+      cardClone.style.width = '550px';
+      cardClone.style.height = '347px';
+      cardClone.style.backfaceVisibility = 'visible';
+
+      tempContainer.appendChild(cardClone);
+
+      // Wait for images to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Capture card as canvas
+      const canvas = await html2canvas(cardClone, {
+        scale: 3, // Higher scale for better quality PNG
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+
+      // Convert to PNG and download
+      const pngData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = pngData;
+      link.download = `membership-card-${idNumber}-${isFlipped ? 'back' : 'front'}.png`;
+      link.click();
+
+      // Clean up
+      document.body.removeChild(tempContainer);
+
+      showSuccess(`Card ${isFlipped ? 'back' : 'front'} downloaded as PNG!`, 'Download Complete');
+    } catch (error) {
+      console.error('Error generating PNG:', error);
+      showError('Failed to generate PNG. Please try again.');
+    } finally {
+      setIsGeneratingPNG(false);
+    }
+  };
+
   const handleShareCard = async () => {
     if (!memberData?.qr_code_url) return;
-    
+
     try {
       if (navigator.share) {
         await navigator.share({
@@ -533,9 +602,9 @@ const MemberCardDisplay: React.FC = () => {
               Need help with your ID Number?
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
-              • Use your South African ID Number (13 digits)<br/>
-              • Check your ID document or driver's license<br/>
-              • Contact our support team for assistance<br/>
+              • Use your South African ID Number (13 digits)<br />
+              • Check your ID document or driver's license<br />
+              • Contact our support team for assistance<br />
               • Example format: 8001015009087
             </Typography>
           </Alert>
@@ -557,13 +626,32 @@ const MemberCardDisplay: React.FC = () => {
         >
           {/* Card Actions */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="h5" fontWeight={700} color="text.primary">
-                Your Digital Membership Card
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {isFlipped ? 'Back Side' : 'Front Side'} • Click card to flip
-              </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<ArrowBack />}
+                onClick={() => navigate('/')}
+                sx={{
+                  borderColor: '#DC143C',
+                  color: '#DC143C',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    borderColor: '#DC143C',
+                    bgcolor: 'rgba(220, 20, 60, 0.1)',
+                  },
+                }}
+              >
+                Back
+              </Button>
+              <Box>
+                <Typography variant="h5" fontWeight={700} color="text.primary">
+                  Your Digital Membership Card
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {isFlipped ? 'Back Side' : 'Front Side'} • Click card to flip
+                </Typography>
+              </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Tooltip title={isFlipped ? "Flip to Front" : "Flip to Back"}>
@@ -591,6 +679,20 @@ const MemberCardDisplay: React.FC = () => {
                   }}
                 >
                   {isGeneratingPDF ? <CircularProgress size={20} sx={{ color: '#DC143C' }} /> : <Download />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={`Download PNG (${isFlipped ? 'Back' : 'Front'} Side)`}>
+                <IconButton
+                  onClick={handleDownloadPNG}
+                  disabled={isGeneratingPNG}
+                  sx={{
+                    color: '#DC143C',
+                    '&:hover': {
+                      bgcolor: 'rgba(220, 20, 60, 0.1)',
+                    },
+                  }}
+                >
+                  {isGeneratingPNG ? <CircularProgress size={20} sx={{ color: '#DC143C' }} /> : <Image />}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Share Card">
@@ -698,7 +800,10 @@ const MemberCardDisplay: React.FC = () => {
               mb: 4,
               maxWidth: 550, // Reduced max width for better proportions
               mx: 'auto',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              // Mobile portrait responsive scaling
+              width: { xs: '100%', sm: 'auto' },
+              px: { xs: 1, sm: 0 },
             }}
             onClick={handleFlipCard}
           >
@@ -742,98 +847,98 @@ const MemberCardDisplay: React.FC = () => {
                   }
                 }}
               >
-            {/* Top Left: Expiry Date (without "VALID UNTIL" label) */}
-            <Box sx={{ position: 'absolute', top: 16, left: 16 }}>
-              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.85rem' }}>
-                {new Date(memberData.expiry_date || memberData.card_data?.expiry_date).toLocaleDateString('en-ZA', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit'
-                })}
-              </Typography>
-            </Box>
+                {/* Top Left: Expiry Date with "EXP:" label */}
+                <Box sx={{ position: 'absolute', top: { xs: 8, sm: 16 }, left: { xs: 8, sm: 16 } }}>
+                  <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.55rem', sm: '0.85rem' } }}>
+                    EXP: {new Date(memberData.expiry_date || memberData.card_data?.expiry_date).toLocaleDateString('en-ZA', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit'
+                    })}
+                  </Typography>
+                </Box>
 
-            {/* Top Right: Province Code */}
-            <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
-              <Typography
-                variant="h5"
-                fontWeight="bold"
-                sx={{
-                  fontSize: '1.5rem',
-                  letterSpacing: '0.1em',
-                  opacity: 0.95
-                }}
-              >
-                {memberData.province_code || getProvinceCode(memberData.province_name)}
-              </Typography>
-            </Box>
+                {/* Top Right: Province Code */}
+                <Box sx={{ position: 'absolute', top: { xs: 8, sm: 16 }, right: { xs: 8, sm: 16 } }}>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    sx={{
+                      fontSize: { xs: '0.85rem', sm: '1.5rem' },
+                      letterSpacing: '0.1em',
+                      opacity: 0.95
+                    }}
+                  >
+                    {memberData.province_code || getProvinceCode(memberData.province_name)}
+                  </Typography>
+                </Box>
 
-            {/* Member Name - Absolute positioned */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '155px',
-                left: '10px',
-                right: '10px',
-                textAlign: 'center'
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase'
-                }}
-              >
-                {memberData.first_name} {memberData.last_name}
-              </Typography>
-            </Box>
+                {/* Member Name - Absolute positioned */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: { xs: '42%', sm: '155px' },
+                    left: { xs: '5px', sm: '10px' },
+                    right: { xs: '5px', sm: '10px' },
+                    textAlign: 'center'
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: { xs: '0.65rem', sm: '1rem' },
+                      fontWeight: 600,
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {memberData.first_name} {memberData.last_name}
+                  </Typography>
+                </Box>
 
-            {/* ID Number - Absolute positioned */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '202px',
-                left: '10px',
-                right: '10px',
-                textAlign: 'center'
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: '1rem',
-                  fontWeight: 600
-                }}
-              >
-                {memberData.id_number}
-              </Typography>
-            </Box>
+                {/* ID Number - Absolute positioned */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: { xs: '56%', sm: '202px' },
+                    left: { xs: '5px', sm: '10px' },
+                    right: { xs: '5px', sm: '10px' },
+                    textAlign: 'center'
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: { xs: '0.65rem', sm: '1rem' },
+                      fontWeight: 600
+                    }}
+                  >
+                    {memberData.id_number}
+                  </Typography>
+                </Box>
 
-            {/* Sub-region and Ward - Absolute positioned */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '253px',
-                left: '10px',
-                right: '10px',
-                fontSize: '1rem',
-                fontWeight: 600,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                {memberData.municipality_name}
-              </Typography>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                |
-              </Typography>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                {memberData.ward_code}
-              </Typography>
-            </Box>
+                {/* Sub-region and Ward - Absolute positioned */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: { xs: '70%', sm: '253px' },
+                    left: { xs: '5px', sm: '10px' },
+                    right: { xs: '5px', sm: '10px' },
+                    fontSize: { xs: '0.55rem', sm: '1rem' },
+                    fontWeight: 600,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: { xs: '3px', sm: '5px' }
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: '0.55rem', sm: '1rem' }, fontWeight: 600 }}>
+                    {memberData.municipality_name?.replace(' Sub-Region', '').replace(' Sub-region', '')}
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '0.55rem', sm: '1rem' }, fontWeight: 600 }}>
+                    |
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: '0.55rem', sm: '1rem' }, fontWeight: 600 }}>
+                    {memberData.ward_code}
+                  </Typography>
+                </Box>
               </Paper>
 
               {/* Back Side */}
@@ -975,10 +1080,10 @@ const MemberCardDisplay: React.FC = () => {
                   justifyContent: 'space-between',
                 }}
               >
-                {/* Top Left: Expiry Date */}
+                {/* Top Left: Expiry Date with "EXP:" label */}
                 <Box sx={{ position: 'absolute', top: 16, left: 16 }}>
                   <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.85rem' }}>
-                    {new Date(memberData.expiry_date || memberData.card_data?.expiry_date).toLocaleDateString('en-ZA', {
+                    EXP: {new Date(memberData.expiry_date || memberData.card_data?.expiry_date).toLocaleDateString('en-ZA', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit'
@@ -1058,7 +1163,7 @@ const MemberCardDisplay: React.FC = () => {
                   }}
                 >
                   <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    {memberData.municipality_name}
+                    {memberData.municipality_name?.replace(' Sub-Region', '').replace(' Sub-region', '')}
                   </Typography>
                   <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
                     |

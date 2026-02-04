@@ -1,6 +1,6 @@
 // Communication Module Type Definitions
 
-export type DeliveryChannel = 'Email' | 'SMS' | 'In-App' | 'Push';
+export type DeliveryChannel = 'Email' | 'SMS' | 'WhatsApp' | 'In-App' | 'Push';
 export type MessageType = 'Text' | 'HTML' | 'Template';
 export type SenderType = 'Admin' | 'Member' | 'System';
 export type RecipientType = 'Admin' | 'Member' | 'All';
@@ -39,7 +39,7 @@ export interface CreateTemplateData {
   is_active?: boolean;
 }
 
-export interface UpdateTemplateData extends Partial<CreateTemplateData> {}
+export interface UpdateTemplateData extends Partial<CreateTemplateData> { }
 
 // Campaign Interfaces
 export interface CommunicationCampaign {
@@ -72,22 +72,22 @@ export interface TargetCriteria {
   district_codes?: string[];
   municipality_codes?: string[];
   ward_codes?: string[];
-  
+
   // Demographic filters
   gender_ids?: number[];
   race_ids?: number[];
   age_min?: number;
   age_max?: number;
-  
+
   // Membership filters
   membership_status_ids?: number[];
   subscription_type_ids?: number[];
   membership_expires_within_days?: number;
-  
+
   // Contact filters
   has_email?: boolean;
   has_cell_number?: boolean;
-  
+
   // Custom member IDs (for targeted campaigns)
   member_ids?: number[];
 }
@@ -204,6 +204,7 @@ export interface CommunicationPreferences {
   email_enabled: boolean;
   sms_enabled: boolean;
   in_app_enabled: boolean;
+  whatsapp_enabled: boolean;
   push_enabled: boolean;
   marketing_emails: boolean;
   system_notifications: boolean;
@@ -217,7 +218,7 @@ export interface CommunicationPreferences {
   updated_at: string;
 }
 
-export interface UpdatePreferencesData extends Partial<Omit<CommunicationPreferences, 'id' | 'member_id' | 'created_at' | 'updated_at'>> {}
+export interface UpdatePreferencesData extends Partial<Omit<CommunicationPreferences, 'id' | 'member_id' | 'created_at' | 'updated_at'>> { }
 
 // Analytics Interfaces
 export interface CommunicationAnalytics {
@@ -290,6 +291,7 @@ export interface CampaignFilters {
   date_from?: string;
   date_to?: string;
   template_id?: number;
+  delivery_channels?: DeliveryChannel[];
 }
 
 export interface MessageFilters {
@@ -302,6 +304,7 @@ export interface MessageFilters {
   date_from?: string;
   date_to?: string;
   priority?: Priority[];
+  delivery_channels?: DeliveryChannel[];
 }
 
 export interface TemplateFilters {

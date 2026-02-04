@@ -112,6 +112,9 @@ interface Config {
     sessionId: string;
     sessionTimeoutMinutes: number;
   };
+  bulkUpload: {
+    generateAttendanceRegisters: boolean;
+  };
 }
 
 // Parse environment variables with defaults
@@ -143,8 +146,8 @@ export const config: Config = {
     // Parse CORS_ORIGIN: if it contains comma, split into array; otherwise use as single string
     origin: process.env.CORS_ORIGIN
       ? (process.env.CORS_ORIGIN.includes(',')
-          ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-          : process.env.CORS_ORIGIN)
+        ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+        : process.env.CORS_ORIGIN)
       : ['http://localhost:3000', 'http://localhost:3001']
   },
   logging: {
@@ -213,6 +216,11 @@ export const config: Config = {
     webhookSecret: process.env.WASENDER_WEBHOOK_SECRET || '',
     sessionId: process.env.WASENDER_SESSION_ID || '',
     sessionTimeoutMinutes: parseInt(process.env.WHATSAPP_SESSION_TIMEOUT_MINUTES || '30', 10)
+  },
+
+  // Bulk Upload Configuration
+  bulkUpload: {
+    generateAttendanceRegisters: process.env.GENERATE_ATTENDANCE_REGISTERS !== 'false'  // Default: true
   }
 };
 

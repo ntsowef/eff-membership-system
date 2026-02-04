@@ -95,6 +95,68 @@ export interface ExistingMemberRecord extends BulkUploadRecord {
   vd_changed: boolean;
 }
 
+// ============================================================================
+// SUBSCRIPTION & RENEWAL TYPES
+// ============================================================================
+
+/**
+ * Subscription type values from Excel file
+ */
+export type SubscriptionType = 'New' | 'Renewal';
+
+/**
+ * Renewal classification based on current membership status
+ */
+export type RenewalClassification = 'early_renewal' | 'expired_member_renewal';
+
+/**
+ * Renewal record with database expiry information
+ * Used for processing membership renewals
+ */
+export interface RenewalRecord extends ExistingMemberRecord {
+  subscription_type: SubscriptionType;
+  db_expiry_date: Date | null;
+  db_membership_status_id: number;
+  excel_expiry_date: Date | null;
+  renewal_classification?: RenewalClassification;
+}
+
+/**
+ * Renewal validation error
+ * Records that fail renewal-specific validation rules
+ */
+export interface RenewalValidationError {
+  record: BulkUploadRecord;
+  error_type: 'expiry_date_not_newer' | 'invalid_date_format' | 'missing_expiry_date' | 'invalid_last_payment_date';
+  error_message: string;
+  db_expiry_date?: Date | null;
+  excel_expiry_date?: Date | null;
+}
+
+/**
+ * Subscription type error
+ * Records with invalid or conflicting subscription types
+ */
+export interface SubscriptionTypeError {
+  record: BulkUploadRecord;
+  error_type: 'existing_member_new_subscription' | 'invalid_subscription_type' | 'missing_subscription';
+  error_message: string;
+  existing_member_id?: number;
+}
+
+/**
+ * Renewal result for successful renewal operations
+ */
+export interface RenewalResult {
+  id_number: string;
+  success: boolean;
+  member_id: number;
+  renewal_classification: RenewalClassification;
+  previous_expiry_date: Date | null;
+  new_expiry_date: Date | null;
+  fields_updated: string[];
+}
+
 /**
  * IEC verification result
  */
@@ -143,6 +205,10 @@ export interface ValidationResult {
   duplicates: DuplicateRecord[];
   existing_members: ExistingMemberRecord[];
   new_members: BulkUploadRecord[];
+  // Renewal-specific categorization
+  renewal_records: RenewalRecord[];
+  renewal_validation_errors: RenewalValidationError[];
+  subscription_type_errors: SubscriptionTypeError[];
   validation_stats: {
     total_records: number;
     valid_ids: number;
@@ -151,6 +217,12 @@ export interface ValidationResult {
     duplicates: number;
     existing_members: number;
     new_members: number;
+    // Renewal-specific stats
+    renewals: number;
+    early_renewals: number;
+    expired_member_renewals: number;
+    renewal_validation_errors: number;
+    subscription_type_errors: number;
   };
 }
 
@@ -186,9 +258,15 @@ export interface IECVerificationBatchResult {
 export interface DatabaseOperationResult {
   id_number: string;
   success: boolean;
-  operation: 'insert' | 'update' | 'skip';
+  operation: 'insert' | 'update' | 'skip' | 'renewal';
   member_id?: number;
   error?: string;
+  // Renewal-specific fields
+  renewal_classification?: RenewalClassification;
+  previous_expiry_date?: Date | null;
+  new_expiry_date?: Date | null;
+  // Store the original record for report generation
+  record?: BulkUploadRecord | ExistingMemberRecord | RenewalRecord;
 }
 
 /**
@@ -203,7 +281,82 @@ export interface DatabaseOperationsBatchResult {
     updates: number;
     skipped: number;
     failures: number;
+    // Renewal-specific stats
+    renewals: number;
+    early_renewals: number;
+    expired_member_renewals: number;
   };
+}
+
+// ============================================================================
+// MEMBERSHIP STATUS UPDATE TYPES
+// ============================================================================
+
+/**
+ * Membership status IDs
+ */
+export enum MembershipStatusId {
+  ACTIVE = 1,
+  EXPIRED = 2,
+  SUSPENDED = 3,
+  CANCELLED = 4,
+  PENDING = 5,
+  INACTIVE = 6,
+  GRACE_PERIOD = 7,
+  GOOD_STANDING = 8
+}
+
+/**
+ * Protected statuses that should not be automatically updated
+ */
+export const PROTECTED_STATUS_IDS = [
+  MembershipStatusId.SUSPENDED,
+  MembershipStatusId.CANCELLED,
+  MembershipStatusId.PENDING
+];
+
+/**
+ * Result of a single member status update operation
+ */
+export interface MemberStatusUpdateResult {
+  id_number: string;
+  member_id: number;
+  member_name: string;
+  success: boolean;
+  error?: string;
+  // Expiry date changes
+  expiry_date_calculated: boolean;
+  previous_expiry_date: Date | null;
+  new_expiry_date: Date | null;
+  // Status changes
+  status_changed: boolean;
+  previous_status_id: number | null;
+  previous_status_name: string;
+  new_status_id: number | null;
+  new_status_name: string;
+  // Reason for no change
+  skip_reason?: 'protected_status' | 'no_payment_date' | 'already_correct';
+}
+
+/**
+ * Statistics for membership status updates
+ */
+export interface StatusUpdateStats {
+  total_processed: number;
+  expiry_dates_calculated: number;
+  statuses_changed: number;
+  protected_skipped: number;
+  no_payment_date_skipped: number;
+  already_correct_skipped: number;
+  errors: number;
+}
+
+/**
+ * Batch result for membership status updates
+ */
+export interface MemberStatusUpdateBatchResult {
+  updates: MemberStatusUpdateResult[];
+  stats: StatusUpdateStats;
 }
 
 // ============================================================================
@@ -313,21 +466,21 @@ export interface BulkUploadConfig {
   // File processing
   max_file_size_mb: number;
   allowed_extensions: string[];
-  
+
   // IEC verification
   iec_batch_size: number;
   iec_rate_limit_per_hour: number;
   iec_retry_attempts: number;
   iec_retry_delay_ms: number;
-  
+
   // Database operations
   db_batch_size: number;
   db_transaction_timeout_ms: number;
-  
+
   // Queue settings
   queue_concurrency: number;
   queue_max_retries: number;
-  
+
   // Report settings
   report_directory: string;
   report_retention_days: number;

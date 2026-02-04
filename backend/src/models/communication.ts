@@ -1,4 +1,4 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { executeQuery, executeQuerySingle, executeUpdate } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import type {
   MessageTemplate,
@@ -18,6 +18,17 @@ import type {
   MessageFilters,
   TemplateFilters
 } from '../types/communication';
+
+// Helper for safe JSON parsing (PostgreSQL driver might already parse JSON)
+const safeJsonParse = (data: any, defaultValue: any = []) => {
+  if (data === null || data === undefined) return defaultValue;
+  if (typeof data === 'object') return data;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    return defaultValue;
+  }
+};
 
 // Message Templates Model
 export class MessageTemplateModel {
@@ -61,7 +72,12 @@ export class MessageTemplateModel {
       `;
 
       params.push(limit, offset);
-      return await executeQuery(query, params);
+      const templates = await executeQuery(query, params);
+
+      return templates.map((template: any) => ({
+        ...template,
+        variables: safeJsonParse(template.variables, null)
+      }));
     } catch (error) {
       throw createDatabaseError('Failed to fetch message templates', error);
     }
@@ -70,8 +86,14 @@ export class MessageTemplateModel {
   // Get template by ID
   static async getTemplateById(id: number): Promise<MessageTemplate | null> {
     try {
-      const query = 'SELECT * FROM message_templates WHERE id = ?';
-      return await executeQuerySingle(query, [id]);
+      const query = 'SELECT * FROM message_templates WHERE template_id = ?';
+      const template = await executeQuerySingle(query, [id]);
+      if (!template) return null;
+
+      return {
+        ...template,
+        variables: safeJsonParse(template.variables, null)
+      };
     } catch (error) {
       throw createDatabaseError('Failed to fetch message template', error);
     }
@@ -99,8 +121,8 @@ export class MessageTemplateModel {
         (templateData as any).created_by || null
       ];
 
-      const result = await executeQuery(query, params);
-      return result.insertId;
+      const result = await executeQuery(`${query} RETURNING template_id`, params);
+      return result[0]?.template_id || (result as any).insertId;
     } catch (error) {
       throw createDatabaseError('Failed to create message template', error);
     }
@@ -129,8 +151,8 @@ export class MessageTemplateModel {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       params.push(id);
 
-      const query = `UPDATE message_templates SET ${updates.join(', ')} WHERE id = ?`;
-      const result = await executeQuery(query, params);
+      const query = `UPDATE message_templates SET ${updates.join(', ')} WHERE template_id = ?`;
+      const result = await executeUpdate(query, params);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to update message template', error);
@@ -140,8 +162,8 @@ export class MessageTemplateModel {
   // Delete template
   static async deleteTemplate(id: number): Promise<boolean> {
     try {
-      const query = 'DELETE FROM message_templates WHERE id = ?';
-      const result = await executeQuery(query, [id]);
+      const query = 'DELETE FROM message_templates WHERE template_id = ?';
+      const result = await executeUpdate(query, [id]);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to delete message template', error);
@@ -222,13 +244,18 @@ export class CommunicationCampaignModel {
         params.push(filters.template_id);
       }
 
+      if (filters.delivery_channels && filters.delivery_channels.length > 0) {
+        whereClause += ' AND (' + filters.delivery_channels.map(() => 'c.delivery_channels::TEXT LIKE ?').join(' OR ') + ')';
+        filters.delivery_channels.forEach(channel => params.push(`%"${channel}"%`));
+      }
+
       const query = `
         SELECT 
           c.*,
           t.name as template_name,
           t.template_type as template_type
         FROM communication_campaigns c
-        LEFT JOIN message_templates t ON c.template_id = t.id
+        LEFT JOIN message_templates t ON c.template_id = t.template_id
         ${whereClause}
         ORDER BY c.${sortBy} ${sortOrder}
         LIMIT ? OFFSET ?
@@ -240,8 +267,8 @@ export class CommunicationCampaignModel {
       // Parse JSON fields
       return campaigns.map((campaign: any) => ({
         ...campaign,
-        delivery_channels: JSON.parse(campaign.delivery_channels || '[]'),
-        target_criteria: campaign.target_criteria ? JSON.parse(campaign.target_criteria) : null,
+        delivery_channels: safeJsonParse(campaign.delivery_channels),
+        target_criteria: safeJsonParse(campaign.target_criteria, null),
         template: campaign.template_name ? {
           id: campaign.template_id,
           name: campaign.template_name,
@@ -263,7 +290,7 @@ export class CommunicationCampaignModel {
           t.template_type as template_type,
           t.content as template_content
         FROM communication_campaigns c
-        LEFT JOIN message_templates t ON c.template_id = t.id
+        LEFT JOIN message_templates t ON c.template_id = t.template_id
         WHERE c.id = ?
       `;
 
@@ -272,8 +299,8 @@ export class CommunicationCampaignModel {
 
       return {
         ...campaign,
-        delivery_channels: JSON.parse(campaign.delivery_channels || '[]'),
-        target_criteria: campaign.target_criteria ? JSON.parse(campaign.target_criteria) : null,
+        delivery_channels: safeJsonParse(campaign.delivery_channels),
+        target_criteria: safeJsonParse(campaign.target_criteria, null),
         template: campaign.template_name ? {
           id: campaign.template_id,
           name: campaign.template_name,
@@ -307,8 +334,8 @@ export class CommunicationCampaignModel {
         createdBy
       ];
 
-      const result = await executeQuery(query, params);
-      return result.insertId;
+      const result = await executeQuery(`${query} RETURNING id`, params);
+      return result[0]?.id || (result as any).insertId;
     } catch (error) {
       throw createDatabaseError('Failed to create communication campaign', error);
     }
@@ -338,7 +365,7 @@ export class CommunicationCampaignModel {
       params.push(id);
 
       const query = `UPDATE communication_campaigns SET ${updates.join(', ')} WHERE id = ?`;
-      const result = await executeQuery(query, params);
+      const result = await executeUpdate(query, params);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to update communication campaign', error);
@@ -364,6 +391,11 @@ export class CommunicationCampaignModel {
       if (filters.created_by) {
         whereClause += ' AND created_by = ?';
         params.push(filters.created_by);
+      }
+
+      if (filters.delivery_channels && filters.delivery_channels.length > 0) {
+        whereClause += ' AND (' + filters.delivery_channels.map(() => 'delivery_channels::TEXT LIKE ?').join(' OR ') + ')';
+        filters.delivery_channels.forEach(channel => params.push(`%"${channel}"%`));
       }
 
       const query = `SELECT COUNT(*) as count FROM communication_campaigns ${whereClause}`;
@@ -434,6 +466,11 @@ export class MessageModel {
         params.push(...filters.priority);
       }
 
+      if (filters.delivery_channels && filters.delivery_channels.length > 0) {
+        whereClause += ` AND m.delivery_channel IN (${filters.delivery_channels.map(() => '?').join(',')})`;
+        params.push(...filters.delivery_channels);
+      }
+
       const query = `
         SELECT
           m.*,
@@ -441,7 +478,7 @@ export class MessageModel {
           t.template_type as template_type,
           c.name as campaign_name
         FROM messages m
-        LEFT JOIN message_templates t ON m.template_id = t.id
+        LEFT JOIN message_templates t ON m.template_id = t.template_id
         LEFT JOIN communication_campaigns c ON m.campaign_id = c.id
         ${whereClause}
         ORDER BY m.${sortBy} ${sortOrder}
@@ -454,8 +491,8 @@ export class MessageModel {
       // Parse JSON fields
       return messages.map((message: any) => ({
         ...message,
-        delivery_channels: JSON.parse(message.delivery_channels || '[]'),
-        template_data: message.template_data ? JSON.parse(message.template_data) : null,
+        delivery_channels: message.delivery_channel ? [message.delivery_channel] : [],
+        template_data: safeJsonParse(message.template_data, null),
         template: message.template_name ? {
           id: message.template_id,
           name: message.template_name,
@@ -482,7 +519,7 @@ export class MessageModel {
           t.content as template_content,
           c.name as campaign_name
         FROM messages m
-        LEFT JOIN message_templates t ON m.template_id = t.id
+        LEFT JOIN message_templates t ON m.template_id = t.template_id
         LEFT JOIN communication_campaigns c ON m.campaign_id = c.id
         WHERE m.id = ?
       `;
@@ -492,8 +529,8 @@ export class MessageModel {
 
       return {
         ...message,
-        delivery_channels: JSON.parse(message.delivery_channels || '[]'),
-        template_data: message.template_data ? JSON.parse(message.template_data) : null,
+        delivery_channels: message.delivery_channel ? [message.delivery_channel] : [],
+        template_data: safeJsonParse(message.template_data, null),
         template: message.template_name ? {
           id: message.template_id,
           name: message.template_name,
@@ -519,7 +556,7 @@ export class MessageModel {
       const query = `
         INSERT INTO messages (
           conversation_id, campaign_id, sender_type, sender_id, recipient_type, recipient_id,
-          subject, content, message_type, template_id, template_data, delivery_channels,
+          subject, content, message_type, template_id, template_data, delivery_channel,
           priority, is_reply, parent_message_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
@@ -536,14 +573,14 @@ export class MessageModel {
         messageData.message_type || 'Text',
         messageData.template_id || null,
         messageData.template_data ? JSON.stringify(messageData.template_data) : null,
-        JSON.stringify(messageData.delivery_channels),
+        messageData.delivery_channels?.[0] || 'Email',
         messageData.priority || 'Normal',
         messageData.is_reply || false,
         messageData.parent_message_id || null
       ];
 
-      const result = await executeQuery(query, params);
-      return result.insertId;
+      const result = await executeQuery(`${query} RETURNING message_id`, params);
+      return result[0]?.message_id || (result as any).insertId;
     } catch (error) {
       throw createDatabaseError('Failed to create message', error);
     }
@@ -557,7 +594,12 @@ export class MessageModel {
 
       Object.entries(messageData).forEach(([key, value]) => {
         if (value !== undefined) {
-          if (key === 'delivery_channels' || key === 'template_data') {
+          if (key === 'delivery_channels') {
+            updates.push('delivery_channel = ?');
+            // Take the first channel or default to 'Email' if array is provided
+            const channel = Array.isArray(value) && value.length > 0 ? value[0] : 'Email';
+            params.push(channel);
+          } else if (key === 'template_data') {
             updates.push(`${key} = ?`);
             params.push(JSON.stringify(value));
           } else {
@@ -572,8 +614,8 @@ export class MessageModel {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       params.push(id);
 
-      const query = `UPDATE messages SET ${updates.join(', ')} WHERE id = ?`;
-      const result = await executeQuery(query, params);
+      const query = `UPDATE messages SET ${updates.join(', ')} WHERE message_id = ?`;
+      const result = await executeUpdate(query, params);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to update message', error);
@@ -601,6 +643,11 @@ export class MessageModel {
         params.push(filters.recipient_type);
       }
 
+      if (filters.delivery_channels && filters.delivery_channels.length > 0) {
+        whereClause += ` AND delivery_channel IN (${filters.delivery_channels.map(() => '?').join(',')})`;
+        params.push(...filters.delivery_channels);
+      }
+
       const query = `SELECT COUNT(*) as count FROM messages ${whereClause}`;
       const result = await executeQuerySingle(query, params);
       return result?.count || 0;
@@ -622,7 +669,7 @@ export class MessageModel {
           t.name as template_name,
           t.template_type as template_type
         FROM messages m
-        LEFT JOIN message_templates t ON m.template_id = t.id
+        LEFT JOIN message_templates t ON m.template_id = t.template_id
         WHERE m.conversation_id = ?
         ORDER BY m.created_at ASC
         LIMIT ? OFFSET ?
@@ -632,8 +679,8 @@ export class MessageModel {
 
       return messages.map((message: any) => ({
         ...message,
-        delivery_channels: JSON.parse(message.delivery_channels || '[]'),
-        template_data: message.template_data ? JSON.parse(message.template_data) : null,
+        delivery_channels: message.delivery_channel ? [message.delivery_channel] : [],
+        template_data: safeJsonParse(message.template_data, null),
         template: message.template_name ? {
           id: message.template_id,
           name: message.template_name,
@@ -684,22 +731,23 @@ export class CommunicationPreferencesModel {
         params.push(memberId);
 
         const query = `UPDATE communication_preferences SET ${updates.join(', ')} WHERE member_id = ?`;
-        const result = await executeQuery(query, params);
+        const result = await executeUpdate(query, params);
         return result.affectedRows > 0;
       } else {
         // Create new preferences with defaults
         const query = `
           INSERT INTO communication_preferences (
-            member_id, email_enabled, sms_enabled, in_app_enabled, push_enabled,
+            member_id, email_enabled, sms_enabled, whatsapp_enabled, in_app_enabled, push_enabled,
             marketing_emails, system_notifications, membership_reminders,
             event_notifications, newsletter, digest_frequency, quiet_hours_start, quiet_hours_end
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const params = [
           memberId,
           preferences.email_enabled ?? true,
           preferences.sms_enabled ?? true,
+          preferences.whatsapp_enabled ?? true,
           preferences.in_app_enabled ?? true,
           preferences.push_enabled ?? true,
           preferences.marketing_emails ?? true,
@@ -712,7 +760,7 @@ export class CommunicationPreferencesModel {
           preferences.quiet_hours_end ?? '08:00:00'
         ];
 
-        const result = await executeQuery(query, params);
+        const result = await executeUpdate(query, params);
         return result.affectedRows > 0;
       }
     } catch (error) {

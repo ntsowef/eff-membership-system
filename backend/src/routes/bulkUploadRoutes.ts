@@ -43,7 +43,7 @@ const storage = multer.diskStorage({
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedExtensions = ['.xlsx', '.xls'];
   const ext = path.extname(file.originalname).toLowerCase();
-  
+
   if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
@@ -215,6 +215,81 @@ router.get('/queue/jobs',
   authenticate,
   requirePermission('members.read'),
   asyncHandler(BulkUploadController.getQueueJobs)
+);
+
+/**
+ * GET /api/v1/bulk-upload/queue/position/:jobId
+ * Get queue position for a specific job
+ *
+ * Returns detailed queue position information including:
+ * - Current position in queue
+ * - Estimated wait time
+ * - Processing stage and progress
+ *
+ * @requires authentication
+ * @requires permission: members.read
+ * @param jobId - The job ID to check
+ * @returns Queue position details
+ */
+router.get('/queue/position/:jobId',
+  authenticate,
+  requirePermission('members.read'),
+  asyncHandler(BulkUploadController.getQueuePosition)
+);
+
+/**
+ * GET /api/v1/bulk-upload/queue/user-status
+ * Get queue status for the authenticated user's jobs
+ *
+ * Returns all jobs for the current user with their queue positions and status.
+ * This endpoint helps users see all their pending/processing uploads in one view.
+ *
+ * @requires authentication
+ * @requires permission: members.read
+ * @returns User's jobs with queue positions
+ */
+router.get('/queue/user-status',
+  authenticate,
+  requirePermission('members.read'),
+  asyncHandler(BulkUploadController.getUserQueueStatus)
+);
+
+/**
+ * GET /api/v1/bulk-upload/queue/dashboard
+ * Get full queue dashboard status
+ *
+ * Returns comprehensive queue information for dashboard display:
+ * - Overall queue statistics (waiting, active, completed today)
+ * - User's own jobs with positions
+ * - All waiting jobs (for admin visibility)
+ * - Currently active job details
+ * - System messages (rate limits, high volume alerts)
+ *
+ * @requires authentication
+ * @requires permission: members.read
+ * @returns Queue dashboard data
+ */
+router.get('/queue/dashboard',
+  authenticate,
+  requirePermission('members.read'),
+  asyncHandler(BulkUploadController.getQueueDashboard)
+);
+
+/**
+ * GET /api/v1/bulk-upload/queue/stages
+ * Get processing stage information
+ *
+ * Returns information about all processing stages for frontend display,
+ * including labels, colors, and icons for each stage.
+ *
+ * @requires authentication
+ * @requires permission: members.read
+ * @returns Processing stages configuration
+ */
+router.get('/queue/stages',
+  authenticate,
+  requirePermission('members.read'),
+  asyncHandler(BulkUploadController.getProcessingStages)
 );
 
 /**

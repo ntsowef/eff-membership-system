@@ -10,6 +10,7 @@ import { emailService } from './emailService';
 import { NotificationModel } from '../models/notifications';
 import { QueueService } from './queueService';
 // import { getWebSocketService } from './websocketService'; // Removed WebSocket
+import { renderTemplateString } from '../utils/templateRenderer';
 import type {
   CreateTemplateData,
   UpdateTemplateData,
@@ -37,7 +38,7 @@ export class TemplateService {
       const variablePattern = /\{\{(\w+)\}\}/g;
       const contentVariables = [...templateData.content.matchAll(variablePattern)].map(match => match[1]);
       const definedVariables = Object.keys(templateData.variables);
-      
+
       // Check for undefined variables in content
       const undefinedVars = contentVariables.filter(v => !definedVariables.includes(v));
       if (undefinedVars.length > 0) {
@@ -51,40 +52,30 @@ export class TemplateService {
 
   // Render template with data
   static renderTemplate(template: MessageTemplate, data: Record<string, any> = {}): { subject?: string; content: string } {
-    let renderedContent = template.content;
-    let renderedSubject = template.subject;
+    const renderedContent = renderTemplateString(template.content, data, { keepUnmatched: true });
+    const renderedSubject = template.subject
+      ? renderTemplateString(template.subject, data, { keepUnmatched: true })
+      : template.subject;
 
-    // Replace variables in content
-    const variablePattern = /\{\{(\w+)\}\}/g;
-    renderedContent = renderedContent.replace(variablePattern, (match, varName) => {
-      return data[varName] !== undefined ? String(data[varName]) : match;
-    });
-
-    // Replace variables in subject if exists
-    if (renderedSubject) {
-      renderedSubject = renderedSubject.replace(variablePattern, (match, varName) => {
-        return data[varName] !== undefined ? String(data[varName]) : match;
-      });
-    }
-
-    return {
-      subject: renderedSubject,
-      content: renderedContent
-    };
+    return { subject: renderedSubject, content: renderedContent };
   }
 
   // Get template with common member variables
   static getCommonTemplateVariables(member?: any): Record<string, any> {
     if (!member) return {};
 
+    const first = member.firstname ?? member.first_name ?? member.firstName ?? '';
+    const last = member.surname ?? member.last_name ?? member.lastName ?? '';
+
     return {
-      member_name: '${member.firstname} ' + member.surname || '' + ''.trim(),
-      first_name: member.firstname,
-      last_name: member.surname || '',
+      member_name: `${first} ${last}`.trim(),
+      first_name: first,
+      last_name: last,
+      membership_number: member.membership_number ?? member.membershipNumber ?? '',
       member_id: member.member_id,
       id_number: member.id_number,
       email: member.email || '',
-      cell_number: member.cell_number || '',
+      cell_number: member.cell_number || member.phone_number || '',
       ward_code: member.ward_code,
       current_date: new Date().toLocaleDateString(),
       current_year: new Date().getFullYear().toString()
@@ -98,12 +89,12 @@ export class CampaignService {
   static async createCampaign(campaignData: CreateCampaignData, createdBy: number): Promise<number> {
     // Calculate recipient count based on target criteria
     const recipientCount = await this.calculateRecipientCount(campaignData.target_criteria);
-    
+
     const campaignId = await CommunicationCampaignModel.createCampaign(campaignData, createdBy);
-    
+
     // Update recipient count
     await CommunicationCampaignModel.updateCampaign(campaignId, { recipient_count: recipientCount });
-    
+
     return campaignId;
   }
 
@@ -244,24 +235,29 @@ export class CampaignService {
         const batch = recipients.slice(i, i + batchSize);
 
         for (const recipient of batch) {
-          try {
-            // Check communication preferences
-            if (!this.shouldSendToRecipient(recipient, campaign.delivery_channels)) {
-              console.log('Skipping recipient ' + recipient.member_id + ' due to preferences');
-              continue;
+          // Check communication preferences and get active channels
+          const activeChannels = this.getRecipientActiveChannels(recipient, campaign.delivery_channels);
+
+          if (activeChannels.length === 0) {
+            console.log('Skipping recipient ' + recipient.member_id + ' due to preferences or missing contact info');
+            continue;
+          }
+
+          // Create message for each active channel
+          for (const channel of activeChannels) {
+            try {
+              // Create message
+              const messageId = await this.createCampaignMessage(campaign, recipient, channel);
+
+              // Add to queue with appropriate priority
+              const priority = this.getCampaignPriority(campaign);
+              await QueueService.addToQueue(messageId, campaignId, 'Batch', priority);
+
+              successCount++;
+            } catch (error) {
+              console.error('Failed to create ' + channel + ' message for recipient ' + recipient.member_id + ':', error);
+              failureCount++;
             }
-
-            // Create message
-            const messageId = await this.createCampaignMessage(campaign, recipient);
-
-            // Add to queue with appropriate priority
-            const priority = this.getCampaignPriority(campaign);
-            await QueueService.addToQueue(messageId, campaignId, 'Batch', priority);
-
-            successCount++;
-          } catch (error) {
-            console.error('Failed to create message for recipient ' + recipient.member_id + ':', error);
-            failureCount++;
           }
         }
 
@@ -314,6 +310,7 @@ export class CampaignService {
           preferences: preferences || {
             email_enabled: true,
             sms_enabled: true,
+            whatsapp_enabled: true,
             in_app_enabled: true,
             marketing_emails: true,
             system_notifications: true
@@ -326,6 +323,7 @@ export class CampaignService {
           preferences: {
             email_enabled: true,
             sms_enabled: true,
+            whatsapp_enabled: true,
             in_app_enabled: true,
             marketing_emails: true,
             system_notifications: true
@@ -337,26 +335,35 @@ export class CampaignService {
     return enhancedRecipients;
   }
 
-  // Check if message should be sent to recipient based on preferences
-  static shouldSendToRecipient(recipient: any, deliveryChannels: string[]): boolean {
+  // Get active delivery channels for recipient based on preferences
+  static getRecipientActiveChannels(recipient: any, deliveryChannels: string[]): string[] {
     const prefs = recipient.preferences;
+    const activeChannels: string[] = [];
 
-    // Check if any delivery channel is enabled for this recipient
+    // Check availability of each requested channel
     for (const channel of deliveryChannels) {
       switch (channel) {
         case 'Email':
-          if (prefs.email_enabled && recipient.email) return true;
+          if (prefs.email_enabled && recipient.email) activeChannels.push('Email');
           break;
         case 'SMS':
-          if (prefs.sms_enabled && recipient.cell_number) return true;
+          if (prefs.sms_enabled && recipient.cell_number) activeChannels.push('SMS');
+          break;
+        case 'WhatsApp':
+          if (prefs.whatsapp_enabled && recipient.cell_number) activeChannels.push('WhatsApp');
           break;
         case 'In-App':
-          if (prefs.in_app_enabled) return true;
+          if (prefs.in_app_enabled) activeChannels.push('In-App');
           break;
       }
     }
 
-    return false;
+    return activeChannels;
+  }
+
+  // Check if message should be sent to recipient based on preferences (Legacy: kept for compatibility if needed, but getRecipientActiveChannels is preferred)
+  static shouldSendToRecipient(recipient: any, deliveryChannels: string[]): boolean {
+    return this.getRecipientActiveChannels(recipient, deliveryChannels).length > 0;
   }
 
   // Get campaign priority for queue processing
@@ -378,14 +385,14 @@ export class CampaignService {
   }
 
   // Create individual campaign message
-  private static async createCampaignMessage(campaign : CommunicationCampaign, recipient: any): Promise<number> {
+  private static async createCampaignMessage(campaign: CommunicationCampaign, recipient: any, channel: string): Promise<number> {
     const messageData: CreateMessageData = {
       campaign_id: campaign.id,
       sender_type: 'System',
       recipient_type: 'Member',
       recipient_id: recipient.member_id,
       content: campaign.template?.content || 'Default message content',
-      delivery_channels : campaign.delivery_channels,
+      delivery_channels: [channel as DeliveryChannel], // Pass single channel array
       template_id: campaign.template_id,
       template_data: TemplateService.getCommonTemplateVariables(recipient),
       send_immediately: true
@@ -394,7 +401,7 @@ export class CampaignService {
     // Render template if available
     if (campaign.template) {
       const rendered = TemplateService.renderTemplate(
-        campaign.template, 
+        campaign.template,
         TemplateService.getCommonTemplateVariables(recipient)
       );
       messageData.content = rendered.content;
@@ -503,6 +510,28 @@ export class MessageService {
           message: message.content,
           send_immediately: true
         });
+        return true;
+
+      case 'WhatsApp':
+        if (!recipientPhone) {
+          throw new Error('No phone number for recipient');
+        }
+
+        const { WasenderApiService: wsApi } = await import('./wasenderApiService');
+
+        // Handle media messages
+        if (message.template_id) {
+          const template = await MessageTemplateModel.getTemplateById(message.template_id);
+          // If we had media templates, we would handle them here
+          // For now, templates are text-based in our schema
+        }
+
+        // Check if content has image or document markers (custom logic for now)
+        // In a real scenario, we might have message_type or metadata
+        if (message.message_type === 'Text' || message.message_type === 'Template') {
+          await wsApi.sendTextMessage(recipientPhone, message.content);
+        }
+
         return true;
 
       default:

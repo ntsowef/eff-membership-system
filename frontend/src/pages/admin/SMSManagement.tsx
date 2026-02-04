@@ -46,12 +46,17 @@ import {
   Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  // Warning as WarningIcon,
+  HourglassEmpty as PendingIcon,
   Speed as SpeedIcon,
   TrendingUp as TrendingUpIcon,
   Webhook as WebhookIcon,
   MonitorHeart as MonitorIcon,
+  CalendarMonth as CalendarMonthIcon,
+  Download as DownloadIcon,
+  FilterList as FilterIcon,
+  Assessment as ReportIcon,
 } from '@mui/icons-material';
+import * as XLSX from 'xlsx';
 import { api } from '../../lib/api';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
@@ -133,10 +138,35 @@ const SMSManagement: React.FC = () => {
   const [birthdayHistory, setBirthdayHistory] = useState<any[]>([]);
   const [schedulerStatus, setSchedulerStatus] = useState<any>(null);
 
+  // Monthly Birthday Statistics state
+  const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
+  const [monthlyStatsTotals, setMonthlyStatsTotals] = useState<any>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedMonthMembers, setSelectedMonthMembers] = useState<any[]>([]);
+  const [selectedMonthStats, setSelectedMonthStats] = useState<any>(null);
+  const [monthlyStatsPage, setMonthlyStatsPage] = useState(0);
+  const [monthlyStatsRowsPerPage, setMonthlyStatsRowsPerPage] = useState(25);
+  const [monthlyStatsTotalMembers, setMonthlyStatsTotalMembers] = useState(0);
+
   // Provider monitoring state
   const [_providerHealth, _setProviderHealth] = useState<any>(null);
   const [deliveryStats, setDeliveryStats] = useState<any>(null);
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
+
+  // Delivery Tracking state
+  const [deliveryReport, setDeliveryReport] = useState<any[]>([]);
+  const [deliveryReportStats, setDeliveryReportStats] = useState<any>(null);
+  const [deliveryReportPage, setDeliveryReportPage] = useState(0);
+  const [deliveryReportRowsPerPage, setDeliveryReportRowsPerPage] = useState(10);
+  const [deliveryReportTotal, setDeliveryReportTotal] = useState(0);
+  const [deliveryReportFilter, setDeliveryReportFilter] = useState({
+    status: 'all',
+    month: '',
+    year: new Date().getFullYear().toString(),
+    startDate: '',
+    endDate: ''
+  });
+  const [showDeliveryReport, setShowDeliveryReport] = useState(false);
 
   // Form state
   const [templateForm, setTemplateForm] = useState({
@@ -165,11 +195,18 @@ const SMSManagement: React.FC = () => {
     loadBirthdayData();
     loadProviderHealth();
     loadWebhookLogs();
+    loadMonthlyStats();
   }, []);
 
   useEffect(() => {
     loadCampaigns();
   }, [campaignPage, campaignRowsPerPage]);
+
+  useEffect(() => {
+    if (selectedMonth !== null) {
+      loadSelectedMonthData(selectedMonth);
+    }
+  }, [selectedMonth, monthlyStatsPage, monthlyStatsRowsPerPage]);
 
   const loadDashboardStats = async () => {
     try {
@@ -346,11 +383,19 @@ const SMSManagement: React.FC = () => {
   const openTemplateDialog = (template?: SMSTemplate) => {
     if (template) {
       setEditingTemplate(template);
+      // Ensure variables is always an array
+      let variables: string[] = [];
+      const templateVars = template.variables as string[] | string;
+      if (Array.isArray(templateVars)) {
+        variables = templateVars;
+      } else if (typeof templateVars === 'string') {
+        variables = templateVars.split(',').map((v: string) => v.trim()).filter((v: string) => v);
+      }
       setTemplateForm({
         name: template.name,
         description: template.description || '',
         content: template.content,
-        variables: template.variables,
+        variables,
         category: template.category,
         is_active: template.is_active
       });
@@ -398,6 +443,123 @@ const SMSManagement: React.FC = () => {
     } catch (err: any) {
       setError('Failed to load birthday SMS data');
       console.error('Birthday SMS data error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Monthly Birthday Statistics functions
+  const loadMonthlyStats = async () => {
+    try {
+      console.log('Loading monthly stats...');
+      const response = await api.get('/birthday-sms/monthly-stats');
+      console.log('Monthly stats response:', response.data);
+      if (response.data.success) {
+        setMonthlyStats(response.data.data.monthly_stats || []);
+        setMonthlyStatsTotals(response.data.data.totals || null);
+      } else {
+        console.error('API returned error:', response.data.error);
+        setError(response.data.error?.message || 'Failed to load monthly stats');
+      }
+    } catch (err: any) {
+      console.error('Failed to load monthly stats:', err);
+      console.error('Error response:', err.response?.data);
+      setError(err.response?.data?.error?.message || 'Failed to load monthly stats');
+    }
+  };
+
+  const loadSelectedMonthData = async (month: number) => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/birthday-sms/monthly-stats/${month}`, {
+        params: {
+          page: monthlyStatsPage + 1,
+          limit: monthlyStatsRowsPerPage
+        }
+      });
+      setSelectedMonthStats(response.data.data.stats);
+      setSelectedMonthMembers(response.data.data.members);
+      setMonthlyStatsTotalMembers(response.data.data.pagination.total);
+    } catch (err: any) {
+      console.error('Failed to load month data:', err);
+      setError('Failed to load month details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMonthClick = (month: number) => {
+    setSelectedMonth(month);
+    setMonthlyStatsPage(0);
+  };
+
+  const handleCloseMonthDetails = () => {
+    setSelectedMonth(null);
+    setSelectedMonthMembers([]);
+    setSelectedMonthStats(null);
+  };
+
+  const handleExportMonthlyBirthdays = async () => {
+    if (!selectedMonth || !selectedMonthStats) return;
+
+    try {
+      setLoading(true);
+      // Fetch all members for the selected month (using a high limit to get all)
+      const response = await api.get(`/birthday-sms/monthly-stats/${selectedMonth}`, {
+        params: {
+          page: 1,
+          limit: 100000 // Get all records
+        }
+      });
+
+      const allMembers = response.data.data.members;
+
+      if (!allMembers || allMembers.length === 0) {
+        setError('No members to export');
+        return;
+      }
+
+      // Prepare data for Excel
+      const exportData = allMembers.map((member: any) => ({
+        'Name': member.full_name || `${member.firstname} ${member.surname}`,
+        'Membership #': member.membership_number || '',
+        'Phone': member.cell_number || '',
+        'Birth Day': member.birth_day || '',
+        'Age': member.current_age || '',
+        'Province': member.province_name || member.province_code || '',
+        'Ward': member.ward_code || '',
+        'Status': member.membership_status || ''
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 30 }, // Name
+        { wch: 15 }, // Membership #
+        { wch: 15 }, // Phone
+        { wch: 10 }, // Birth Day
+        { wch: 6 },  // Age
+        { wch: 15 }, // Province
+        { wch: 12 }, // Ward
+        { wch: 12 }, // Status
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Birthday Members');
+
+      // Generate filename with month name
+      const monthName = selectedMonthStats.month_name || `Month_${selectedMonth}`;
+      const filename = `${monthName}_Birthday_Members.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(wb, filename);
+
+      setSuccess(`Successfully exported ${allMembers.length} members to ${filename}`);
+    } catch (err: any) {
+      console.error('Failed to export monthly birthdays:', err);
+      setError('Failed to export data to Excel');
     } finally {
       setLoading(false);
     }
@@ -459,6 +621,159 @@ const SMSManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Delivery Tracking functions
+  const loadDeliveryReport = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: deliveryReportPage + 1,
+        limit: deliveryReportRowsPerPage
+      };
+
+      if (deliveryReportFilter.status && deliveryReportFilter.status !== 'all') {
+        params.status = deliveryReportFilter.status;
+      }
+      if (deliveryReportFilter.month) {
+        params.month = deliveryReportFilter.month;
+      }
+      if (deliveryReportFilter.year) {
+        params.year = deliveryReportFilter.year;
+      }
+      if (deliveryReportFilter.startDate) {
+        params.startDate = deliveryReportFilter.startDate;
+      }
+      if (deliveryReportFilter.endDate) {
+        params.endDate = deliveryReportFilter.endDate;
+      }
+
+      const [reportRes, statsRes] = await Promise.all([
+        api.get('/birthday-sms/delivery-report', { params }),
+        api.get('/birthday-sms/delivery-stats', { params: {
+          timeframe: 'all',
+          month: deliveryReportFilter.month || undefined,
+          year: deliveryReportFilter.year || undefined
+        }})
+      ]);
+
+      if (reportRes.data.success) {
+        setDeliveryReport(reportRes.data.data.records || []);
+        setDeliveryReportTotal(reportRes.data.data.pagination?.total || 0);
+      }
+
+      if (statsRes.data.success) {
+        setDeliveryReportStats(statsRes.data.data.summary || null);
+      }
+    } catch (err: any) {
+      setError('Failed to load delivery report');
+      console.error('Delivery report error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportDeliveryReport = async () => {
+    try {
+      setLoading(true);
+      const params: any = { format: 'json' };
+
+      if (deliveryReportFilter.status && deliveryReportFilter.status !== 'all') {
+        params.status = deliveryReportFilter.status;
+      }
+      if (deliveryReportFilter.month) {
+        params.month = deliveryReportFilter.month;
+      }
+      if (deliveryReportFilter.year) {
+        params.year = deliveryReportFilter.year;
+      }
+      if (deliveryReportFilter.startDate) {
+        params.startDate = deliveryReportFilter.startDate;
+      }
+      if (deliveryReportFilter.endDate) {
+        params.endDate = deliveryReportFilter.endDate;
+      }
+
+      const response = await api.get('/birthday-sms/delivery-report/export', { params });
+
+      if (response.data.success && response.data.data.records.length > 0) {
+        const exportData = response.data.data.records;
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+
+        // Set column widths
+        ws['!cols'] = [
+          { wch: 25 }, // Member Name
+          { wch: 15 }, // Membership Number
+          { wch: 15 }, // Phone Number
+          { wch: 50 }, // Message Content
+          { wch: 20 }, // Message ID
+          { wch: 12 }, // Delivery Status
+          { wch: 20 }, // Sent At
+          { wch: 20 }, // Delivered At
+          { wch: 30 }, // Error Message
+          { wch: 12 }, // Birthday Year
+          { wch: 10 }, // Member Age
+          { wch: 15 }, // Provider
+          { wch: 10 }, // Retry Count
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Delivery Report');
+
+        const timestamp = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Birthday_SMS_Delivery_Report_${timestamp}.xlsx`);
+
+        setSuccess(`Successfully exported ${exportData.length} records to Excel`);
+      } else {
+        setError('No data to export');
+      }
+    } catch (err: any) {
+      console.error('Failed to export delivery report:', err);
+      setError('Failed to export delivery report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeliveryReportPageChange = (_event: unknown, newPage: number) => {
+    setDeliveryReportPage(newPage);
+  };
+
+  const handleDeliveryReportRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDeliveryReportRowsPerPage(parseInt(event.target.value, 10));
+    setDeliveryReportPage(0);
+  };
+
+  const getDeliveryStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
+    switch (status?.toLowerCase()) {
+      case 'delivered': return 'success';
+      case 'failed': return 'error';
+      case 'pending':
+      case 'queued':
+      case 'sending': return 'warning';
+      case 'sent': return 'info';
+      default: return 'default';
+    }
+  };
+
+  const getDeliveryStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered': return <CheckCircleIcon fontSize="small" />;
+      case 'failed': return <ErrorIcon fontSize="small" />;
+      case 'pending':
+      case 'queued':
+      case 'sending': return <PendingIcon fontSize="small" />;
+      case 'sent': return <SendIcon fontSize="small" />;
+      default: return null;
+    }
+  };
+
+  // Load delivery report when filters or pagination change
+  useEffect(() => {
+    if (showDeliveryReport) {
+      loadDeliveryReport();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deliveryReportPage, deliveryReportRowsPerPage, showDeliveryReport]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -659,7 +974,7 @@ const SMSManagement: React.FC = () => {
                   />
                 </Box>
 
-                {template.variables.length > 0 && (
+                {Array.isArray(template.variables) && template.variables.length > 0 && (
                   <Box mt={2}>
                     <Typography variant="caption" color="textSecondary">
                       Variables: {template.variables.join(', ')}
@@ -939,8 +1254,9 @@ const SMSManagement: React.FC = () => {
                         <TableCell>{record.member_name}</TableCell>
                         <TableCell>
                           <Chip
+                            icon={getDeliveryStatusIcon(record.delivery_status)}
                             label={record.delivery_status}
-                            color={record.delivery_status === 'sent' ? 'success' : 'default'}
+                            color={getDeliveryStatusColor(record.delivery_status)}
                             size="small"
                           />
                         </TableCell>
@@ -955,7 +1271,446 @@ const SMSManagement: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Delivery Report Section */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">
+                  <ReportIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Delivery Status Report
+                </Typography>
+                <Box display="flex" gap={2}>
+                  <ActionButton
+                    variant={showDeliveryReport ? 'contained' : 'outlined'}
+                    onClick={() => {
+                      setShowDeliveryReport(!showDeliveryReport);
+                      if (!showDeliveryReport) {
+                        loadDeliveryReport();
+                      }
+                    }}
+                    loading={loading}
+                    icon={FilterIcon}
+                    color="primary"
+                  >
+                    {showDeliveryReport ? 'Hide Report' : 'View Delivery Report'}
+                  </ActionButton>
+                </Box>
+              </Box>
+
+              {showDeliveryReport && (
+                <>
+                  {/* Delivery Statistics Summary */}
+                  {deliveryReportStats && (
+                    <Grid container spacing={2} mb={3}>
+                      <Grid item xs={6} sm={3}>
+                        <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha('#2196f3', 0.1) }}>
+                          <Typography variant="h4" color="primary">
+                            {deliveryReportStats.total_messages?.toLocaleString() || 0}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">Total Sent</Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha('#4caf50', 0.1) }}>
+                          <Typography variant="h4" color="success.main">
+                            {deliveryReportStats.delivered?.toLocaleString() || 0}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">Delivered</Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha('#f44336', 0.1) }}>
+                          <Typography variant="h4" color="error.main">
+                            {deliveryReportStats.failed?.toLocaleString() || 0}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">Failed</Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Paper sx={{ p: 2, textAlign: 'center', bgcolor: alpha('#ff9800', 0.1) }}>
+                          <Typography variant="h4" color="warning.main">
+                            {deliveryReportStats.pending?.toLocaleString() || 0}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">Pending</Typography>
+                        </Paper>
+                      </Grid>
+                    </Grid>
+                  )}
+
+                  {/* Filters */}
+                  <Box display="flex" gap={2} mb={3} flexWrap="wrap" alignItems="center">
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>Status</InputLabel>
+                      <Select
+                        value={deliveryReportFilter.status}
+                        label="Status"
+                        onChange={(e) => setDeliveryReportFilter(prev => ({ ...prev, status: e.target.value }))}
+                      >
+                        <MenuItem value="all">All</MenuItem>
+                        <MenuItem value="delivered">Delivered</MenuItem>
+                        <MenuItem value="sent">Sent</MenuItem>
+                        <MenuItem value="pending">Pending</MenuItem>
+                        <MenuItem value="failed">Failed</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>Month</InputLabel>
+                      <Select
+                        value={deliveryReportFilter.month}
+                        label="Month"
+                        onChange={(e) => setDeliveryReportFilter(prev => ({ ...prev, month: e.target.value }))}
+                      >
+                        <MenuItem value="">All Months</MenuItem>
+                        {['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
+                          <MenuItem key={i} value={(i + 1).toString()}>{m}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      size="small"
+                      type="date"
+                      label="Start Date"
+                      InputLabelProps={{ shrink: true }}
+                      value={deliveryReportFilter.startDate}
+                      onChange={(e) => setDeliveryReportFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                    />
+                    <TextField
+                      size="small"
+                      type="date"
+                      label="End Date"
+                      InputLabelProps={{ shrink: true }}
+                      value={deliveryReportFilter.endDate}
+                      onChange={(e) => setDeliveryReportFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                    />
+                    <ActionButton
+                      variant="outlined"
+                      onClick={loadDeliveryReport}
+                      loading={loading}
+                      icon={RefreshIcon}
+                      color="primary"
+                    >
+                      Apply Filters
+                    </ActionButton>
+                    <ActionButton
+                      variant="contained"
+                      onClick={handleExportDeliveryReport}
+                      loading={loading}
+                      icon={DownloadIcon}
+                      color="success"
+                    >
+                      Export to Excel
+                    </ActionButton>
+                  </Box>
+
+                  {/* Delivery Report Table */}
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell><strong>Name</strong></TableCell>
+                          <TableCell><strong>Membership #</strong></TableCell>
+                          <TableCell><strong>Phone</strong></TableCell>
+                          <TableCell><strong>Status</strong></TableCell>
+                          <TableCell><strong>Sent At</strong></TableCell>
+                          <TableCell><strong>Message ID</strong></TableCell>
+                          <TableCell><strong>Error</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {deliveryReport.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} align="center">
+                              <Typography color="textSecondary">
+                                {loading ? 'Loading...' : 'No delivery records found'}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          deliveryReport.map((record: any, index: number) => (
+                            <TableRow key={record.id || index} hover>
+                              <TableCell>{record.member_name}</TableCell>
+                              <TableCell>{record.membership_number}</TableCell>
+                              <TableCell>{record.phone_number}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  icon={getDeliveryStatusIcon(record.delivery_status)}
+                                  label={record.delivery_status || 'unknown'}
+                                  color={getDeliveryStatusColor(record.delivery_status)}
+                                  size="small"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {record.sent_at ? new Date(record.sent_at).toLocaleString() : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                                  {record.sms_message_id ? record.sms_message_id.substring(0, 15) + '...' : '-'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                {record.error_message && (
+                                  <Typography variant="caption" color="error">
+                                    {record.error_message.substring(0, 50)}{record.error_message.length > 50 ? '...' : ''}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  <TablePagination
+                    rowsPerPageOptions={[10, 25, 50, 100]}
+                    component="div"
+                    count={deliveryReportTotal}
+                    rowsPerPage={deliveryReportRowsPerPage}
+                    page={deliveryReportPage}
+                    onPageChange={handleDeliveryReportPageChange}
+                    onRowsPerPageChange={handleDeliveryReportRowsPerPageChange}
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
+    </Box>
+  );
+
+  const renderMonthlyStats = () => (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h6">Monthly Birthday Statistics (Active Members)</Typography>
+        <ActionButton
+          variant="outlined"
+          onClick={loadMonthlyStats}
+          loading={loading}
+          icon={RefreshIcon}
+          color="info"
+        >
+          Refresh Stats
+        </ActionButton>
+      </Box>
+
+      {/* Summary Cards */}
+      <Grid container spacing={3} mb={3}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatsCard
+            title="Total Members"
+            value={monthlyStatsTotals?.total_birthdays?.toLocaleString() || 0}
+            subtitle="With birthdays"
+            icon={BirthdayIcon}
+            color="primary"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatsCard
+            title="Good Standing"
+            value={monthlyStatsTotals?.good_standing_count?.toLocaleString() || 0}
+            subtitle={`${monthlyStatsTotals?.good_standing_percentage || 0}%`}
+            icon={CheckCircleIcon}
+            color="success"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatsCard
+            title="SMS Eligible"
+            value={monthlyStatsTotals?.sms_eligible_count?.toLocaleString() || 0}
+            subtitle={`${monthlyStatsTotals?.sms_eligible_percentage || 0}%`}
+            icon={SendIcon}
+            color="info"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatsCard
+            title="Not Good Standing"
+            value={monthlyStatsTotals?.not_good_standing_count?.toLocaleString() || 0}
+            subtitle="Expired/Inactive"
+            icon={ErrorIcon}
+            color="error"
+          />
+        </Grid>
+      </Grid>
+
+      {/* Monthly Statistics Table */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" mb={2}>Monthly Breakdown (Click row for details)</Typography>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell><strong>Month</strong></TableCell>
+                  <TableCell align="right"><strong>Total Birthdays</strong></TableCell>
+                  <TableCell align="right"><strong>Good Standing</strong></TableCell>
+                  <TableCell align="right"><strong>SMS Eligible</strong></TableCell>
+                  <TableCell align="right"><strong>Not Good Standing</strong></TableCell>
+                  <TableCell align="right"><strong>No Phone</strong></TableCell>
+                  <TableCell align="right"><strong>Good Standing %</strong></TableCell>
+                  <TableCell align="right"><strong>SMS Eligible %</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {monthlyStats.map((stat: any) => (
+                  <TableRow
+                    key={stat.birth_month}
+                    hover
+                    onClick={() => handleMonthClick(stat.birth_month)}
+                    sx={{ cursor: 'pointer', '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) } }}
+                  >
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <CalendarMonthIcon fontSize="small" color="primary" />
+                        {stat.month_name}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">{parseInt(stat.total_birthdays).toLocaleString()}</TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        label={parseInt(stat.good_standing_count).toLocaleString()}
+                        color="success"
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        label={parseInt(stat.sms_eligible_count).toLocaleString()}
+                        color="info"
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        label={parseInt(stat.not_good_standing_count).toLocaleString()}
+                        color="error"
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="right">{parseInt(stat.no_phone_count).toLocaleString()}</TableCell>
+                    <TableCell align="right">
+                      <Typography color="success.main" fontWeight="bold">
+                        {stat.good_standing_percentage}%
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography color="info.main" fontWeight="bold">
+                        {stat.sms_eligible_percentage}%
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Month Details Dialog */}
+      <Dialog
+        open={selectedMonth !== null}
+        onClose={handleCloseMonthDetails}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">
+              {selectedMonthStats?.month_name} - Active Members with Birthdays
+            </Typography>
+            <Chip
+              label={`${monthlyStatsTotalMembers.toLocaleString()} SMS Eligible Members`}
+              color="info"
+            />
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedMonthStats && (
+            <Box mb={2}>
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" color="textSecondary">Total</Typography>
+                  <Typography variant="h6">{parseInt(selectedMonthStats.total_birthdays).toLocaleString()}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" color="textSecondary">Good Standing</Typography>
+                  <Typography variant="h6" color="success.main">{parseInt(selectedMonthStats.good_standing_count).toLocaleString()}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" color="textSecondary">SMS Eligible</Typography>
+                  <Typography variant="h6" color="info.main">{parseInt(selectedMonthStats.sms_eligible_count).toLocaleString()}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" color="textSecondary">SMS Eligible %</Typography>
+                  <Typography variant="h6" color="primary.main">{selectedMonthStats.sms_eligible_percentage}%</Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Membership #</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Birth Day</TableCell>
+                  <TableCell>Age</TableCell>
+                  <TableCell>Province</TableCell>
+                  <TableCell>Ward</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {selectedMonthMembers.map((member: any, index: number) => (
+                  <TableRow key={index}>
+                    <TableCell>{member.full_name}</TableCell>
+                    <TableCell>{member.membership_number}</TableCell>
+                    <TableCell>{member.cell_number}</TableCell>
+                    <TableCell>{member.birth_day}</TableCell>
+                    <TableCell>{member.current_age}</TableCell>
+                    <TableCell>{member.province_name}</TableCell>
+                    <TableCell>{member.ward_code}</TableCell>
+                    <TableCell>
+                      <Chip label={member.membership_status} color="success" size="small" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            component="div"
+            count={monthlyStatsTotalMembers}
+            rowsPerPage={monthlyStatsRowsPerPage}
+            page={monthlyStatsPage}
+            onPageChange={(_e, newPage) => setMonthlyStatsPage(newPage)}
+            onRowsPerPageChange={(e) => {
+              setMonthlyStatsRowsPerPage(parseInt(e.target.value, 10));
+              setMonthlyStatsPage(0);
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleExportMonthlyBirthdays}
+            startIcon={<DownloadIcon />}
+            variant="contained"
+            color="success"
+            disabled={loading || !selectedMonthMembers.length}
+          >
+            Download Excel
+          </Button>
+          <Button onClick={handleCloseMonthDetails}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 
@@ -1236,6 +1991,12 @@ const SMSManagement: React.FC = () => {
               sx={{ gap: 1 }}
             />
             <Tab
+              label="Monthly Statistics"
+              icon={<CalendarMonthIcon />}
+              iconPosition="start"
+              sx={{ gap: 1 }}
+            />
+            <Tab
               label="Provider Status"
               icon={<MonitorIcon />}
               iconPosition="start"
@@ -1254,7 +2015,8 @@ const SMSManagement: React.FC = () => {
             {!loading && currentTab === 1 && renderTemplates()}
             {!loading && currentTab === 2 && renderCampaigns()}
             {!loading && currentTab === 3 && renderBirthdaySMS()}
-            {!loading && currentTab === 4 && renderProviderStatus()}
+            {!loading && currentTab === 4 && renderMonthlyStats()}
+            {!loading && currentTab === 5 && renderProviderStatus()}
           </Box>
         </Paper>
       </Container>
@@ -1318,7 +2080,7 @@ const SMSManagement: React.FC = () => {
                 <TextField
                   fullWidth
                   label="Variables (comma-separated)"
-                  value={templateForm.variables.join(', ')}
+                  value={Array.isArray(templateForm.variables) ? templateForm.variables.join(', ') : ''}
                   onChange={(e) => setTemplateForm({
                     ...templateForm,
                     variables: e.target.value.split(',').map(v => v.trim()).filter(v => v)

@@ -343,7 +343,7 @@ router.get('/quick', authenticate, requirePermission('members.read'), applyProvi
     // Log search activity
     try {
       await executeQuery(
-        'INSERT INTO search_history (user_id, search_query, results_count, execution_time_ms, search_type, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO search_history (user_id, search_query, results_count, execution_time_ms, search_type, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7)',
         [
           req.user?.id || null,
           searchTerm,

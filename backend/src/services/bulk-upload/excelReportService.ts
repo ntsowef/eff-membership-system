@@ -8,7 +8,12 @@ import {
   ExistingMemberRecord,
   IECVerificationResult,
   ValidationResult,
-  DatabaseOperationsBatchResult
+  DatabaseOperationsBatchResult,
+  RenewalRecord,
+  RenewalValidationError,
+  SubscriptionTypeError,
+  DatabaseOperationResult,
+  MemberStatusUpdateBatchResult
 } from './types';
 import { getPrisma } from '../prismaService';
 import { HtmlPdfService } from '../htmlPdfService';
@@ -66,6 +71,7 @@ export class ExcelReportService {
    * @param dbResult - Database operation results
    * @param userEmail - Optional: User email for sending attendance register PDFs
    * @param userName - Optional: User name for email personalization
+   * @param generateAttendanceRegisters - Optional: Whether to generate attendance register PDFs (default: true)
    * @returns Object with report path and attendance register paths
    */
   static async generateReport(
@@ -75,96 +81,115 @@ export class ExcelReportService {
     iecResults: Map<string, IECVerificationResult>,
     dbResult: DatabaseOperationsBatchResult,
     userEmail?: string,
-    userName?: string
+    userName?: string,
+    generateAttendanceRegisters: boolean = true,
+    statusUpdates?: MemberStatusUpdateBatchResult
   ): Promise<{ reportPath: string; attendanceRegisterPaths: string[] }> {
     console.log(`\n📊 EXCEL REPORT: Generating report...`);
 
-	    const workbook = new ExcelJS.Workbook();
+    const workbook = new ExcelJS.Workbook();
 
-	    // Pre-compute IEC / ward status groups for summary and sheets
-	    const registeredInWard = this.getRegisteredInWard(
-	      validationResult.valid_records,
-	      iecResults,
-	      dbResult.successful_operations
-	    );
-	    const registeredDifferentWard = this.getRegisteredInDifferentWard(
-	      validationResult.valid_records,
-	      iecResults,
-	      dbResult.successful_operations
-	    );
-	    const notRegistered = this.getNotRegisteredVoters(
-	      validationResult.valid_records,
-	      iecResults
-	    );
-	    const deceased = this.getDeceasedVoters(
-	      validationResult.valid_records,
-	      iecResults,
-	      dbResult.successful_operations
-	    );
+    // Pre-compute IEC / ward status groups for summary and sheets
+    const registeredInWard = this.getRegisteredInWard(
+      validationResult.valid_records,
+      iecResults,
+      dbResult.successful_operations
+    );
+    const registeredDifferentWard = this.getRegisteredInDifferentWard(
+      validationResult.valid_records,
+      iecResults,
+      dbResult.successful_operations
+    );
+    const notRegistered = this.getNotRegisteredVoters(
+      validationResult.valid_records,
+      iecResults
+    );
+    const deceased = this.getDeceasedVoters(
+      validationResult.valid_records,
+      iecResults,
+      dbResult.successful_operations
+    );
 
-	    console.log(
-	      `   📊 Ward/IEC Stats: ${registeredInWard.length} in same ward, ${registeredDifferentWard.length} in different ward, ${notRegistered.length} not registered, ${deceased.length} deceased`
-	    );
+    console.log(
+      `   📊 Ward/IEC Stats: ${registeredInWard.length} in same ward, ${registeredDifferentWard.length} in different ward, ${notRegistered.length} not registered, ${deceased.length} deceased`
+    );
 
-	    // Calculate ward compliance data
-	    const wardComplianceData = await this.calculateWardCompliance(
-	      originalData,
-	      dbResult.successful_operations,
-	      iecResults
-	    );
+    // Calculate ward compliance data
+    const wardComplianceData = await this.calculateWardCompliance(
+      originalData,
+      dbResult.successful_operations,
+      iecResults
+    );
 
-	    // Sheet 1: Summary (now includes IEC ward verification & deceased stats + ward compliance)
-	    await this.createSummarySheet(
-	      workbook,
-	      validationResult,
-	      dbResult,
-	      iecResults,
-	      registeredInWard.length,
-	      registeredDifferentWard.length,
-	      notRegistered.length,
-	      deceased.length,
-	      wardComplianceData
-	    );
+    // Sheet 1: Summary (now includes IEC ward verification & deceased stats + ward compliance)
+    await this.createSummarySheet(
+      workbook,
+      validationResult,
+      dbResult,
+      iecResults,
+      registeredInWard.length,
+      registeredDifferentWard.length,
+      notRegistered.length,
+      deceased.length,
+      wardComplianceData,
+      statusUpdates
+    );
 
-	    // Sheet 2: All Uploaded Rows (with IEC status and existing member info)
-	    this.createAllUploadedRowsSheet(workbook, originalData, validationResult, iecResults);
+    // Sheet 2: All Uploaded Rows (with IEC status and existing member info)
+    this.createAllUploadedRowsSheet(workbook, originalData, validationResult, iecResults, dbResult);
 
-	    // Sheet 3: Invalid IDs
-	    this.createInvalidIdsSheet(workbook, validationResult.invalid_ids);
+    // Sheet 3: Invalid IDs
+    this.createInvalidIdsSheet(workbook, validationResult.invalid_ids);
 
-	    // Sheet 4: Duplicates
-	    this.createDuplicatesSheet(workbook, validationResult.duplicates);
+    // Sheet 4: Duplicates
+    this.createDuplicatesSheet(workbook, validationResult.duplicates);
 
-	    // Sheet 5: Deceased Voters
-	    this.createDeceasedVotersSheet(workbook, deceased, iecResults);
+    // Sheet 5: Deceased Voters
+    this.createDeceasedVotersSheet(workbook, deceased, iecResults);
 
-	    // Sheet 6: Not Registered Voters
-	    this.createNotRegisteredSheet(workbook, notRegistered);
+    // Sheet 6: Not Registered Voters
+    this.createNotRegisteredSheet(workbook, notRegistered);
 
-	    // Sheet 7: New Members
-	    this.createNewMembersSheet(workbook, validationResult.new_members);
+    // Sheet 7: New Members
+    this.createNewMembersSheet(workbook, validationResult.new_members);
 
-	    // Sheet 8: Existing Members (Updated)
-	    this.createExistingMembersSheet(workbook, validationResult.existing_members);
+    // Sheet 8: Existing Members (Updated)
+    this.createExistingMembersSheet(workbook, validationResult.existing_members);
 
-	    // Sheet 9: Database Errors
-	    this.createDatabaseErrorsSheet(workbook, dbResult.failed_operations, originalData);
+    // Sheet 9: Database Errors
+    this.createDatabaseErrorsSheet(workbook, dbResult.failed_operations, originalData);
 
-	    // Sheet 10: Registered in Ward (file ward matches IEC ward)
-	    this.createRegisteredInWardSheet(workbook, registeredInWard, iecResults);
+    // Sheet 10: Registered in Ward (file ward matches IEC ward)
+    this.createRegisteredInWardSheet(workbook, registeredInWard, iecResults);
 
-	    // Sheet 11: Registered in Different Ward (file ward differs from IEC ward)
-	    this.createRegisteredDifferentWardSheet(workbook, registeredDifferentWard, iecResults);
+    // Sheet 11: Registered in Different Ward (file ward differs from IEC ward)
+    this.createRegisteredDifferentWardSheet(workbook, registeredDifferentWard, iecResults);
+
+    // Sheet 12: Successful Renewals
+    const successfulRenewals = dbResult.successful_operations.filter(op => op.operation === 'renewal');
+    this.createSuccessfulRenewalsSheet(workbook, successfulRenewals);
+
+    // Sheet 13: Renewal Validation Errors
+    this.createRenewalValidationErrorsSheet(workbook, validationResult.renewal_validation_errors);
+
+    // Sheet 14: Subscription Type Errors
+    this.createSubscriptionTypeErrorsSheet(workbook, validationResult.subscription_type_errors);
+
+    // Sheet 15: Status Updates (expiry dates calculated, status changes)
+    if (statusUpdates && statusUpdates.updates.length > 0) {
+      this.createStatusUpdatesSheet(workbook, statusUpdates);
+    }
 
     // Save workbook
     await workbook.xlsx.writeFile(outputPath);
     console.log(`   ✅ Report saved to: ${outputPath}`);
 
     // Generate attendance registers for compliant wards (200+ registered voters)
+    // Only generate if generateAttendanceRegisters flag is true
     const compliantWards = wardComplianceData.filter(w => w.is_compliant);
     const attendanceRegisterPaths: string[] = [];
 
-    if (compliantWards.length > 0) {
+    if (generateAttendanceRegisters && compliantWards.length > 0) {
       const reportDir = path.dirname(outputPath);
       const generatedRegisters = await this.generateAttendanceRegistersForCompliantWards(
         compliantWards,
@@ -180,25 +205,28 @@ export class ExcelReportService {
           attendanceRegisterPaths.push(reg.file_path);
         });
       }
+    } else if (!generateAttendanceRegisters && compliantWards.length > 0) {
+      console.log(`\n📋 ATTENDANCE REGISTERS: Skipped (generateAttendanceRegisters=false). ${compliantWards.length} compliant ward(s) found.`);
     }
 
     return { reportPath: outputPath, attendanceRegisterPaths };
   }
 
-	  /**
-	   * Create Summary sheet with validation, processing, IEC verification, and ward compliance statistics
-	   */
-	  private static async createSummarySheet(
-	    workbook: ExcelJS.Workbook,
-	    validationResult: ValidationResult,
-	    dbResult: DatabaseOperationsBatchResult,
-	    iecResults?: Map<string, IECVerificationResult>,
-	    registeredInWardCount?: number,
-	    registeredDifferentWardCount?: number,
-	    notRegisteredCount?: number,
-	    deceasedCount?: number,
-	    wardComplianceData?: WardComplianceData[]
-	  ): Promise<void> {
+  /**
+   * Create Summary sheet with validation, processing, IEC verification, and ward compliance statistics
+   */
+  private static async createSummarySheet(
+    workbook: ExcelJS.Workbook,
+    validationResult: ValidationResult,
+    dbResult: DatabaseOperationsBatchResult,
+    iecResults?: Map<string, IECVerificationResult>,
+    registeredInWardCount?: number,
+    registeredDifferentWardCount?: number,
+    notRegisteredCount?: number,
+    deceasedCount?: number,
+    wardComplianceData?: WardComplianceData[],
+    statusUpdates?: MemberStatusUpdateBatchResult
+  ): Promise<void> {
     const sheet = workbook.addWorksheet('Summary');
 
     // Title
@@ -254,31 +282,109 @@ export class ExcelReportService {
       row++;
     });
 
-	    // IEC Verification Statistics (Ward Comparison + Not Registered + Deceased)
-	    if (
-	      iecResults &&
-	      registeredInWardCount !== undefined &&
-	      registeredDifferentWardCount !== undefined &&
-	      notRegisteredCount !== undefined &&
-	      deceasedCount !== undefined
-	    ) {
-	      sheet.getCell(`A${row + 1}`).value = 'IEC WARD VERIFICATION';
-	      sheet.getCell(`A${row + 1}`).font = { bold: true, size: 12 };
-	
-	      const iecStats = [
-	        ['Registered in Same Ward', registeredInWardCount],
-	        ['Registered in Different Ward', registeredDifferentWardCount],
-	        ['Not Registered Voters', notRegisteredCount],
-	        ['Deceased Voters', deceasedCount],
-	      ];
-	
-	      row += 2;
-	      iecStats.forEach(([label, value]) => {
-	        sheet.getCell(`A${row}`).value = label;
-	        sheet.getCell(`B${row}`).value = value;
-	        row++;
-	      });
-	    }
+    // Renewal Statistics Section
+    const hasRenewals = validationResult.validation_stats.renewals > 0 ||
+      validationResult.validation_stats.renewal_validation_errors > 0 ||
+      validationResult.validation_stats.subscription_type_errors > 0;
+
+    if (hasRenewals) {
+      sheet.getCell(`A${row + 1}`).value = 'RENEWAL STATISTICS';
+      sheet.getCell(`A${row + 1}`).font = { bold: true, size: 12 };
+
+      const renewalStats = [
+        ['Total Renewals Processed', validationResult.validation_stats.renewals],
+        ['Early Renewals (Active Members)', validationResult.validation_stats.early_renewals],
+        ['Expired Member Renewals', validationResult.validation_stats.expired_member_renewals],
+        ['Successful Renewals', dbResult.operation_stats.renewals],
+        ['Renewal Validation Errors', validationResult.validation_stats.renewal_validation_errors],
+        ['Subscription Type Errors', validationResult.validation_stats.subscription_type_errors],
+      ];
+
+      row += 2;
+      renewalStats.forEach(([label, value]) => {
+        sheet.getCell(`A${row}`).value = label;
+        sheet.getCell(`B${row}`).value = value;
+        // Color code renewal stats
+        if (label === 'Successful Renewals' && (value as number) > 0) {
+          sheet.getCell(`B${row}`).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFC6EFCE' } // Light green
+          };
+        } else if ((label === 'Renewal Validation Errors' || label === 'Subscription Type Errors') && (value as number) > 0) {
+          sheet.getCell(`B${row}`).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFC7CE' } // Light red
+          };
+        }
+        row++;
+      });
+    }
+
+    // IEC Verification Statistics (Ward Comparison + Not Registered + Deceased)
+    if (
+      iecResults &&
+      registeredInWardCount !== undefined &&
+      registeredDifferentWardCount !== undefined &&
+      notRegisteredCount !== undefined &&
+      deceasedCount !== undefined
+    ) {
+      sheet.getCell(`A${row + 1}`).value = 'IEC WARD VERIFICATION';
+      sheet.getCell(`A${row + 1}`).font = { bold: true, size: 12 };
+
+      const iecStats = [
+        ['Registered in Same Ward', registeredInWardCount],
+        ['Registered in Different Ward', registeredDifferentWardCount],
+        ['Not Registered Voters', notRegisteredCount],
+        ['Deceased Voters', deceasedCount],
+        ['Not Verified (Rate Limit/Error)', (validationResult.valid_records.length - (registeredInWardCount + registeredDifferentWardCount + notRegisteredCount + deceasedCount))]
+      ];
+
+      row += 2;
+      iecStats.forEach(([label, value]) => {
+        sheet.getCell(`A${row}`).value = label;
+        sheet.getCell(`B${row}`).value = value;
+        row++;
+      });
+    }
+
+    // Status Update Statistics Section
+    if (statusUpdates && statusUpdates.stats.total_processed > 0) {
+      sheet.getCell(`A${row + 1}`).value = 'STATUS UPDATE STATISTICS';
+      sheet.getCell(`A${row + 1}`).font = { bold: true, size: 12 };
+
+      const statusStats = [
+        ['Total Members Processed', statusUpdates.stats.total_processed],
+        ['Expiry Dates Calculated', statusUpdates.stats.expiry_dates_calculated],
+        ['Statuses Changed', statusUpdates.stats.statuses_changed],
+        ['Protected Status Skipped', statusUpdates.stats.protected_skipped],
+        ['No Payment Date Skipped', statusUpdates.stats.no_payment_date_skipped],
+        ['Already Correct Skipped', statusUpdates.stats.already_correct_skipped],
+        ['Status Update Errors', statusUpdates.stats.errors],
+      ];
+
+      row += 2;
+      statusStats.forEach(([label, value]) => {
+        sheet.getCell(`A${row}`).value = label;
+        sheet.getCell(`B${row}`).value = value;
+        // Color code status stats
+        if ((label === 'Expiry Dates Calculated' || label === 'Statuses Changed') && (value as number) > 0) {
+          sheet.getCell(`B${row}`).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFC6EFCE' } // Light green
+          };
+        } else if (label === 'Status Update Errors' && (value as number) > 0) {
+          sheet.getCell(`B${row}`).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFC7CE' } // Light red
+          };
+        }
+        row++;
+      });
+    }
 
     // Ward Compliance Summary Section
     if (wardComplianceData && wardComplianceData.length > 0) {
@@ -289,7 +395,7 @@ export class ExcelReportService {
       row++;
 
       // Add note about registered voters only
-      sheet.getCell(`A${row}`).value = 'Note: Only members registered to vote are counted (excludes voter_registration_status_id = 2)';
+      sheet.getCell(`A${row}`).value = 'Note: Only ACTIVE members registered to vote (voter_registration_id = 1) are counted.';
       sheet.getCell(`A${row}`).font = { italic: true, size: 10, color: { argb: 'FF666666' } };
       sheet.mergeCells(`A${row}:E${row}`);
       row += 2;
@@ -403,9 +509,8 @@ export class ExcelReportService {
         const existingCount = await prisma.members_consolidated.count({
           where: {
             ward_code: wardCode,
-            voter_registration_id: {
-              not: 2 // Exclude "Not Registered to Vote"
-            }
+            voter_registration_id: 1, // ONLY count "Registered" members
+            membership_status_id: 1 // ONLY count "Active" members
           }
         });
 
@@ -418,8 +523,11 @@ export class ExcelReportService {
           if (String(recordWardCode).trim() === wardCode) {
             const idNumber = op.record?.['ID Number'] || op.record?.['id_number'];
             const iecResult = iecResults.get(idNumber);
-            // Only count if IEC says they're registered
-            if (iecResult?.is_registered) {
+            // Only count if IEC says they're registered AND not deceased
+            const isDeceased = (iecResult?.voter_status?.toUpperCase() || '').includes('DECEASED') ||
+              iecResult?.voting_district_code === '11111111';
+
+            if (iecResult?.is_registered && !isDeceased) {
               newRegisteredCount++;
             }
           }
@@ -604,7 +712,8 @@ export class ExcelReportService {
     workbook: ExcelJS.Workbook,
     originalData: BulkUploadRecord[],
     validationResult: ValidationResult,
-    iecResults: Map<string, IECVerificationResult>
+    iecResults: Map<string, IECVerificationResult>,
+    dbResult: DatabaseOperationsBatchResult
   ): void {
     const sheet = workbook.addWorksheet('All Uploaded Rows');
 
@@ -613,10 +722,30 @@ export class ExcelReportService {
       return;
     }
 
-    // Create existing members lookup
+    // Create existing members and error lookups
     const existingMembersMap = new Map<string, ExistingMemberRecord>();
     validationResult.existing_members.forEach(em => {
       existingMembersMap.set(em['ID Number'], em);
+    });
+
+    const renewalRecordsMap = new Map<string, RenewalRecord>();
+    validationResult.renewal_records.forEach(rr => {
+      renewalRecordsMap.set(rr['ID Number'], rr);
+    });
+
+    const renewalErrorsMap = new Map<string, RenewalValidationError>();
+    validationResult.renewal_validation_errors.forEach(re => {
+      renewalErrorsMap.set(re.record['ID Number'], re);
+    });
+
+    const subscriptionErrorsMap = new Map<string, SubscriptionTypeError>();
+    validationResult.subscription_type_errors.forEach(se => {
+      subscriptionErrorsMap.set(se.record['ID Number'], se);
+    });
+
+    const successfulRenewalsMap = new Map<string, DatabaseOperationResult>();
+    dbResult.successful_operations.filter(op => op.operation === 'renewal').forEach(sr => {
+      successfulRenewalsMap.set(sr.id_number, sr);
     });
 
     // Get headers from first row and add status columns
@@ -631,7 +760,10 @@ export class ExcelReportService {
       'Already Exists',
       'Existing Member Name',
       'Existing Ward',
-      'Existing VD'
+      'Is Renewal',
+      'Renewal Status',
+      'Renewal Error',
+      'Subscription Error'
     ];
 
     const allHeaders = [...originalHeaders, ...statusHeaders];
@@ -651,6 +783,18 @@ export class ExcelReportService {
       const idNumber = record['ID Number'];
       const iecDetails = iecResults.get(idNumber);
       const existingMember = existingMembersMap.get(idNumber);
+      const renewalRecord = renewalRecordsMap.get(idNumber);
+      const renewalError = renewalErrorsMap.get(idNumber);
+      const subscriptionError = subscriptionErrorsMap.get(idNumber);
+      const successfulRenewal = successfulRenewalsMap.get(idNumber);
+
+      // Determine renewal status display
+      let renewalStatus = 'N/A';
+      if (successfulRenewal) {
+        renewalStatus = `✅ ${successfulRenewal.renewal_classification === 'early_renewal' ? 'Early' : 'Expired'}`;
+      } else if (renewalRecord) {
+        renewalStatus = '⏳ Validated';
+      }
 
       const values = [
         ...originalHeaders.map((h) => record[h]),
@@ -660,7 +804,10 @@ export class ExcelReportService {
         existingMember ? 'YES' : 'NO',
         existingMember ? `${existingMember.existing_name || ''}`.trim() : 'N/A',
         existingMember?.existing_ward || 'N/A',
-        existingMember?.existing_vd || 'N/A'
+        renewalRecord || successfulRenewal ? 'YES' : 'NO',
+        renewalStatus,
+        renewalError ? renewalError.error_type : 'None',
+        subscriptionError ? subscriptionError.error_type : 'None'
       ];
 
       const row = sheet.addRow(values);
@@ -673,12 +820,26 @@ export class ExcelReportService {
           pattern: 'solid',
           fgColor: { argb: 'FFFFC7CE' },
         };
+      } else if (renewalRecord || successfulRenewal) {
+        // Renewal - light blue
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFD9EAD3' }, // Very light green/blue for renewals
+        };
       } else if (existingMember) {
-        // Existing member - light yellow
+        // Existing member (standard update) - light yellow
         row.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFFFEB9C' },
+        };
+      } else if (renewalError || subscriptionError) {
+        // Error - light red
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFC7CE' },
         };
       }
     });
@@ -688,7 +849,7 @@ export class ExcelReportService {
       if (idx < originalHeaders.length) {
         column.width = 15;
       } else {
-        column.width = 20; // Wider for status columns
+        column.width = 22; // Wider for status columns
       }
     });
   }
@@ -1041,124 +1202,124 @@ export class ExcelReportService {
     });
   }
 
-	  /**
-	   * Get deceased voters from valid records
-	   * Criteria:
-	   *  - IEC voter_status explicitly indicates 'DECEASED', OR
-	   *  - Special VD code 11111111 was assigned (via IEC voter_status mapping)
-	   *
-	   * We infer 11111111 assignment from IEC voter_status (LookupService maps DECEASED
-	   * to VD 11111111), and we also require that the record was successfully processed
-	   * in the database batch.
-	   */
-	  private static getDeceasedVoters(
-	    validRecords: BulkUploadRecord[],
-	    iecResults: Map<string, IECVerificationResult>,
-	    successfulOperations: any[]
-	  ): BulkUploadRecord[] {
-	    const successfulIds = new Set(successfulOperations.map(op => op.id_number));
+  /**
+   * Get deceased voters from valid records
+   * Criteria:
+   *  - IEC voter_status explicitly indicates 'DECEASED', OR
+   *  - Special VD code 11111111 was assigned (via IEC voter_status mapping)
+   *
+   * We infer 11111111 assignment from IEC voter_status (LookupService maps DECEASED
+   * to VD 11111111), and we also require that the record was successfully processed
+   * in the database batch.
+   */
+  private static getDeceasedVoters(
+    validRecords: BulkUploadRecord[],
+    iecResults: Map<string, IECVerificationResult>,
+    successfulOperations: any[]
+  ): BulkUploadRecord[] {
+    const successfulIds = new Set(successfulOperations.map(op => op.id_number));
 
-	    return validRecords.filter(record => {
-	      const idNumber = record['ID Number'];
-	      const iecResult = iecResults.get(idNumber);
-	      if (!iecResult || !successfulIds.has(idNumber)) {
-	        return false;
-	      }
+    return validRecords.filter(record => {
+      const idNumber = record['ID Number'];
+      const iecResult = iecResults.get(idNumber);
+      if (!iecResult || !successfulIds.has(idNumber)) {
+        return false;
+      }
 
-	      const status = iecResult.voter_status?.toUpperCase() || '';
-	      return status.includes('DECEASED');
-	    });
-	  }
+      const status = iecResult.voter_status?.toUpperCase() || '';
+      return status.includes('DECEASED');
+    });
+  }
 
-	  /**
-	   * Create Deceased Voters sheet
-	   *
-	   * Criteria:
-	   *  - IEC voter_status === 'DECEASED' (or contains 'DECEASED')
-	   *  - Or, by business rule, member would be assigned VD code 11111111
-	   */
-	  private static createDeceasedVotersSheet(
-	    workbook: ExcelJS.Workbook,
-	    deceasedRecords: BulkUploadRecord[],
-	    iecResults: Map<string, IECVerificationResult>
-	  ): void {
-	    const sheet = workbook.addWorksheet('Deceased Voters');
+  /**
+   * Create Deceased Voters sheet
+   *
+   * Criteria:
+   *  - IEC voter_status === 'DECEASED' (or contains 'DECEASED')
+   *  - Or, by business rule, member would be assigned VD code 11111111
+   */
+  private static createDeceasedVotersSheet(
+    workbook: ExcelJS.Workbook,
+    deceasedRecords: BulkUploadRecord[],
+    iecResults: Map<string, IECVerificationResult>
+  ): void {
+    const sheet = workbook.addWorksheet('Deceased Voters');
 
-	    if (deceasedRecords.length === 0) {
-	      sheet.getCell('A1').value = 'No deceased voters detected from IEC verification';
-	      return;
-	    }
+    if (deceasedRecords.length === 0) {
+      sheet.getCell('A1').value = 'No deceased voters detected from IEC verification';
+      return;
+    }
 
-	    const headers = [
-	      'Row Number',
-	      'ID Number',
-	      'Full Name',
-	      'File Ward Code',
-	      'IEC Ward Code',
-	      'Voting District Code',
-	      'Province Code',
-	      'Province Name',
-	      'Municipality Code',
-	      'Municipality Name',
-	      'District Code',
-	      'District Name',
-	      'IEC Registered',
-	      'Voter Status',
-	      'Date Joined',
-	      'Membership Status',
-	      'Note'
-	    ];
-	    sheet.addRow(headers);
+    const headers = [
+      'Row Number',
+      'ID Number',
+      'Full Name',
+      'File Ward Code',
+      'IEC Ward Code',
+      'Voting District Code',
+      'Province Code',
+      'Province Name',
+      'Municipality Code',
+      'Municipality Name',
+      'District Code',
+      'District Name',
+      'IEC Registered',
+      'Voter Status',
+      'Date Joined',
+      'Membership Status',
+      'Note'
+    ];
+    sheet.addRow(headers);
 
-	    // Style header row with dark gray/black to indicate deceased status
-	    const headerRow = sheet.getRow(1);
-	    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-	    headerRow.fill = {
-	      type: 'pattern',
-	      pattern: 'solid',
-	      fgColor: { argb: 'FF000000' }, // Black header for deceased
-	    };
+    // Style header row with dark gray/black to indicate deceased status
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF000000' }, // Black header for deceased
+    };
 
-	    deceasedRecords.forEach((record) => {
-	      const iecResult = iecResults.get(record['ID Number']);
-	      const fileWardCode = record.Ward ? String(record.Ward).trim() : '';
-	      const iecWardCode = iecResult?.ward_code ? String(iecResult.ward_code).trim() : '';
-	      const fullName = `${record.Firstname || record['First Name'] || ''} ${record.Surname || record['Last Name'] || ''}`.trim();
-	      const status = iecResult?.voter_status || 'DECEASED';
+    deceasedRecords.forEach((record) => {
+      const iecResult = iecResults.get(record['ID Number']);
+      const fileWardCode = record.Ward ? String(record.Ward).trim() : '';
+      const iecWardCode = iecResult?.ward_code ? String(iecResult.ward_code).trim() : '';
+      const fullName = `${record.Firstname || record['First Name'] || ''} ${record.Surname || record['Last Name'] || ''}`.trim();
+      const status = iecResult?.voter_status || 'DECEASED';
 
-	      const values = [
-	        record.row_number,
-	        record['ID Number'],
-	        fullName,
-	        fileWardCode,
-	        iecWardCode,
-	        '11111111', // Special VD code for deceased
-	        iecResult?.province_code || record['Province Code'] || 'N/A',
-	        record.Province || 'N/A',
-	        iecResult?.municipality_code || record['Municipality Code'] || 'N/A',
-	        record.Municipality || 'N/A',
-	        iecResult?.district_code || record['District Code'] || 'N/A',
-	        record.District || 'N/A',
-	        iecResult?.is_registered ? 'YES' : 'NO',
-	        status,
-	        record['Date Joined'] || 'N/A',
-	        record['Membership Status'] || record.Status || 'N/A',
-	        'Member marked as DECEASED by IEC verification (VD 11111111)'
-	      ];
-	      sheet.addRow(values);
-	    });
+      const values = [
+        record.row_number,
+        record['ID Number'],
+        fullName,
+        fileWardCode,
+        iecWardCode,
+        '11111111', // Special VD code for deceased
+        iecResult?.province_code || record['Province Code'] || 'N/A',
+        record.Province || 'N/A',
+        iecResult?.municipality_code || record['Municipality Code'] || 'N/A',
+        record.Municipality || 'N/A',
+        iecResult?.district_code || record['District Code'] || 'N/A',
+        record.District || 'N/A',
+        iecResult?.is_registered ? 'YES' : 'NO',
+        status,
+        record['Date Joined'] || 'N/A',
+        record['Membership Status'] || record.Status || 'N/A',
+        'Member marked as DECEASED by IEC verification (VD 11111111)'
+      ];
+      sheet.addRow(values);
+    });
 
-	    // Auto-fit columns
-	    sheet.columns.forEach((column, idx) => {
-	      if (idx === 2) {
-	        column.width = 25; // Full Name
-	      } else if (idx === 16) {
-	        column.width = 40; // Note
-	      } else {
-	        column.width = 18;
-	      }
-	    });
-	  }
+    // Auto-fit columns
+    sheet.columns.forEach((column, idx) => {
+      if (idx === 2) {
+        column.width = 25; // Full Name
+      } else if (idx === 16) {
+        column.width = 40; // Note
+      } else {
+        column.width = 18;
+      }
+    });
+  }
 
   /**
    * Get members registered in the same ward (file ward matches IEC ward)
@@ -1407,6 +1568,386 @@ export class ExcelReportService {
         column.width = 30; // Wider for Ward Mismatch and Note
       } else if (idx === 8) {
         column.width = 30; // Wider for IEC Municipality Name (Actual)
+      } else {
+        column.width = 18;
+      }
+    });
+  }
+
+  /**
+   * Create Successful Renewals sheet
+   * Shows all successfully processed membership renewals with classification
+   */
+  private static createSuccessfulRenewalsSheet(
+    workbook: ExcelJS.Workbook,
+    successfulRenewals: DatabaseOperationResult[]
+  ): void {
+    const sheet = workbook.addWorksheet('Successful Renewals');
+
+    if (successfulRenewals.length === 0) {
+      sheet.getCell('A1').value = 'No membership renewals processed';
+      return;
+    }
+
+    // Headers for renewal sheet
+    const headers = [
+      'ID Number',
+      'Full Name',
+      'Renewal Classification',
+      'Previous Expiry Date',
+      'New Expiry Date',
+      'Days Extended',
+      'Member ID',
+      'Ward',
+      'Cell Number',
+      'Email'
+    ];
+    sheet.addRow(headers);
+
+    // Style header row with blue (renewal color)
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF0066CC' }, // Blue for renewals
+    };
+
+    // Add data rows
+    successfulRenewals.forEach((renewal) => {
+      const record = renewal.record as any;
+      const fullName = `${record?.Firstname || record?.Name || ''} ${record?.Surname || ''}`.trim();
+
+      // Calculate days extended
+      let daysExtended = 'N/A';
+      if (renewal.previous_expiry_date && renewal.new_expiry_date) {
+        const prevDate = new Date(renewal.previous_expiry_date);
+        const newDate = new Date(renewal.new_expiry_date);
+        const diffTime = newDate.getTime() - prevDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        daysExtended = diffDays.toString();
+      }
+
+      // Format classification for display
+      const classificationDisplay = renewal.renewal_classification === 'early_renewal'
+        ? '🟢 Early Renewal (Active Member)'
+        : '🟡 Expired Member Renewal';
+
+      const values = [
+        renewal.id_number,
+        fullName,
+        classificationDisplay,
+        renewal.previous_expiry_date ? new Date(renewal.previous_expiry_date).toISOString().split('T')[0] : 'N/A',
+        renewal.new_expiry_date ? new Date(renewal.new_expiry_date).toISOString().split('T')[0] : 'N/A',
+        daysExtended,
+        renewal.member_id || 'N/A',
+        record?.Ward || 'N/A',
+        record?.['Cell Number'] || 'N/A',
+        record?.Email || 'N/A'
+      ];
+      const row = sheet.addRow(values);
+
+      // Color code based on renewal classification
+      if (renewal.renewal_classification === 'early_renewal') {
+        row.getCell(3).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFC6EFCE' } // Light green
+        };
+      } else {
+        row.getCell(3).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFEB9C' } // Light yellow
+        };
+      }
+    });
+
+    // Auto-fit columns
+    sheet.columns.forEach((column, idx) => {
+      if (idx === 1) {
+        column.width = 25; // Full Name
+      } else if (idx === 2) {
+        column.width = 30; // Renewal Classification
+      } else {
+        column.width = 18;
+      }
+    });
+  }
+
+  /**
+   * Create Renewal Validation Errors sheet
+   * Shows records that failed renewal-specific validation rules
+   */
+  private static createRenewalValidationErrorsSheet(
+    workbook: ExcelJS.Workbook,
+    renewalErrors: RenewalValidationError[]
+  ): void {
+    const sheet = workbook.addWorksheet('Renewal Validation Errors');
+
+    if (renewalErrors.length === 0) {
+      sheet.getCell('A1').value = 'No renewal validation errors';
+      sheet.getCell('A1').font = { bold: true, color: { argb: 'FF00AA00' } };
+      return;
+    }
+
+    // Headers
+    const headers = [
+      'Row Number',
+      'ID Number',
+      'Full Name',
+      'Error Type',
+      'Error Message',
+      'Database Expiry Date',
+      'Excel Expiry Date',
+      'Ward',
+      'Cell Number'
+    ];
+    sheet.addRow(headers);
+
+    // Style header row with red (error color)
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDC143C' }, // Crimson red
+    };
+
+    // Add data rows
+    renewalErrors.forEach((error) => {
+      const record = error.record;
+      const fullName = `${record.Firstname || record.Name || ''} ${record.Surname || ''}`.trim();
+
+      // Format error type for display
+      const errorTypeDisplay = {
+        'expiry_date_not_newer': '❌ Expiry Date Not Newer',
+        'invalid_date_format': '❌ Invalid Date Format',
+        'missing_expiry_date': '❌ Missing Expiry Date',
+        'invalid_last_payment_date': '❌ Invalid Last Payment Date'
+      }[error.error_type] || error.error_type;
+
+      const values = [
+        record.row_number,
+        record['ID Number'],
+        fullName,
+        errorTypeDisplay,
+        error.error_message,
+        error.db_expiry_date ? new Date(error.db_expiry_date).toISOString().split('T')[0] : 'N/A',
+        error.excel_expiry_date ? new Date(error.excel_expiry_date).toISOString().split('T')[0] : 'N/A',
+        record.Ward || 'N/A',
+        record['Cell Number'] || 'N/A'
+      ];
+      sheet.addRow(values);
+    });
+
+    // Auto-fit columns
+    sheet.columns.forEach((column, idx) => {
+      if (idx === 2) {
+        column.width = 25; // Full Name
+      } else if (idx === 3) {
+        column.width = 28; // Error Type
+      } else if (idx === 4) {
+        column.width = 60; // Error Message
+      } else {
+        column.width = 18;
+      }
+    });
+
+    // Wrap text for error message column
+    sheet.getColumn(5).alignment = { wrapText: true, vertical: 'top' };
+  }
+
+  /**
+   * Create Subscription Type Errors sheet
+   * Shows records with invalid or conflicting subscription types
+   */
+  private static createSubscriptionTypeErrorsSheet(
+    workbook: ExcelJS.Workbook,
+    subscriptionErrors: SubscriptionTypeError[]
+  ): void {
+    const sheet = workbook.addWorksheet('Subscription Type Errors');
+
+    if (subscriptionErrors.length === 0) {
+      sheet.getCell('A1').value = 'No subscription type errors';
+      sheet.getCell('A1').font = { bold: true, color: { argb: 'FF00AA00' } };
+      return;
+    }
+
+    // Headers
+    const headers = [
+      'Row Number',
+      'ID Number',
+      'Full Name',
+      'Subscription Value',
+      'Error Type',
+      'Error Message',
+      'Existing Member ID',
+      'Ward',
+      'Cell Number'
+    ];
+    sheet.addRow(headers);
+
+    // Style header row with orange (warning color)
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFD7E14' }, // Bootstrap warning orange
+    };
+
+    // Add data rows
+    subscriptionErrors.forEach((error) => {
+      const record = error.record;
+      const fullName = `${record.Firstname || record.Name || ''} ${record.Surname || ''}`.trim();
+
+      // Format error type for display
+      const errorTypeDisplay = {
+        'existing_member_new_subscription': '⚠️ Existing Member with "New"',
+        'invalid_subscription_type': '❌ Invalid Subscription Type',
+        'missing_subscription': '❌ Missing Subscription'
+      }[error.error_type] || error.error_type;
+
+      const values = [
+        record.row_number,
+        record['ID Number'],
+        fullName,
+        record.Subscription || '(empty)',
+        errorTypeDisplay,
+        error.error_message,
+        error.existing_member_id || 'N/A',
+        record.Ward || 'N/A',
+        record['Cell Number'] || 'N/A'
+      ];
+      const row = sheet.addRow(values);
+
+      // Color code based on error type
+      if (error.error_type === 'existing_member_new_subscription') {
+        row.getCell(5).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFEB9C' } // Light yellow (warning)
+        };
+      } else {
+        row.getCell(5).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFC7CE' } // Light red (error)
+        };
+      }
+    });
+
+    // Auto-fit columns
+    sheet.columns.forEach((column, idx) => {
+      if (idx === 2) {
+        column.width = 25; // Full Name
+      } else if (idx === 4) {
+        column.width = 30; // Error Type
+      } else if (idx === 5) {
+        column.width = 60; // Error Message
+      } else {
+        column.width = 18;
+      }
+    });
+
+    // Wrap text for error message column
+    sheet.getColumn(6).alignment = { wrapText: true, vertical: 'top' };
+  }
+
+  /**
+   * Create Status Updates sheet
+   * Shows members whose expiry dates were calculated or statuses were changed
+   */
+  private static createStatusUpdatesSheet(
+    workbook: ExcelJS.Workbook,
+    statusUpdates: MemberStatusUpdateBatchResult
+  ): void {
+    const sheet = workbook.addWorksheet('Status Updates');
+
+    // Filter to only show members with actual changes
+    const changedMembers = statusUpdates.updates.filter(
+      u => u.expiry_date_calculated || u.status_changed
+    );
+
+    if (changedMembers.length === 0) {
+      sheet.getCell('A1').value = 'No status updates were made';
+      sheet.getCell('A1').font = { bold: true, color: { argb: 'FF00AA00' } };
+      return;
+    }
+
+    // Headers
+    const headers = [
+      'ID Number',
+      'Member Name',
+      'Expiry Calculated',
+      'Previous Expiry',
+      'New Expiry',
+      'Status Changed',
+      'Previous Status',
+      'New Status'
+    ];
+    sheet.addRow(headers);
+
+    // Style header row (teal for status updates)
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF008080' }, // Teal
+    };
+
+    // Add data rows
+    changedMembers.forEach((update) => {
+      const values = [
+        update.id_number,
+        update.member_name,
+        update.expiry_date_calculated ? 'YES' : 'NO',
+        update.previous_expiry_date
+          ? new Date(update.previous_expiry_date).toISOString().split('T')[0]
+          : 'N/A',
+        update.new_expiry_date
+          ? new Date(update.new_expiry_date).toISOString().split('T')[0]
+          : 'N/A',
+        update.status_changed ? 'YES' : 'NO',
+        update.previous_status_name,
+        update.new_status_name
+      ];
+      const row = sheet.addRow(values);
+
+      // Color code based on change type
+      if (update.expiry_date_calculated) {
+        row.getCell(3).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFC6EFCE' } // Light green
+        };
+      }
+      if (update.status_changed) {
+        row.getCell(6).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFEB9C' } // Light yellow
+        };
+      }
+    });
+
+    // Add summary at the bottom
+    sheet.addRow([]);
+    sheet.addRow(['Summary']);
+    sheet.addRow(['Total Processed', statusUpdates.stats.total_processed]);
+    sheet.addRow(['Expiry Dates Calculated', statusUpdates.stats.expiry_dates_calculated]);
+    sheet.addRow(['Statuses Changed', statusUpdates.stats.statuses_changed]);
+    sheet.addRow(['Protected Skipped', statusUpdates.stats.protected_skipped]);
+    sheet.addRow(['No Payment Date', statusUpdates.stats.no_payment_date_skipped]);
+    sheet.addRow(['Already Correct', statusUpdates.stats.already_correct_skipped]);
+    sheet.addRow(['Errors', statusUpdates.stats.errors]);
+
+    // Auto-fit columns
+    sheet.columns.forEach((column, idx) => {
+      if (idx === 1) {
+        column.width = 25; // Member Name
       } else {
         column.width = 18;
       }

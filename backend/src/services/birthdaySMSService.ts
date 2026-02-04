@@ -1,5 +1,6 @@
 import { executeQuery } from '../config/database';
 import { SMSManagementService } from './smsManagementService';
+import { renderTemplateString } from '../utils/templateRenderer';
 
 // Create a simple logger if it doesn't exist
 const logger = {
@@ -47,29 +48,30 @@ export interface BirthdayQueueItem {
 }
 
 export class BirthdaySMSService {
-  
+
   // Get birthday configuration
   static async getBirthdayConfig(): Promise<BirthdayConfig | null> {
     try {
-      // Return default config since birthday_sms_config table doesn't exist
-      // Using birthday_message_templates table instead
+      // Get the birthday template from sms_templates table (category = 'birthday')
+      // This ensures we use the correct template, not the WELCOME template
       const result = await executeQuery(`
         SELECT
-          id as template_id,
+          template_id,
           TRUE as is_enabled,
           '09:00:00' as send_time,
           'Africa/Johannesburg' as timezone,
           TRUE as include_age,
           TRUE as include_organization_name,
           1000 as max_daily_sends
-        FROM birthday_message_templates
-        WHERE is_active = TRUE
-        ORDER BY created_at DESC
+        FROM sms_templates
+        WHERE category = 'birthday' AND is_active = TRUE
+        ORDER BY template_id ASC
         LIMIT 1
       `);
 
       const configs = Array.isArray(result) ? result : result[0] || [];
       if (configs.length > 0) {
+        logger.info('Using birthday template ID: ' + configs[0].template_id);
         return {
           id: 1,
           is_enabled: true,
@@ -81,14 +83,17 @@ export class BirthdaySMSService {
           max_daily_sends: 1000
         };
       }
+
+      // Fallback: no birthday template found
+      logger.warn('No birthday template found in sms_templates table');
       return null;
     } catch (error: any) {
       logger.error('Failed to get birthday config', { error: error.message });
-      // Return default config on error
+      // Return default config pointing to first birthday template (ID 6 = BIRTHDAY_STANDARD)
       return {
         id: 1,
         is_enabled: true,
-        template_id: 1,
+        template_id: 6, // BIRTHDAY_STANDARD template
         send_time: '09:00:00',
         timezone: 'Africa/Johannesburg',
         include_age: true,
@@ -143,7 +148,7 @@ export class BirthdaySMSService {
         ORDER BY days_until_birthday ASC, first_name ASC, last_name ASC
       `, [days]);
 
-      return Array.isArray(result) ? result  : result[0] || [];
+      return Array.isArray(result) ? result : result[0] || [];
     } catch (error: any) {
       logger.error('Failed to get upcoming birthdays', { error: error.message });
       throw error;
@@ -172,7 +177,7 @@ export class BirthdaySMSService {
             WHERE member_id = $1 AND DATE(sent_at) = CURRENT_DATE
           `, [member.member_id]);
 
-          const existing = Array.isArray(existingResult) ? existingResult  : existingResult[0] || [];
+          const existing = Array.isArray(existingResult) ? existingResult : existingResult[0] || [];
           if (existing.length > 0) {
             skipped++;
             continue;
@@ -192,7 +197,7 @@ export class BirthdaySMSService {
             logger.error('Failed to send birthday message to ' + member.full_name + '', { error: result.error });
           }
 
-        } catch (error : any) {
+        } catch (error: any) {
           logger.error('Failed to queue birthday message for member ' + member.member_id + '', { error: error.message });
           errors++;
         }
@@ -216,26 +221,32 @@ export class BirthdaySMSService {
         throw new Error('Birthday template not found: ' + config.template_id + '');
       }
 
-      let message = template.content;
-
-      // Replace variables
       const variables = {
+        // Common name variants
         name: member.firstname,
+        firstname: member.firstname,
+        first_name: member.firstname,
+
+        surname: member.surname,
+        last_name: member.surname,
+
         full_name: member.full_name,
-        age: config.include_age ? member.current_age.toString() : '',
-        organization: config.include_organization_name ? 'Our Organization'  : '',
+        fullname: member.full_name,
+        member_name: member.full_name,
+
+        // Birthday-specific
+        age: config.include_age ? member.current_age?.toString?.() || '' : '',
+        organization: config.include_organization_name ? 'Our Organization' : '',
         ward: member.ward_name || 'Ward ' + member.ward_code + '',
+        ward_name: member.ward_name || '',
+        ward_code: member.ward_code,
         municipality: member.municipality_code || '',
-        ward_code: member.ward_code
+        municipality_code: member.municipality_code || '',
+
+        cell_number: member.cell_number
       };
 
-      // Process variables
-      Object.keys(variables).forEach(key => {
-        const placeholder = '{' + key + '}';
-        message = message.replace(new RegExp(placeholder, 'g'), variables[key as keyof typeof variables] || '');
-      });
-
-      return message;
+      return renderTemplateString(template.content, variables, { keepUnmatched: true });
 
     } catch (error: any) {
       logger.error('Failed to generate birthday message', { error: error.message, member });
@@ -248,7 +259,7 @@ export class BirthdaySMSService {
     try {
       logger.info('processQueuedMessages is deprecated - birthday messages are now sent directly');
       return { processed: 0, sent: 0, failed: 0 };
-    } catch (error : any) {
+    } catch (error: any) {
       logger.error('Failed to process queued birthday messages', { error: error.message });
       throw error;
     }
@@ -264,7 +275,7 @@ export class BirthdaySMSService {
 
       // Old queue processing code removed - now sending directly
       return { processed: 0, sent: 0, failed: 0 };
-    } catch (error : any) {
+    } catch (error: any) {
       logger.error('Failed to process queued birthday messages', { error: error.message });
       throw error;
     }
@@ -278,7 +289,7 @@ export class BirthdaySMSService {
       const queuedResult = await executeQuery(`SELECT COUNT(*) as count FROM sms_queue WHERE status = 'Pending'`);
       const sentTodayResult = await executeQuery(`
         SELECT COUNT(*) as count FROM birthday_messages_sent
-        WHERE DATE(sent_at) = CURRENT_DATE AND delivery_status = 'delivered'
+        WHERE sent_at::date = CURRENT_DATE AND delivery_status = 'delivered'
       `);
 
       const today = Array.isArray(todayResult) ? todayResult : todayResult[0] || [];
@@ -326,7 +337,7 @@ export class BirthdaySMSService {
         WHERE m.member_id = $1 AND m.cell_number IS NOT NULL AND m.cell_number != ''
       `, [memberId]);
 
-      const members = Array.isArray(memberResult) ? memberResult  : memberResult[0] || [];
+      const members = Array.isArray(memberResult) ? memberResult : memberResult[0] || [];
       if (members.length === 0) {
         return { success: false, error: 'Member not found or no phone number' };
       }
@@ -369,7 +380,7 @@ export class BirthdaySMSService {
         ]);
 
         return {
-          success : true,
+          success: true,
           message: 'Birthday SMS sent to ' + member.full_name + '',
           messageId: smsResult.messageId
         };

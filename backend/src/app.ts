@@ -107,6 +107,7 @@ import internalRoutes from './routes/internal';
 import bulkUploadRoutes from './routes/bulkUploadRoutes';
 import metricsRoutes from './routes/metrics';
 import whatsappBotRoutes from './routes/whatsappBot';
+import emergencyAccessRoutes from './routes/emergencyAccess';
 import { createAuthRoutes } from './middleware/auth';
 import { cacheService } from './services/cacheService';
 import { cacheMetricsMiddleware } from './middleware/cacheMetrics';
@@ -284,6 +285,7 @@ app.use(`${apiPrefix}/session`, sessionManagementRoutes);
 app.use(`${apiPrefix}/admin-management`, adminManagementRoutes);
 app.use(`${apiPrefix}/super-admin`, superAdminRoutes);
 app.use(`${apiPrefix}/mfa`, mfaRoutes); // ✅ MIGRATED TO PRISMA
+app.use(`${apiPrefix}/emergency-access`, emergencyAccessRoutes); // MFA Emergency Access System
 // app.use(`${apiPrefix}/sessions`, sessionsRoutes); // May use corrupted services
 app.use(`${apiPrefix}/views`, viewsRoutes);
 app.use(`${apiPrefix}/file-processing`, fileProcessingRoutes); // ✅ MIGRATED TO PRISMA
@@ -317,6 +319,7 @@ app.post('/', async (req: Request, res: Response) => {
 
       if (payload.event === 'messages.received' || payload.event === 'messages.upsert') {
         if (payload.data?.messages) {
+          const { WhatsAppBotService } = await import('./services/whatsappBotService');
           await WhatsAppBotService.handleIncomingMessage(payload.data.messages);
         }
       }
@@ -360,8 +363,8 @@ app.get('/', (_req: Request, res: Response) => {
 app.get(`${apiPrefix}`, (_req: Request, res: Response) => {
   res.json({
     success: true,
-    message: 'EFF Membership Management API v1',
-    version: '1.0.0',
+    message: 'EFF Membership Management API v1.2',
+    version: '1.0.2',
     environment: config.server.env,
     timestamp: new Date().toISOString(),
     endpoints: {

@@ -19,8 +19,8 @@ import { getPool } from '../config/database-hybrid';
 import { BulkUploadLogger } from '../services/bulk-upload/bulkUploadLogger';
 import { emailService } from '../services/emailService';
 
-// Concurrency: Process 2 jobs at a time (bulk uploads are resource-intensive)
-const CONCURRENCY = 2;
+// Concurrency: Process 1 file at a time for safety (internal record-concurrency of 10 handles the throughput)
+const CONCURRENCY = 1;
 
 /**
  * Store job result in database
@@ -78,7 +78,7 @@ async function updateUploadedFilesStatus(
   if (status === 'completed' && result) {
     const totalRows = result.database_operations?.operation_stats?.total_records || 0;
     const successRows = (result.database_operations?.operation_stats?.inserts || 0) +
-                        (result.database_operations?.operation_stats?.updates || 0);
+      (result.database_operations?.operation_stats?.updates || 0);
     const failedRows = result.database_operations?.operation_stats?.failures || 0;
 
     await pool.query(
@@ -163,6 +163,13 @@ export function initializeBulkUploadWorker(): void {
       // Log processing started
       await BulkUploadLogger.logProcessingStarted(jobId, fileName, userId);
 
+      // Send job started notification via WebSocket
+      const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
+      QueueStatusService.sendJobStartedNotification(jobId, userId, fileName);
+
+      // Notify other users in queue that their position may have changed
+      await QueueStatusService.notifyAllQueueChanges();
+
       // Create progress callback for WebSocket updates and logging
       const progressCallback: ProgressCallback = (stage: string, progress: number, message: string) => {
         // Update Bull job progress
@@ -237,6 +244,13 @@ export function initializeBulkUploadWorker(): void {
         rows_failed: result.database_operations.operation_stats.failures,
         rows_total: result.database_operations.operation_stats.total_records,
         errors: result.database_operations.failed_operations
+      });
+
+      // Send job completed notification with stats
+      QueueStatusService.sendJobCompletedNotification(jobId, userId, fileName, {
+        inserts: result.database_operations.operation_stats.inserts,
+        updates: result.database_operations.operation_stats.updates,
+        failures: result.database_operations.operation_stats.failures
       });
 
       // Send email notification to the user who uploaded the file
@@ -344,6 +358,10 @@ export function initializeBulkUploadWorker(): void {
       if (fileId) {
         WebSocketService.sendBulkUploadError(fileId, error.message || 'Processing failed');
       }
+
+      // Send job failed notification via QueueStatusService
+      const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
+      QueueStatusService.sendJobFailedNotification(jobId, userId, fileName, error.message || 'Processing failed');
 
       // Clean up uploaded file on error
       if (fs.existsSync(filePath)) {

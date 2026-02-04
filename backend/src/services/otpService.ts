@@ -4,6 +4,7 @@ import { executeQuery } from '../config/database-hybrid';
 import { createDatabaseError } from '../middleware/errorHandler';
 import { SMSService } from './smsService';
 import { EmailService } from './emailService';
+import { EmergencyAccessService } from './emergencyAccessService';
 import {
   logOTPGenerated,
   logOTPSent,
@@ -105,6 +106,27 @@ export class OTPService {
     // Only province, municipality, and ward admins require MFA
     const mfaRequiredLevels = ['province', 'municipality', 'ward'];
     return mfaRequiredLevels.includes(adminLevel.toLowerCase());
+  }
+
+  /**
+   * Check if user requires MFA, considering bypass permissions
+   * Returns false if user has active bypass permission
+   */
+  static async requiresMFAWithBypassCheck(userId: number, adminLevel: string, roleName?: string): Promise<boolean> {
+    // First check if MFA is required based on role
+    if (!this.requiresMFA(adminLevel, roleName)) {
+      return false;
+    }
+
+    // Check if user has an active bypass permission
+    const hasActiveBypass = await EmergencyAccessService.hasActiveBypass(userId);
+
+    if (hasActiveBypass) {
+      console.log(`🔓 User ${userId} has active MFA bypass permission`);
+      return false;
+    }
+
+    return true;
   }
 
   /**

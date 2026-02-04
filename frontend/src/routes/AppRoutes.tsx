@@ -84,6 +84,8 @@ import SystemPage from '../pages/system/SystemPage';
 import UserManagementPage from '../pages/users/UserManagementPage';
 import AdminManagementDashboard from '../pages/admin/AdminManagementDashboard';
 import SRPADelegateSetter from '../pages/admin/SRPADelegateSetter';
+import WhatsAppManagement from '../pages/admin/WhatsAppManagement';
+import MFAEmergencyAccess from '../pages/admin/MFAEmergencyAccess';
 
 // Super Admin Pages
 import SuperAdminLayout from '../components/superadmin/SuperAdminLayout';
@@ -175,7 +177,7 @@ const AppRoutes: React.FC = () => {
         {/* Hierarchical Dashboard Routes */}
         <Route path="dashboard/hierarchical" element={<HierarchicalDashboard />} />
         <Route path="dashboard/hierarchical/:level/:code?" element={<HierarchicalDashboard />} />
-        
+
         {/* Member Management */}
         <Route path="members">
           <Route index element={<MembersListPage />} />
@@ -252,6 +254,18 @@ const AppRoutes: React.FC = () => {
         <Route path="sms" element={
           <ProtectedRoute requireAdminLevel="national">
             <SMSPage />
+          </ProtectedRoute>
+        } />
+        <Route path="whatsapp" element={
+          <ProtectedRoute requireAdminLevel="national">
+            <WhatsAppManagement />
+          </ProtectedRoute>
+        } />
+
+        {/* MFA Emergency Access - National Admin only */}
+        <Route path="mfa-emergency-access" element={
+          <ProtectedRoute requireAdminLevel="national">
+            <MFAEmergencyAccess />
           </ProtectedRoute>
         } />
 

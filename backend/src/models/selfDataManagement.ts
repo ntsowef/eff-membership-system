@@ -386,5 +386,388 @@ export class SelfDataManagementModel {
       throw createDatabaseError('Failed to bulk delete members', error);
     }
   }
+
+  // ========================================
+  // BULK REMOVAL / EXPULSION METHODS
+  // ========================================
+
+  /**
+   * Find members by list of ID numbers
+   */
+  static async findMembersByIdNumbers(idNumbers: string[]): Promise<MemberForRemoval[]> {
+    if (idNumbers.length === 0) return [];
+
+    const placeholders = idNumbers.map((_, i) => `$${i + 1}`).join(',');
+    const query = `
+      SELECT
+        m.member_id,
+        m.id_number,
+        m.firstname,
+        m.surname,
+        m.cell_number,
+        m.email,
+        m.province_code,
+        p.province_name,
+        m.municipality_code,
+        mu.municipality_name,
+        m.ward_code,
+        w.ward_name,
+        m.expiry_date,
+        CASE
+          WHEN m.expiry_date IS NULL THEN 'Inactive'
+          WHEN m.expiry_date >= CURRENT_DATE THEN 'Active'
+          WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+          ELSE 'Expired'
+        END as membership_status
+      FROM members_consolidated m
+      LEFT JOIN provinces p ON m.province_code = p.province_code
+      LEFT JOIN municipalities mu ON m.municipality_code = mu.municipality_code
+      LEFT JOIN wards w ON m.ward_code = w.ward_code
+      WHERE m.id_number IN (${placeholders})
+    `;
+
+    return await executeQuery<MemberForRemoval>(query, idNumbers);
+  }
+
+  /**
+   * Find members by name and province (for records without ID numbers)
+   */
+  static async findMembersByNameAndProvince(
+    nameAndSurname: string,
+    province?: string
+  ): Promise<MemberForRemoval[]> {
+    // Split the name into parts for flexible matching
+    const nameParts = nameAndSurname.trim().split(/\s+/);
+
+    let query = `
+      SELECT
+        m.member_id,
+        m.id_number,
+        m.firstname,
+        m.surname,
+        m.cell_number,
+        m.email,
+        m.province_code,
+        p.province_name,
+        m.municipality_code,
+        mu.municipality_name,
+        m.ward_code,
+        w.ward_name,
+        m.expiry_date,
+        CASE
+          WHEN m.expiry_date IS NULL THEN 'Inactive'
+          WHEN m.expiry_date >= CURRENT_DATE THEN 'Active'
+          WHEN m.expiry_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'Grace Period'
+          ELSE 'Expired'
+        END as membership_status
+      FROM members_consolidated m
+      LEFT JOIN provinces p ON m.province_code = p.province_code
+      LEFT JOIN municipalities mu ON m.municipality_code = mu.municipality_code
+      LEFT JOIN wards w ON m.ward_code = w.ward_code
+      WHERE (
+        -- Match full name concatenation
+        LOWER(CONCAT(m.firstname, ' ', m.surname)) LIKE LOWER($1)
+        OR LOWER(CONCAT(m.surname, ' ', m.firstname)) LIKE LOWER($1)
+    `;
+
+    const params: any[] = [`%${nameAndSurname}%`];
+    let paramIndex = 2;
+
+    // Add individual name part matching
+    if (nameParts.length >= 2) {
+      query += `
+        OR (LOWER(m.firstname) LIKE LOWER($${paramIndex}) AND LOWER(m.surname) LIKE LOWER($${paramIndex + 1}))
+        OR (LOWER(m.surname) LIKE LOWER($${paramIndex}) AND LOWER(m.firstname) LIKE LOWER($${paramIndex + 1}))
+      `;
+      params.push(`%${nameParts[0]}%`, `%${nameParts[nameParts.length - 1]}%`);
+      paramIndex += 2;
+    }
+
+    query += ')';
+
+    // Add province filter if provided
+    if (province) {
+      query += ` AND (LOWER(p.province_name) LIKE LOWER($${paramIndex}) OR LOWER(m.province_code) = LOWER($${paramIndex}))`;
+      params.push(`%${province}%`);
+    }
+
+    query += ' LIMIT 10'; // Limit results to prevent too many matches
+
+    return await executeQuery<MemberForRemoval>(query, params);
+  }
+
+  /**
+   * Archive and remove members (move to expelled_suspended_members, delete from members_consolidated)
+   */
+  static async archiveAndRemoveMembers(
+    membersToRemove: MemberRemovalRequest[],
+    removalReason: string,
+    removalType: string,
+    userId: number,
+    batchId: string,
+    sourceFile?: string
+  ): Promise<BulkRemovalResult> {
+    const result: BulkRemovalResult = {
+      total: membersToRemove.length,
+      successful: 0,
+      failed: 0,
+      archived: [],
+      errors: []
+    };
+
+    try {
+      await executeQuery('BEGIN');
+
+      for (const member of membersToRemove) {
+        try {
+          // Get full member data for archival
+          const memberData = await executeQuerySingle<any>(
+            `SELECT * FROM members_consolidated WHERE member_id = $1`,
+            [member.member_id]
+          );
+
+          if (!memberData) {
+            result.errors.push({
+              member_id: member.member_id,
+              id_number: member.id_number,
+              error: 'Member not found in database'
+            });
+            result.failed++;
+            continue;
+          }
+
+          // Insert into expelled_suspended_members
+          await executeQuery(
+            `INSERT INTO expelled_suspended_members (
+              row_number, subregion, ward_no, name_and_surname, id_number,
+              firstname, surname, original_member_id, original_member_data,
+              province_code, province_name, municipality_code, municipality_name,
+              ward_code, ward_name, cell_number, email,
+              removal_reason, removal_type, removal_date, removed_by_user_id,
+              search_method, match_confidence, batch_id, source_file, created_by
+            ) VALUES (
+              $1, $2, $3, $4, $5,
+              $6, $7, $8, $9,
+              $10, $11, $12, $13,
+              $14, $15, $16, $17,
+              $18, $19, NOW(), $20,
+              $21, $22, $23, $24, $20
+            )`,
+            [
+              member.row_number || null,
+              member.subregion || memberData.province_name || null,
+              member.ward_no || memberData.ward_code || null,
+              member.name_and_surname || `${memberData.firstname} ${memberData.surname}`,
+              memberData.id_number,
+              memberData.firstname,
+              memberData.surname,
+              memberData.member_id,
+              JSON.stringify(memberData),
+              memberData.province_code,
+              member.province_name || null,
+              memberData.municipality_code,
+              member.municipality_name || null,
+              memberData.ward_code,
+              member.ward_name || null,
+              memberData.cell_number,
+              memberData.email,
+              removalReason,
+              removalType,
+              userId,
+              member.search_method || 'manual',
+              member.match_confidence || 'exact',
+              batchId,
+              sourceFile || null
+            ]
+          );
+
+          // Delete from members_consolidated
+          await executeQuery(
+            `DELETE FROM members_consolidated WHERE member_id = $1`,
+            [member.member_id]
+          );
+
+          result.archived.push({
+            member_id: member.member_id,
+            id_number: memberData.id_number,
+            name: `${memberData.firstname} ${memberData.surname}`
+          });
+          result.successful++;
+        } catch (err: any) {
+          result.errors.push({
+            member_id: member.member_id,
+            id_number: member.id_number,
+            error: err.message
+          });
+          result.failed++;
+        }
+      }
+
+      await executeQuery('COMMIT');
+      return result;
+    } catch (error) {
+      await executeQuery('ROLLBACK');
+      throw createDatabaseError('Failed to archive and remove members', error);
+    }
+  }
+
+  /**
+   * Get expelled/suspended members with pagination
+   */
+  static async getExpelledMembers(
+    limit: number = 50,
+    offset: number = 0,
+    filters?: {
+      search?: string;
+      removal_type?: string;
+      province?: string;
+      batch_id?: string;
+      from_date?: string;
+      to_date?: string;
+    }
+  ): Promise<{ members: ExpelledMember[]; total: number }> {
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (filters?.search) {
+      whereClause += ` AND (
+        id_number LIKE $${paramIndex}
+        OR LOWER(firstname) LIKE LOWER($${paramIndex})
+        OR LOWER(surname) LIKE LOWER($${paramIndex})
+        OR LOWER(name_and_surname) LIKE LOWER($${paramIndex})
+      )`;
+      params.push(`%${filters.search}%`);
+      paramIndex++;
+    }
+
+    if (filters?.removal_type) {
+      whereClause += ` AND removal_type = $${paramIndex}`;
+      params.push(filters.removal_type);
+      paramIndex++;
+    }
+
+    if (filters?.province) {
+      whereClause += ` AND (province_code = $${paramIndex} OR LOWER(province_name) LIKE LOWER($${paramIndex}))`;
+      params.push(`%${filters.province}%`);
+      paramIndex++;
+    }
+
+    if (filters?.batch_id) {
+      whereClause += ` AND batch_id = $${paramIndex}`;
+      params.push(filters.batch_id);
+      paramIndex++;
+    }
+
+    if (filters?.from_date) {
+      whereClause += ` AND removal_date >= $${paramIndex}`;
+      params.push(filters.from_date);
+      paramIndex++;
+    }
+
+    if (filters?.to_date) {
+      whereClause += ` AND removal_date <= $${paramIndex}`;
+      params.push(filters.to_date);
+      paramIndex++;
+    }
+
+    const members = await executeQuery<ExpelledMember>(
+      `SELECT * FROM expelled_suspended_members ${whereClause}
+       ORDER BY removal_date DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+
+    const countResult = await executeQuerySingle<{ count: number }>(
+      `SELECT COUNT(*) as count FROM expelled_suspended_members ${whereClause}`,
+      params
+    );
+
+    return {
+      members,
+      total: countResult?.count || 0
+    };
+  }
+}
+
+// Additional interfaces for bulk removal
+export interface MemberForRemoval {
+  member_id: number;
+  id_number: string;
+  firstname: string;
+  surname: string;
+  cell_number?: string;
+  email?: string;
+  province_code?: string;
+  province_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+  ward_code?: string;
+  ward_name?: string;
+  expiry_date?: Date;
+  membership_status: string;
+}
+
+export interface MemberRemovalRequest {
+  member_id: number;
+  id_number?: string;
+  row_number?: number;
+  subregion?: string;
+  ward_no?: string;
+  name_and_surname?: string;
+  province_name?: string;
+  municipality_name?: string;
+  ward_name?: string;
+  search_method?: string;
+  match_confidence?: string;
+}
+
+export interface BulkRemovalResult {
+  total: number;
+  successful: number;
+  failed: number;
+  archived: Array<{
+    member_id: number;
+    id_number: string;
+    name: string;
+  }>;
+  errors: Array<{
+    member_id: number;
+    id_number?: string;
+    error: string;
+  }>;
+}
+
+export interface ExpelledMember {
+  id: number;
+  row_number?: number;
+  subregion?: string;
+  ward_no?: string;
+  name_and_surname?: string;
+  id_number?: string;
+  firstname?: string;
+  surname?: string;
+  original_member_id?: number;
+  original_member_data?: any;
+  province_code?: string;
+  province_name?: string;
+  municipality_code?: string;
+  municipality_name?: string;
+  ward_code?: string;
+  ward_name?: string;
+  cell_number?: string;
+  email?: string;
+  removal_reason?: string;
+  removal_type?: string;
+  removal_date?: Date;
+  removed_by_user_id?: number;
+  removal_notes?: string;
+  search_method?: string;
+  match_confidence?: string;
+  batch_id?: string;
+  source_file?: string;
+  created_at?: Date;
+  updated_at?: Date;
+  created_by?: number;
 }
 

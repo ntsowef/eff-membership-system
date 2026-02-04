@@ -44,6 +44,7 @@ import {
   AccountTree,
   CloudUpload,
   Groups,
+  WhatsApp,
 } from '@mui/icons-material';
 import { useAuth } from '../../store';
 import LogoutButton from '../auth/LogoutButton';
@@ -205,6 +206,13 @@ const menuItems: MenuItem[] = [
     label: 'SMS Communication',
     icon: <Sms />,
     path: '/admin/sms',
+    requireSMS: true, // Only National Admin
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp Communication',
+    icon: <WhatsApp />,
+    path: '/admin/whatsapp',
     requireSMS: true, // Only National Admin
   },
   {
@@ -485,8 +493,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const handleItemClick = (item: MenuItem) => {
     if (item.children) {
       // Toggle submenu
-      setOpenItems(prev => 
-        prev.includes(item.id) 
+      setOpenItems(prev =>
+        prev.includes(item.id)
           ? prev.filter(id => id !== item.id)
           : [...prev, item.id]
       );
@@ -573,7 +581,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             )}
           </ListItemButton>
         </ListItem>
-        
+
         {hasChildren && (
           <Collapse in={isOpen} timeout="auto" unmountOnExit>
             <List component="div" disablePadding>
@@ -648,7 +656,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </Toolbar>
 
       <Divider sx={{ borderColor: alpha('#FFFFFF', 0.2) }} />
-      
+
       <Box
         sx={{
           flexGrow: 1,
