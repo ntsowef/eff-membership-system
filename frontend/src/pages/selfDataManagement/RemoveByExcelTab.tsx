@@ -226,12 +226,12 @@ const RemoveByExcelTab: React.FC<RemoveByExcelTabProps> = ({ onSuccess }) => {
       <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle><Warning color="error" sx={{ mr: 1, verticalAlign: 'middle' }} />Confirm Member Removal</DialogTitle>
         <DialogContent>
-          <Alert severity="error" sx={{ mb: 2 }}><strong>WARNING:</strong> This will permanently remove {previewResult?.found.length} member(s).</Alert>
+          <Alert severity="error" sx={{ mb: 2 }}><strong>WARNING:</strong> This will permanently remove {previewResult?.found.length} member(s).{removalReason === 'Data Cleanup' || removalReason === 'Deceased' ? ' Records will be deleted directly without archiving.' : ' They will be archived to the expelled members table.'}</Alert>
           <FormControl fullWidth sx={{ mb: 2 }}><InputLabel>Removal Reason</InputLabel><Select value={removalReason} onChange={(e) => setRemovalReason(e.target.value)} label="Removal Reason">
-            <MenuItem value="Termination of Membership">Termination of Membership</MenuItem><MenuItem value="Expelled">Expelled</MenuItem><MenuItem value="Suspended">Suspended</MenuItem><MenuItem value="Deceased">Deceased</MenuItem>
+            <MenuItem value="Termination of Membership">Termination of Membership</MenuItem><MenuItem value="Expelled">Expelled</MenuItem><MenuItem value="Suspended">Suspended</MenuItem><MenuItem value="Deceased">Deceased</MenuItem><MenuItem value="Duplicate Record">Duplicate Record</MenuItem><MenuItem value="Data Cleanup">Data Cleanup</MenuItem>
           </Select></FormControl>
           <FormControl fullWidth sx={{ mb: 2 }}><InputLabel>Removal Type</InputLabel><Select value={removalType} onChange={(e) => setRemovalType(e.target.value)} label="Removal Type">
-            <MenuItem value="terminated">Terminated</MenuItem><MenuItem value="expelled">Expelled</MenuItem><MenuItem value="suspended">Suspended</MenuItem><MenuItem value="deceased">Deceased</MenuItem>
+            <MenuItem value="terminated">Terminated</MenuItem><MenuItem value="expelled">Expelled</MenuItem><MenuItem value="suspended">Suspended</MenuItem><MenuItem value="deceased">Deceased</MenuItem><MenuItem value="data_cleanup">Data Cleanup</MenuItem>
           </Select></FormControl>
           <Typography variant="body2" sx={{ mb: 1 }}>Type <strong>REMOVE</strong> to confirm:</Typography>
           <TextField fullWidth value={confirmText} onChange={(e) => setConfirmText(e.target.value.toUpperCase())} placeholder="Type REMOVE" />

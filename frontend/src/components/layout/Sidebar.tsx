@@ -45,6 +45,7 @@ import {
   CloudUpload,
   Groups,
   WhatsApp,
+  Security,
 } from '@mui/icons-material';
 import { useAuth } from '../../store';
 import LogoutButton from '../auth/LogoutButton';
@@ -337,6 +338,13 @@ const menuItems: MenuItem[] = [
     label: 'Admin Management',
     icon: <AdminPanelSettings />,
     path: '/admin/admin-management',
+    adminLevels: ['national'], // National Admin only
+  },
+  {
+    id: 'mfa-emergency-access',
+    label: 'MFA Emergency Access',
+    icon: <Security />,
+    path: '/admin/mfa-emergency-access',
     adminLevels: ['national'], // National Admin only
   },
   {

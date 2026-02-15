@@ -420,35 +420,32 @@ const MembersListPage: React.FC = () => {
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     try {
-      let exportUrl = '/api/v1/members/export';
-
-      // If province filter is applied, use the province-specific export endpoint
-      if (filters.province) {
-        const provinceCodeMap: { [key: string]: string } = {
-          'Eastern Cape': 'EC',
-          'Free State': 'FS',
-          'Gauteng': 'GP',
-          'KwaZulu-Natal': 'KZN',
-          'Limpopo': 'LP',
-          'Mpumalanga': 'MP',
-          'Northern Cape': 'NC',
-          'North West': 'NW',
-          'Western Cape': 'WC'
-        };
-
-        const provinceCode = provinceCodeMap[filters.province];
-        if (provinceCode) {
-          exportUrl = `/api/v1/members/province/${provinceCode}/export`;
-        }
-      }
+      const exportUrl = '/api/v1/members/export';
 
       const params = new URLSearchParams({
         format,
         ...(debouncedSearchTerm && { q: debouncedSearchTerm }),
         ...(filters.membershipType && { membership_type: filters.membershipType }),
-        ...(filters.hierarchyLevel && { ward_code: filters.hierarchyLevel }),
+        ...(filters.membership_status && { membership_status: filters.membership_status }),
         ...(selectedMembers.length > 0 && { ids: selectedMembers.join(',') }),
       });
+
+      // Pass geographic filters as query parameters
+      if (geographicFilters.voting_district_code) {
+        params.append('voting_district_code', geographicFilters.voting_district_code);
+      }
+      if (geographicFilters.ward) {
+        params.append('ward_code', geographicFilters.ward);
+      }
+      if (geographicFilters.municipality) {
+        params.append('municipality_code', geographicFilters.municipality);
+      }
+      if (geographicFilters.district) {
+        params.append('district_code', geographicFilters.district);
+      }
+      if (geographicFilters.province) {
+        params.append('province_code', geographicFilters.province);
+      }
 
       // This would trigger a download
       window.open(`${exportUrl}?${params.toString()}`, '_blank');

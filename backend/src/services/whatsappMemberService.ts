@@ -10,6 +10,7 @@ export interface MemberInfo {
   email?: string;
   ward_code: string;
   ward_name?: string;
+  residential_address?: string;
   province_name?: string;
   municipality_name?: string;
   membership_status_name: string;
@@ -18,6 +19,9 @@ export interface MemberInfo {
   last_payment_date?: Date;
   membership_number?: string;
   language_name?: string;  // Member's home language (e.g., 'Sepedi', 'Tshivenda', 'Xitsonga')
+  is_registered_voter?: boolean;
+  voting_district_code?: string;
+  voting_station_name?: string;  // From voting_districts.voting_district_name
 }
 
 export interface ApplicationInfo {
@@ -44,6 +48,7 @@ export class WhatsAppMemberService {
           m.email,
           m.ward_code,
           w.ward_name,
+          m.residential_address,
           p.province_name,
           mun.municipality_name,
           ms.status_name as membership_status_name,
@@ -51,13 +56,17 @@ export class WhatsAppMemberService {
          (m.expiry_date - CURRENT_DATE) AS days_until_expiry,
           m.last_payment_date,
           m.membership_number,
-          l.language_name
+          l.language_name,
+          m.is_registered_voter,
+          m.voting_district_code,
+          vd.voting_district_name as voting_station_name
         FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mun ON w.municipality_code = mun.municipality_code
         LEFT JOIN provinces p ON mun.province_code = p.province_code
         LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
         LEFT JOIN languages l ON m.language_id = l.language_id
+        LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
         WHERE m.id_number = $1
         LIMIT 1
       `, [idNumber]);
@@ -111,6 +120,7 @@ export class WhatsAppMemberService {
           m.email,
           m.ward_code,
           w.ward_name,
+          m.residential_address,
           p.province_name,
           mun.municipality_name,
           ms.status_name as membership_status_name,
@@ -118,13 +128,17 @@ export class WhatsAppMemberService {
           (m.expiry_date - CURRENT_DATE) AS days_until_expiry,
           m.last_payment_date,
           m.membership_number,
-          l.language_name
+          l.language_name,
+          m.is_registered_voter,
+          m.voting_district_code,
+          vd.voting_district_name as voting_station_name
         FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mun ON w.municipality_code = mun.municipality_code
         LEFT JOIN provinces p ON mun.province_code = p.province_code
         LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
         LEFT JOIN languages l ON m.language_id = l.language_id
+        LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
         WHERE m.cell_number LIKE $1
            OR m.cell_number LIKE $2
            OR m.cell_number LIKE $3
@@ -228,20 +242,20 @@ export class WhatsAppMemberService {
   }
 
   /**
-   * Update a member's ward code
+   * Update a member's residential address
    */
-  static async updateMemberWard(memberId: number, newWardCode: string): Promise<boolean> {
+  static async updateMemberAddress(memberId: number, newAddress: string): Promise<boolean> {
     try {
       await executeQuery(`
         UPDATE members_consolidated
-        SET ward_code = $1, updated_at = NOW()
+        SET residential_address = $1, updated_at = NOW()
         WHERE member_id = $2
-      `, [newWardCode, memberId]);
+      `, [newAddress, memberId]);
 
-      logger.info('Member ward updated', { memberId, newWardCode });
+      logger.info('Member address updated', { memberId, newAddress });
       return true;
     } catch (error: any) {
-      logger.error('Error updating member ward', { memberId, error: error.message });
+      logger.error('Error updating member address', { memberId, error: error.message });
       throw error;
     }
   }

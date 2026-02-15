@@ -20,8 +20,11 @@ const router = Router();
 // Validation schemas
 const updateUserProfileSchema = Joi.object({
   name: Joi.string().min(2).max(200).optional(),
-  email: Joi.string().email().optional()
-  // Note: phone field is not in users table, it's in members table
+  email: Joi.string().email().optional(),
+  cell_number: Joi.string().pattern(/^(0[6-8][0-9]{8}|\+27[6-8][0-9]{8})$/).allow('', null).optional()
+    .messages({
+      'string.pattern.base': 'Phone number must be a valid South African mobile number (e.g., 0612345678 or +27612345678)'
+    })
 });
 
 const changePasswordSchema = Joi.object({
@@ -69,6 +72,7 @@ router.get('/me', authenticate, async (req: Request, res: Response, next: NextFu
           id: user.id,
           name: user.name,
           email: user.email,
+          cell_number: (user as any).cell_number || null,
           role: user.role,
           admin_level: user.admin_level,
           province_name: user.province_name,
@@ -112,7 +116,7 @@ router.put('/me', authenticate, async (req: Request, res: Response, next: NextFu
     const updateData: any = {};
     if (value.name !== undefined) updateData.name = value.name;
     if (value.email !== undefined) updateData.email = value.email;
-    // Note: phone is not updated here as it's not in users table
+    if (value.cell_number !== undefined) updateData.cell_number = value.cell_number;
 
     // Remove undefined fields
     Object.keys(updateData).forEach(key => {
@@ -156,6 +160,7 @@ router.put('/me', authenticate, async (req: Request, res: Response, next: NextFu
           id: updatedUser!.id,
           name: updatedUser!.name,
           email: updatedUser!.email,
+          cell_number: (updatedUser as any)!.cell_number || null,
           role: updatedUser!.role
         }
       },

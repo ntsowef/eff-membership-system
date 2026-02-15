@@ -8,6 +8,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  cell_number?: string;
   password: string;
   role_id: number;
   email_verified_at?: string;
@@ -55,6 +56,7 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string;
   email?: string;
+  cell_number?: string;
   role_id?: number;
   admin_level?: string;
   province_id?: number;
@@ -110,6 +112,7 @@ export class UserModel {
           u.user_id as id,
           u.name,
           u.email,
+          u.cell_number,
           u.password,
           u.password_changed_at,
           u.role_id,
@@ -217,6 +220,11 @@ export class UserModel {
       if (userData.email !== undefined) {
         fields.push('email = ?');
         params.push(userData.email);
+      }
+
+      if (userData.cell_number !== undefined) {
+        fields.push('cell_number = ?');
+        params.push(userData.cell_number);
       }
 
       if (userData.role_id !== undefined) {

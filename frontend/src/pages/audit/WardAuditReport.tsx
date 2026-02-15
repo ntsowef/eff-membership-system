@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -18,7 +18,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  // TextField,
   IconButton,
   Tooltip,
   Avatar,
@@ -28,8 +27,6 @@ import {
 } from '@mui/material';
 import {
   LocationCity,
-  // People,
-  // HowToVote,
   Warning,
   CheckCircle,
   Download,
@@ -37,11 +34,11 @@ import {
   FilterList,
   NavigateNext,
   TrendingUp,
-  // TrendingDown
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { geographicApi } from '../../services/api';
 import CascadingGeographicFilter from '../../components/common/CascadingGeographicFilter';
 
 interface WardAuditSummary {
@@ -67,33 +64,99 @@ interface AuditFilters {
 const WardAuditReport: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  
+  const [searchParams] = useSearchParams();
+
+  // Read municipality_code from URL query parameter
+  const urlMunicipalityCode = searchParams.get('municipality_code');
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [filters, setFilters] = useState<AuditFilters>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<AuditFilters>({
+    municipality_code: urlMunicipalityCode || undefined
+  });
+  const [showFilters, setShowFilters] = useState(!!urlMunicipalityCode);
+  const [provinceResolved, setProvinceResolved] = useState(!urlMunicipalityCode);
 
-  // Fetch ward audit data
+  // Look up province for the municipality_code from URL
+  useEffect(() => {
+    if (!urlMunicipalityCode) return;
+
+    const lookupProvince = async () => {
+      try {
+        const response: any = await geographicApi.getMunicipalityByCode(urlMunicipalityCode);
+        const municipality = response?.data || response;
+        if (municipality?.province_code) {
+          setFilters(prev => ({
+            ...prev,
+            province_code: municipality.province_code,
+            municipality_code: urlMunicipalityCode
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to look up province for municipality:', err);
+      } finally {
+        setProvinceResolved(true);
+      }
+    };
+    lookupProvince();
+  }, [urlMunicipalityCode]);
+
+  // Fetch ward audit data from ward-membership-audit API
   const { data: auditData, isLoading, refetch } = useQuery({
     queryKey: ['ward-audit', page, rowsPerPage, filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', (page + 1).toString());
       params.append('limit', rowsPerPage.toString());
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
-      
-      const response = await api.get(`/audit/wards?${params.toString()}`);
+
+      // Use ward-membership-audit API which has real data
+      const response = await api.get(`/audit/ward-membership/wards?${params.toString()}`);
       return response.data;
     },
+    // Wait for province resolution before fetching (prevents fetching all wards then re-fetching)
+    enabled: provinceResolved,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
-  const wards: WardAuditSummary[] = auditData?.wards || [];
-  const pagination = auditData?.pagination || { total: 0, totalPages: 0 };
-  const summary = auditData?.summary || {};
+  // Map response from ward-membership-audit format to expected format
+  const wardsRaw = auditData?.data?.wards || [];
+  const wards: WardAuditSummary[] = wardsRaw.map((w: any) => ({
+    ward_code: w.ward_code,
+    ward_name: w.ward_name,
+    municipality_code: w.municipality_code,
+    municipality_name: w.municipality_name,
+    total_members: w.total_members,
+    active_members: w.active_members,
+    registered_voters: 0,
+    unregistered_voters: 0,
+    incorrect_ward_assignments: 0,
+    membership_threshold_met: w.standing_level <= 2, // Good or Acceptable standing
+    threshold_percentage: w.target_achievement_percentage,
+    issues_count: w.standing_level === 3 ? 1 : 0 // Needs Improvement has issues
+  }));
+
+  const paginationRaw = auditData?.data?.pagination || {};
+  const pagination = {
+    total: paginationRaw.total_records || 0,
+    totalPages: paginationRaw.total_pages || 0
+  };
+
+  // Calculate summary from wards data
+  const summary = {
+    total_wards: pagination.total,
+    wards_meeting_threshold: wardsRaw.filter((w: any) => w.standing_level <= 2).length,
+    wards_with_issues: wardsRaw.filter((w: any) => w.standing_level === 3).length,
+    average_membership: wardsRaw.length > 0
+      ? Math.round(wardsRaw.reduce((sum: number, w: any) => sum + (w.active_members || 0), 0) / wardsRaw.length)
+      : 0,
+    threshold_compliance_rate: wardsRaw.length > 0
+      ? Math.round((wardsRaw.filter((w: any) => w.standing_level <= 2).length / wardsRaw.length) * 100)
+      : 0
+  };
 
   // const _handleFilterChange = (field: keyof AuditFilters, value: string) => {
   //   setFilters(prev => ({

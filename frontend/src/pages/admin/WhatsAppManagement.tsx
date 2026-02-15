@@ -56,8 +56,11 @@ import {
     Phone as PhoneIcon,
     Group as GroupIcon,
     People as PeopleIcon,
+    Settings as SettingsIcon,
+    SwapHoriz as SwapHorizIcon,
 } from '@mui/icons-material';
 import { api } from '../../lib/api';
+import { systemApi } from '../../services/api';
 import StatsCard from '../../components/ui/StatsCard';
 import PageHeader from '../../components/ui/PageHeader';
 import {
@@ -191,6 +194,12 @@ const WhatsAppManagement: React.FC = () => {
     const [sendingGroupMessage, setSendingGroupMessage] = useState(false);
     const [groupResult, setGroupResult] = useState<{ success: boolean; message: string } | null>(null);
 
+    // Settings tab state
+    const [activeProvider, setActiveProvider] = useState<'wasender' | 'meta'>('wasender');
+    const [providerSwitching, setProviderSwitching] = useState(false);
+    const [providerStatus, setProviderStatus] = useState<any>(null);
+    const [settingsMessage, setSettingsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
     useEffect(() => {
         loadAllData();
     }, [currentTab]);
@@ -208,6 +217,8 @@ const WhatsAppManagement: React.FC = () => {
                 await loadMessages();
             } else if (currentTab === 5) {
                 await Promise.all([loadGroups(), loadLeadershipPositions(), loadProvinces()]);
+            } else if (currentTab === 6) {
+                await loadProviderSettings();
             }
         } catch (err) {
             console.error('Error loading WhatsApp data:', err);
@@ -232,6 +243,53 @@ const WhatsAppManagement: React.FC = () => {
             setAnalytics(response.data.data);
         } catch (err) {
             console.error('Failed to load analytics');
+        }
+    };
+
+    const loadProviderSettings = async () => {
+        try {
+            const [settingRes, statusRes] = await Promise.all([
+                systemApi.getSetting('whatsapp_provider'),
+                api.get('/whatsapp/status')
+            ]);
+            const providerValue = settingRes?.data?.setting_value || 'wasender';
+            setActiveProvider(providerValue as 'wasender' | 'meta');
+            setProviderStatus(statusRes?.data?.data || null);
+        } catch (err) {
+            console.error('Failed to load provider settings:', err);
+        }
+    };
+
+    const handleSwitchProvider = async (newProvider: 'wasender' | 'meta') => {
+        setProviderSwitching(true);
+        setSettingsMessage(null);
+        try {
+            await systemApi.updateSetting('whatsapp_provider', newProvider);
+            setActiveProvider(newProvider);
+            // Refresh status after switching
+            const statusRes = await api.get('/whatsapp/status');
+            setProviderStatus(statusRes?.data?.data || null);
+            setSettingsMessage({ type: 'success', text: `Provider switched to ${newProvider === 'meta' ? 'Meta Cloud API' : 'WasenderAPI'} successfully.` });
+        } catch (err: any) {
+            setSettingsMessage({ type: 'error', text: `Failed to switch provider: ${err.message}` });
+        } finally {
+            setProviderSwitching(false);
+        }
+    };
+
+    const testProviderConnection = async () => {
+        setSettingsMessage(null);
+        try {
+            const statusRes = await api.get('/whatsapp/status');
+            const data = statusRes?.data?.data;
+            if (data?.session?.connected) {
+                setSettingsMessage({ type: 'success', text: `Connection test passed. Provider: ${data?.provider || activeProvider}, Status: Connected` });
+            } else {
+                setSettingsMessage({ type: 'error', text: `Connection test: Not connected. Check provider configuration.` });
+            }
+            setProviderStatus(data || null);
+        } catch (err: any) {
+            setSettingsMessage({ type: 'error', text: `Connection test failed: ${err.message}` });
         }
     };
 
@@ -638,6 +696,7 @@ const WhatsAppManagement: React.FC = () => {
                     <Tab icon={<HistoryIcon />} label="History" />
                     <Tab icon={<SendIcon />} label="Send Message" />
                     <Tab icon={<GroupIcon />} label="Groups" />
+                    <Tab icon={<SettingsIcon />} label="Settings" />
                 </Tabs>
             </Paper>
 
@@ -1123,6 +1182,164 @@ const WhatsAppManagement: React.FC = () => {
                             </TableBody>
                         </Table>
                     </TableContainer>
+                </Box>
+            )}
+
+            {/* Settings Tab */}
+            {!loading && currentTab === 6 && (
+                <Box>
+                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                        <SettingsIcon sx={{ mr: 1 }} /> WhatsApp Provider Settings
+                    </Typography>
+
+                    {settingsMessage && (
+                        <Alert severity={settingsMessage.type} sx={{ mb: 2 }} onClose={() => setSettingsMessage(null)}>
+                            {settingsMessage.text}
+                        </Alert>
+                    )}
+
+                    <Grid container spacing={3}>
+                        {/* Provider Selection Card */}
+                        <Grid item xs={12} md={6}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <SwapHorizIcon sx={{ mr: 1 }} /> Active Provider
+                                    </Typography>
+                                    <FormControl fullWidth sx={{ mb: 2 }}>
+                                        <InputLabel>WhatsApp API Provider</InputLabel>
+                                        <Select
+                                            value={activeProvider}
+                                            label="WhatsApp API Provider"
+                                            onChange={(e) => handleSwitchProvider(e.target.value as 'wasender' | 'meta')}
+                                            disabled={providerSwitching}
+                                        >
+                                            <MenuItem value="wasender">
+                                                WasenderAPI (Third-party)
+                                            </MenuItem>
+                                            <MenuItem value="meta">
+                                                Meta Cloud API (Official)
+                                            </MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    {providerSwitching && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                            <CircularProgress size={20} sx={{ mr: 1 }} />
+                                            <Typography variant="body2">Switching provider...</Typography>
+                                        </Box>
+                                    )}
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<RefreshIcon />}
+                                            onClick={testProviderConnection}
+                                            size="small"
+                                        >
+                                            Test Connection
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<RefreshIcon />}
+                                            onClick={loadProviderSettings}
+                                            size="small"
+                                        >
+                                            Refresh Status
+                                        </Button>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Provider Status Card */}
+                        <Grid item xs={12} md={6}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <MonitorIcon sx={{ mr: 1 }} /> Connection Status
+                                    </Typography>
+                                    {providerStatus ? (
+                                        <Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                {providerStatus.session?.connected ? (
+                                                    <CheckCircleIcon sx={{ color: 'success.main', mr: 1 }} />
+                                                ) : (
+                                                    <ErrorIcon sx={{ color: 'error.main', mr: 1 }} />
+                                                )}
+                                                <Typography>
+                                                    {providerStatus.session?.connected ? 'Connected' : 'Disconnected'}
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Provider: <strong>{providerStatus.provider || activeProvider}</strong>
+                                            </Typography>
+                                            {providerStatus.session?.phoneNumber && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Phone: {providerStatus.session.phoneNumber}
+                                                </Typography>
+                                            )}
+                                            {providerStatus.session?.name && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Name: {providerStatus.session.name}
+                                                </Typography>
+                                            )}
+                                            {providerStatus.session?.platform && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Platform: {providerStatus.session.platform}
+                                                </Typography>
+                                            )}
+                                            <Chip
+                                                size="small"
+                                                label={providerStatus.enabled ? 'Enabled' : 'Disabled'}
+                                                color={providerStatus.enabled ? 'success' : 'default'}
+                                                sx={{ mt: 1 }}
+                                            />
+                                        </Box>
+                                    ) : (
+                                        <Typography color="text.secondary">
+                                            No status information available. Click "Test Connection" to check.
+                                        </Typography>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Provider Info Cards */}
+                        <Grid item xs={12} md={6}>
+                            <Card sx={{ border: activeProvider === 'wasender' ? '2px solid' : 'none', borderColor: 'primary.main' }}>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        WasenderAPI
+                                        {activeProvider === 'wasender' && <Chip size="small" label="ACTIVE" color="primary" sx={{ ml: 1 }} />}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" paragraph>
+                                        Third-party WhatsApp API service. Good for development and testing.
+                                    </Typography>
+                                    <Typography variant="body2">Rate Limit: 1 msg / 5.5 seconds</Typography>
+                                    <Typography variant="body2">Features: Number check, session management, QR auth</Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                            <Card sx={{ border: activeProvider === 'meta' ? '2px solid' : 'none', borderColor: 'primary.main' }}>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Meta Cloud API
+                                        {activeProvider === 'meta' && <Chip size="small" label="ACTIVE" color="primary" sx={{ ml: 1 }} />}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" paragraph>
+                                        Official WhatsApp Business Platform by Meta. Production-grade, high throughput.
+                                    </Typography>
+                                    <Typography variant="body2">Rate Limit: 80 msg / second</Typography>
+                                    <Typography variant="body2">Features: Webhooks, media upload, business profile</Typography>
+                                    <Alert severity="info" sx={{ mt: 1 }}>
+                                        Requires Meta Business App, verified phone number, and system user access token.
+                                        Configure via environment variables (META_WHATSAPP_*).
+                                    </Alert>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    </Grid>
                 </Box>
             )}
 

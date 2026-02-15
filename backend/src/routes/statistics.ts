@@ -280,10 +280,20 @@ router.get('/system',
 );
 
 // Get expired members statistics with geographic filtering
+// OPTIMIZED: Added cacheMiddleware for 5-minute caching
 router.get('/expired-members',
   authenticate,
   requirePermission('statistics.read'),
   applyGeographicFilter,
+  cacheMiddleware({
+    ttl: 300, // 5 minutes cache
+    keyGenerator: (req: Request) => {
+      const geo = (req as any).provinceContext || (req as any).municipalityContext;
+      const province = geo?.province_code || 'all';
+      const municipality = geo?.municipal_code || 'all';
+      return `expired-members:${province}:${municipality}`;
+    }
+  }),
   asyncHandler(async (req, res) => {
     // Get geographic context from middleware
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
@@ -302,7 +312,7 @@ router.get('/expired-members',
 
       if (municipalCode) {
         // Municipality admin - get municipality-specific expired members data
-        // Using vw_member_details which already has expiry_date from members_consolidated
+        // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW
         const municipalityExpiredQuery = `
           SELECT
             m.municipality_code,
@@ -311,7 +321,7 @@ router.get('/expired-members',
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_count,
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) as expiring_urgent_count,
             COUNT(m.member_id) as total_members
-          FROM vw_member_details m
+          FROM members_consolidated m
           WHERE m.municipality_code = $1
           GROUP BY m.municipality_code
         `;
@@ -334,24 +344,26 @@ router.get('/expired-members',
 
       } else if (provinceCode) {
         // Provincial admin - get province-specific expired members data
-        // Using vw_member_details which already has expiry_date from members_consolidated
+        // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW
         const provinceExpiredQuery = `
           SELECT
             m.province_code,
-            MAX(m.province_name) as province_name,
+            p.province_name,
             COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_count,
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_count,
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) as expiring_urgent_count,
             COUNT(m.member_id) as total_members
-          FROM vw_member_details m
+          FROM members_consolidated m
+          JOIN provinces p ON m.province_code = p.province_code
           WHERE m.province_code = $1
-          GROUP BY m.province_code
+          GROUP BY m.province_code, p.province_name
         `;
 
         const provinceResults = await executeQuery(provinceExpiredQuery, [provinceCode]);
         const provinceData = provinceResults[0];
 
         // Also get subregional breakdown for province admins
+        // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW
         const subregionalQuery = `
           SELECT
             m.municipality_code,
@@ -361,7 +373,7 @@ router.get('/expired-members',
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) as expiring_urgent_count,
             COUNT(m.member_id) as total_members,
             ROUND(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) * 100.0 / NULLIF(COUNT(m.member_id), 0), 2) as expired_percentage
-          FROM vw_member_details m
+          FROM members_consolidated m
           WHERE m.province_code = $1 AND m.municipality_code IS NOT NULL
           GROUP BY m.municipality_code
           ORDER BY expired_count DESC
@@ -383,19 +395,20 @@ router.get('/expired-members',
 
       } else {
         // National admin - get all provinces data
-        // Using vw_member_details which already has expiry_date from members_consolidated
+        // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW
         const nationalExpiredQuery = `
           SELECT
             m.province_code,
-            MAX(m.province_name) as province_name,
+            p.province_name,
             COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_count,
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_count,
             COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 END) as expiring_urgent_count,
             COUNT(m.member_id) as total_members,
             ROUND(COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) * 100.0 / NULLIF(COUNT(m.member_id), 0), 2) as expired_percentage
-          FROM vw_member_details m
+          FROM members_consolidated m
+          JOIN provinces p ON m.province_code = p.province_code
           WHERE m.province_code IS NOT NULL
-          GROUP BY m.province_code
+          GROUP BY m.province_code, p.province_name
           ORDER BY expired_count DESC
         `;
 
@@ -431,6 +444,10 @@ router.get('/dashboard',
   authenticate,
   requirePermission('statistics.read'),
   applyGeographicFilter,
+  cacheMiddleware({
+    ...CacheConfigs.STATISTICS,
+    ttl: 300, // 5 minutes cache for dashboard
+  }),
   asyncHandler(async (req, res) => {
     // Get geographic context from middleware
     const geographicContext = (req as any).provinceContext || (req as any).municipalityContext || (req as any).wardContext;
@@ -452,18 +469,18 @@ router.get('/dashboard',
 
     if (municipalCode) {
       // Municipality admin - get municipality-specific data
+      // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW with JOIN
       const municipalityStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
-        FROM vw_member_details m
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
+          COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM members_consolidated m
         WHERE m.municipality_code = $1
       `;
 
@@ -532,18 +549,18 @@ router.get('/dashboard',
 
     } else if (wardCode) {
       // Ward admin - get ward-specific data
+      // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW with JOIN
       const wardStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
-        FROM vw_member_details m
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
+          COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM members_consolidated m
         WHERE m.ward_code = $1
       `;
 
@@ -612,18 +629,18 @@ router.get('/dashboard',
 
     } else if (provinceCode) {
       // Provincial admin - get province-specific data
+      // OPTIMIZED: Query members_consolidated directly instead of vw_member_details VIEW with JOIN
       const provinceStatsQuery = `
         SELECT
           COUNT(m.member_id) as total_members,
-          COUNT(CASE WHEN ms.expiry_date >= CURRENT_DATE OR ms.expiry_date IS NULL THEN 1 END) as active_members,
+          COUNT(CASE WHEN m.expiry_date >= CURRENT_DATE OR m.expiry_date IS NULL THEN 1 END) as active_members,
           0 as pending_members,
-          COUNT(CASE WHEN ms.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
-          COUNT(CASE WHEN ms.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
-          COUNT(CASE WHEN DATE(m.member_created_at) = CURRENT_DATE THEN 1 END) as today_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
-          COUNT(CASE WHEN DATE(m.member_created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
-        FROM vw_member_details m
-        LEFT JOIN memberships ms ON m.member_id = ms.member_id
+          COUNT(CASE WHEN m.expiry_date < CURRENT_DATE THEN 1 END) as expired_members,
+          COUNT(CASE WHEN m.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_soon_members,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE THEN 1 END) as today_registrations,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as week_registrations,
+          COUNT(CASE WHEN m.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_registrations
+        FROM members_consolidated m
         WHERE m.province_code = $1
       `;
 
@@ -759,6 +776,298 @@ router.get('/dashboard',
     };
 
     sendSuccess(res, dashboardData, 'Dashboard statistics retrieved successfully');
+  })
+);
+
+// Get dashboard time-series data for line charts (new members and renewals over time)
+router.get('/dashboard/time-series',
+  authenticate,
+  requirePermission('statistics.read'),
+  applyGeographicFilter,
+  cacheMiddleware({
+    ...CacheConfigs.STATISTICS,
+    ttl: 300, // 5 minutes cache for time-series
+  }),
+  asyncHandler(async (req, res) => {
+    const { period, date_from, date_to } = req.query as {
+      period?: string;
+      date_from?: string;
+      date_to?: string;
+    };
+
+    // Get geographic context from middleware
+    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext || (req as any).wardContext;
+    const provinceCode = geographicContext?.province_code;
+    const municipalCode = geographicContext?.municipal_code;
+    const wardCode = geographicContext?.ward_code;
+
+    // Calculate date range based on period
+    let startDate: string;
+    let endDate: string = new Date().toISOString().split('T')[0]; // today
+
+    if (date_from && date_to) {
+      startDate = date_from;
+      endDate = date_to;
+    } else {
+      switch (period) {
+        case 'today':
+          startDate = endDate;
+          break;
+        case '7d':
+          startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+        case '90d':
+          startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+        case '30d':
+        default:
+          startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          break;
+      }
+    }
+
+    try {
+      // Build geographic filter conditions
+      const geoConditions: string[] = [];
+      const geoParams: any[] = [];
+
+      if (wardCode) {
+        geoParams.push(wardCode);
+        geoConditions.push(`ward_code = $GEOPARAM`);
+      } else if (municipalCode) {
+        geoParams.push(municipalCode);
+        geoConditions.push(`municipality_code = $GEOPARAM`);
+      } else if (provinceCode) {
+        geoParams.push(provinceCode);
+        geoConditions.push(`province_code = $GEOPARAM`);
+      }
+
+      // Check if this is an hourly "today" request (last 12 hours)
+      const isHourly = period === 'today';
+
+      if (isHourly) {
+        // HOURLY mode: return data for the last 12 hours grouped by hour
+        const params: any[] = [];
+        const geoParamIndex = params.length + 1;
+        if (geoParams.length > 0) params.push(...geoParams);
+        const geoFilter = geoConditions.length > 0
+          ? ` AND ${geoConditions.map(c => c.replace('$GEOPARAM', `$${geoParamIndex}`)).join(' AND ')}`
+          : '';
+
+        const newMembersQuery = `
+          SELECT date_trunc('hour', created_at) as hour, COUNT(*) as count
+          FROM members_consolidated
+          WHERE created_at >= NOW() - INTERVAL '12 hours'${geoFilter}
+          GROUP BY date_trunc('hour', created_at)
+          ORDER BY hour
+        `;
+
+        const renewalsQuery = `
+          SELECT date_trunc('hour', updated_at) as hour, COUNT(*) as count
+          FROM members_consolidated
+          WHERE updated_at >= NOW() - INTERVAL '12 hours'
+            AND updated_at != created_at${geoFilter}
+          GROUP BY date_trunc('hour', updated_at)
+          ORDER BY hour
+        `;
+
+        const [newMembersResult, renewalsResult] = await Promise.all([
+          executeQuery<{ hour: string; count: string }>(newMembersQuery, params),
+          executeQuery<{ hour: string; count: string }>(renewalsQuery, params)
+        ]);
+
+        // Build hourly buckets for the last 12 hours
+        const hourMap = new Map<string, { date: string; new_members: number; renewals: number }>();
+        const now = new Date();
+        for (let i = 11; i >= 0; i--) {
+          const hourDate = new Date(now);
+          hourDate.setHours(hourDate.getHours() - i, 0, 0, 0);
+          const hourStr = hourDate.toISOString().slice(0, 13) + ':00:00'; // e.g. "2026-02-13T08:00:00"
+          hourMap.set(hourStr, { date: hourStr, new_members: 0, renewals: 0 });
+        }
+
+        // Populate new members
+        for (const row of newMembersResult) {
+          const hourStr = new Date(row.hour).toISOString().slice(0, 13) + ':00:00';
+          const entry = hourMap.get(hourStr);
+          if (entry) {
+            entry.new_members = parseInt(row.count as string, 10);
+          }
+        }
+
+        // Populate renewals
+        for (const row of renewalsResult) {
+          const hourStr = new Date(row.hour).toISOString().slice(0, 13) + ':00:00';
+          const entry = hourMap.get(hourStr);
+          if (entry) {
+            entry.renewals = parseInt(row.count as string, 10);
+          }
+        }
+
+        const timeSeries = Array.from(hourMap.values());
+        const totalNewMembers = timeSeries.reduce((sum, d) => sum + d.new_members, 0);
+        const totalRenewals = timeSeries.reduce((sum, d) => sum + d.renewals, 0);
+
+        sendSuccess(res, {
+          time_series: timeSeries,
+          granularity: 'hourly',
+          summary: {
+            total_new_members: totalNewMembers,
+            total_renewals: totalRenewals,
+            period: 'today',
+            date_from: startDate,
+            date_to: endDate
+          },
+          geographic_filter: {
+            province_code: provinceCode || null,
+            municipality_code: municipalCode || null,
+            ward_code: wardCode || null
+          }
+        }, 'Dashboard time-series data retrieved successfully (hourly)');
+
+      } else {
+        // DAILY mode: return data grouped by day (existing behavior)
+        const params: any[] = [startDate, endDate];
+        if (geoParams.length > 0) params.push(...geoParams);
+        const geoParamIndex = params.length; // last param index
+        const geoFilter = geoConditions.length > 0
+          ? ` AND ${geoConditions.map(c => c.replace('$GEOPARAM', `$${geoParamIndex}`)).join(' AND ')}`
+          : '';
+
+        // Query new members by date (using created_at)
+        const newMembersQuery = `
+          SELECT created_at::date as date, COUNT(*) as count
+          FROM members_consolidated
+          WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')${geoFilter}
+          GROUP BY created_at::date
+          ORDER BY date
+        `;
+
+        // Query renewals by date (using updated_at where updated_at differs from created_at)
+        const renewalsQuery = `
+          SELECT updated_at::date as date, COUNT(*) as count
+          FROM members_consolidated
+          WHERE updated_at >= $1::date AND updated_at < ($2::date + INTERVAL '1 day')
+            AND updated_at != created_at${geoFilter}
+          GROUP BY updated_at::date
+          ORDER BY date
+        `;
+
+        const [newMembersResult, renewalsResult] = await Promise.all([
+          executeQuery<{ date: string; count: string }>(newMembersQuery, params),
+          executeQuery<{ date: string; count: string }>(renewalsQuery, params)
+        ]);
+
+        // Merge into a single time-series array
+        const dateMap = new Map<string, { date: string; new_members: number; renewals: number }>();
+
+        // Fill all dates in range
+        const current = new Date(startDate);
+        const end = new Date(endDate);
+        while (current <= end) {
+          const dateStr = current.toISOString().split('T')[0];
+          dateMap.set(dateStr, { date: dateStr, new_members: 0, renewals: 0 });
+          current.setDate(current.getDate() + 1);
+        }
+
+        // Populate new members
+        for (const row of newMembersResult) {
+          const dateStr = new Date(row.date).toISOString().split('T')[0];
+          const entry = dateMap.get(dateStr);
+          if (entry) {
+            entry.new_members = parseInt(row.count as string, 10);
+          }
+        }
+
+        // Populate renewals
+        for (const row of renewalsResult) {
+          const dateStr = new Date(row.date).toISOString().split('T')[0];
+          const entry = dateMap.get(dateStr);
+          if (entry) {
+            entry.renewals = parseInt(row.count as string, 10);
+          }
+        }
+
+        const timeSeries = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+        // Calculate totals
+        const totalNewMembers = timeSeries.reduce((sum, d) => sum + d.new_members, 0);
+        const totalRenewals = timeSeries.reduce((sum, d) => sum + d.renewals, 0);
+
+        sendSuccess(res, {
+          time_series: timeSeries,
+          granularity: 'daily',
+          summary: {
+            total_new_members: totalNewMembers,
+            total_renewals: totalRenewals,
+            period: period || 'custom',
+            date_from: startDate,
+            date_to: endDate
+          },
+          geographic_filter: {
+            province_code: provinceCode || null,
+            municipality_code: municipalCode || null,
+            ward_code: wardCode || null
+          }
+        }, 'Dashboard time-series data retrieved successfully');
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard time-series:', error);
+      throw createDatabaseError('Failed to fetch dashboard time-series data', error);
+    }
+  })
+);
+
+// Export dashboard analytics as PDF
+router.get('/dashboard/export/pdf',
+  authenticate,
+  requirePermission('statistics.read'),
+  applyGeographicFilter,
+  asyncHandler(async (req, res) => {
+    const { period, date_from, date_to } = req.query as {
+      period?: string;
+      date_from?: string;
+      date_to?: string;
+    };
+
+    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext || (req as any).wardContext;
+    const provinceCode = geographicContext?.province_code;
+    const municipalCode = geographicContext?.municipal_code;
+    const wardCode = geographicContext?.ward_code;
+
+    // Calculate date range
+    let startDate: string;
+    let endDate: string = new Date().toISOString().split('T')[0];
+
+    if (date_from && date_to) {
+      startDate = date_from;
+      endDate = date_to;
+    } else {
+      switch (period) {
+        case 'today': startDate = endDate; break;
+        case '7d': startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; break;
+        case '90d': startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; break;
+        default: startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; break;
+      }
+    }
+
+    try {
+      const pdfBuffer = await PDFExportService.exportDashboardAnalyticsToPDF({
+        period: period || 'custom',
+        startDate,
+        endDate,
+        provinceCode,
+        municipalCode,
+        wardCode
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=dashboard-analytics-${new Date().toISOString().split('T')[0]}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error exporting dashboard PDF:', error);
+      throw createDatabaseError('Failed to export dashboard analytics PDF', error);
+    }
   })
 );
 
@@ -1532,10 +1841,20 @@ router.get('/membership-status-overview',
 );
 
 // Alias for membership-status-breakdown (same as membership-status-overview)
+// OPTIMIZED: Added cacheMiddleware for 5-minute caching
 router.get('/membership-status-breakdown',
   authenticate,
   requirePermission('statistics.read'),
   applyGeographicFilter,
+  cacheMiddleware({
+    ttl: 300, // 5 minutes cache
+    keyGenerator: (req: Request) => {
+      const geo = (req as any).provinceContext || (req as any).municipalityContext;
+      const province = geo?.province_code || 'all';
+      const municipality = geo?.municipal_code || 'all';
+      return `membership-status-breakdown:${province}:${municipality}`;
+    }
+  }),
   asyncHandler(async (req, res) => {
     try {
       // Get geographic context from middleware
@@ -1564,7 +1883,7 @@ router.get('/membership-status-breakdown',
           SUM(CASE WHEN expiry_date < CURRENT_DATE THEN 1 ELSE 0 END) as expired,
           SUM(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 ELSE 0 END) as expiring_soon,
           SUM(CASE WHEN expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 1 ELSE 0 END) as expiring_urgent
-        FROM vw_member_details
+        FROM members_consolidated
         ${whereClause}
       `;
 
@@ -1736,17 +2055,18 @@ router.get('/voter-registration',
         geographicBreakdown = await executeQuery(municipalityBreakdownQuery, [provinceCode]);
       } else {
         // National admin - breakdown by province
-        // Group by province_code only, use MAX for province_name to prevent duplicates
+        // JOIN with provinces table for canonical province names (members_consolidated has dirty province_name data)
         const provinceBreakdownQuery = `
           SELECT
-            province_code,
-            MAX(COALESCE(province_name, 'Province ' || province_code)) as province_name,
+            mc.province_code,
+            p.province_name,
             COUNT(*) as total_members,
-            COUNT(CASE WHEN voter_registration_id = 1 OR (voter_registration_id IS NULL AND voting_district_code != '222222222' AND is_registered_voter = true) THEN 1 END) as registered_voters,
-            COUNT(CASE WHEN voter_registration_id = 2 OR (voter_registration_id IS NULL AND is_registered_voter = false) THEN 1 END) as not_registered_voters
-          FROM members_consolidated
-          WHERE province_code IS NOT NULL
-          GROUP BY province_code
+            COUNT(CASE WHEN mc.voter_registration_id = 1 OR (mc.voter_registration_id IS NULL AND mc.voting_district_code != '222222222' AND mc.is_registered_voter = true) THEN 1 END) as registered_voters,
+            COUNT(CASE WHEN mc.voter_registration_id = 2 OR (mc.voter_registration_id IS NULL AND mc.is_registered_voter = false) THEN 1 END) as not_registered_voters
+          FROM members_consolidated mc
+          JOIN provinces p ON mc.province_code = p.province_code
+          WHERE mc.province_code IS NOT NULL
+          GROUP BY mc.province_code, p.province_name
           ORDER BY registered_voters DESC
         `;
         geographicBreakdown = await executeQuery(provinceBreakdownQuery, []);
@@ -1895,16 +2215,18 @@ router.get('/expired-registered-voters',
         geographicBreakdown = await executeQuery(municipalityBreakdownQuery, [provinceCode]);
       } else {
         // National admin - breakdown by province
+        // JOIN with provinces table for canonical province names (members_consolidated has dirty province_name data)
         const provinceBreakdownQuery = `
           SELECT
-            province_code,
-            COALESCE(province_name, 'Province ' || province_code) as province_name,
+            mc.province_code,
+            p.province_name,
             COUNT(*) as total_expired,
-            COUNT(CASE WHEN voter_registration_id = 1 OR (voter_registration_id IS NULL AND voting_district_code != '222222222' AND is_registered_voter = true) THEN 1 END) as expired_registered_voters,
-            COUNT(CASE WHEN voter_registration_id = 2 OR (voter_registration_id IS NULL AND is_registered_voter = false) THEN 1 END) as expired_not_registered
-          FROM members_consolidated
-          WHERE expiry_date < CURRENT_DATE AND province_code IS NOT NULL
-          GROUP BY province_code, province_name
+            COUNT(CASE WHEN mc.voter_registration_id = 1 OR (mc.voter_registration_id IS NULL AND mc.voting_district_code != '222222222' AND mc.is_registered_voter = true) THEN 1 END) as expired_registered_voters,
+            COUNT(CASE WHEN mc.voter_registration_id = 2 OR (mc.voter_registration_id IS NULL AND mc.is_registered_voter = false) THEN 1 END) as expired_not_registered
+          FROM members_consolidated mc
+          JOIN provinces p ON mc.province_code = p.province_code
+          WHERE mc.expiry_date < CURRENT_DATE AND mc.province_code IS NOT NULL
+          GROUP BY mc.province_code, p.province_name
           ORDER BY expired_registered_voters DESC
         `;
         geographicBreakdown = await executeQuery(provinceBreakdownQuery, []);
@@ -1986,7 +2308,7 @@ router.get('/expired-registered-voters/export',
 
       const exportQuery = `
         SELECT
-          COALESCE(mc.province_name, 'Unknown') as province_name,
+          COALESCE(p.province_name, mc.province_name, 'Unknown') as province_name,
           COALESCE(mc.province_code, 'N/A') as province_code,
           COALESCE(mc.municipality_name, 'Unknown') as municipality_name,
           COALESCE(mc.municipality_code, 'N/A') as municipality_code,
@@ -1996,9 +2318,10 @@ router.get('/expired-registered-voters/export',
           COUNT(CASE WHEN mc.voter_registration_id = 2 OR (mc.voter_registration_id IS NULL AND mc.is_registered_voter = false) THEN 1 END) as expired_not_registered,
           COUNT(CASE WHEN mc.voting_district_code = '222222222' THEN 1 END) as expired_special_vd
         FROM members_consolidated mc
+        LEFT JOIN provinces p ON mc.province_code = p.province_code
         ${whereClause}
-        GROUP BY mc.province_name, mc.province_code, mc.municipality_name, mc.municipality_code, mc.ward_code
-        ORDER BY mc.province_name, mc.municipality_name, mc.ward_code
+        GROUP BY p.province_name, mc.province_code, mc.municipality_name, mc.municipality_code, mc.ward_code
+        ORDER BY p.province_name, mc.municipality_name, mc.ward_code
       `;
 
       const exportData = await executeQuery(exportQuery, params);
@@ -2084,7 +2407,7 @@ router.get('/voter-registration/export',
       // Get detailed breakdown for export
       const exportQuery = `
         SELECT
-          COALESCE(mc.province_name, 'Unknown') as province_name,
+          COALESCE(p.province_name, mc.province_name, 'Unknown') as province_name,
           COALESCE(mc.province_code, 'N/A') as province_code,
           COALESCE(mc.municipality_name, 'Unknown') as municipality_name,
           COALESCE(mc.municipality_code, 'N/A') as municipality_code,
@@ -2095,9 +2418,10 @@ router.get('/voter-registration/export',
           COUNT(CASE WHEN mc.voter_registration_id = 3 OR mc.voter_registration_id IS NULL THEN 1 END) as unknown_status,
           COUNT(CASE WHEN mc.voting_district_code = '222222222' THEN 1 END) as special_voting_district
         FROM members_consolidated mc
+        LEFT JOIN provinces p ON mc.province_code = p.province_code
         ${whereClause}
-        GROUP BY mc.province_name, mc.province_code, mc.municipality_name, mc.municipality_code, mc.ward_code
-        ORDER BY mc.province_name, mc.municipality_name, mc.ward_code
+        GROUP BY p.province_name, mc.province_code, mc.municipality_name, mc.municipality_code, mc.ward_code
+        ORDER BY p.province_name, mc.municipality_name, mc.ward_code
       `;
 
       const exportData = await executeQuery(exportQuery, params);

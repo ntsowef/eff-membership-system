@@ -386,73 +386,7 @@ export class ExcelReportService {
       });
     }
 
-    // Ward Compliance Summary Section
-    if (wardComplianceData && wardComplianceData.length > 0) {
-      row += 2;
-      sheet.getCell(`A${row}`).value = 'WARD COMPLIANCE SUMMARY (200+ Registered Voters Target)';
-      sheet.getCell(`A${row}`).font = { bold: true, size: 12 };
-      sheet.mergeCells(`A${row}:E${row}`);
-      row++;
 
-      // Add note about registered voters only
-      sheet.getCell(`A${row}`).value = 'Note: Only ACTIVE members registered to vote (voter_registration_id = 1) are counted.';
-      sheet.getCell(`A${row}`).font = { italic: true, size: 10, color: { argb: 'FF666666' } };
-      sheet.mergeCells(`A${row}:E${row}`);
-      row += 2;
-
-      // Ward compliance table headers
-      const complianceHeaders = ['Ward Code', 'Existing Members', 'New Members', 'Total Registered', 'Compliance Status'];
-      complianceHeaders.forEach((header, idx) => {
-        const col = String.fromCharCode(65 + idx); // A, B, C, D, E
-        sheet.getCell(`${col}${row}`).value = header;
-        sheet.getCell(`${col}${row}`).font = { bold: true };
-        sheet.getCell(`${col}${row}`).fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF4472C4' }
-        };
-        sheet.getCell(`${col}${row}`).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      });
-      row++;
-
-      // Ward compliance data rows
-      wardComplianceData.forEach((ward) => {
-        sheet.getCell(`A${row}`).value = ward.ward_code;
-        sheet.getCell(`B${row}`).value = ward.existing_members;
-        sheet.getCell(`C${row}`).value = ward.new_members;
-        sheet.getCell(`D${row}`).value = ward.total_registered;
-
-        // Compliance status with color coding
-        const statusCell = sheet.getCell(`E${row}`);
-        if (ward.is_compliant) {
-          statusCell.value = '✅ Ward has achieved the 200+ member target and is ready for BPA/BGA';
-          statusCell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFC6EFCE' } // Light green
-          };
-          statusCell.font = { color: { argb: 'FF006100' } }; // Dark green text
-        } else {
-          statusCell.value = `❌ Needs ${200 - ward.total_registered} more registered voters`;
-          statusCell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFFFC7CE' } // Light red
-          };
-          statusCell.font = { color: { argb: 'FF9C0006' } }; // Dark red text
-        }
-        row++;
-      });
-
-      // Summary row
-      row++;
-      const compliantWards = wardComplianceData.filter(w => w.is_compliant).length;
-      const totalWards = wardComplianceData.length;
-      sheet.getCell(`A${row}`).value = 'Summary:';
-      sheet.getCell(`A${row}`).font = { bold: true };
-      sheet.getCell(`B${row}`).value = `${compliantWards} of ${totalWards} wards have achieved 200+ registered voters`;
-      sheet.mergeCells(`B${row}:E${row}`);
-    }
 
     // Column widths
     sheet.getColumn(1).width = 30;

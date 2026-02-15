@@ -169,9 +169,9 @@ export const generateToken = (user: UserDetails): string => {
 export const verifyToken = (token: string): JWTPayload => {
   try {
     // Debug: Log the JWT secret being used (first 10 chars only for security)
-    console.log('🔑 JWT_SECRET (first 10 chars):', config.security.jwtSecret.substring(0, 10));
-    console.log('🎫 Token (first 50 chars):', token.substring(0, 50) + '...');
-    console.log('📏 Token length:', token.length);
+    console.log(' JWT_SECRET (first 10 chars):', config.security.jwtSecret.substring(0, 10));
+    console.log(' Token (first 50 chars):', token.substring(0, 50) + '...');
+    console.log(' Token length:', token.length);
 
     // First try with issuer/audience validation
     try {
@@ -186,7 +186,7 @@ export const verifyToken = (token: string): JWTPayload => {
       return jwt.verify(token, config.security.jwtSecret) as JWTPayload;
     }
   } catch (error) {
-    console.log('❌ Token verification failed:', error instanceof jwt.JsonWebTokenError ? error.message : 'Unknown error');
+    console.log(' Token verification failed:', error instanceof jwt.JsonWebTokenError ? error.message : 'Unknown error');
     if (error instanceof jwt.TokenExpiredError) {
       throw new AuthenticationError('Token has expired');
     } else if (error instanceof jwt.JsonWebTokenError) {
@@ -618,7 +618,7 @@ export const createAuthRoutes = () => {
               console.log(`⚠️ No cell number found for user ${user.id}, will send OTP via email only`);
             }
 
-            // Generate and send OTP via SMS and Email (or email only if no phone number)
+            // Generate and send OTP via SMS, Email, and WhatsApp (or email only if no phone number)
             const otpResult = await OTPService.generateAndSendOTP(
               user.id,
               user.name,
@@ -644,8 +644,8 @@ export const createAuthRoutes = () => {
 
             // Build response message based on whether OTP is new or existing
             const responseMessage = otpResult.is_existing
-              ? 'You have an active OTP. Please check your SMS and Email for the code sent earlier.'
-              : 'OTP sent to your registered phone number and email address';
+              ? 'You have an active OTP. Please check your SMS, Email, and WhatsApp for the code sent earlier.'
+              : 'OTP sent to your registered phone number, email address, and WhatsApp';
 
             // Mask phone number if available
             const phoneMasked = cellNumber && cellNumber !== 'N/A'
@@ -707,6 +707,7 @@ export const createAuthRoutes = () => {
               id: user.id,
               name: user.name,
               email: user.email,
+              cell_number: user.cell_number || null,
               admin_level: user.admin_level,
               province_code: user.province_code,
               district_code: user.district_code,
@@ -797,6 +798,7 @@ export const createAuthRoutes = () => {
           u.user_id as id,
           u.name,
           u.email,
+          u.cell_number,
           u.admin_level,
           u.province_code,
           u.district_code,
@@ -854,6 +856,7 @@ export const createAuthRoutes = () => {
             id: user.id,
             name: user.name,
             email: user.email,
+            cell_number: user.cell_number || null,
             admin_level: user.admin_level,
             province_code: user.province_code,
             district_code: user.district_code,
@@ -964,7 +967,7 @@ export const createAuthRoutes = () => {
         console.log(`⚠️ No cell number found for user ${user_id}, will send OTP via email only`);
       }
 
-      // Generate and send new OTP via SMS and Email (or email only if no phone number)
+      // Generate and send new OTP via SMS, Email, and WhatsApp (or email only if no phone number)
       const otpResult = await OTPService.generateAndSendOTP(
         user.id,
         user.name,
@@ -986,8 +989,8 @@ export const createAuthRoutes = () => {
 
       // Build response message based on whether OTP is new or existing
       const responseMessage = otpResult.is_existing
-        ? 'You already have an active OTP. Please check your SMS and Email.'
-        : 'OTP resent successfully via SMS and Email';
+        ? 'You already have an active OTP. Please check your SMS, Email, and WhatsApp.'
+        : 'OTP resent successfully via SMS, Email, and WhatsApp';
 
       // Mask phone number if available
       const phoneMasked = cellNumber && cellNumber !== 'N/A'

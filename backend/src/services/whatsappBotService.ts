@@ -1,9 +1,23 @@
-import { WasenderApiService } from './wasenderApiService';
+import { WhatsAppProviderManager } from './whatsappProviderManager';
 import { WhatsAppMemberService, MemberInfo } from './whatsappMemberService';
 import { executeQuery } from '../config/database';
 import { logger } from '../utils/logger';
 import { MessageTemplates } from '../config/whatsappConfig';
 import { DigitalMembershipCardModel } from '../models/digitalMembershipCard';
+import { InteractiveButton, InteractiveListSection } from '../types/whatsappProvider';
+
+/** Bot response: either plain text or an interactive message */
+interface BotResponse {
+  text: string;
+  interactive?: {
+    type: 'buttons' | 'list';
+    buttons?: InteractiveButton[];
+    listSections?: InteractiveListSection[];
+    listButtonText?: string;
+    header?: string;
+    footer?: string;
+  };
+}
 
 interface IncomingMessage {
   key: {
@@ -27,6 +41,11 @@ interface BotSession {
 
 export class WhatsAppBotService {
 
+  // Deduplication: track recently processed message IDs to prevent double replies
+  private static processedMessageIds = new Set<string>();
+  // Content-based dedup: track phone+content hash to catch duplicates with different IDs
+  private static processedContentHashes = new Set<string>();
+
   // Intent patterns for message classification
   private static intentPatterns = {
     greeting: /^(hi|hello|hey|sawubona|dumelang|molo|thobela|howzit|heita)/i,
@@ -46,17 +65,23 @@ export class WhatsAppBotService {
     refer: /^(refer|invite|friend|recruit|share)$/i,  // Refer a Friend
     poll: /^(poll|survey|opinion)$/i,  // Quick Poll (removed 'vote' to avoid conflict)
     sos: /^(sos|emergency|help me|urgent|contacts)$/i,  // Emergency Contacts
+    // Non-member engagement intents
+    join: /^(join|register|signup|sign up|become|enroll|enlist|join eff)$/i,  // Join EFF
+    benefits: /^(benefits|why join|advantages|perks|what do i get)$/i,  // Membership Benefits
+    labour_desk: /^(labour|labor|labour desk|worker|employment|retrenchment|unfair dismissal|dismissal|ccma|workplace)$/i,  // Labour Desk
+    gbv_desk: /^(gbv|gender|violence|abuse|domestic|assault|gbv desk|rape|harassment)$/i,  // GBV Desk
+    appointment: /^(appointment|book|schedule|consult|consultation|meet)$/i,  // Book Appointment
     cancel: /^(cancel|stop|exit|quit|0)$/i,
     yes: /^(yes|y|yebo|ja|correct|confirm)$/i,
     no: /^(no|n|cha|nee|wrong)$/i,
     // Update field selections (only used in update_menu state)
-    update_email: /^(email|e-mail|1)$/i,
-    update_phone: /^(phone|cell|cellphone|mobile|number|2)$/i,
-    update_address: /^(address|ward|location|3)$/i,
+    update_email: /^(email|e-mail|update_email|1)$/i,
+    update_phone: /^(phone|cell|cellphone|mobile|number|update_phone|2)$/i,
+    update_address: /^(address|ward|location|update_address|3)$/i,
     // Report type selections (only used in report_menu state)
-    report_community: /^(community|service|municipal|1)$/i,
-    report_party: /^(party|branch|internal|2)$/i,
-    report_feedback: /^(feedback|suggestion|idea|3)$/i,
+    report_community: /^(community|service|municipal|report_community|1)$/i,
+    report_party: /^(party|branch|internal|report_party|2)$/i,
+    report_feedback: /^(feedback|suggestion|idea|report_feedback|3)$/i,
   };
 
   static async handleIncomingMessage(message: IncomingMessage): Promise<void> {
@@ -67,6 +92,26 @@ export class WhatsAppBotService {
     const messageId = message.key.id;
 
     console.log('[WhatsApp Bot] Extracted:', { senderPhone, messageText, messageId, fromMe: message.key.fromMe });
+
+    // Deduplication: skip if this message ID was already processed
+    if (messageId && this.processedMessageIds.has(messageId)) {
+      console.log('[WhatsApp Bot] Duplicate message ID, skipping:', messageId);
+      return;
+    }
+    // Track this message ID and auto-clean after 5 minutes
+    if (messageId) {
+      this.processedMessageIds.add(messageId);
+      setTimeout(() => this.processedMessageIds.delete(messageId), 5 * 60 * 1000);
+    }
+
+    // Content-based dedup: catch duplicates with different message IDs (e.g. messages.received vs messages.upsert)
+    const contentHash = `${senderPhone}:${messageText}`;
+    if (this.processedContentHashes.has(contentHash)) {
+      console.log('[WhatsApp Bot] Duplicate content hash, skipping:', contentHash);
+      return;
+    }
+    this.processedContentHashes.add(contentHash);
+    setTimeout(() => this.processedContentHashes.delete(contentHash), 10 * 1000); // 10 second window
 
     if (!senderPhone || message.key.fromMe) {
       console.log('[WhatsApp Bot] Skipping - no sender or fromMe');
@@ -98,18 +143,9 @@ export class WhatsAppBotService {
       // Process based on intent and current state
       const response = await this.processMessage(messageText, intent, session);
 
-      // Send response
+      // Send response (interactive or text)
       if (response) {
-        await WasenderApiService.sendTextMessage(senderPhone, response);
-
-        // Log outbound message
-        await this.logMessage({
-          phone_number: senderPhone,
-          direction: 'outbound',
-          message_type: 'text',
-          message_content: response,
-          intent_detected: intent,
-        });
+        await this.sendBotResponse(senderPhone, response, intent, !!session.linked_member);
       }
     } catch (error: any) {
       logger.error('Error handling WhatsApp message', {
@@ -118,15 +154,334 @@ export class WhatsAppBotService {
       });
 
       // Send error message to user
-      await WasenderApiService.sendTextMessage(
+      await WhatsAppProviderManager.sendTextMessage(
         senderPhone,
         MessageTemplates.ERROR
       );
     }
   }
 
+  /**
+   * Send bot response — uses interactive buttons/lists for menus, plain text otherwise.
+   */
+  private static async sendBotResponse(phone: string, text: string, intent: string, isLinkedMember: boolean = false): Promise<void> {
+    try {
+      // Determine if we should send an interactive message based on intent and membership status
+      const interactive = this.getInteractiveForIntent(intent, isLinkedMember);
+
+      if (interactive?.type === 'buttons' && interactive.buttons) {
+        await WhatsAppProviderManager.sendInteractiveButtons(
+          phone, text, interactive.buttons,
+          { header: interactive.header, footer: interactive.footer }
+        );
+      } else if (interactive?.type === 'list' && interactive.sections) {
+        await WhatsAppProviderManager.sendInteractiveList(
+          phone, text, interactive.buttonText || 'Menu',
+          interactive.sections,
+          { header: interactive.header, footer: interactive.footer }
+        );
+      } else {
+        await WhatsAppProviderManager.sendTextMessage(phone, text);
+      }
+
+      await this.logMessage({
+        phone_number: phone,
+        direction: 'outbound',
+        message_type: interactive ? 'interactive' : 'text',
+        message_content: text,
+        intent_detected: intent,
+      });
+    } catch (error: any) {
+      logger.error('Failed to send bot response, falling back to text', { phone, error: error.message });
+      // Fallback to plain text if interactive fails
+      try {
+        await WhatsAppProviderManager.sendTextMessage(phone, text);
+      } catch (fallbackErr: any) {
+        logger.error('Fallback text send also failed', { phone, error: fallbackErr.message });
+      }
+    }
+  }
+
+  /**
+   * Map intents to interactive message configs.
+   * Returns null for intents that should use plain text.
+   * @param isLinkedMember - true if user is a linked EFF member (affects greeting/help menus)
+   */
+  private static getInteractiveForIntent(intent: string, isLinkedMember: boolean = false): {
+    type: 'buttons' | 'list';
+    buttons?: InteractiveButton[];
+    sections?: InteractiveListSection[];
+    buttonText?: string;
+    header?: string;
+    footer?: string;
+  } | null {
+    switch (intent) {
+      case 'greeting':
+        if (isLinkedMember) {
+          // Member greeting: show member services list
+          return {
+            type: 'list',
+            buttonText: 'View Options',
+            header: 'EFF Membership Services',
+            footer: 'Economic Freedom In Our Lifetime!',
+            sections: [{
+              title: 'Services',
+              rows: [
+                { id: '1', title: 'Membership Status', description: 'Check your membership' },
+                { id: '2', title: 'Payment Info', description: 'Renewal & payment details' },
+                { id: '3', title: 'Update Details', description: 'Change email/phone/address' },
+                { id: '4', title: 'Membership Card', description: 'Get your digital card' },
+                { id: '5', title: 'Events & Rallies', description: 'Upcoming events' },
+                { id: '6', title: 'News & Updates', description: 'Latest announcements' },
+              { id: 'help', title: ' Help / Full Menu', description: 'See all available options' },
+              ]
+            }]
+          };
+        }
+        // Non-member greeting: persuasive buttons
+        return {
+          type: 'buttons',
+          header: 'Welcome to the EFF!',
+          footer: 'Economic Freedom In Our Lifetime!',
+          buttons: [
+            { id: 'join', title: ' Join the EFF' },
+            { id: 'benefits', title: 'ℹ Why Join?' },
+            { id: 'help', title: ' Get Help' },
+          ]
+        };
+
+      case 'help':
+        if (isLinkedMember) {
+          // Member help: full menu list
+          return {
+            type: 'list',
+            buttonText: 'Full Menu',
+
+            footer: 'Economic Freedom In Our Lifetime!',
+            sections: [
+              {
+                title: 'Membership Services',
+                rows: [
+                  { id: '1', title: 'Membership Status' },
+                  { id: '2', title: 'Payment/Renewal' },
+                  { id: '3', title: 'Update Details' },
+                  { id: '4', title: 'Membership Card' },
+                ]
+              },
+              {
+                title: 'Information',
+                rows: [
+                  { id: '5', title: 'Events & Rallies' },
+                  { id: '6', title: 'News & Updates' },
+                  { id: '7', title: 'Voting Station Info' },
+                  { id: '8', title: 'Find Your Branch' },
+                ]
+              },
+              {
+                title: 'More',
+                rows: [
+                  { id: '9', title: 'Political Education' },
+                  { id: '10', title: 'Report/Feedback' },
+                ]
+              }
+            ]
+          };
+        }
+        // Non-member help: tailored list with join + help desks
+        return {
+          type: 'list',
+          buttonText: 'View Options',
+          header: 'EFF — How Can We Help?',
+          footer: 'Economic Freedom In Our Lifetime!',
+          sections: [
+            {
+              title: 'Join the Movement',
+              rows: [
+                { id: 'join', title: 'Become a Member', description: 'Join for just R10 / 2 years' },
+                { id: 'benefits', title: 'Why Join EFF?', description: 'Membership benefits' },
+                { id: 'learn', title: 'Political Education', description: 'Learn about the EFF' },
+              ]
+            },
+            {
+              title: 'Get Assistance',
+              rows: [
+                { id: 'labour_desk', title: 'Labour Desk', description: 'Workplace issues & disputes' },
+                { id: 'gbv_desk', title: 'GBV Support', description: 'Gender-based violence help' },
+                { id: 'appointment', title: 'Book Consultation', description: 'Schedule an appointment' },
+                { id: 'sos', title: 'Emergency Contacts', description: 'Urgent help numbers' },
+              ]
+            },
+            {
+              title: 'Information',
+              rows: [
+                { id: '5', title: 'Events & Rallies', description: 'Upcoming EFF events' },
+                { id: '6', title: 'News & Updates', description: 'Latest EFF news' },
+              ]
+            }
+          ]
+        };
+
+      case 'join':
+        return {
+          type: 'buttons',
+          header: 'Join the EFF',
+          footer: 'Economic Freedom In Our Lifetime!',
+          buttons: [
+            { id: 'benefits', title: ' See Benefits' },
+            { id: 'branch', title: ' Find a Branch' },
+            { id: 'learn', title: ' Learn About EFF' },
+          ]
+        };
+
+      case 'benefits':
+        return {
+          type: 'buttons',
+          header: 'EFF Membership Benefits',
+          footer: 'R10 for 2 years!',
+          buttons: [
+            { id: 'join', title: ' Join Now' },
+            { id: 'labour_desk', title: ' Labour Desk' },
+            { id: 'gbv_desk', title: '🛡️ GBV Support' },
+          ]
+        };
+
+      case 'labour_desk':
+        return {
+          type: 'buttons',
+          header: 'EFF Labour Desk',
+          buttons: [
+            { id: 'appointment', title: ' Book Consult' },
+            { id: 'join', title: ' Join EFF' },
+            { id: 'help', title: ' Main Menu' },
+          ]
+        };
+
+      case 'gbv_desk':
+        return {
+          type: 'buttons',
+          header: 'EFF GBV Support',
+          buttons: [
+            { id: 'appointment', title: '📅 Book Consult' },
+            { id: 'sos', title: ' Emergency #s' },
+            { id: 'help', title: ' Main Menu' },
+          ]
+        };
+
+      case 'appointment':
+        return {
+          type: 'buttons',
+          header: 'Book a Consultation',
+          buttons: [
+            { id: 'labour_desk', title: '⚖️ Labour Issues' },
+            { id: 'gbv_desk', title: '🛡️ GBV Support' },
+            { id: 'branch', title: '📍 Find Branch' },
+          ]
+        };
+
+      case 'update_email':
+      case 'update_phone':
+      case 'update_address':
+        return null;
+
+      case 'id_provided_for_update':
+        return {
+          type: 'buttons',
+          buttons: [
+            { id: 'update_email', title: 'Email Address' },
+            { id: 'update_phone', title: 'Phone Number' },
+            { id: 'update_address', title: 'Address' },
+          ]
+        };
+
+      case 'voting':
+        return {
+          type: 'buttons',
+          header: 'Voting Information',
+          buttons: [
+            { id: 'help', title: 'Help' },
+          ]
+        };
+
+      case 'confirm_yes':
+      case 'confirm_no':
+      case 'link_yes':
+      case 'link_no':
+      case 'unlink_yes':
+      case 'unlink_no':
+      case 'invalid_link_confirmation':
+      case 'invalid_id':
+      case 'update_link_phone':
+      case 'update_unlink_phone':
+        return null;
+
+      case 'id_provided_for_greeting':
+        return {
+          type: 'buttons',
+          header: 'Link Your Number?',
+          buttons: [
+            { id: 'link_yes', title: ' Yes, Link It' },
+            { id: 'link_no', title: ' No Thanks' },
+          ]
+        };
+
+      case 'report':
+        return {
+          type: 'buttons',
+          header: 'Report Issues / Feedback',
+          buttons: [
+            { id: 'report_community', title: 'Community Issue' },
+            { id: 'report_party', title: 'Party/Branch Issue' },
+            { id: 'report_feedback', title: 'Feedback/Suggestion' },
+          ]
+        };
+
+      case 'learn':
+        return {
+          type: 'list',
+          buttonText: 'Learn More',
+          header: 'EFF Political Education',
+          footer: 'Economic Freedom In Our Lifetime!',
+          sections: [{
+            title: 'Topics',
+            rows: [
+              { id: 'learn_1', title: 'Founding Manifesto', description: 'Our vision for economic freedom' },
+              { id: 'learn_2', title: '7 Non-Negotiables', description: 'Core pillars of the EFF' },
+              { id: 'learn_3', title: 'Cardinal Pillars', description: 'Guiding principles' },
+              { id: 'learn_4', title: 'Key Policies', description: 'Land, nationalization, education' },
+            ]
+          }]
+        };
+
+      default:
+        return null;
+    }
+  }
+
   private static detectIntent(message: string, currentState: string): string {
     const lowerMessage = message.toLowerCase().trim();
+
+    // If waiting for ID input (for initial greeting flow)
+    if (currentState === 'awaiting_id_for_greeting' && this.intentPatterns.id_provided.test(message)) {
+      return 'id_provided_for_greeting';
+    }
+    if (currentState === 'awaiting_id_for_greeting') {
+      if (this.intentPatterns.cancel.test(lowerMessage)) return 'cancel';
+      return 'invalid_id';
+    }
+
+    // If waiting for link confirmation after ID verification
+    if (currentState === 'awaiting_link_confirmation') {
+      if (this.intentPatterns.yes.test(lowerMessage)) return 'link_yes';
+      if (this.intentPatterns.no.test(lowerMessage) || this.intentPatterns.cancel.test(lowerMessage)) return 'link_no';
+      return 'invalid_link_confirmation';
+    }
+
+    // If waiting for unlink confirmation
+    if (currentState === 'awaiting_unlink_confirmation') {
+      if (this.intentPatterns.yes.test(lowerMessage)) return 'unlink_yes';
+      if (this.intentPatterns.no.test(lowerMessage) || this.intentPatterns.cancel.test(lowerMessage)) return 'unlink_no';
+      return 'invalid_link_confirmation';
+    }
 
     // If waiting for ID input (for status check)
     if (currentState === 'awaiting_id' && this.intentPatterns.id_provided.test(message)) {
@@ -149,6 +504,8 @@ export class WhatsAppBotService {
       if (this.intentPatterns.update_email.test(lowerMessage)) return 'update_email';
       if (this.intentPatterns.update_phone.test(lowerMessage)) return 'update_phone';
       if (this.intentPatterns.update_address.test(lowerMessage)) return 'update_address';
+      if (/^(link|link phone|link_phone|4)$/i.test(lowerMessage)) return 'update_link_phone';
+      if (/^(unlink|unlink phone|unlink_phone|4)$/i.test(lowerMessage)) return 'update_unlink_phone';
       return 'invalid_selection';
     }
 
@@ -164,10 +521,10 @@ export class WhatsAppBotService {
       return 'phone_value_provided';
     }
 
-    // If waiting for new ward value
-    if (currentState === 'awaiting_new_ward') {
+    // If waiting for new address value
+    if (currentState === 'awaiting_new_address') {
       if (this.intentPatterns.cancel.test(lowerMessage)) return 'cancel';
-      return 'ward_value_provided';
+      return 'address_value_provided';
     }
 
     // If waiting for confirmation
@@ -217,16 +574,72 @@ export class WhatsAppBotService {
   ): Promise<string> {
     switch (intent) {
       case 'greeting':
-        await this.updateSessionState(session.phone_number, 'idle', {});
-        // If phone is linked to member, show personalized greeting
+        // If phone is linked to member, show personalized greeting (skip ID)
         if (session.linked_member) {
+          await this.updateSessionState(session.phone_number, 'idle', {});
           return this.getPersonalizedWelcome(session.linked_member);
         }
-        return MessageTemplates.WELCOME;
+        // Non-linked: ask for ID number immediately
+        await this.updateSessionState(session.phone_number, 'awaiting_id_for_greeting', {});
+        return MessageTemplates.GREETING_ASK_ID;
+
+      case 'id_provided_for_greeting':
+        return await this.handleGreetingIdProvided(message, session);
+
+      case 'invalid_id':
+        return `❌ That doesn't look like a valid 13-digit SA ID number.\n\nPlease enter your *13-digit ID number* (e.g. 8501015800085)\n\nReply *CANCEL* or *0* to go back.`;
+
+      case 'link_yes':
+        return await this.handleLinkConfirmation(true, session);
+
+      case 'link_no':
+        return await this.handleLinkConfirmation(false, session);
+
+      case 'invalid_link_confirmation':
+        return `Please reply *YES* to link your number or *NO* to skip.`;
+
+      case 'unlink_yes':
+        return await this.handleUnlinkConfirmation(true, session);
+
+      case 'unlink_no':
+        return await this.handleUnlinkConfirmation(false, session);
+
+      case 'update_link_phone':
+        return await this.handleUpdateLinkPhone(session);
+
+      case 'update_unlink_phone':
+        return await this.handleUpdateUnlinkPhone(session);
 
       case 'help':
         await this.updateSessionState(session.phone_number, 'idle', {});
+        // Non-members get a tailored help menu with join/help desk options
+        if (!session.linked_member) {
+          return MessageTemplates.NON_MEMBER_HELP_MENU;
+        }
         return MessageTemplates.HELP_MENU;
+
+      case 'join':
+        await this.updateSessionState(session.phone_number, 'idle', {});
+        if (session.linked_member) {
+          return `You're already an EFF member, ${session.linked_member.firstname}! ✊\n\nReply *STATUS* to view your membership.\nReply *REFER* to invite friends to join.\n\n_Economic Freedom In Our Lifetime!_`;
+        }
+        return MessageTemplates.JOIN_INFO;
+
+      case 'benefits':
+        await this.updateSessionState(session.phone_number, 'idle', {});
+        return MessageTemplates.MEMBERSHIP_BENEFITS;
+
+      case 'labour_desk':
+        await this.updateSessionState(session.phone_number, 'idle', {});
+        return MessageTemplates.LABOUR_DESK;
+
+      case 'gbv_desk':
+        await this.updateSessionState(session.phone_number, 'idle', {});
+        return MessageTemplates.GBV_DESK;
+
+      case 'appointment':
+        await this.updateSessionState(session.phone_number, 'idle', {});
+        return MessageTemplates.APPOINTMENT_INFO;
 
       case 'member_lookup':
         // If phone is already linked to a member, show status directly
@@ -278,8 +691,8 @@ export class WhatsAppBotService {
         return MessageTemplates.UPDATE_PHONE_PROMPT;
 
       case 'update_address':
-        await this.updateSessionState(session.phone_number, 'awaiting_new_ward', session.context);
-        return MessageTemplates.UPDATE_WARD_PROMPT;
+        await this.updateSessionState(session.phone_number, 'awaiting_new_address', session.context);
+        return MessageTemplates.UPDATE_ADDRESS_PROMPT;
 
       case 'email_value_provided':
         return await this.handleEmailValueProvided(message, session);
@@ -287,8 +700,8 @@ export class WhatsAppBotService {
       case 'phone_value_provided':
         return await this.handlePhoneValueProvided(message, session);
 
-      case 'ward_value_provided':
-        return await this.handleWardValueProvided(message, session);
+      case 'address_value_provided':
+        return await this.handleAddressValueProvided(message, session);
 
       case 'confirm_yes':
         return await this.handleUpdateConfirmation(true, session);
@@ -296,8 +709,10 @@ export class WhatsAppBotService {
       case 'confirm_no':
         return await this.handleUpdateConfirmation(false, session);
 
-      case 'invalid_selection':
-        return MessageTemplates.UPDATE_MENU(session.linked_member as any);
+      case 'invalid_selection': {
+        const menuMember = (session.context?.update_member || session.linked_member) as any;
+        return MessageTemplates.UPDATE_MENU_WITH_LINK(menuMember, !!session.linked_member);
+      }
 
       case 'invalid_confirmation':
         return `Please reply *YES* to confirm or *NO* to cancel.`;
@@ -370,7 +785,7 @@ Reply *HELP* to see all available options.
 
 _Economic Freedom In Our Lifetime!_`;
         }
-        return MessageTemplates.UNRECOGNIZED;
+        return MessageTemplates.NON_MEMBER_UNRECOGNIZED;
     }
   }
 
@@ -378,16 +793,14 @@ _Economic Freedom In Our Lifetime!_`;
    * Personalized welcome message for phone-linked members
    */
   private static getPersonalizedWelcome(member: MemberInfo): string {
-    const statusEmoji = member.membership_status_name === 'Good Standing' ? '✅' : '⚠️';
+    return `*Welcome back, ${member.firstname}!*
 
-    return ` Welcome back, ${member.firstname}!*
-
-${statusEmoji} Your membership status: *${member.membership_status_name}*
+Your membership status: *${member.membership_status_name}*
 
 I can help you with:
-1️⃣ View full membership status
-2️⃣ Payment/renewal information
-3️⃣ Update your details
+1. View full membership status
+2. Payment/renewal information
+3. Update your details
 
 Reply with a number or type *HELP* for more options.
 
@@ -407,17 +820,17 @@ _Economic Freedom In Our Lifetime!_`;
         : `expired *${Math.abs(member.days_until_expiry)} days* ago`)
       : '';
 
-    return ` *Payment Information for ${member.firstname}*
+    return `*Payment Information for ${member.firstname}*
 
-${isExpired ? ' Your membership has expired!' : `Your membership ${expiryStatus}`}
+${isExpired ? 'Your membership has expired!' : `Your membership ${expiryStatus}`}
 
 *Standard Membership: R10/2 years*
 
 Payment methods:
-• EFT to EFF account
-• Pay at your local branch
+- EFT to EFF account
+- Pay at your local branch
 
-${isExpired ? ' Renew now to maintain your membership benefits!' : ''}
+${isExpired ? 'Renew now to maintain your membership benefits!' : ''}
 
 Reply *STATUS* to check your membership details.
 
@@ -440,19 +853,129 @@ _Economic Freedom In Our Lifetime!_`;
         return MessageTemplates.MEMBER_NOT_FOUND;
       }
 
-      // Update session with member info
-      await this.updateSessionState(session.phone_number, 'idle', {
-        member_id: member.member_id
-      });
+      // If not already linked, ask about linking after showing status
+      if (!session.linked_member) {
+        await this.updateSessionState(session.phone_number, 'awaiting_link_confirmation', {
+          pending_member_id: member.member_id,
+          pending_member_name: member.firstname
+        });
+        return `${MessageTemplates.formatMemberStatus(member)}\n\n---\n\n${MessageTemplates.LINK_PHONE_ASK(member.firstname)}`;
+      }
 
-      // Link session to member
-      await this.linkSessionToMember(session.phone_number, member.member_id);
-
+      // Already linked - just show status
+      await this.updateSessionState(session.phone_number, 'idle', {});
       return MessageTemplates.formatMemberStatus(member);
     } catch (error: any) {
       logger.error('Member lookup failed', { idNumber, error: error.message });
       return MessageTemplates.ERROR;
     }
+  }
+
+  // ============================================
+  // Phone Linking Handlers
+  // ============================================
+
+  /**
+   * Handle ID provided during greeting flow (first-time/non-linked users)
+   */
+  private static async handleGreetingIdProvided(idNumber: string, session: BotSession): Promise<string> {
+    try {
+      const member = await WhatsAppMemberService.getMemberByIdNumber(idNumber);
+
+      if (!member) {
+        const application = await WhatsAppMemberService.getApplicationByIdNumber(idNumber);
+        if (application) {
+          await this.updateSessionState(session.phone_number, 'idle', {});
+          return MessageTemplates.formatApplicationStatus(application);
+        }
+        await this.updateSessionState(session.phone_number, 'idle', {});
+        return MessageTemplates.MEMBER_NOT_FOUND;
+      }
+
+      // Member found — ask if they want to link
+      await this.updateSessionState(session.phone_number, 'awaiting_link_confirmation', {
+        pending_member_id: member.member_id,
+        pending_member_name: member.firstname
+      });
+
+      return MessageTemplates.LINK_PHONE_ASK(member.firstname);
+    } catch (error: any) {
+      logger.error('Greeting ID lookup failed', { idNumber, error: error.message });
+      return MessageTemplates.ERROR;
+    }
+  }
+
+  /**
+   * Handle link confirmation (YES/NO) after ID verification
+   */
+  private static async handleLinkConfirmation(confirmed: boolean, session: BotSession): Promise<string> {
+    const memberId = session.context?.pending_member_id;
+    const memberName = session.context?.pending_member_name || 'Member';
+
+    if (confirmed && memberId) {
+      // Link the phone to the member
+      await this.linkSessionToMember(session.phone_number, memberId);
+      await this.updateSessionState(session.phone_number, 'idle', {});
+      return MessageTemplates.LINK_PHONE_SUCCESS;
+    }
+
+    // Declined — continue without linking
+    await this.updateSessionState(session.phone_number, 'idle', {});
+    return MessageTemplates.LINK_PHONE_DECLINED;
+  }
+
+  /**
+   * Handle unlink confirmation (from update menu)
+   */
+  private static async handleUnlinkConfirmation(confirmed: boolean, session: BotSession): Promise<string> {
+    if (confirmed) {
+      await this.unlinkSessionFromMember(session.phone_number);
+      await this.updateSessionState(session.phone_number, 'idle', {});
+      return MessageTemplates.UNLINK_PHONE_SUCCESS;
+    }
+    await this.updateSessionState(session.phone_number, 'idle', {});
+    return MessageTemplates.UPDATE_CANCELLED;
+  }
+
+  /**
+   * Handle "Link Phone" option from update menu
+   */
+  private static async handleUpdateLinkPhone(session: BotSession): Promise<string> {
+    if (session.linked_member) {
+      // Already linked — redirect to unlink flow
+      return await this.handleUpdateUnlinkPhone(session);
+    }
+    // Not linked — they should be in the update flow with a verified member in context
+    const memberId = session.context?.member_id;
+    if (memberId) {
+      await this.linkSessionToMember(session.phone_number, memberId);
+      await this.updateSessionState(session.phone_number, 'idle', {});
+      return MessageTemplates.LINK_PHONE_SUCCESS;
+    }
+    await this.updateSessionState(session.phone_number, 'idle', {});
+    return `❌ No member found to link. Please try *STATUS* first to verify your membership.`;
+  }
+
+  /**
+   * Handle "Unlink Phone" option from update menu
+   */
+  private static async handleUpdateUnlinkPhone(session: BotSession): Promise<string> {
+    if (!session.linked_member) {
+      return `❌ Your phone is not currently linked to any membership.\n\nReply *HELP* for more options.`;
+    }
+    await this.updateSessionState(session.phone_number, 'awaiting_unlink_confirmation', {});
+    return MessageTemplates.UNLINK_PHONE_CONFIRM;
+  }
+
+  /**
+   * Unlink phone from member (set member_id to NULL)
+   */
+  private static async unlinkSessionFromMember(phoneNumber: string): Promise<void> {
+    await executeQuery(`
+      UPDATE whatsapp_bot_sessions
+      SET member_id = NULL, updated_at = NOW()
+      WHERE phone_number = $1
+    `, [phoneNumber]);
   }
 
   /**
@@ -470,12 +993,7 @@ _Economic Freedom In Our Lifetime!_`;
 
       const member = session.linked_member;
 
-      // Check if membership is expired
-      if (member.days_until_expiry && member.days_until_expiry < 0) {
-        return MessageTemplates.CARD_MEMBERSHIP_EXPIRED(member as any);
-      }
-
-      // Generate and send the card
+      // Generate and send the card (regardless of membership status)
       return await this.generateAndSendCard(session.phone_number, member);
     } catch (error: any) {
       logger.error('Card request failed', {
@@ -498,12 +1016,6 @@ _Economic Freedom In Our Lifetime!_`;
       if (!member) {
         await this.updateSessionState(session.phone_number, 'idle', {});
         return MessageTemplates.CARD_MEMBER_NOT_FOUND;
-      }
-
-      // Check if membership is expired
-      if (member.days_until_expiry && member.days_until_expiry < 0) {
-        await this.updateSessionState(session.phone_number, 'idle', {});
-        return MessageTemplates.CARD_MEMBERSHIP_EXPIRED(member as any);
       }
 
       // Update session with member info and link to member
@@ -532,7 +1044,7 @@ _Economic Freedom In Our Lifetime!_`;
       console.log(`🪪 [WhatsApp Bot] Generating membership card image for member ${member.member_id}`);
 
       // Send "generating" message first
-      await WasenderApiService.sendTextMessage(phoneNumber, MessageTemplates.CARD_GENERATING);
+      await WhatsAppProviderManager.sendTextMessage(phoneNumber, MessageTemplates.CARD_GENERATING);
 
       // Generate the digital membership card as PNG image
       const cardResult = await DigitalMembershipCardModel.generateMembershipCardImage(
@@ -551,9 +1063,12 @@ _Economic Freedom In Our Lifetime!_`;
       // Generate caption
       const caption = MessageTemplates.formatCardCaption(member as any);
 
+      // Wait to respect WhatsApp rate limit (1 message per 5 seconds with account protection)
+      await new Promise(resolve => setTimeout(resolve, 6000));
+
       // Send the image via WhatsApp
       console.log(`🪪 [WhatsApp Bot] Sending card image to ${phoneNumber}`);
-      await WasenderApiService.sendImageBase64(
+      await WhatsAppProviderManager.sendImageBase64(
         phoneNumber,
         imageBase64,
         'image/png',
@@ -602,24 +1117,11 @@ _Economic Freedom In Our Lifetime!_`;
 
   /**
    * Handle initial update information request
-   * Only allows updates if phone is already linked to a member (security measure)
+   * Asks for ID number to identify the member
    */
   private static async handleUpdateRequest(session: BotSession): Promise<string> {
     try {
-      // Security: Only allow updates if phone is already linked to a member
-      if (!session.linked_member) {
-        return `🔐 *Verification Required*
-
-To update your details, we first need to verify your membership.
-
-Please reply *1* or *STATUS* and enter your ID number to link your phone to your membership.
-
-Once verified, you can update your information.
-
-Reply *HELP* for more options.`;
-      }
-
-      // Phone is linked - ask for ID verification
+      // Always ask for ID number to identify the member
       await this.updateSessionState(session.phone_number, 'awaiting_id_for_update', {});
       return MessageTemplates.UPDATE_REQUEST_ID;
     } catch (error: any) {
@@ -633,44 +1135,33 @@ Reply *HELP* for more options.`;
 
   /**
    * Handle update request when user provides ID number
-   * Verifies the ID matches the linked member for security
+   * Looks up the member by ID number and shows the update menu
    */
   private static async handleUpdateWithId(idNumber: string, session: BotSession): Promise<string> {
     try {
-      // Security check: Phone must be linked to a member
-      if (!session.linked_member) {
+      // Look up the member by ID number
+      const member = await WhatsAppMemberService.getMemberByIdNumber(idNumber);
+
+      if (!member) {
         await this.updateSessionState(session.phone_number, 'idle', {});
-        return `🔐 *Verification Required*
+        return `*Member Not Found*
 
-To update your details, we first need to verify your membership.
+We could not find a member with ID number ${idNumber}.
 
-Please reply *1* or *STATUS* and enter your ID number to link your phone to your membership.
-
-Reply *HELP* for more options.`;
+Please check the ID number and try again, or reply *HELP* for more options.`;
       }
 
-      // Verify the ID matches the linked member
-      if (session.linked_member.id_number !== idNumber) {
-        await this.updateSessionState(session.phone_number, 'idle', {});
-        return `❌ *ID Verification Failed*
-
-The ID number you provided does not match the member linked to this phone number.
-
-For security reasons, you can only update your own information.
-
-Reply *HELP* for more options.`;
-      }
-
-      // ID verified - show update menu
+      // Store the looked-up member in context for use by subsequent handlers
       await this.updateSessionState(session.phone_number, 'update_menu', {
-        member_id: session.linked_member.member_id,
-        verified_id: idNumber
+        member_id: member.member_id,
+        verified_id: idNumber,
+        update_member: member
       });
 
-      // Show update menu with verification confirmation
-      return `✅ *ID Verified*
+      // Show update menu with link/unlink option
+      return `*Member Found*
 
-${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
+${MessageTemplates.UPDATE_MENU_WITH_LINK(member as any, !!session.linked_member)}`;
     } catch (error: any) {
       logger.error('Update with ID failed', {
         phone: session.phone_number,
@@ -691,7 +1182,8 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
     }
 
     // Store the pending update in context and ask for confirmation
-    const oldEmail = session.linked_member?.email || 'Not set';
+    const member = session.context?.update_member || session.linked_member;
+    const oldEmail = member?.email || 'Not set';
     await this.updateSessionState(session.phone_number, 'confirm_update', {
       ...session.context,
       update_field: 'email',
@@ -718,7 +1210,8 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
     }
 
     // Store the pending update in context and ask for confirmation
-    const oldPhone = session.linked_member?.cell_number || 'Not set';
+    const member = session.context?.update_member || session.linked_member;
+    const oldPhone = member?.cell_number || 'Not set';
     await this.updateSessionState(session.phone_number, 'confirm_update', {
       ...session.context,
       update_field: 'phone',
@@ -730,33 +1223,27 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
   }
 
   /**
-   * Handle ward value provided by user
+   * Handle address value provided by user
    */
-  private static async handleWardValueProvided(wardCode: string, session: BotSession): Promise<string> {
-    // Validate ward code format
-    if (!WhatsAppMemberService.validateWardCodeFormat(wardCode)) {
-      return MessageTemplates.UPDATE_INVALID_WARD;
-    }
-
-    // Validate ward code exists
-    const wardValidation = await WhatsAppMemberService.validateWardCode(wardCode);
-    if (!wardValidation.valid) {
-      return MessageTemplates.UPDATE_WARD_NOT_FOUND;
+  private static async handleAddressValueProvided(address: string, session: BotSession): Promise<string> {
+    // Validate address is not too short
+    const trimmedAddress = address.trim();
+    if (trimmedAddress.length < 5) {
+      return MessageTemplates.UPDATE_INVALID_ADDRESS;
     }
 
     // Store the pending update in context and ask for confirmation
-    const oldWard = session.linked_member?.ward_name || session.linked_member?.ward_code || 'Not set';
-    const newWard = `${wardCode} (${wardValidation.wardName})`;
+    const member = session.context?.update_member || session.linked_member;
+    const oldAddress = member?.residential_address || 'Not set';
 
     await this.updateSessionState(session.phone_number, 'confirm_update', {
       ...session.context,
-      update_field: 'ward',
-      old_value: oldWard,
-      new_value: wardCode,
-      new_ward_name: wardValidation.wardName
+      update_field: 'address',
+      old_value: oldAddress,
+      new_value: trimmedAddress
     });
 
-    return MessageTemplates.UPDATE_CONFIRM('Ward/Address', oldWard, newWard);
+    return MessageTemplates.UPDATE_CONFIRM('Address', oldAddress, trimmedAddress);
   }
 
   /**
@@ -770,8 +1257,8 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
     }
 
     // Get update details from context
-    const { update_field, new_value, new_ward_name } = session.context;
-    const memberId = session.member_id || session.linked_member?.member_id;
+    const { update_field, new_value } = session.context;
+    const memberId = session.context?.member_id || session.context?.update_member?.member_id || session.member_id || session.linked_member?.member_id;
 
     if (!memberId) {
       await this.updateSessionState(session.phone_number, 'idle', {});
@@ -790,9 +1277,8 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
         case 'phone':
           success = await WhatsAppMemberService.updateMemberPhone(memberId, new_value);
           break;
-        case 'ward':
-          success = await WhatsAppMemberService.updateMemberWard(memberId, new_value);
-          displayValue = `${new_value} (${new_ward_name})`;
+        case 'address':
+          success = await WhatsAppMemberService.updateMemberAddress(memberId, new_value);
           break;
         default:
           await this.updateSessionState(session.phone_number, 'idle', {});
@@ -816,7 +1302,7 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
         const fieldNames: Record<string, string> = {
           email: 'Email Address',
           phone: 'Phone Number',
-          ward: 'Ward/Address'
+          address: 'Address'
         };
         return MessageTemplates.UPDATE_SUCCESS(fieldNames[update_field] || update_field, displayValue);
       } else {
@@ -855,9 +1341,17 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
       if (session.member_id) {
         const memberResult = await executeQuery<MemberInfo[]>(`
           SELECT m.*, ms.status_name as membership_status_name,
-                 (m.expiry_date - CURRENT_DATE)::INTEGER as days_until_expiry
+                 (m.expiry_date - CURRENT_DATE)::INTEGER as days_until_expiry,
+                 w.ward_name,
+                 mun.municipality_name,
+                 p.province_name,
+                 vd.voting_district_name as voting_station_name
           FROM members_consolidated m
           LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+          LEFT JOIN wards w ON m.ward_code = w.ward_code
+          LEFT JOIN municipalities mun ON w.municipality_code = mun.municipality_code
+          LEFT JOIN provinces p ON mun.province_code = p.province_code
+          LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
           WHERE m.member_id = $1
         `, [session.member_id]);
 
@@ -869,33 +1363,21 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
       return session;
     }
 
-    // New session - Try to auto-lookup member by phone number
-    console.log('📱 [WhatsApp Bot] New session - attempting phone lookup for:', phoneNumber);
-    let linkedMember: MemberInfo | null = null;
-    let memberId: number | null = null;
+    // New session - do NOT auto-link. User must verify via ID and opt-in to linking.
+    console.log('📱 [WhatsApp Bot] New session created (no auto-link) for:', phoneNumber);
 
-    try {
-      linkedMember = await WhatsAppMemberService.getMemberByPhoneNumber(phoneNumber);
-      if (linkedMember) {
-        memberId = linkedMember.member_id;
-        console.log('📱 [WhatsApp Bot] Auto-linked member by phone:', linkedMember.firstname, linkedMember.surname);
-      }
-    } catch (err: any) {
-      console.log('📱 [WhatsApp Bot] Phone lookup failed:', err.message);
-    }
-
-    // Create new session (with member_id if found)
+    // Create new session without member_id (user must opt-in to linking)
     await executeQuery(`
       INSERT INTO whatsapp_bot_sessions (phone_number, member_id, current_state, context)
-      VALUES ($1, $2, 'idle', '{}')
-    `, [phoneNumber, memberId]);
+      VALUES ($1, NULL, 'idle', '{}')
+    `, [phoneNumber]);
 
     return {
       phone_number: phoneNumber,
-      member_id: memberId || undefined,
+      member_id: undefined,
       current_state: 'idle',
       context: {},
-      linked_member: linkedMember
+      linked_member: null
     };
   }
 
@@ -982,13 +1464,17 @@ ${MessageTemplates.UPDATE_MENU(session.linked_member as any)}`;
 
     switch (selection) {
       case '1':
+      case 'learn_1':
         return MessageTemplates.LEARN_MANIFESTO;
       case '2':
+      case 'learn_2':
         return MessageTemplates.LEARN_PILLARS;
       case '3':
+      case 'learn_3':
         return MessageTemplates.LEARN_PILLARS; // Cardinal pillars same as 7 pillars
       case '4':
-        return `🎓 *Key EFF Policies*
+      case 'learn_4':
+        return `*Key EFF Policies*
 
 *Land Reform:*
 Expropriation of land without compensation for equitable redistribution.

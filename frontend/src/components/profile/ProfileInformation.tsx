@@ -33,7 +33,7 @@ import { apiPut } from '../../lib/api';
 interface ProfileFormData {
   name: string;
   email: string;
-  // Note: phone is not editable here as it's not in users table
+  cell_number: string;
 }
 
 const ProfileInformation: React.FC = () => {
@@ -42,7 +42,8 @@ const ProfileInformation: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
-    email: user?.email || ''
+    email: user?.email || '',
+    cell_number: user?.cell_number || ''
   });
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -78,7 +79,8 @@ const ProfileInformation: React.FC = () => {
   const handleCancel = () => {
     setFormData({
       name: user?.name || '',
-      email: user?.email || ''
+      email: user?.email || '',
+      cell_number: user?.cell_number || ''
     });
     setIsEditing(false);
     setErrorMessage('');
@@ -238,14 +240,15 @@ const ProfileInformation: React.FC = () => {
               />
             </Grid>
 
-            {/* Phone - Disabled: Not available in users table */}
-            {/*
+            {/* Phone Number */}
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
-                value={user?.phone || 'N/A'}
-                disabled
+                label="Cell Number"
+                value={formData.cell_number}
+                onChange={(e) => handleInputChange('cell_number', e.target.value)}
+                disabled={!isEditing || updateProfileMutation.isPending}
+                placeholder="e.g., 0612345678"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -253,10 +256,9 @@ const ProfileInformation: React.FC = () => {
                     </InputAdornment>
                   ),
                 }}
-                helperText="Phone number is managed in member profile"
+                helperText={isEditing ? 'South African mobile number (e.g., 0612345678)' : ''}
               />
             </Grid>
-            */}
 
             {/* Admin Level (Read-only) */}
             <Grid item xs={12} md={6}>

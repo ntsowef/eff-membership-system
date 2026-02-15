@@ -65,6 +65,7 @@ interface WardDetailAudit {
     is_active: boolean;
     voting_district_code?: string;
     voting_district_name?: string;
+    voter_status?: string;
     issue_type: string;
     issue_description: string;
     severity: 'low' | 'medium' | 'high' | 'critical';
@@ -81,12 +82,65 @@ const WardDetailAudit: React.FC = () => {
   const navigate = useNavigate();
   const { wardCode } = useParams<{ wardCode: string }>();
 
-  // Fetch ward detail audit data
+  // Fetch ward detail audit data from ward-membership-audit API
   const { data: auditData, isLoading } = useQuery({
     queryKey: ['ward-detail-audit', wardCode],
     queryFn: async () => {
-      const response = await api.get(`/audit/ward/${wardCode}`);
-      return response.data as WardDetailAudit;
+      // Use ward-membership-audit API which has real data
+      const response = await api.get(`/audit/ward-membership/ward/${wardCode}/details`);
+      const responseData = response.data?.data;
+      const wardInfo = responseData?.ward_info;
+
+      if (!wardInfo) return null;
+
+      const voterStats = responseData?.voter_stats || { registered_voters: 0, unregistered_voters: 0 };
+      const membersArr = responseData?.members || [];
+
+      // Map response to expected WardDetailAudit format
+      return {
+        ward: {
+          ward_code: wardInfo.ward_code,
+          ward_name: wardInfo.ward_name,
+          municipality_code: wardInfo.municipality_code,
+          municipality_name: wardInfo.municipality_name,
+          total_members: wardInfo.total_members,
+          active_members: wardInfo.active_members,
+          registered_voters: voterStats.registered_voters,
+          unregistered_voters: voterStats.unregistered_voters,
+          incorrect_ward_assignments: 0,
+          membership_threshold_met: wardInfo.standing_level <= 2,
+          threshold_percentage: wardInfo.target_achievement_percentage,
+          issues_count: wardInfo.standing_level === 3 ? wardInfo.members_needed_next_level : 0
+        },
+        members: membersArr.map((m: any) => ({
+          member_id: m.member_id,
+          membership_number: m.membership_number,
+          first_name: m.first_name,
+          last_name: m.last_name,
+          email: m.email,
+          membership_status: m.membership_status,
+          is_active: m.is_active,
+          voting_district_code: m.voting_district_code,
+          voting_district_name: m.voting_district_name,
+          voter_status: m.voter_status,
+          issue_type: m.issue_type,
+          issue_description: m.issue_description,
+          severity: m.severity
+        })),
+        summary: {
+          total_members: wardInfo.total_members,
+          issues_by_type: {
+            active: wardInfo.active_members,
+            expired: wardInfo.expired_members,
+            inactive: wardInfo.inactive_members
+          },
+          issues_by_severity: wardInfo.standing_level === 3
+            ? { 'Needs Improvement': wardInfo.members_needed_next_level }
+            : wardInfo.standing_level === 2
+              ? { 'Acceptable': wardInfo.active_members }
+              : { 'Good Standing': wardInfo.active_members }
+        }
+      } as WardDetailAudit;
     },
     enabled: !!wardCode,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -357,6 +411,7 @@ const WardDetailAudit: React.FC = () => {
                 <TableRow>
                   <TableCell>Member</TableCell>
                   <TableCell>Membership Status</TableCell>
+                  <TableCell>Voter Status</TableCell>
                   <TableCell>Voting District</TableCell>
                   <TableCell>Issue</TableCell>
                   <TableCell>Severity</TableCell>
@@ -385,6 +440,14 @@ const WardDetailAudit: React.FC = () => {
                         label={member.membership_status}
                         color={member.is_active ? 'success' : 'error'}
                         size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={member.voter_status || 'Unknown'}
+                        color={member.voter_status === 'Registered' ? 'success' : 'warning'}
+                        size="small"
+                        variant="outlined"
                       />
                     </TableCell>
                     <TableCell>

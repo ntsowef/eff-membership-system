@@ -316,7 +316,7 @@ export function getMultilingualWelcome(provinceName?: string, memberName?: strin
     ? `${lang.greeting} ${memberName}!`
     : `${lang.greeting}!`;
 
-  return `🔴⚫🟢 *${lang.welcome}!*
+  return `*${lang.welcome}!*
 
 ${personalGreeting}
 
@@ -325,12 +325,12 @@ _[${lang.languageName}]_
 *EFF Membership Services*
 
 I can help you with:
-1️⃣ Check membership status
-2️⃣ Payment/renewal info
-3️⃣ Update your details
-4️⃣ Membership card
-5️⃣ Events & rallies
-6️⃣ News & updates
+1. Check membership status
+2. Payment/renewal info
+3. Update your details
+4. Membership card
+5. Events & rallies
+6. News & updates
 
 Reply with a number or type *HELP* for all options.
 
@@ -347,21 +347,20 @@ export function getMultilingualPersonalizedWelcome(member: MemberBotInfo): strin
     ? getLanguageGreeting(member.language_name)
     : getProvinceLanguage(member.province_name);
 
-  const statusEmoji = member.membership_status_name === 'Good Standing' ? '✅' : '⚠️';
   const isEnglish = ('languageCode' in lang ? lang.languageCode : lang.primaryLanguage) === 'en';
 
   // For English speakers, use standard English greeting
   if (isEnglish) {
-    return `🔴⚫🟢 *Welcome back, ${member.firstname}!*
+    return `*Welcome back, ${member.firstname}!*
 
-${statusEmoji} Your membership status: *${member.membership_status_name}*
+Your membership status: *${member.membership_status_name}*
 
 Quick actions:
-1️⃣ Full membership status
-2️⃣ Payment/renewal info
-3️⃣ Update your details
-4️⃣ Membership card
-5️⃣ Events & rallies
+1. Full membership status
+2. Payment/renewal info
+3. Update your details
+4. Membership card
+5. Events & rallies
 
 Reply with a number or type *HELP* for all options.
 
@@ -369,18 +368,18 @@ _Economic Freedom In Our Lifetime!_`;
   }
 
   // Multilingual greeting in member's specific language
-  return `🔴⚫🟢 *${lang.greeting}, ${member.firstname}!*
+  return `*${lang.greeting}, ${member.firstname}!*
 
 _[${lang.languageName}]_
 
-${statusEmoji} Your membership status: *${member.membership_status_name}*
+Your membership status: *${member.membership_status_name}*
 
 ${lang.welcome}! Quick actions:
-1️⃣ Full membership status
-2️⃣ Payment/renewal info
-3️⃣ Update your details
-4️⃣ Membership card
-5️⃣ Events & rallies
+1. Full membership status
+2. Payment/renewal info
+3. Update your details
+4. Membership card
+5. Events & rallies
 
 Reply with a number or type *HELP* for all options.
 
@@ -423,87 +422,92 @@ _Economic Freedom In Our Lifetime!_`;
 }
 
 export const MessageTemplates = {
-  WELCOME: `🔴⚫🟢 *Welcome to EFF Membership Services*
+  WELCOME: `*Welcome to EFF Membership Services*
 
 I can help you with:
-1️⃣ Check membership status
-2️⃣ Payment/renewal info
-3️⃣ Update your details
-4️⃣ Membership card
-5️⃣ Events & rallies
-6️⃣ News & updates
+1. Check membership status
+2. Payment/renewal info
+3. Update your details
+4. Membership card
+5. Events & rallies
+6. News & updates
 
 Reply with a number or type *HELP* for all options.
 
 _Economic Freedom In Our Lifetime!_`,
 
-  HELP_MENU: `📋 *EFF Membership Bot - Full Menu*
+  HELP_MENU: `*EFF Membership Bot - Full Menu*
 
 *Membership Services:*
-• *1* or *STATUS* - Check membership status
-• *2* or *PAY* - Payment/renewal info
-• *3* or *UPDATE* - Update your details
-• *4* or *CARD* - Digital membership card
+- *1* or *STATUS* - Check membership status
+- *2* or *PAY* - Payment/renewal info
+- *3* or *UPDATE* - Update your details
+- *4* or *CARD* - Digital membership card
 
 *Information:*
-• *5* or *EVENTS* - Events & rallies
-• *6* or *NEWS* - News & updates
-• *7* or *VOTE* - Voting station info
-• *8* or *BRANCH* - Find your branch
+- *5* or *EVENTS* - Events & rallies
+- *6* or *NEWS* - News & updates
+- *7* or *VOTE* - Voting station info
+- *8* or *BRANCH* - Find your branch
 
 *More:*
-• *9* or *LEARN* - Political education
-• *10* or *REPORT* - Report issues/feedback
-• *REFER* - Refer a friend
-• *POLL* - Quick polls & surveys
-• *SOS* - Emergency contacts
+- *9* or *LEARN* - Political education
+- *10* or *REPORT* - Report issues/feedback
+- *REFER* - Refer a friend
+- *POLL* - Quick polls & surveys
+- *SOS* - Emergency contacts
 
 Reply with a command to get started.
 
 _Economic Freedom In Our Lifetime!_`,
 
-  REQUEST_ID: ` *Membership Status Check*
+  REQUEST_ID: `*Membership Status Check*
 
 Please enter your 13-digit South African ID number.
 
 Example: 8501015800085`,
 
-  MEMBER_NOT_FOUND: ` *Member Not Found*
+  MEMBER_NOT_FOUND: `*Member Not Found*
 
 We couldn't find a membership record with that ID number.
 
-If you're a new member, your application may still be processing.
+But don't worry — joining the EFF family is easy!
 
-Need help? Reply *HELP* for options or contact your local branch.`,
+✊ *Membership is only R10 for 2 years!*
 
-  PAYMENT_INFO: ` *EFF Membership Payment Information*
+Reply *JOIN* to learn how to become a member.
+Reply *HELP* for other options.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  PAYMENT_INFO: `*EFF Membership Payment Information*
 
 *Standard Membership: R10/2 years*
 
 
 Payment methods:
-• EFT to EFF account
-• Pay at your local branch
-• Mobile payment apps
+- EFT to EFF account
+- Pay at your local branch
+- Mobile payment apps
 
 For specific payment queries, please contact your branch office.
 
 Reply *STATUS* to check if your payment has been recorded.`,
 
-  CANCELLED: ` Action cancelled. 
+  CANCELLED: `Action cancelled.
 
 Reply *HELP* anytime to see available options.`,
 
-  UNRECOGNIZED: ` I didn't understand that.
+  UNRECOGNIZED: `I didn't understand that.
 
 Reply *HELP* to see what I can assist with, or *STATUS* to check your membership.`,
 
-  ERROR: ` Sorry, something went wrong. Please try again later.
+  ERROR: `Sorry, something went wrong. Please try again later.
 
 If the problem persists, contact your local branch office.`,
 
   // Invalid ID format
-  INVALID_ID: ` *Invalid ID Number*
+  INVALID_ID: `*Invalid ID Number*
 
 Please enter a valid 13-digit South African ID number.
 
@@ -512,38 +516,35 @@ Example: 8501015800085
 Reply *CANCEL* to go back to the main menu.`,
 
   // Session timeout
-  SESSION_TIMEOUT: ` Your session has timed out due to inactivity.
+  SESSION_TIMEOUT: `Your session has timed out due to inactivity.
 
 Reply *HELP* to start a new conversation.`,
 
   // Format member status response
   formatMemberStatus: (member: MemberBotInfo): string => {
-    const statusEmoji = member.membership_status_name === 'Good Standing' ? '✅' :
-      member.membership_status_name === 'Expired' ? '⚠️' : '❌';
-
     const expiryInfo = member.days_until_expiry
       ? (member.days_until_expiry > 0
         ? `Expires in ${member.days_until_expiry} days`
         : `Expired ${Math.abs(member.days_until_expiry)} days ago`)
       : 'N/A';
 
-    return ` *EFF Membership Status*
+    return `*EFF Membership Status*
 
-${statusEmoji} *Status:* ${member.membership_status_name}
+*Status:* ${member.membership_status_name}
 
- *Name:* ${member.firstname} ${member.surname}
- *ID:* ${member.id_number}
- *Member #:* ${member.membership_number || 'Pending'}
+*Name:* ${member.firstname} ${member.surname}
+*ID:* ${member.id_number}
 
- *Location:*
+
+*Location:*
    Ward: ${member.ward_name || member.ward_code}
    ${member.municipality_name ? `Municipality: ${member.municipality_name}` : ''}
    ${member.province_name ? `Province: ${member.province_name}` : ''}
 
 *Expiry:* ${expiryInfo}
-${member.last_payment_date ? ` Last Payment: ${new Date(member.last_payment_date).toLocaleDateString('en-ZA')}` : ''}
+${member.last_payment_date ? `Last Payment: ${new Date(member.last_payment_date).toLocaleDateString('en-ZA')}` : ''}
 
-${member.membership_status_name === 'Expired' ? '\n Your membership has expired. Reply *PAY* for renewal information.' : ''}
+${member.membership_status_name === 'Expired' ? '\nYour membership has expired. Reply *PAY* for renewal information.' : ''}
 
 Reply *HELP* for more options.
 
@@ -552,21 +553,18 @@ _Economic Freedom In Our Lifetime!_`;
 
   // Format application status response
   formatApplicationStatus: (app: ApplicationBotInfo): string => {
-    const statusEmoji = app.status === 'Approved' ? '✅' :
-      app.status === 'Rejected' ? '❌' : '⏳';
+    return `*Membership Application Status*
 
-    return `📋 *Membership Application Status*
-
-${statusEmoji} *Status:* ${app.status}
+*Status:* ${app.status}
 
 *Name:* ${app.first_name} ${app.last_name}
 *ID:* ${app.id_number}
 *Applied:* ${new Date(app.created_at).toLocaleDateString('en-ZA')}
 
 ${app.status === 'Submitted' || app.status === 'Under Review'
-        ? '⏳ Your application is being processed. Please check back later.'
+        ? 'Your application is being processed. Please check back later.'
         : app.status === 'Approved'
-          ? '✅ Your application has been approved! Your membership card will be available soon.'
+          ? 'Your application has been approved! Your membership card will be available soon.'
           : ''}
 
 Reply *HELP* for more options.
@@ -586,7 +584,7 @@ Your EFF membership is ${member.days_until_expiry && member.days_until_expiry > 
 
 To renew your membership, please visit your local branch or make an EFT payment.
 
-Standard Membership: R20/year
+Standard Membership: R10/2 years
 
 Reply *PAY* for payment details.
 
@@ -613,7 +611,7 @@ _Economic Freedom In Our Lifetime!_`;
   // ============================================
 
   // Request ID for card generation (when user is not linked)
-  CARD_REQUEST_ID: `🪪 *Digital Membership Card*
+  CARD_REQUEST_ID: `*Digital Membership Card*
 
 To generate your digital membership card, please enter your 13-digit South African ID number.
 
@@ -622,16 +620,16 @@ Example: 8501015800085
 Reply *CANCEL* to go back to the main menu.`,
 
   // Card generation in progress
-  CARD_GENERATING: `🪪 *Generating Your Membership Card*
+  CARD_GENERATING: `*Generating Your Membership Card*
 
-⏳ Please wait while we generate your digital membership card...
+Please wait while we generate your digital membership card...
 
 This may take a few seconds.`,
 
   // Card sent successfully
-  CARD_SENT: `🪪 *Membership Card Sent!*
+  CARD_SENT: `*Membership Card Sent!*
 
-✅ Your digital membership card has been sent above.
+Your digital membership card has been sent above.
 
 You can save this card to your phone and use it as proof of membership.
 
@@ -640,18 +638,18 @@ Reply *HELP* for more options.
 _Economic Freedom In Our Lifetime!_`,
 
   // Card generation failed
-  CARD_ERROR: `🪪 *Card Generation Failed*
+  CARD_ERROR: `*Card Generation Failed*
 
-❌ Sorry, we couldn't generate your membership card at this time.
+Sorry, we couldn't generate your membership card at this time.
 
 Please try again later or contact your local branch office for assistance.
 
 Reply *HELP* for more options.`,
 
   // Member not found for card
-  CARD_MEMBER_NOT_FOUND: `🪪 *Member Not Found*
+  CARD_MEMBER_NOT_FOUND: `*Member Not Found*
 
-❌ We couldn't find a membership record with that ID number.
+We couldn't find a membership record with that ID number.
 
 If you're a new member, your application may still be processing.
 
@@ -660,9 +658,9 @@ Reply *HELP* for options or contact your local branch.`,
   // Membership expired - cannot generate card
   CARD_MEMBERSHIP_EXPIRED: (member: MemberBotInfo): string => {
     const daysExpired = member.days_until_expiry ? Math.abs(member.days_until_expiry) : 0;
-    return `🪪 *Membership Card Unavailable*
+    return `*Membership Card Unavailable*
 
-⚠️ Hi ${member.firstname}, your membership expired *${daysExpired} days* ago.
+Hi ${member.firstname}, your membership expired *${daysExpired} days* ago.
 
 To receive your digital membership card, please renew your membership first.
 
@@ -671,12 +669,17 @@ Reply *PAY* for payment/renewal information.
 _Economic Freedom In Our Lifetime!_`;
   },
 
-  // Format card caption for document message
+  // Format card caption for document message (includes membership status info)
   formatCardCaption: (member: MemberBotInfo): string => {
-    return `🔴⚫🟢 *EFF Digital Membership Card*
+    const statusInfo = member.days_until_expiry && member.days_until_expiry < 0
+      ? `Status: Expired (${Math.abs(member.days_until_expiry)} days ago)\nReply *PAY* to renew your membership.`
+      : `Status: ${member.membership_status_name || 'Active'}`;
 
-👤 ${member.firstname} ${member.surname}
-🆔 ${member.membership_number || 'Pending'}
+    return `*EFF Digital Membership Card*
+
+${member.firstname} ${member.surname}
+${member.membership_number || 'Pending'}
+${statusInfo}
 
 _Economic Freedom In Our Lifetime!_`;
   },
@@ -686,9 +689,9 @@ _Economic Freedom In Our Lifetime!_`;
   // ============================================
 
   // Request ID for update - always required for security verification
-  UPDATE_REQUEST_ID: `✏️ *Update Your Details*
+  UPDATE_REQUEST_ID: `*Update Your Details*
 
-🔐 For security, please verify your identity by entering your 13-digit South African ID number.
+For security, please verify your identity by entering your 13-digit South African ID number.
 
 Example: 8501015800085
 
@@ -696,18 +699,18 @@ Reply *CANCEL* or *0* to go back to the main menu.`,
 
   // Update menu - show what can be updated
   UPDATE_MENU: (member: MemberBotInfo): string => {
-    return `✏️ *Update Your Details*
+    return `*Update Your Details*
 
 Hi ${member.firstname}, what would you like to update?
 
-1️⃣ *Email Address*
+1. *Email Address*
    Current: ${member.email || 'Not set'}
 
-2️⃣ *Phone Number*
+2. *Phone Number*
    Current: ${member.cell_number || 'Not set'}
 
-3️⃣ *Ward/Address*
-   Current: ${member.ward_name || member.ward_code || 'Not set'}
+3. *Address*
+   Current: ${member.residential_address || 'Not set'}
 
 Reply with the number (1, 2, or 3) of what you want to update.
 
@@ -715,7 +718,7 @@ Reply *CANCEL* or *0* to go back to the main menu.`;
   },
 
   // Prompt for new email
-  UPDATE_EMAIL_PROMPT: `📧 *Update Email Address*
+  UPDATE_EMAIL_PROMPT: `*Update Email Address*
 
 Please enter your new email address.
 
@@ -724,7 +727,7 @@ Example: yourname@example.com
 Reply *CANCEL* or *0* to go back to the main menu.`,
 
   // Prompt for new phone number
-  UPDATE_PHONE_PROMPT: `📱 *Update Phone Number*
+  UPDATE_PHONE_PROMPT: `*Update Phone Number*
 
 Please enter your new phone number.
 
@@ -732,20 +735,18 @@ Example: 0821234567 or +27821234567
 
 Reply *CANCEL* or *0* to go back to the main menu.`,
 
-  // Prompt for ward code
-  UPDATE_WARD_PROMPT: `📍 *Update Ward/Address*
+  // Prompt for address
+  UPDATE_ADDRESS_PROMPT: `*Update Address*
 
-Please enter your ward code.
+Please enter your new residential address.
 
-Example: 79800001 (8 digits)
-
-If you don't know your ward code, you can find it on the IEC website or contact your local branch.
+Example: 123 Main Street, Sandton, Johannesburg
 
 Reply *CANCEL* or *0* to go back to the main menu.`,
 
   // Confirmation prompt
   UPDATE_CONFIRM: (field: string, oldValue: string, newValue: string): string => {
-    return `✏️ *Confirm Update*
+    return `*Confirm Update*
 
 You are about to update your *${field}*:
 
@@ -759,7 +760,7 @@ Reply *YES* to confirm or *NO* to cancel.`;
 
   // Update success
   UPDATE_SUCCESS: (field: string, newValue: string): string => {
-    return `✅ *Update Successful!*
+    return `*Update Successful!*
 
 Your *${field}* has been updated to:
 *${newValue}*
@@ -770,14 +771,14 @@ _Economic Freedom In Our Lifetime!_`;
   },
 
   // Update cancelled
-  UPDATE_CANCELLED: `❌ *Update Cancelled*
+  UPDATE_CANCELLED: `*Update Cancelled*
 
 Your information has not been changed.
 
 Reply *HELP* for more options or *3* to try updating again.`,
 
   // Invalid email format
-  UPDATE_INVALID_EMAIL: `❌ *Invalid Email Address*
+  UPDATE_INVALID_EMAIL: `*Invalid Email Address*
 
 Please enter a valid email address.
 
@@ -786,30 +787,23 @@ Example: yourname@example.com
 Reply *CANCEL* or *0* to go back to the main menu.`,
 
   // Invalid phone format
-  UPDATE_INVALID_PHONE: `❌ *Invalid Phone Number*
+  UPDATE_INVALID_PHONE: `*Invalid Phone Number*
 
 Please enter a valid South African phone number.
 
 Examples:
-• 0821234567
-• +27821234567
-• 27821234567
+- 0821234567
+- +27821234567
+- 27821234567
 
 Reply *CANCEL* or *0* to go back to the main menu.`,
 
-  // Invalid ward code
-  UPDATE_INVALID_WARD: `❌ *Invalid Ward Code*
+  // Invalid address
+  UPDATE_INVALID_ADDRESS: `*Invalid Address*
 
-Please enter a valid 8-digit ward code.
+Please enter a valid address (at least 5 characters).
 
-Example: 79800001
-
-Reply *CANCEL* or *0* to go back to the main menu.`,
-
-  // Ward not found
-  UPDATE_WARD_NOT_FOUND: `❌ *Ward Not Found*
-
-We couldn't find a ward with that code. Please check the code and try again.
+Example: 123 Main Street, Sandton, Johannesburg
 
 Reply *CANCEL* or *0* to go back to the main menu.`,
 
@@ -817,19 +811,19 @@ Reply *CANCEL* or *0* to go back to the main menu.`,
   // Events & Rallies Templates
   // ============================================
 
-  EVENTS_MENU: `📅 *EFF Events & Rallies*
+  EVENTS_MENU: `*EFF Events & Rallies*
 
 Upcoming events in your area:
 
-🔴 *National Events*
+*National Events*
    Check back for upcoming national gatherings
 
-🟢 *Provincial Events*
+*Provincial Events*
    Events will be announced soon
 
 To stay updated:
-• Follow EFF on social media
-• Check with your local branch
+- Follow EFF on social media
+- Check with your local branch
 
 Reply *BRANCH* to find your nearest branch.
 Reply *HELP* for more options.
@@ -837,10 +831,10 @@ Reply *HELP* for more options.
 _Economic Freedom In Our Lifetime!_`,
 
   EVENTS_DETAIL: (event: { name: string; date: string; location: string; description: string }): string => {
-    return `📅 *${event.name}*
+    return `*${event.name}*
 
-📆 Date: ${event.date}
-📍 Location: ${event.location}
+Date: ${event.date}
+Location: ${event.location}
 
 ${event.description}
 
@@ -854,23 +848,23 @@ _Economic Freedom In Our Lifetime!_`;
   // News & Updates Templates
   // ============================================
 
-  NEWS_MENU: `📰 *EFF News & Updates*
+  NEWS_MENU: `*EFF News & Updates*
 
 Latest from the Economic Freedom Fighters:
 
-📢 *Press Releases*
+*Press Releases*
    Official statements and announcements
 
-📺 *Media Coverage*
+*Media Coverage*
    EFF in the news
 
-🎤 *Leadership Updates*
+*Leadership Updates*
    Messages from CIC and leadership
 
 Visit our official channels:
-• Website: www.effonline.org
-• Twitter/X: @EFFSouthAfrica
-• Facebook: Economic Freedom Fighters
+- Website: www.effonline.org
+- Twitter/X: @EFFSouthAfrica
+- Facebook: Economic Freedom Fighters
 
 Reply *HELP* for more options.
 
@@ -880,31 +874,39 @@ _Economic Freedom In Our Lifetime!_`,
   // Voting Station Templates
   // ============================================
 
-  VOTING_INFO: (member: { voting_station_name?: string; ward_code?: string; province_name?: string }): string => {
-    const stationInfo = member.voting_station_name
-      ? `🗳️ *Your Voting Station:*\n   ${member.voting_station_name}`
-      : `⚠️ Voting station not registered`;
+  VOTING_INFO: (member: { is_registered_voter?: boolean; voting_station_name?: string; voting_district_code?: string; ward_code?: string; ward_name?: string; municipality_name?: string; province_name?: string }): string => {
+    if (member.is_registered_voter) {
+      const vdNameLine = member.voting_station_name
+        ? `*Voting District:* ${member.voting_station_name}`
+        : (member.voting_district_code ? `*Voting District Code:* ${member.voting_district_code}` : '');
 
-    return `🗳️ *Voting Information*
+      return `*Voting Information*
 
-${stationInfo}
+You are registered to vote.
 
-📍 Ward: ${member.ward_code || 'Not set'}
-🏛️ Province: ${member.province_name || 'Not set'}
+${vdNameLine}
+Ward: ${member.ward_name || member.ward_code || 'Not set'}
+Municipality: ${member.municipality_name || 'Not set'}
+Province: ${member.province_name || 'Not set'}
 
 *Important Dates:*
-• Check IEC website for election dates
-• Registration weekends announced by IEC
+- Check IEC website for election dates
+- Registration weekends announced by IEC
+
+_Economic Freedom In Our Lifetime!_`;
+    }
+
+    return `*Voting Information*
+
+You are not registered to vote.
 
 *Voter Registration:*
-Visit www.elections.org.za or your nearest IEC office
-
-Reply *HELP* for more options.
+Visit www.elections.org.za or your nearest IEC office to register.
 
 _Economic Freedom In Our Lifetime!_`;
   },
 
-  VOTING_NOT_LINKED: `🗳️ *Voting Information*
+  VOTING_NOT_LINKED: `*Voting Information*
 
 To view your voting station details, we need to verify your membership first.
 
@@ -917,19 +919,19 @@ _Economic Freedom In Our Lifetime!_`,
   // ============================================
 
   BRANCH_INFO: (member: { province_name?: string; municipality_name?: string; ward_code?: string }): string => {
-    return `📍 *Find Your EFF Branch*
+    return `*Find Your EFF Branch*
 
 Based on your location:
-🏛️ Province: ${member.province_name || 'Not set'}
-🏘️ Municipality: ${member.municipality_name || 'Not set'}
-📍 Ward: ${member.ward_code || 'Not set'}
+Province: ${member.province_name || 'Not set'}
+Municipality: ${member.municipality_name || 'Not set'}
+Ward: ${member.ward_code || 'Not set'}
 
 *Contact Your Branch:*
 Visit your nearest EFF branch office for:
-• Membership queries
-• Event information
-• Community issues
-• Political education
+- Membership queries
+- Event information
+- Community issues
+- Political education
 
 *Provincial Office:*
 Contact your provincial office for branch details.
@@ -939,7 +941,7 @@ Reply *HELP* for more options.
 _Economic Freedom In Our Lifetime!_`;
   },
 
-  BRANCH_NOT_LINKED: `📍 *Find Your EFF Branch*
+  BRANCH_NOT_LINKED: `*Find Your EFF Branch*
 
 To find your nearest branch, we need to verify your membership first.
 
@@ -951,20 +953,20 @@ _Economic Freedom In Our Lifetime!_`,
   // Political Education Templates
   // ============================================
 
-  LEARN_MENU: `🎓 *EFF Political Education*
+  LEARN_MENU: `*EFF Political Education*
 
 Learn about the movement:
 
-1️⃣ *Founding Manifesto*
+1. *Founding Manifesto*
    Our vision for economic freedom
 
-2️⃣ *7 Non-Negotiables*
+2. *7 Non-Negotiables*
    Core pillars of the EFF
 
-3️⃣ *Cardinal Pillars*
+3. *Cardinal Pillars*
    Guiding principles
 
-4️⃣ *Key Policies*
+4. *Key Policies*
    Land, nationalization, education
 
 Reply with a number to learn more.
@@ -972,18 +974,18 @@ Reply *HELP* for main menu.
 
 _Economic Freedom In Our Lifetime!_`,
 
-  LEARN_MANIFESTO: `🎓 *EFF Founding Manifesto*
+  LEARN_MANIFESTO: `*EFF Founding Manifesto*
 
 The EFF was founded on July 26, 2013, with a clear vision:
 
 *Economic Freedom in Our Lifetime*
 
 Key Focus Areas:
-• Expropriation of land without compensation
-• Nationalization of mines, banks & strategic sectors
-• Free quality education, healthcare & housing
-• Massive protected industrial development
-• African unity and self-determination
+- Expropriation of land without compensation
+- Nationalization of mines, banks & strategic sectors
+- Free quality education, healthcare & housing
+- Massive protected industrial development
+- African unity and self-determination
 
 The EFF is a radical, leftist, anti-capitalist and anti-imperialist movement.
 
@@ -991,15 +993,15 @@ Reply *LEARN* for more topics.
 
 _Economic Freedom In Our Lifetime!_`,
 
-  LEARN_PILLARS: `🎓 *7 Non-Negotiable Cardinal Pillars*
+  LEARN_PILLARS: `*7 Non-Negotiable Cardinal Pillars*
 
-1️⃣ Expropriation of land without compensation
-2️⃣ Nationalization of mines
-3️⃣ Nationalization of banks
-4️⃣ Nationalization of strategic sectors
-5️⃣ Free quality education & healthcare
-6️⃣ Massive protected industrial development
-7️⃣ African unity and self-determination
+1. Expropriation of land without compensation
+2. Nationalization of mines
+3. Nationalization of banks
+4. Nationalization of strategic sectors
+5. Free quality education & healthcare
+6. Massive protected industrial development
+7. African unity and self-determination
 
 These pillars guide all EFF policies and actions.
 
@@ -1011,17 +1013,17 @@ _Economic Freedom In Our Lifetime!_`,
   // Report Issues / Feedback Templates
   // ============================================
 
-  REPORT_MENU: `💬 *Report Issues / Feedback*
+  REPORT_MENU: `*Report Issues / Feedback*
 
 What would you like to report?
 
-1️⃣ *Community Issue*
+1. *Community Issue*
    Service delivery, municipal problems
 
-2️⃣ *Party/Branch Issue*
+2. *Party/Branch Issue*
    Internal matters, branch concerns
 
-3️⃣ *Feedback/Suggestion*
+3. *Feedback/Suggestion*
    Ideas to improve our services
 
 Reply with a number to continue.
@@ -1029,19 +1031,19 @@ Reply *CANCEL* or *0* to go back.
 
 _Economic Freedom In Our Lifetime!_`,
 
-  REPORT_PROMPT: `💬 *Submit Your Report*
+  REPORT_PROMPT: `*Submit Your Report*
 
 Please describe your issue or feedback in detail.
 
 Include:
-• Location (if applicable)
-• Date/time of incident
-• Any relevant details
+- Location (if applicable)
+- Date/time of incident
+- Any relevant details
 
 Type your message and send.
 Reply *CANCEL* to go back.`,
 
-  REPORT_SUBMITTED: `✅ *Report Submitted*
+  REPORT_SUBMITTED: `*Report Submitted*
 
 Thank you for your feedback!
 
@@ -1059,27 +1061,27 @@ _Economic Freedom In Our Lifetime!_`,
 
   REFER_MENU: (member: { firstname: string; member_id: number }): string => {
     const referralCode = `EFF${member.member_id}`;
-    return `👥 *Refer a Friend*
+    return `*Refer a Friend*
 
 Hi ${member.firstname}! Help grow the movement!
 
-🔗 *Your Referral Code:*
+*Your Referral Code:*
    ${referralCode}
 
 Share this message with friends:
-_"Join the EFF! Use my referral code ${referralCode} when you register. Together we fight for Economic Freedom In Our Lifetime! 🔴⚫🟢"_
+_"Join the EFF! Use my referral code ${referralCode} when you register. Together we fight for Economic Freedom In Our Lifetime!"_
 
 *How to Join:*
-• Visit your nearest EFF branch
-• Register online at effonline.org
-• Mention referral code: ${referralCode}
+- Visit your nearest EFF branch
+- Register online at effonline.org
+- Mention referral code: ${referralCode}
 
 Reply *HELP* for more options.
 
 _Economic Freedom In Our Lifetime!_`;
   },
 
-  REFER_NOT_LINKED: `👥 *Refer a Friend*
+  REFER_NOT_LINKED: `*Refer a Friend*
 
 To get your personal referral code, we need to verify your membership first.
 
@@ -1091,11 +1093,11 @@ _Economic Freedom In Our Lifetime!_`,
   // Quick Poll Templates
   // ============================================
 
-  POLL_MENU: `📊 *Quick Polls*
+  POLL_MENU: `*Quick Polls*
 
 Participate in current polls and surveys:
 
-🗳️ *Active Polls:*
+*Active Polls:*
    No active polls at the moment.
 
 Check back soon for new polls where your voice matters!
@@ -1107,8 +1109,8 @@ Reply *HELP* for more options.
 _Economic Freedom In Our Lifetime!_`,
 
   POLL_QUESTION: (poll: { question: string; options: string[] }): string => {
-    const optionsList = poll.options.map((opt, i) => `${i + 1}️⃣ ${opt}`).join('\n');
-    return `📊 *Poll Question*
+    const optionsList = poll.options.map((opt, i) => `${i + 1}. ${opt}`).join('\n');
+    return `*Poll Question*
 
 ${poll.question}
 
@@ -1118,7 +1120,7 @@ Reply with the number of your choice.
 Reply *SKIP* to skip this poll.`;
   },
 
-  POLL_THANKS: `📊 *Thank You!*
+  POLL_THANKS: `*Thank You!*
 
 Your vote has been recorded.
 
@@ -1131,28 +1133,311 @@ _Economic Freedom In Our Lifetime!_`,
   // Emergency Contacts Templates
   // ============================================
 
-  SOS_MENU: `🆘 *Emergency & Important Contacts*
+  SOS_MENU: `*Emergency & Important Contacts*
 
 *Emergency Services:*
-🚔 Police: 10111
-🚑 Ambulance: 10177
-🔥 Fire: 10177
+Police: 10111
+Ambulance: 10177
+Fire: 10177
 
 *EFF Contacts:*
-📞 National Office: [Contact Number]
-📧 Email: info@effonline.org
-🌐 Website: www.effonline.org
+National Office: [Contact Number]
+Email: info@effonline.org
+Website: www.effonline.org
 
 *Legal Aid:*
-📞 Legal Aid SA: 0800 110 110
+Legal Aid SA: 0800 110 110
 
 *Report Corruption:*
-📞 Anti-Corruption Hotline: 0800 701 701
+Anti-Corruption Hotline: 0800 701 701
 
 *Gender-Based Violence:*
-📞 GBV Command Centre: 0800 428 428
+GBV Command Centre: 0800 428 428
 
 Reply *HELP* for more options.
 
-_Stay Safe, Fighter!_`
+_Stay Safe, Fighter!_`,
+
+  // ============================================
+  // Non-Member Welcome & Engagement Templates
+  // ============================================
+
+  NON_MEMBER_WELCOME: `✊ *Welcome to the Economic Freedom Fighters!*
+
+You've reached the EFF Membership Bot.
+
+ *Why Join the EFF?*
+• Be part of Africa's fastest-growing movement
+• Fight for land, jobs & economic freedom
+• Get your digital membership card
+• Access events, rallies & political education
+• Exercise your voting rights within the party
+
+💰 *Membership is only R10 for 2 years!*
+
+Ready to be part of the change?
+
+Reply *JOIN* to become a member
+Reply *LEARN* for political education
+Reply *SOS* if you need help
+
+_Economic Freedom In Our Lifetime!_ `,
+
+  NON_MEMBER_HELP_MENU: `*EFF Bot — How Can We Help?*
+
+*Join the Movement:*
+- *JOIN* — Become an EFF member
+- *BENEFITS* — Why join the EFF?
+- *LEARN* — Political education
+
+*Get Assistance:*
+- *LABOUR* — Labour desk (workplace issues)
+- *GBV* — Gender-based violence support
+- *APPOINTMENT* — Book a consultation
+- *SOS* — Emergency contacts
+
+*Information:*
+- *EVENTS* — Upcoming events & rallies
+- *NEWS* — Latest EFF news
+- *STATUS* — Check membership (existing members)
+
+Reply with a keyword to get started.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  JOIN_INFO: `✊ *Join the EFF — It's Easy!*
+
+*Membership Fee:* R10 for 2 years
+
+*How to Register:*
+1️⃣ Visit your nearest EFF branch
+2️⃣ Register online at effonline.org
+3️⃣ Contact your local branch for assistance
+
+*What You'll Need:*
+• South African ID number
+• Cellphone number
+• Residential address
+
+*What You Get:*
+✅ Official EFF membership card
+✅ Voting rights in party elections
+✅ Access to events, rallies & conferences
+✅ Political education programmes
+✅ Branch-level participation
+✅ Labour & legal support access
+
+Reply *BENEFITS* for more on what members enjoy.
+Reply *BRANCH* to find your nearest branch.
+
+_Economic Freedom In Our Lifetime!_ ✊`,
+
+  MEMBERSHIP_BENEFITS: `🔴 *EFF Membership Benefits*
+
+*Political Participation:*
+✅ Vote in party elections & conferences
+✅ Stand for leadership positions
+✅ Participate in branch activities
+✅ Shape party policy & direction
+
+*Support & Services:*
+✅ Labour desk — workplace dispute assistance
+✅ GBV support desk — gender-based violence help
+✅ Legal guidance referrals
+✅ Community issue reporting
+
+*Education & Development:*
+✅ Political education programmes
+✅ Leadership development
+✅ Community organizing skills
+
+*Access & Belonging:*
+✅ Official digital membership card
+✅ Event & rally access
+✅ WhatsApp member services
+✅ Part of 2M+ strong movement
+
+All this for just *R10 for 2 years!*
+
+Reply *JOIN* to get started.
+Reply *HELP* for more options.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  LABOUR_DESK: `⚖️ *EFF Labour Desk*
+
+The EFF Labour Desk assists workers with:
+• Unfair dismissals & retrenchments
+• Workplace disputes & grievances
+• CCMA representation guidance
+• Labour law information
+• Exploitation & unfair practices
+
+*Key Contacts:*
+ EFF Labour Desk: 010 XXX XXXX
+ labour@effonline.org
+ www.effonline.org/labour
+
+*Emergency Numbers:*
+Department of Labour: 0800 030 007
+CCMA: 011 377 6650
+
+*What to Prepare:*
+• Employment contract (if available)
+• Details of the dispute/incident
+• Employer information
+• Any written warnings or letters
+
+Reply *APPOINTMENT* to schedule a consultation.
+Reply *HELP* for more options.
+
+_Workers Unite for Economic Freedom!_`,
+
+  GBV_DESK: ` *EFF Gender-Based Violence Desk*
+
+*You are not alone.* The EFF GBV Desk provides:
+• Confidential support & counselling referrals
+• Protection order guidance
+• Legal advice referrals
+• Safe house information
+• Case follow-up assistance
+
+*24/7 Emergency Numbers:*
+ GBV Command Centre: *0800 428 428*
+ Childline: *116*
+ SAPS: *10111*
+ Lifeline Crisis: *0861 322 322*
+
+*EFF GBV Desk:*
+ 010 XXX XXXX
+ gbv@effonline.org
+
+ *If you are in immediate danger, call 10111 now.*
+
+Reply *APPOINTMENT* to schedule a private consultation.
+Reply *HELP* for more options.
+
+_Together We End Gender-Based Violence!_`,
+
+  APPOINTMENT_INFO: ` *Book a Consultation*
+
+The EFF can assist you with:
+
+1️⃣ *Labour Issues* — Workplace disputes, unfair dismissal
+2️⃣ *GBV Support* — Gender-based violence assistance
+3️⃣ *Membership Queries* — Registration & general enquiries
+4️⃣ *Community Issues* — Service delivery, local matters
+
+*How to Book:*
+ Call your nearest EFF branch
+ Email: appointments@effonline.org
+ Or reply *BRANCH* to find your nearest office
+
+*Office Hours:*
+Monday–Friday: 08:00 – 17:00
+Saturday: 09:00 – 13:00
+
+Reply *LABOUR* for labour desk info.
+Reply *GBV* for GBV desk info.
+Reply *HELP* for the main menu.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  NON_MEMBER_UNRECOGNIZED: `I didn't quite catch that! 🤔
+
+Here are some things I can help with:
+
+• *JOIN* — Become an EFF member
+• *HELP* — See all options
+• *LABOUR* — Workplace help
+• *GBV* — Gender-based violence support
+• *SOS* — Emergency contacts
+
+Reply with a keyword above or type *HELP*.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  // ============================================
+  // Phone Linking Templates
+  // ============================================
+
+  GREETING_ASK_ID: `*Welcome to EFF Membership Services!* 
+
+To get started, please provide your *13-digit South African ID number* so we can verify your membership.
+
+Example: 8501015800085
+
+_Your information is safe and only used for membership verification._`,
+
+  LINK_PHONE_ASK: (firstname: string): string => {
+    return ` *Welcome, ${firstname}!*
+
+Would you like to *link this WhatsApp number* to your membership for faster service in the future?
+
+🔗 Benefits of linking:
+• Skip ID verification next time
+• Instant personalized greeting
+• Quick access to all services
+
+Reply *YES* to link or *NO* to continue without linking.`;
+  },
+
+  LINK_PHONE_SUCCESS: ` *Phone Number Linked Successfully!*
+
+Your WhatsApp number is now linked to your membership. Next time you message us, we'll greet you by name and skip the ID verification!
+
+Reply *HELP* for all available options.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  LINK_PHONE_DECLINED: ` *No Problem!*
+
+You can still use all our services — you'll just need to verify your ID each time.
+
+You can link your number later anytime by choosing *Update Details* → *Link Phone*.
+
+Reply *HELP* for all available options.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  UNLINK_PHONE_CONFIRM: ` *Unlink Phone Number?*
+
+Are you sure you want to unlink your WhatsApp number from your membership?
+
+You'll need to enter your ID number each time you use the bot.
+
+Reply *YES* to unlink or *NO* to cancel.`,
+
+  UNLINK_PHONE_SUCCESS: ` *Phone Number Unlinked*
+
+Your WhatsApp number has been unlinked from your membership. You'll need to verify your ID each session.
+
+Reply *HELP* for more options.
+
+_Economic Freedom In Our Lifetime!_`,
+
+  // Update menu with phone linking option
+  UPDATE_MENU_WITH_LINK: (member: MemberBotInfo, isLinked: boolean): string => {
+    const linkOption = isLinked
+      ? `4. *Unlink Phone Number*\n   Status:  Linked`
+      : `4. *Link Phone Number*\n   Status:  Not linked`;
+    return `*Update Your Details*
+
+Hi ${member.firstname}, what would you like to update?
+
+1. *Email Address*
+   Current: ${member.email || 'Not set'}
+
+2. *Phone Number*
+   Current: ${member.cell_number || 'Not set'}
+
+3. *Address*
+   Current: ${member.residential_address || 'Not set'}
+
+${linkOption}
+
+Reply with the number (1-4) of what you want to update.
+
+Reply *CANCEL* or *0* to go back to the main menu.`;
+  }
 };

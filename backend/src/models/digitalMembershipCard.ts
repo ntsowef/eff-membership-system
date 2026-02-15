@@ -21,6 +21,7 @@ export interface DigitalMembershipCard {
 export interface MemberCardData {
   member_id: string;
   membership_number: string;
+  id_number?: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -53,6 +54,7 @@ export class DigitalMembershipCardModel {
         SELECT
           member_id,
           membership_number,
+          id_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           COALESCE(email, '') as email,
@@ -71,7 +73,7 @@ export class DigitalMembershipCardModel {
         FROM vw_member_details_optimized
         WHERE member_id = $1
       `;
-      
+
       const memberData = await executeQuerySingle<MemberCardData>(memberQuery, [memberId]);
       
       if (!memberData) {
@@ -156,6 +158,7 @@ export class DigitalMembershipCardModel {
         SELECT
           member_id,
           membership_number,
+          id_number,
           firstname as first_name,
           COALESCE(surname, '') as last_name,
           COALESCE(email, '') as email,
@@ -164,11 +167,11 @@ export class DigitalMembershipCardModel {
           province_name,
           municipality_name,
           ward_code,
-          voting_station_name,
-          membership_type,
-          join_date,
+          COALESCE(voting_station_name, 'Not Available') as voting_station_name,
+          COALESCE(membership_status, 'Inactive') as membership_type,
+          member_created_at as join_date,
           expiry_date,
-          membership_status_name
+          status_name as membership_status_name
         FROM vw_member_details_optimized
         WHERE member_id = $1
       `;
@@ -329,23 +332,22 @@ export class DigitalMembershipCardModel {
     const provinceCode = getProvinceCode(memberData.province_name);
     ctx.fillText(provinceCode, width - 16, 30);
 
-    // Member Name - Center (position: approximately 42% from top)
+    // Member Name - Center (position: approximately 50% from top - shifted down into dark blue area)
     ctx.textAlign = 'center';
     ctx.font = 'bold 16px Arial';
     const fullName = `${memberData.first_name} ${memberData.last_name}`.toUpperCase();
-    ctx.fillText(fullName, width / 2, height * 0.45);
+    ctx.fillText(fullName, width / 2, height * 0.50);
 
-    // ID Number - Center (position: approximately 58% from top)
+    // ID Number - Center (position: approximately 63% from top - shifted down)
     ctx.font = 'bold 16px Arial';
-    // Note: We don't have id_number in MemberCardData, using membership_number or member_id
-    const idDisplay = memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
-    ctx.fillText(idDisplay, width / 2, height * 0.60);
+    const idDisplay = memberData.id_number || memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
+    ctx.fillText(idDisplay, width / 2, height * 0.63);
 
-    // Sub-region and Ward - Center (position: approximately 73% from top)
+    // Sub-region and Ward - Center (position: approximately 78% from top - shifted down)
     ctx.font = 'bold 14px Arial';
     const subRegion = memberData.municipality_name || 'N/A';
     const ward = memberData.ward_code || 'N/A';
-    ctx.fillText(`${subRegion} | ${ward}`, width / 2, height * 0.75);
+    ctx.fillText(`${subRegion} | ${ward}`, width / 2, height * 0.78);
 
     // Return as PNG buffer
     return canvas.toBuffer('image/png');
@@ -395,41 +397,47 @@ export class DigitalMembershipCardModel {
            .font('Helvetica')
            .text('DIGITAL MEMBERSHIP CARD', 20, 32);
 
-        // Member information - Centered at Top (No photo, no QR code)
+        // Member information - Centered (shifted down into dark blue area)
         doc.fillColor('#000000')
            .fontSize(16)
            .font('Helvetica-Bold')
-           .text(`${memberData.first_name} ${memberData.last_name}`, 0, 70, { align: 'center', width: 350 });
+           .text(`${memberData.first_name} ${memberData.last_name}`, 0, 80, { align: 'center', width: 350 });
+
+        // ID Number - Center display
+        const pdfIdDisplay = memberData.id_number || memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .text(pdfIdDisplay, 0, 100, { align: 'center', width: 350 });
 
         doc.fontSize(12)
            .font('Helvetica')
-           .text(`${memberData.municipality_name}`, 0, 95, { align: 'center', width: 350 })
-           .text(`Ward Code: ${memberData.ward_code}`, 0, 115, { align: 'center', width: 350 })
-           .text(`${memberData.voting_station_name}`, 0, 135, { align: 'center', width: 350 });
+           .text(`${memberData.municipality_name}`, 0, 120, { align: 'center', width: 350 })
+           .text(`Ward Code: ${memberData.ward_code}`, 0, 138, { align: 'center', width: 350 })
+           .text(`${memberData.voting_station_name}`, 0, 156, { align: 'center', width: 350 });
 
-        // Membership dates - Centered
+        // Membership dates - Centered (shifted down)
         doc.fontSize(10)
            .font('Helvetica')
-           .text(`Member Since: ${new Date(memberData.join_date).toLocaleDateString()}`, 50, 165, { align: 'center', width: 120 })
-           .text(`Valid Until: ${new Date(cardData.expiry_date).toLocaleDateString()}`, 180, 165, { align: 'center', width: 120 });
+           .text(`Member Since: ${new Date(memberData.join_date).toLocaleDateString()}`, 50, 178, { align: 'center', width: 120 })
+           .text(`Valid Until: ${new Date(cardData.expiry_date).toLocaleDateString()}`, 180, 178, { align: 'center', width: 120 });
 
-        // Card number
+        // Card number (shifted down)
         doc.fontSize(8)
            .font('Helvetica')
-           .text(`Card No: ${cardData.card_number}`, 20, 150);
+           .text(`Card No: ${cardData.card_number}`, 20, 162);
 
-        // Issue date
-        doc.text(`Issued: ${new Date(cardData.issue_date).toLocaleDateString()}`, 20, 165);
+        // Issue date (shifted down)
+        doc.text(`Issued: ${new Date(cardData.issue_date).toLocaleDateString()}`, 20, 178);
 
-        // Security features
+        // Security features (shifted down)
         doc.fontSize(6)
            .fillColor('#666666')
-           .text(`Security Hash: ${cardData.security_hash ? cardData.security_hash.substring(0, 16) : 'N/A'}...`, 20, 185);
+           .text(`Security Hash: ${cardData.security_hash ? cardData.security_hash.substring(0, 16) : 'N/A'}...`, 20, 195);
 
-        // Footer
+        // Footer (shifted down)
         doc.fontSize(8)
            .fillColor('#1976d2')
-           .text('This is a digitally generated membership card. Scan QR code to verify authenticity.', 20, 200, {
+           .text('This is a digitally generated membership card. Scan QR code to verify authenticity.', 20, 208, {
              width: 310,
              align: 'center'
            });

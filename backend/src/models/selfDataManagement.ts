@@ -363,6 +363,20 @@ export class SelfDataManagementModel {
         throw new Error('Failed to create bulk operation log');
       }
 
+      // Clean up WhatsApp bot references before deleting members
+      await executeQuery(
+        'DELETE FROM whatsapp_bot_sessions WHERE member_id = ANY($1::int[])',
+        [member_ids]
+      );
+      await executeQuery(
+        'DELETE FROM whatsapp_bot_logs WHERE member_id = ANY($1::int[])',
+        [member_ids]
+      );
+      await executeQuery(
+        'DELETE FROM whatsapp_notification_queue WHERE member_id = ANY($1::int[])',
+        [member_ids]
+      );
+
       // Delete members
       await executeQuery(
         'DELETE FROM members_consolidated WHERE member_id = ANY($1::int[])',
@@ -536,49 +550,69 @@ export class SelfDataManagementModel {
             continue;
           }
 
-          // Insert into expelled_suspended_members
+          // Skip archiving for Data Cleanup and Deceased removals
+          // These don't need an audit trail in expelled_suspended_members
+          const skipArchiving = removalReason === 'Data Cleanup' || removalReason === 'Deceased';
+
+          if (!skipArchiving) {
+            // Insert into expelled_suspended_members
+            await executeQuery(
+              `INSERT INTO expelled_suspended_members (
+                row_number, subregion, ward_no, name_and_surname, id_number,
+                firstname, surname, original_member_id, original_member_data,
+                province_code, province_name, municipality_code, municipality_name,
+                ward_code, ward_name, cell_number, email,
+                removal_reason, removal_type, removal_date, removed_by_user_id,
+                search_method, match_confidence, batch_id, source_file, created_by
+              ) VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9,
+                $10, $11, $12, $13,
+                $14, $15, $16, $17,
+                $18, $19, NOW(), $20,
+                $21, $22, $23, $24, $20
+              )`,
+              [
+                member.row_number || null,
+                member.subregion || memberData.province_name || null,
+                member.ward_no || memberData.ward_code || null,
+                member.name_and_surname || `${memberData.firstname} ${memberData.surname}`,
+                memberData.id_number,
+                memberData.firstname,
+                memberData.surname,
+                memberData.member_id,
+                JSON.stringify(memberData),
+                memberData.province_code,
+                member.province_name || null,
+                memberData.municipality_code,
+                member.municipality_name || null,
+                memberData.ward_code,
+                member.ward_name || null,
+                memberData.cell_number,
+                memberData.email,
+                removalReason,
+                removalType,
+                userId,
+                member.search_method || 'manual',
+                member.match_confidence || 'exact',
+                batchId,
+                sourceFile || null
+              ]
+            );
+          }
+
+          // Clean up WhatsApp bot references before deleting member
           await executeQuery(
-            `INSERT INTO expelled_suspended_members (
-              row_number, subregion, ward_no, name_and_surname, id_number,
-              firstname, surname, original_member_id, original_member_data,
-              province_code, province_name, municipality_code, municipality_name,
-              ward_code, ward_name, cell_number, email,
-              removal_reason, removal_type, removal_date, removed_by_user_id,
-              search_method, match_confidence, batch_id, source_file, created_by
-            ) VALUES (
-              $1, $2, $3, $4, $5,
-              $6, $7, $8, $9,
-              $10, $11, $12, $13,
-              $14, $15, $16, $17,
-              $18, $19, NOW(), $20,
-              $21, $22, $23, $24, $20
-            )`,
-            [
-              member.row_number || null,
-              member.subregion || memberData.province_name || null,
-              member.ward_no || memberData.ward_code || null,
-              member.name_and_surname || `${memberData.firstname} ${memberData.surname}`,
-              memberData.id_number,
-              memberData.firstname,
-              memberData.surname,
-              memberData.member_id,
-              JSON.stringify(memberData),
-              memberData.province_code,
-              member.province_name || null,
-              memberData.municipality_code,
-              member.municipality_name || null,
-              memberData.ward_code,
-              member.ward_name || null,
-              memberData.cell_number,
-              memberData.email,
-              removalReason,
-              removalType,
-              userId,
-              member.search_method || 'manual',
-              member.match_confidence || 'exact',
-              batchId,
-              sourceFile || null
-            ]
+            `DELETE FROM whatsapp_bot_sessions WHERE member_id = $1`,
+            [member.member_id]
+          );
+          await executeQuery(
+            `DELETE FROM whatsapp_bot_logs WHERE member_id = $1`,
+            [member.member_id]
+          );
+          await executeQuery(
+            `DELETE FROM whatsapp_notification_queue WHERE member_id = $1`,
+            [member.member_id]
           );
 
           // Delete from members_consolidated

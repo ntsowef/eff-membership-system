@@ -112,6 +112,16 @@ interface Config {
     sessionId: string;
     sessionTimeoutMinutes: number;
   };
+  meta: {
+    enabled: boolean;
+    phoneNumberId: string;
+    accessToken: string;
+    appSecret: string;
+    verifyToken: string;
+    apiVersion: string;
+    businessAccountId: string;
+  };
+  whatsappProvider: 'wasender' | 'meta';
   bulkUpload: {
     generateAttendanceRegisters: boolean;
   };
@@ -217,6 +227,20 @@ export const config: Config = {
     sessionId: process.env.WASENDER_SESSION_ID || '',
     sessionTimeoutMinutes: parseInt(process.env.WHATSAPP_SESSION_TIMEOUT_MINUTES || '30', 10)
   },
+
+  // Meta Cloud API WhatsApp Configuration
+  meta: {
+    enabled: process.env.META_WHATSAPP_ENABLED === 'true',
+    phoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
+    accessToken: process.env.META_WHATSAPP_ACCESS_TOKEN || '',
+    appSecret: process.env.META_WHATSAPP_APP_SECRET || '',
+    verifyToken: process.env.META_WHATSAPP_VERIFY_TOKEN || '',
+    apiVersion: process.env.META_WHATSAPP_API_VERSION || 'v21.0',
+    businessAccountId: process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID || '',
+  },
+
+  // Active WhatsApp Provider: 'wasender' or 'meta'
+  whatsappProvider: (process.env.WHATSAPP_PROVIDER || 'wasender') as 'wasender' | 'meta',
 
   // Bulk Upload Configuration
   bulkUpload: {

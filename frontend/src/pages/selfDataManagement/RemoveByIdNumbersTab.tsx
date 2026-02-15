@@ -210,8 +210,11 @@ const RemoveByIdNumbersTab: React.FC<RemoveByIdNumbersTabProps> = ({ onSuccess }
         </DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ mb: 2 }}>
-            <strong>WARNING:</strong> This action will permanently remove {previewResult?.found.length} member(s) 
-            from the active members list. They will be archived to the expelled members table.
+            <strong>WARNING:</strong> This action will permanently remove {previewResult?.found.length} member(s)
+            from the active members list.
+            {removalReason === 'Data Cleanup' || removalReason === 'Deceased'
+              ? ' Records will be deleted directly without archiving.'
+              : ' They will be archived to the expelled members table.'}
           </Alert>
           
           <FormControl fullWidth sx={{ mb: 2 }}>
@@ -233,6 +236,7 @@ const RemoveByIdNumbersTab: React.FC<RemoveByIdNumbersTabProps> = ({ onSuccess }
               <MenuItem value="expelled">Expelled</MenuItem>
               <MenuItem value="suspended">Suspended</MenuItem>
               <MenuItem value="deceased">Deceased</MenuItem>
+              <MenuItem value="data_cleanup">Data Cleanup</MenuItem>
             </Select>
           </FormControl>
 

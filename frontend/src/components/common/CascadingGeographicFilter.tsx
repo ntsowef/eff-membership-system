@@ -104,19 +104,19 @@ const CascadingGeographicFilter: React.FC<CascadingGeographicFilterProps> = ({
     return [];
   }, [municipalitiesResponse]);
 
-  // Clear municipality when province changes
+  // Clear municipality when province changes (but not while municipalities are still loading)
   useEffect(() => {
-    if (selectedProvince && selectedMunicipality) {
+    if (selectedProvince && selectedMunicipality && !municipalitiesLoading && municipalities.length > 0) {
       // Check if the current municipality belongs to the selected province
       const currentMunicipality = municipalities?.find(
         (m: Municipality) => m.municipality_code === selectedMunicipality
       );
-      
+
       if (!currentMunicipality || currentMunicipality.province_code !== selectedProvince) {
         onMunicipalityChange('');
       }
     }
-  }, [selectedProvince, municipalities, selectedMunicipality, onMunicipalityChange]);
+  }, [selectedProvince, municipalities, municipalitiesLoading, selectedMunicipality, onMunicipalityChange]);
 
   const handleProvinceChange = (provinceCode: string) => {
     onProvinceChange(provinceCode);

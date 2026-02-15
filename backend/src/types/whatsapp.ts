@@ -89,6 +89,120 @@ export interface WasenderSessionStatus {
 }
 
 // ============================================
+// Meta Cloud API Webhook Payload Types
+// ============================================
+
+export interface MetaWebhookPayload {
+  object: 'whatsapp_business_account';
+  entry: MetaWebhookEntry[];
+}
+
+export interface MetaWebhookEntry {
+  id: string;
+  changes: MetaWebhookChange[];
+}
+
+export interface MetaWebhookChange {
+  value: MetaWebhookValue;
+  field: 'messages';
+}
+
+export interface MetaWebhookValue {
+  messaging_product: 'whatsapp';
+  metadata: {
+    display_phone_number: string;
+    phone_number_id: string;
+  };
+  contacts?: MetaWebhookContact[];
+  messages?: MetaWebhookMessage[];
+  statuses?: MetaWebhookStatus[];
+  errors?: MetaWebhookError[];
+}
+
+export interface MetaWebhookContact {
+  profile: {
+    name: string;
+  };
+  wa_id: string;
+}
+
+export interface MetaWebhookMessage {
+  from: string;
+  id: string;
+  timestamp: string;
+  type: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker' | 'location' | 'contacts' | 'button' | 'interactive' | 'reaction';
+  text?: {
+    body: string;
+  };
+  image?: MetaMediaPayload;
+  audio?: MetaMediaPayload;
+  video?: MetaMediaPayload;
+  document?: MetaMediaPayload;
+  sticker?: MetaMediaPayload;
+  button?: {
+    text: string;
+    payload: string;
+  };
+  interactive?: {
+    type: string;
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string; description: string };
+  };
+  context?: {
+    from: string;
+    id: string;
+  };
+}
+
+export interface MetaMediaPayload {
+  id: string;
+  mime_type: string;
+  sha256?: string;
+  caption?: string;
+  filename?: string;
+}
+
+export interface MetaWebhookStatus {
+  id: string;
+  status: 'sent' | 'delivered' | 'read' | 'failed';
+  timestamp: string;
+  recipient_id: string;
+  errors?: MetaWebhookError[];
+}
+
+export interface MetaWebhookError {
+  code: number;
+  title: string;
+  message: string;
+  error_data?: {
+    details: string;
+  };
+}
+
+// ============================================
+// Meta Cloud API Response Types
+// ============================================
+
+export interface MetaSendResponse {
+  messaging_product: 'whatsapp';
+  contacts: Array<{ input: string; wa_id: string }>;
+  messages: Array<{ id: string }>;
+}
+
+export interface MetaMediaUploadResponse {
+  id: string;
+}
+
+export interface MetaMediaUrlResponse {
+  url: string;
+  mime_type: string;
+  sha256: string;
+  file_size: number;
+  id: string;
+  messaging_product: 'whatsapp';
+}
+
+// ============================================
 // Bot Session and State Types
 // ============================================
 
@@ -164,6 +278,7 @@ export interface MemberBotInfo {
   email?: string;
   ward_code: string;
   ward_name?: string;
+  residential_address?: string;
   province_name?: string;
   municipality_name?: string;
   membership_status_name: string;
@@ -172,6 +287,9 @@ export interface MemberBotInfo {
   days_until_expiry?: number;
   last_payment_date?: Date;
   language_name?: string;  // Member's home language
+  is_registered_voter?: boolean;
+  voting_district_code?: string;
+  voting_station_name?: string;  // From voting_districts.voting_district_name
 }
 
 export interface ApplicationBotInfo {

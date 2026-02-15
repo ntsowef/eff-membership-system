@@ -15,6 +15,15 @@ import {
   Alert,
   useTheme,
   Container,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  TextField,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Button,
 } from '@mui/material';
 import {
   People,
@@ -25,14 +34,25 @@ import {
   Assignment,
   Groups,
   AccountBalance,
-  // Dashboard as DashboardIcon,
   Analytics,
-  // SupervisorAccount,
   Refresh,
-  // Add as AddIcon,
+  ExpandMore,
+  PictureAsPdf,
+  Timeline,
+  ShowChart,
 } from '@mui/icons-material';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '../../lib/api';
+import { apiGet, api } from '../../lib/api';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
@@ -73,6 +93,12 @@ const DashboardPage: React.FC = () => {
 
   // Membership status filter state
   const [membershipFilter, setMembershipFilter] = useState<MembershipFilterType>('all');
+
+  // Time period filter state for line charts
+  const [timePeriod, setTimePeriod] = useState<string>('30d');
+  const [customDateFrom, setCustomDateFrom] = useState<string>('');
+  const [customDateTo, setCustomDateTo] = useState<string>('');
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // Get province context for provincial admin restrictions
   const provinceContext = useProvinceContext();
@@ -119,31 +145,31 @@ const DashboardPage: React.FC = () => {
         throw error;
       }
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduced from 30s to avoid excessive re-fetches
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes - reduced from 1 minute
   });
 
   // Fetch membership status breakdown analytics
   const { data: membershipBreakdownData, isLoading: breakdownLoading, refetch: refetchBreakdown } = useQuery({
     queryKey: ['membership-status-breakdown', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/statistics/membership-status-breakdown', getFilterParams()),
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
   });
 
   // Fetch analytics data for additional metrics with geographic filtering
   const { data: _analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
     queryKey: ['analytics-dashboard', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/analytics/dashboard', getFilterParams()),
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
   });
 
   // Fetch top performing wards for the geographic area
   const { data: topWardsData, isLoading: wardsLoading } = useQuery({
     queryKey: ['top-wards', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/statistics/top-wards', { ...getFilterParams(), limit: 5 }),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!provinceFilter || municipalityContext.shouldRestrictToMunicipality, // Fetch for provincial and municipality admins
   });
 
@@ -151,7 +177,7 @@ const DashboardPage: React.FC = () => {
   const { data: municipalityOverviewData, isLoading: municipalityOverviewLoading } = useQuery({
     queryKey: ['municipality-overview', refreshTimestamp, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/statistics/municipality-overview', getFilterParams()),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: municipalityContext.shouldRestrictToMunicipality, // Only fetch for municipality admins
   });
 
@@ -159,8 +185,25 @@ const DashboardPage: React.FC = () => {
   const { data: voterRegistrationData, isLoading: voterRegistrationLoading, error: voterRegistrationError, refetch: refetchVoterRegistration } = useQuery({
     queryKey: ['voter-registration-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: () => secureGet('/statistics/voter-registration', getFilterParams()),
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
+  });
+
+  // Fetch time-series data for line charts
+  const { data: timeSeriesData, isLoading: timeSeriesLoading, refetch: refetchTimeSeries } = useQuery({
+    queryKey: ['dashboard-time-series', refreshTimestamp, timePeriod, customDateFrom, customDateTo, provinceFilter, municipalityContext.getMunicipalityFilter()],
+    queryFn: () => {
+      const params: any = { ...getFilterParams() };
+      if (timePeriod === 'custom' && customDateFrom && customDateTo) {
+        params.date_from = customDateFrom;
+        params.date_to = customDateTo;
+      } else {
+        params.period = timePeriod;
+      }
+      return secureGet('/statistics/dashboard/time-series', params);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
   });
 
   // Manual refresh function
@@ -170,6 +213,36 @@ const DashboardPage: React.FC = () => {
     refetchAnalytics();
     refetchBreakdown();
     refetchVoterRegistration();
+    refetchTimeSeries();
+  };
+
+  // PDF export handler
+  const handleExportPDF = async () => {
+    setExportingPdf(true);
+    try {
+      const params: any = { ...getFilterParams() };
+      if (timePeriod === 'custom' && customDateFrom && customDateTo) {
+        params.date_from = customDateFrom;
+        params.date_to = customDateTo;
+      } else {
+        params.period = timePeriod;
+      }
+      const response = await api.get('/statistics/dashboard/export/pdf', {
+        params,
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `dashboard-analytics-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   // Extract data from API response (handles both { data: {...} } and direct {...} structures)
@@ -341,6 +414,15 @@ const DashboardPage: React.FC = () => {
             >
               View Analytics
             </ActionButton>
+            <Button
+              variant="outlined"
+              startIcon={<PictureAsPdf />}
+              onClick={handleExportPDF}
+              disabled={exportingPdf}
+              sx={{ textTransform: 'none' }}
+            >
+              {exportingPdf ? 'Exporting...' : 'Export PDF'}
+            </Button>
           </Box>
         }
       />
@@ -415,26 +497,200 @@ const DashboardPage: React.FC = () => {
           )}
         </Grid>
 
+        {/* Membership Growth Charts */}
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Timeline color="primary" />
+              <Typography variant="h6">Membership Growth Charts</Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            {/* Time Period Filter */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>Time Period</InputLabel>
+                <Select
+                  value={timePeriod}
+                  label="Time Period"
+                  onChange={(e) => setTimePeriod(e.target.value)}
+                >
+                  <MenuItem value="today">Today</MenuItem>
+                  <MenuItem value="7d">Last 7 Days</MenuItem>
+                  <MenuItem value="30d">Last 30 Days</MenuItem>
+                  <MenuItem value="90d">Last 90 Days</MenuItem>
+                  <MenuItem value="custom">Custom Range</MenuItem>
+                </Select>
+              </FormControl>
+              {timePeriod === 'custom' && (
+                <>
+                  <TextField
+                    size="small"
+                    type="date"
+                    label="From"
+                    value={customDateFrom}
+                    onChange={(e) => setCustomDateFrom(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    type="date"
+                    label="To"
+                    value={customDateTo}
+                    onChange={(e) => setCustomDateTo(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </>
+              )}
+              {(timeSeriesData as any)?.summary && (
+                <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
+                  <Chip
+                    icon={<PersonAdd />}
+                    label={`New Members: ${((timeSeriesData as any).summary.total_new_members || 0).toLocaleString()}`}
+                    color="primary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    icon={<ShowChart />}
+                    label={`Renewals: ${((timeSeriesData as any).summary.total_renewals || 0).toLocaleString()}`}
+                    color="success"
+                    variant="outlined"
+                  />
+                </Box>
+              )}
+            </Box>
+
+            {timeSeriesLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (timeSeriesData as any)?.time_series?.length > 0 ? (
+              <Grid container spacing={3}>
+                {/* New Members Line Chart */}
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        New Member Registrations
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={(timeSeriesData as any).time_series}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={(val) => {
+                              const d = new Date(val);
+                              if ((timeSeriesData as any)?.granularity === 'hourly') {
+                                return d.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+                              }
+                              return `${d.getMonth() + 1}/${d.getDate()}`;
+                            }}
+                            fontSize={12}
+                          />
+                          <YAxis fontSize={12} />
+                          <RechartsTooltip
+                            labelFormatter={(label) => {
+                              const d = new Date(label);
+                              if ((timeSeriesData as any)?.granularity === 'hourly') {
+                                return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' - ' + d.toLocaleDateString();
+                              }
+                              return d.toLocaleDateString();
+                            }}
+                          />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="new_members"
+                            stroke={theme.palette.primary.main}
+                            strokeWidth={2}
+                            name="New Members"
+                            dot={(timeSeriesData as any)?.granularity === 'hourly'}
+                            activeDot={{ r: 5 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Renewals Line Chart */}
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        Membership Renewals
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={(timeSeriesData as any).time_series}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={(val) => {
+                              const d = new Date(val);
+                              if ((timeSeriesData as any)?.granularity === 'hourly') {
+                                return d.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+                              }
+                              return `${d.getMonth() + 1}/${d.getDate()}`;
+                            }}
+                            fontSize={12}
+                          />
+                          <YAxis fontSize={12} />
+                          <RechartsTooltip
+                            labelFormatter={(label) => {
+                              const d = new Date(label);
+                              if ((timeSeriesData as any)?.granularity === 'hourly') {
+                                return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' - ' + d.toLocaleDateString();
+                              }
+                              return d.toLocaleDateString();
+                            }}
+                          />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="renewals"
+                            stroke={theme.palette.success.main}
+                            strokeWidth={2}
+                            name="Renewals"
+                            dot={(timeSeriesData as any)?.granularity === 'hourly'}
+                            activeDot={{ r: 5 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            ) : (
+              <Alert severity="info">
+                No time-series data available for the selected period.
+              </Alert>
+            )}
+          </AccordionDetails>
+        </Accordion>
+
         {/* Expired Members Section */}
-        <Grid container spacing={3} sx={{ mt: 2 }}>
-          <Grid item xs={12}>
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h6">Expired Members</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
             <ExpiredMembersSection
               onViewExpiredMembers={() => {
-                // Navigate to expired members management page
                 window.location.href = '/admin/membership-expiration';
               }}
               onFilterByProvince={(provinceCode) => {
-                // Handle province filtering - could update URL params or state
                 devLog('Filter by province:', provinceCode);
               }}
             />
-          </Grid>
-        </Grid>
+          </AccordionDetails>
+        </Accordion>
 
         {/* Voter Registration Statistics Section */}
-        <Grid container spacing={3} sx={{ mt: 2 }}>
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h6">Voter Registration Statistics</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
               <VoterRegistrationStats
                 summary={(voterRegistrationData as any)?.summary || null}
                 geographicBreakdown={(voterRegistrationData as any)?.geographic_breakdown || []}
@@ -471,11 +727,16 @@ const DashboardPage: React.FC = () => {
                     : undefined
                 }
               />
-            </Paper>
-          </Grid>
-        </Grid>
+          </AccordionDetails>
+        </Accordion>
 
-      <Grid container spacing={3} sx={{ mt: 2 }}>
+        {/* Recent Activity Section */}
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h6">Recent Activity</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+      <Grid container spacing={3}>
         {/* Recent Applications */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
@@ -559,14 +820,17 @@ const DashboardPage: React.FC = () => {
             )}
           </Paper>
         </Grid>
+      </Grid>
+          </AccordionDetails>
+        </Accordion>
 
         {/* Municipality Statistics - Municipality Admin Only */}
         {municipalityContext.shouldRestrictToMunicipality && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                {municipalityContext.assignedMunicipality?.name || 'Municipality'} Overview
-              </Typography>
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h6">{municipalityContext.assignedMunicipality?.name || 'Municipality'} Overview</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
               {municipalityOverviewLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                   <CircularProgress />
@@ -643,20 +907,22 @@ const DashboardPage: React.FC = () => {
                   Municipality overview data not available
                 </Typography>
               )}
-            </Paper>
-          </Grid>
+          </AccordionDetails>
+        </Accordion>
         )}
 
         {/* Top Performing Wards */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="h6">
               {municipalityContext.shouldRestrictToMunicipality
                 ? `Top 5 Performing Wards in ${municipalityContext.assignedMunicipality?.name || 'Sub-Region'}`
                 : provinceContext.isProvincialAdmin && provinceContext.assignedProvince
                 ? `Top Performing Wards in ${provinceContext.assignedProvince.name}`
                 : 'Top Performing Wards'}
             </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
             {wardsLoading || municipalityOverviewLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                 <CircularProgress />
@@ -732,11 +998,9 @@ const DashboardPage: React.FC = () => {
                 </Typography>
               )
             )}
-          </Paper>
-        </Grid>
+          </AccordionDetails>
+        </Accordion>
 
-
-      </Grid>
       </Container>
     </Box>
   );

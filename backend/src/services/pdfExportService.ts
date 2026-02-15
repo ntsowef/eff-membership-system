@@ -3055,6 +3055,155 @@ export class PDFExportService {
     doc.moveDown(2);
   }
 
+  /**
+   * Export Dashboard Analytics to PDF
+   */
+  static async exportDashboardAnalyticsToPDF(options: {
+    period: string;
+    startDate: string;
+    endDate: string;
+    provinceCode?: string;
+    municipalCode?: string;
+    wardCode?: string;
+  }): Promise<Buffer> {
+    try {
+      console.log('🔄 Starting Dashboard Analytics PDF generation...');
+
+      const { period, startDate, endDate, provinceCode, municipalCode, wardCode } = options;
+
+      // Build geographic filter
+      const params: any[] = [startDate, endDate];
+      const geoConditions: string[] = [];
+
+      if (wardCode) {
+        params.push(wardCode);
+        geoConditions.push(`ward_code = $${params.length}`);
+      } else if (municipalCode) {
+        params.push(municipalCode);
+        geoConditions.push(`municipality_code = $${params.length}`);
+      } else if (provinceCode) {
+        params.push(provinceCode);
+        geoConditions.push(`province_code = $${params.length}`);
+      }
+
+      const geoFilter = geoConditions.length > 0 ? ` AND ${geoConditions.join(' AND ')}` : '';
+
+      // Query summary stats
+      const summaryQuery = `
+        SELECT
+          COUNT(*) as total_members,
+          COUNT(CASE WHEN DATE(created_at) >= $1 AND DATE(created_at) <= $2 THEN 1 END) as new_members,
+          COUNT(CASE WHEN DATE(updated_at) >= $1 AND DATE(updated_at) <= $2 AND updated_at != created_at THEN 1 END) as renewals
+        FROM members_consolidated
+        WHERE 1=1${geoFilter}
+      `;
+
+      // Query top provinces
+      const topProvincesQuery = `
+        SELECT province_name, COUNT(*) as member_count
+        FROM members_consolidated
+        WHERE DATE(created_at) >= $1 AND DATE(created_at) <= $2${geoFilter}
+        GROUP BY province_name
+        ORDER BY member_count DESC
+        LIMIT 10
+      `;
+
+      const [summaryResult, topProvincesResult] = await Promise.all([
+        executeQuery<any>(summaryQuery, params),
+        executeQuery<any>(topProvincesQuery, params)
+      ]);
+
+      const summary = summaryResult[0] || { total_members: 0, new_members: 0, renewals: 0 };
+
+      // Create PDF
+      const doc = new PDFDocument({
+        size: 'A4',
+        layout: 'portrait',
+        margins: { top: 50, bottom: 50, left: 50, right: 50 }
+      });
+
+      const buffers: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+
+      // Title
+      doc.fontSize(22).fillColor('#1976d2').text('Dashboard Analytics Report', { align: 'center' });
+      doc.moveDown(0.5);
+
+      // Subtitle with period info
+      const periodLabel = period === 'today' ? 'Today' : period === '7d' ? 'Last 7 Days' : period === '90d' ? 'Last 90 Days' : period === '30d' ? 'Last 30 Days' : `${startDate} to ${endDate}`;
+      doc.fontSize(12).fillColor('#666666').text(`Period: ${periodLabel}`, { align: 'center' });
+
+      if (provinceCode || municipalCode || wardCode) {
+        const filterLabel = wardCode ? `Ward: ${wardCode}` : municipalCode ? `Municipality: ${municipalCode}` : `Province: ${provinceCode}`;
+        doc.fontSize(10).fillColor('#999999').text(`Geographic Filter: ${filterLabel}`, { align: 'center' });
+      }
+
+      doc.fontSize(8).fillColor('#999999').text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+      doc.moveDown(2);
+
+      // Summary Section
+      doc.fontSize(16).fillColor('#1976d2').text('Summary Statistics');
+      doc.moveDown(0.5);
+
+      const summaryData = [
+        ['Metric', 'Value'],
+        ['Total Members in System', parseInt(summary.total_members).toLocaleString()],
+        ['New Members (Period)', parseInt(summary.new_members).toLocaleString()],
+        ['Renewals (Period)', parseInt(summary.renewals).toLocaleString()],
+      ];
+
+      const summaryColumns = [
+        { key: 'metric', title: 'Metric', width: 250, align: 'left' as const },
+        { key: 'value', title: 'Value', width: 200, align: 'center' as const }
+      ];
+
+      this.addTable(doc, summaryData, summaryColumns);
+      doc.moveDown(2);
+
+      // Top Provinces Section
+      if (topProvincesResult.length > 0) {
+        doc.fontSize(16).fillColor('#1976d2').text('Top Provinces by New Members');
+        doc.moveDown(0.5);
+
+        const provinceData = [
+          ['Province', 'New Members'],
+          ...topProvincesResult.map((row: any) => [
+            row.province_name || 'Unknown',
+            parseInt(row.member_count).toLocaleString()
+          ])
+        ];
+
+        const provinceColumns = [
+          { key: 'province', title: 'Province', width: 250, align: 'left' as const },
+          { key: 'count', title: 'New Members', width: 200, align: 'center' as const }
+        ];
+
+        this.addTable(doc, provinceData, provinceColumns);
+      }
+
+      // Footer
+      const pageCount = doc.bufferedPageRange().count;
+      for (let i = 0; i < pageCount; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8).fillColor('#999999')
+           .text(`Page ${i + 1} of ${pageCount}`, 50, doc.page.height - 40, { align: 'center' });
+      }
+
+      doc.end();
+
+      return new Promise<Buffer>((resolve, reject) => {
+        doc.on('end', () => {
+          console.log('✅ Dashboard Analytics PDF generated successfully');
+          resolve(Buffer.concat(buffers));
+        });
+        doc.on('error', reject);
+      });
+    } catch (error) {
+      console.error('❌ Error generating Dashboard Analytics PDF:', error);
+      throw createDatabaseError('Failed to generate dashboard analytics PDF', error);
+    }
+  }
+
   private static addFooter(doc: PDFKit.PDFDocument): void {
     // Add footer to current page only
     doc.fontSize(8)
@@ -3259,6 +3408,749 @@ export class PDFExportService {
     } catch (error: any) {
       console.error('❌ Failed to generate PDF Ward Attendance Register:', error);
       throw new Error(`Failed to generate PDF document: ${error.message}`);
+    }
+  }
+
+  // ================================================
+  // VOTER REGISTRATION REPORT PDF EXPORT
+  // ================================================
+
+  /**
+   * Export Voter Registration Report to PDF with hierarchical regional breakdowns
+   */
+  static async exportVoterRegistrationReportToPDF(
+    reportData: {
+      summary: any;
+      regions?: any[];
+    },
+    options: PDFExportOptions & {
+      includeCharts?: boolean;
+      voterStatus?: string;
+    } = {}
+  ): Promise<Buffer> {
+    try {
+      console.log('🔄 Starting Voter Registration Report PDF generation...');
+
+      const mergedOptions = { ...this.DEFAULT_OPTIONS, ...options };
+      const { summary, regions } = reportData;
+
+      // Create PDF document
+      const doc = new PDFDocument({
+        size: mergedOptions.pageSize || 'A4',
+        layout: mergedOptions.orientation || 'portrait',
+        margins: mergedOptions.margins || { top: 50, bottom: 50, left: 50, right: 50 }
+      });
+
+      const buffers: Buffer[] = [];
+      doc.on('data', buffers.push.bind(buffers));
+
+      // Add header
+      this.addVoterRegistrationHeader(doc, summary, options.voterStatus);
+
+      // Add executive summary
+      this.addVoterRegistrationExecutiveSummary(doc, summary);
+
+      // Generate and add charts if requested
+      if (options.includeCharts !== false) {
+        console.log('🎨 Generating voter registration charts...');
+        const charts = await ChartGenerationService.generateVoterRegistrationCharts(summary, regions);
+
+        // Add charts page
+        this.addVoterRegistrationChartsPage(doc, summary, charts);
+      }
+
+      // Add regional breakdown if available
+      if (regions && regions.length > 0) {
+        this.addVoterRegistrationRegionalBreakdown(doc, summary, regions);
+
+        // Add "Not Registered to Vote - Regional Distribution" table
+        this.addNotRegisteredRegionalBreakdown(doc, summary, regions);
+      }
+
+      // Add footer
+      if (mergedOptions.includeFooter) {
+        this.addFooter(doc);
+      }
+
+      doc.end();
+
+      return new Promise((resolve, reject) => {
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          console.log('✅ Voter Registration Report PDF generated successfully');
+          resolve(pdfBuffer);
+        });
+        doc.on('error', reject);
+      });
+
+    } catch (error) {
+      console.error('❌ Error generating Voter Registration Report PDF:', error);
+      throw error;
+    }
+  }
+
+  private static addVoterRegistrationHeader(doc: PDFKit.PDFDocument, summary: any, voterStatus?: string): void {
+    const regionName = summary.region_name || 'South Africa';
+    const title = `Voter Registration Report for ${regionName}`;
+
+    // Title
+    doc.fontSize(20)
+       .font('Helvetica-Bold')
+       .text(title, 50, 50, { align: 'center' });
+
+    // Subtitle with voter status filter
+    let subtitle = `Generated on ${new Date().toLocaleDateString('en-ZA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })}`;
+
+    if (voterStatus && voterStatus !== 'all') {
+      const statusLabel = voterStatus === 'registered' ? 'Registered Voters Only' : 'Non-Registered Voters Only';
+      subtitle += ` | Filter: ${statusLabel}`;
+    }
+
+    doc.fontSize(11)
+       .font('Helvetica')
+       .text(subtitle, 50, 80, { align: 'center' });
+
+    doc.moveDown(2);
+  }
+
+  private static addVoterRegistrationExecutiveSummary(doc: PDFKit.PDFDocument, summary: any): void {
+    const total = summary.total_members || 0;
+    const calcPct = (val: number) => total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+
+    doc.fontSize(16)
+       .font('Helvetica-Bold')
+       .text('Executive Summary', { underline: true });
+
+    doc.moveDown(0.5);
+
+    // Total members
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .text(`Total Members in Report: ${total.toLocaleString()}`);
+
+    doc.moveDown(0.8);
+
+    // ========== DEFINITIONS / LEGEND SECTION ==========
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .text('Report Definitions & Legend', { underline: true });
+
+    doc.moveDown(0.3);
+
+    doc.fontSize(9)
+       .font('Helvetica-Oblique')
+       .fillColor('#555555');
+
+    doc.text('This report categorizes members based on two criteria: Membership Status and Phone Availability.');
+    doc.moveDown(0.3);
+
+    doc.font('Helvetica-Bold').fillColor('#000000');
+    doc.text('Membership Status:');
+    doc.font('Helvetica').fontSize(9);
+    doc.text('  • Good Standing: Active members with valid membership (not expired or within 90-day grace period)');
+    doc.text('  • Expired: Members whose membership has lapsed beyond the 90-day grace period');
+
+    doc.moveDown(0.3);
+
+    doc.font('Helvetica-Bold');
+    doc.text('Phone Availability:');
+    doc.font('Helvetica');
+    doc.text('  • WITH Phone: Members with valid cell phone numbers (10+ digits) - eligible for SMS communication');
+    doc.text('  • WITHOUT Phone: Members without valid cell phone numbers - require alternative contact methods');
+
+    doc.moveDown(0.3);
+
+    doc.font('Helvetica-Bold');
+    doc.text('Voter Registration:');
+    doc.font('Helvetica');
+    doc.text('  • Registered to Vote: Members with valid IEC voting district codes on record');
+    doc.text('  • Not Registered: Members without valid voting district codes or with placeholder codes');
+
+    doc.moveDown(1);
+
+    // ========== MEMBERSHIP STATUS BREAKDOWN ==========
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .fillColor('#000000')
+       .text('Membership Status Breakdown by Phone Availability', { underline: true });
+
+    doc.moveDown(0.4);
+
+    doc.fontSize(10)
+       .font('Helvetica');
+
+    const categories = [
+      {
+        label: 'Good Standing WITH Phone',
+        value: summary.good_standing_with_phone,
+        color: '#28a745',
+        description: '(Active members with valid phone - SMS eligible)'
+      },
+      {
+        label: 'Good Standing WITHOUT Phone',
+        value: summary.good_standing_without_phone,
+        color: '#6c757d',
+        description: '(Active members without valid phone)'
+      },
+      {
+        label: 'Expired WITH Phone',
+        value: summary.expired_with_phone,
+        color: '#dc3545',
+        description: '(Lapsed members with valid phone - renewal targets)'
+      },
+      {
+        label: 'Expired WITHOUT Phone',
+        value: summary.expired_without_phone,
+        color: '#ffc107',
+        description: '(Lapsed members without valid phone)'
+      }
+    ];
+
+    categories.forEach(cat => {
+      doc.font('Helvetica-Bold')
+         .text(`  • ${cat.label}: `, { continued: true })
+         .font('Helvetica')
+         .text(`${cat.value.toLocaleString()} (${calcPct(cat.value)}%)`);
+      doc.fontSize(8)
+         .fillColor('#666666')
+         .text(`      ${cat.description}`)
+         .fillColor('#000000')
+         .fontSize(10);
+    });
+
+    doc.moveDown(0.8);
+
+    // ========== VOTER REGISTRATION STATUS ==========
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .text('Voter Registration Status', { underline: true });
+
+    doc.moveDown(0.4);
+
+    doc.fontSize(10)
+       .font('Helvetica-Bold')
+       .text(`  • Registered to Vote: `, { continued: true })
+       .font('Helvetica')
+       .text(`${summary.registered_voters.toLocaleString()} (${calcPct(summary.registered_voters)}%)`);
+
+    // Registered breakdown by phone
+    if (summary.registered_with_phone !== undefined) {
+      doc.fontSize(9)
+         .fillColor('#666666')
+         .text(`      - With Phone: ${(summary.registered_with_phone || 0).toLocaleString()} | Without Phone: ${(summary.registered_without_phone || 0).toLocaleString()}`)
+         .fillColor('#000000')
+         .fontSize(10);
+    }
+
+    doc.font('Helvetica-Bold')
+       .text(`  • Not Registered to Vote: `, { continued: true })
+       .font('Helvetica')
+       .text(`${summary.not_registered_voters.toLocaleString()} (${calcPct(summary.not_registered_voters)}%)`);
+
+    // Not registered breakdown by phone - this is the key new feature
+    if (summary.not_registered_with_phone !== undefined) {
+      doc.fontSize(9)
+         .fillColor('#666666')
+         .text(`      - With Phone: ${(summary.not_registered_with_phone || 0).toLocaleString()} (SMS outreach possible)`)
+         .text(`      - Without Phone: ${(summary.not_registered_without_phone || 0).toLocaleString()} (requires alternative contact)`)
+         .fillColor('#000000')
+         .fontSize(10);
+    }
+
+    doc.moveDown(1);
+
+    // ========== KEY INSIGHTS ==========
+    doc.fontSize(12)
+       .font('Helvetica-Bold')
+       .text('Key Insights & Action Items', { underline: true });
+
+    doc.moveDown(0.4);
+
+    doc.fontSize(10)
+       .font('Helvetica');
+
+    const goodStandingTotal = summary.good_standing_with_phone + summary.good_standing_without_phone;
+    const expiredTotal = summary.expired_with_phone + summary.expired_without_phone;
+    const withPhoneTotal = summary.good_standing_with_phone + summary.expired_with_phone;
+
+    doc.text(`  • Members in Good Standing: ${goodStandingTotal.toLocaleString()} (${calcPct(goodStandingTotal)}%)`);
+    doc.text(`  • Expired Members: ${expiredTotal.toLocaleString()} (${calcPct(expiredTotal)}%)`);
+    doc.text(`  • Members with Valid Phone: ${withPhoneTotal.toLocaleString()} (${calcPct(withPhoneTotal)}%)`);
+
+    doc.moveDown(1.5);
+  }
+
+  private static addVoterRegistrationChartsPage(doc: PDFKit.PDFDocument, summary: any, charts: any): void {
+    doc.addPage();
+
+    doc.fontSize(16)
+       .font('Helvetica-Bold')
+       .text('Visual Analysis', { underline: true });
+
+    doc.moveDown(0.5);
+
+    // Category bar chart
+    if (charts.categoryBarChart) {
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .text('Category Distribution');
+      doc.moveDown(0.3);
+      doc.image(charts.categoryBarChart, 50, doc.y, { width: 250, height: 180 });
+    }
+
+    // Category donut chart (side by side if space allows)
+    if (charts.categoryDonutChart) {
+      doc.image(charts.categoryDonutChart, 310, doc.y - 180, { width: 250, height: 180 });
+    }
+
+    doc.y += 190;
+
+    // Voter status pie chart
+    if (charts.voterStatusChart) {
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .text('Voter Registration Status');
+      doc.moveDown(0.3);
+      doc.image(charts.voterStatusChart, 150, doc.y, { width: 300, height: 200 });
+      doc.y += 210;
+    }
+
+    // ========== NEW: Not Registered by Phone Charts ==========
+    // Add a new page for the "Not Registered" breakdown charts
+    if (charts.notRegisteredByPhoneChart || charts.voterRegByPhoneChart) {
+      doc.addPage();
+      doc.fontSize(16)
+         .font('Helvetica-Bold')
+         .text('Voter Registration by Phone Availability', { underline: true });
+
+      doc.moveDown(0.3);
+      doc.fontSize(10)
+         .font('Helvetica-Oblique')
+         .fillColor('#555555')
+         .text('This section shows the breakdown of registered and not registered members by phone availability.')
+         .text('Members WITH phone can be contacted via SMS for voter registration drives.')
+         .fillColor('#000000');
+
+      doc.moveDown(0.8);
+
+      // Stacked bar chart showing registered vs not registered by phone (FIRST)
+      if (charts.voterRegByPhoneChart) {
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .text('Voter Registration Status by Phone Availability');
+        doc.moveDown(0.5);
+        const barChartY = doc.y;
+        doc.image(charts.voterRegByPhoneChart, 80, barChartY, { width: 450, height: 200 });
+        doc.y = barChartY + 220;
+      }
+
+      // Donut chart for not registered breakdown (BELOW the bar chart)
+      if (charts.notRegisteredByPhoneChart) {
+        doc.moveDown(0.8);
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .text('Not Registered Members - Phone Availability Distribution');
+        doc.moveDown(0.5);
+        const donutChartY = doc.y;
+        doc.image(charts.notRegisteredByPhoneChart, 100, donutChartY, { width: 400, height: 200 });
+        doc.y = donutChartY + 220;
+      }
+
+      // Add actionable insights
+      doc.moveDown(0.5);
+      doc.fontSize(11)
+         .font('Helvetica-Bold')
+         .text('Actionable Insights:', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(10)
+         .font('Helvetica');
+
+      const notRegWithPhone = summary.not_registered_with_phone || 0;
+      const notRegWithoutPhone = summary.not_registered_without_phone || 0;
+      const notRegTotal = summary.not_registered_voters || 0;
+      const pctWithPhone = notRegTotal > 0 ? ((notRegWithPhone / notRegTotal) * 100).toFixed(1) : '0';
+
+      doc.text(`  • ${notRegWithPhone.toLocaleString()} members (${pctWithPhone}%) are NOT registered to vote but HAVE valid phone numbers.`);
+      doc.text(`    → These members can be contacted via SMS for voter registration campaigns.`);
+      doc.moveDown(0.2);
+      doc.text(`  • ${notRegWithoutPhone.toLocaleString()} members are NOT registered and have NO valid phone numbers.`);
+      doc.text(`    → These members require alternative contact methods (email, physical outreach, etc.).`);
+    }
+
+    // Regional breakdown chart (if available)
+    if (charts.regionalChart) {
+      doc.addPage();
+      doc.fontSize(16)
+         .font('Helvetica-Bold')
+         .text('Regional Distribution', { underline: true });
+      doc.moveDown(0.5);
+      doc.image(charts.regionalChart, 30, doc.y, { width: 530, height: 350 });
+    }
+  }
+
+  private static addVoterRegistrationRegionalBreakdown(doc: PDFKit.PDFDocument, summary: any, regions: any[]): void {
+    doc.addPage();
+
+    const regionType = summary.region_type === 'country' ? 'Province' : 'Municipality';
+    const title = `Regional Distribution by ${regionType}`;
+
+    doc.fontSize(16)
+       .font('Helvetica-Bold')
+       .text(title, { underline: true });
+
+    doc.moveDown(0.3);
+
+    // Add legend/key for the table
+    doc.fontSize(9)
+       .font('Helvetica-Oblique')
+       .fillColor('#555555')
+       .text('Table shows membership counts by status and phone availability for each region.');
+
+    doc.moveDown(0.2);
+
+    doc.fontSize(8)
+       .font('Helvetica')
+       .fillColor('#333333');
+
+    doc.text('Column Key: ', { continued: true })
+       .font('Helvetica-Bold')
+       .text('Good Standing WITH Phone', { continued: true })
+       .font('Helvetica')
+       .text(' = Active members with valid phone | ', { continued: true })
+       .font('Helvetica-Bold')
+       .text('Good Standing WITHOUT Phone', { continued: true })
+       .font('Helvetica')
+       .text(' = Active members without phone');
+
+    doc.text('                    ', { continued: true })
+       .font('Helvetica-Bold')
+       .text('Expired WITH Phone', { continued: true })
+       .font('Helvetica')
+       .text(' = Lapsed members with valid phone | ', { continued: true })
+       .font('Helvetica-Bold')
+       .text('Expired WITHOUT Phone', { continued: true })
+       .font('Helvetica')
+       .text(' = Lapsed members without phone');
+
+    doc.fillColor('#000000');
+    doc.moveDown(0.5);
+
+    // Sort regions by total descending
+    const sortedRegions = [...regions].sort((a, b) => b.total - a.total);
+
+    // Table header - using two-line headers for clarity
+    const tableTop = doc.y;
+    const colWidths = [25, 130, 70, 70, 65, 65, 55];
+
+    // First row of headers
+    doc.fontSize(7)
+       .font('Helvetica-Bold');
+
+    let xPos = 50;
+    const headerRow1 = ['', '', 'Good Standing', 'Good Standing', 'Expired', 'Expired', ''];
+    headerRow1.forEach((header, i) => {
+      doc.text(header, xPos, tableTop, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+      xPos += colWidths[i];
+    });
+
+    // Second row of headers
+    xPos = 50;
+    const headerRow2 = ['#', regionType, 'WITH Phone', 'WITHOUT Phone', 'WITH Phone', 'WITHOUT Phone', 'Total'];
+    headerRow2.forEach((header, i) => {
+      doc.text(header, xPos, tableTop + 8, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+      xPos += colWidths[i];
+    });
+
+    // Draw header line
+    doc.moveTo(50, tableTop + 20)
+       .lineTo(530, tableTop + 20)
+       .stroke();
+
+    // Table rows
+    doc.font('Helvetica')
+       .fontSize(8);
+
+    let yPos = tableTop + 26;
+    const pageHeight = doc.page.height - 80;
+
+    // Store headers for re-use on new pages
+    const drawTableHeaders = (startY: number) => {
+      doc.fontSize(7).font('Helvetica-Bold');
+      let x = 50;
+      headerRow1.forEach((header, i) => {
+        doc.text(header, x, startY, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+        x += colWidths[i];
+      });
+      x = 50;
+      headerRow2.forEach((header, i) => {
+        doc.text(header, x, startY + 8, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+        x += colWidths[i];
+      });
+      doc.moveTo(50, startY + 20).lineTo(530, startY + 20).stroke();
+      doc.font('Helvetica').fontSize(8);
+      return startY + 26;
+    };
+
+    sortedRegions.forEach((region, index) => {
+      // Check if we need a new page
+      if (yPos > pageHeight) {
+        doc.addPage();
+        yPos = drawTableHeaders(50);
+      }
+
+      xPos = 50;
+      const rowData = [
+        (index + 1).toString(),
+        region.name.length > 22 ? region.name.substring(0, 20) + '...' : region.name,
+        Number(region.good_standing_with_phone || 0).toLocaleString(),
+        Number(region.good_standing_without_phone || 0).toLocaleString(),
+        Number(region.expired_with_phone || 0).toLocaleString(),
+        Number(region.expired_without_phone || 0).toLocaleString(),
+        Number(region.total || 0).toLocaleString()
+      ];
+
+      rowData.forEach((data, i) => {
+        doc.text(data, xPos, yPos, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+        xPos += colWidths[i];
+      });
+
+      yPos += 12;
+
+      // Alternate row shading (light gray)
+      if (index % 2 === 1) {
+        doc.rect(50, yPos - 12, 480, 12).fill('#f8f9fa').stroke();
+        // Re-draw text on shaded row
+        xPos = 50;
+        rowData.forEach((data, i) => {
+          doc.fillColor('#000000').text(data, xPos, yPos - 12, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+          xPos += colWidths[i];
+        });
+      }
+    });
+
+    // Total row
+    yPos += 5;
+    doc.moveTo(50, yPos).lineTo(530, yPos).stroke();
+    yPos += 5;
+
+    doc.font('Helvetica-Bold').fontSize(9);
+    xPos = 50;
+    const totalRow = [
+      '',
+      'GRAND TOTAL',
+      regions.reduce((sum, r) => sum + Number(r.good_standing_with_phone || 0), 0).toLocaleString(),
+      regions.reduce((sum, r) => sum + Number(r.good_standing_without_phone || 0), 0).toLocaleString(),
+      regions.reduce((sum, r) => sum + Number(r.expired_with_phone || 0), 0).toLocaleString(),
+      regions.reduce((sum, r) => sum + Number(r.expired_without_phone || 0), 0).toLocaleString(),
+      regions.reduce((sum, r) => sum + Number(r.total || 0), 0).toLocaleString()
+    ];
+
+    totalRow.forEach((data, i) => {
+      doc.text(data, xPos, yPos, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+      xPos += colWidths[i];
+    });
+  }
+
+  /**
+   * Add "Not Registered to Vote - Regional Distribution" table to PDF
+   * Shows breakdown of not-registered members by phone availability per region
+   */
+  private static addNotRegisteredRegionalBreakdown(doc: PDFKit.PDFDocument, summary: any, regions: any[]): void {
+    doc.addPage();
+
+    const regionType = summary.region_type === 'country' ? 'Province' : 'Municipality';
+    const title = `Not Registered to Vote - Regional Distribution by ${regionType}`;
+
+    doc.fontSize(16)
+       .font('Helvetica-Bold')
+       .text(title, { underline: true });
+
+    doc.moveDown(0.3);
+
+    // Add description
+    doc.fontSize(9)
+       .font('Helvetica-Oblique')
+       .fillColor('#555555')
+       .text('This table shows the distribution of members who are NOT registered to vote, broken down by phone availability.');
+
+    doc.moveDown(0.2);
+
+    doc.fontSize(8)
+       .font('Helvetica')
+       .fillColor('#333333')
+       .text('• ', { continued: true })
+       .font('Helvetica-Bold')
+       .text('WITH Phone', { continued: true })
+       .font('Helvetica')
+       .text(' = High-priority targets for SMS voter registration campaigns', { continued: false });
+
+    doc.text('• ', { continued: true })
+       .font('Helvetica-Bold')
+       .text('WITHOUT Phone', { continued: true })
+       .font('Helvetica')
+       .text(' = Require alternative outreach methods (email, physical contact, etc.)', { continued: false });
+
+    doc.fillColor('#000000');
+    doc.moveDown(0.5);
+
+    // Calculate grand total for percentage
+    const grandTotalNotReg = regions.reduce((sum, r) => sum + Number(r.not_registered_total || 0), 0);
+
+    // Sort regions by not_registered_total descending (highest priority first)
+    const sortedRegions = [...regions].sort((a, b) =>
+      Number(b.not_registered_total || 0) - Number(a.not_registered_total || 0)
+    );
+
+    // Table header
+    const tableTop = doc.y;
+    const colWidths = [25, 170, 95, 95, 75, 70];
+
+    doc.fontSize(8)
+       .font('Helvetica-Bold');
+
+    let xPos = 50;
+    const headers = ['#', regionType, 'NOT Reg WITH Phone', 'NOT Reg WITHOUT Phone', 'Total NOT Reg', '% of Total'];
+    headers.forEach((header, i) => {
+      doc.text(header, xPos, tableTop, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+      xPos += colWidths[i];
+    });
+
+    // Draw header line
+    doc.moveTo(50, tableTop + 12)
+       .lineTo(530, tableTop + 12)
+       .stroke();
+
+    // Table rows
+    doc.font('Helvetica')
+       .fontSize(8);
+
+    let yPos = tableTop + 18;
+    const pageHeight = doc.page.height - 80;
+
+    // Function to draw headers on new pages
+    const drawTableHeaders = (startY: number) => {
+      doc.fontSize(8).font('Helvetica-Bold');
+      let x = 50;
+      headers.forEach((header, i) => {
+        doc.text(header, x, startY, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+        x += colWidths[i];
+      });
+      doc.moveTo(50, startY + 12).lineTo(530, startY + 12).stroke();
+      doc.font('Helvetica').fontSize(8);
+      return startY + 18;
+    };
+
+    sortedRegions.forEach((region, index) => {
+      // Check if we need a new page
+      if (yPos > pageHeight) {
+        doc.addPage();
+        yPos = drawTableHeaders(50);
+      }
+
+      const notRegWithPhone = Number(region.not_registered_with_phone || 0);
+      const notRegWithoutPhone = Number(region.not_registered_without_phone || 0);
+      const notRegTotal = Number(region.not_registered_total || 0);
+      const pctOfTotal = grandTotalNotReg > 0 ? ((notRegTotal / grandTotalNotReg) * 100).toFixed(1) : '0.0';
+
+      xPos = 50;
+      const rowData = [
+        (index + 1).toString(),
+        region.name.length > 28 ? region.name.substring(0, 26) + '...' : region.name,
+        notRegWithPhone.toLocaleString(),
+        notRegWithoutPhone.toLocaleString(),
+        notRegTotal.toLocaleString(),
+        `${pctOfTotal}%`
+      ];
+
+      rowData.forEach((data, i) => {
+        doc.text(data, xPos, yPos, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+        xPos += colWidths[i];
+      });
+
+      yPos += 12;
+
+      // Alternate row shading (light orange for high-priority regions)
+      if (index % 2 === 1) {
+        doc.rect(50, yPos - 12, 480, 12).fill('#fff8f0').stroke();
+        // Re-draw text on shaded row
+        xPos = 50;
+        rowData.forEach((data, i) => {
+          doc.fillColor('#000000').text(data, xPos, yPos - 12, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+          xPos += colWidths[i];
+        });
+      }
+    });
+
+    // Total row
+    yPos += 5;
+    doc.moveTo(50, yPos).lineTo(530, yPos).stroke();
+    yPos += 5;
+
+    const totalWithPhone = regions.reduce((sum, r) => sum + Number(r.not_registered_with_phone || 0), 0);
+    const totalWithoutPhone = regions.reduce((sum, r) => sum + Number(r.not_registered_without_phone || 0), 0);
+
+    doc.font('Helvetica-Bold').fontSize(9);
+    xPos = 50;
+    const totalRow = [
+      '',
+      'GRAND TOTAL',
+      totalWithPhone.toLocaleString(),
+      totalWithoutPhone.toLocaleString(),
+      grandTotalNotReg.toLocaleString(),
+      '100%'
+    ];
+
+    totalRow.forEach((data, i) => {
+      doc.text(data, xPos, yPos, { width: colWidths[i], align: i === 0 ? 'center' : (i > 1 ? 'center' : 'left') });
+      xPos += colWidths[i];
+    });
+
+    // Add actionable insights
+    yPos += 25;
+    if (yPos > pageHeight - 100) {
+      doc.addPage();
+      yPos = 50;
+    }
+
+    doc.fontSize(11)
+       .font('Helvetica-Bold')
+       .fillColor('#c41e3a')
+       .text('📞 Priority Outreach Summary', 50, yPos);
+
+    doc.moveDown(0.5);
+    doc.fontSize(9)
+       .font('Helvetica')
+       .fillColor('#000000');
+
+    const pctWithPhone = grandTotalNotReg > 0 ? ((totalWithPhone / grandTotalNotReg) * 100).toFixed(1) : '0';
+    const pctWithoutPhone = grandTotalNotReg > 0 ? ((totalWithoutPhone / grandTotalNotReg) * 100).toFixed(1) : '0';
+
+    doc.text(`• ${totalWithPhone.toLocaleString()} members (${pctWithPhone}%) are NOT registered to vote but HAVE valid phone numbers.`);
+    doc.text(`  → These are HIGH-PRIORITY targets for SMS voter registration campaigns.`);
+    doc.moveDown(0.3);
+    doc.text(`• ${totalWithoutPhone.toLocaleString()} members (${pctWithoutPhone}%) are NOT registered and have NO valid phone numbers.`);
+    doc.text(`  → These members require alternative contact methods for voter registration outreach.`);
+
+    // Top 3 priority regions
+    if (sortedRegions.length >= 3) {
+      doc.moveDown(0.5);
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .text('Top 3 Priority Regions (Most Not-Registered Members):');
+      doc.moveDown(0.3);
+      doc.fontSize(9)
+         .font('Helvetica');
+
+      for (let i = 0; i < Math.min(3, sortedRegions.length); i++) {
+        const r = sortedRegions[i];
+        const notRegTotal = Number(r.not_registered_total || 0);
+        const notRegWithPhone = Number(r.not_registered_with_phone || 0);
+        doc.text(`  ${i + 1}. ${r.name}: ${notRegTotal.toLocaleString()} not registered (${notRegWithPhone.toLocaleString()} with phone)`);
+      }
     }
   }
 }

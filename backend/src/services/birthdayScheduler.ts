@@ -78,18 +78,18 @@ export class BirthdayScheduler {
 
   // Schedule processing of queued messages
   private static scheduleProcessing(): void {
-    // Process queued messages every 5 minutes
+    // Process queued messages every minute (200 messages/min threshold)
     this.processInterval = setInterval(async () => {
       try {
-        const result = await BirthdaySMSService.processQueuedMessages(20);
-        
+        const result = await BirthdaySMSService.processQueuedMessages(200);
+
         if (result.processed > 0) {
           logger.info('Processed queued birthday messages', result);
         }
       } catch (error: any) {
         logger.error('Failed to process queued birthday messages', { error: error.message });
       }
-    }, 5 * 60 * 1000); // Every 5 minutes
+    }, 60 * 1000); // Every 1 minute - 200 messages/min threshold
   }
 
   // Manual trigger for queueing today's messages
@@ -106,7 +106,7 @@ export class BirthdayScheduler {
   }
 
   // Manual trigger for processing queue
-  static async processQueue(limit: number = 50): Promise<any> {
+  static async processQueue(limit: number = 200): Promise<any> {
     try {
       logger.info('Manually processing birthday message queue...');
       const result = await BirthdaySMSService.processQueuedMessages(limit);

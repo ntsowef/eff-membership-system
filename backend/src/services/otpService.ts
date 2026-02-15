@@ -5,6 +5,8 @@ import { createDatabaseError } from '../middleware/errorHandler';
 import { SMSService } from './smsService';
 import { EmailService } from './emailService';
 import { EmergencyAccessService } from './emergencyAccessService';
+import { WhatsAppProviderManager } from './whatsappProviderManager';
+import { WhatsAppMemberService } from './whatsappMemberService';
 import {
   logOTPGenerated,
   logOTPSent,
@@ -650,7 +652,94 @@ This is an automated message from the EFF Membership Management System.
   }
 
   /**
-   * Generate OTP and send via SMS and Email (convenience method)
+   * Update WhatsApp OTP delivery status in database
+   */
+  static async updateWhatsAppDeliveryStatus(
+    otpId: number,
+    status: 'sent' | 'failed' | 'not_attempted',
+    error?: string
+  ): Promise<void> {
+    try {
+      await executeQuery(
+        `UPDATE user_otp_codes
+         SET whatsapp_delivery_status = $1,
+             whatsapp_delivered_at = CURRENT_TIMESTAMP,
+             whatsapp_delivery_error = $2
+         WHERE otp_id = $3`,
+        [status, error || null, otpId]
+      );
+      console.log(`📱 WhatsApp OTP delivery status updated: ${status} for OTP ID ${otpId}`);
+    } catch (error) {
+      console.error('❌ Error updating WhatsApp delivery status:', error);
+    }
+  }
+
+  /**
+   * Send OTP via WhatsApp using the active WhatsApp provider
+   */
+  static async sendOTPViaWhatsApp(
+    userId: number,
+    otpId: number,
+    otpCode: string,
+    phoneNumber: string,
+    userName: string
+  ): Promise<boolean> {
+    try {
+      // Validate phone number using WhatsAppMemberService
+      if (!WhatsAppMemberService.validatePhoneNumber(phoneNumber)) {
+        console.log(`⚠️ Invalid phone number for WhatsApp OTP: ${phoneNumber}`);
+        await this.updateWhatsAppDeliveryStatus(otpId, 'failed', 'Invalid phone number format');
+        return false;
+      }
+
+      // Format phone number for WhatsApp (ensure it starts with +27 for South Africa)
+      let formattedNumber = phoneNumber.trim().replace(/[\s\-\(\)]/g, '');
+      if (formattedNumber.startsWith('0')) {
+        formattedNumber = '+27' + formattedNumber.substring(1);
+      } else if (formattedNumber.startsWith('27') && !formattedNumber.startsWith('+')) {
+        formattedNumber = '+' + formattedNumber;
+      } else if (!formattedNumber.startsWith('+')) {
+        formattedNumber = '+27' + formattedNumber;
+      }
+
+      // Create WhatsApp message
+      const message = `Your EFF Membership System OTP code is: ${otpCode}. This code is valid for 24 hours. Do not share this code with anyone.`;
+
+      console.log(`📱 Sending OTP via WhatsApp to ${formattedNumber}...`);
+
+      // Send via WhatsApp provider manager
+      const result = await WhatsAppProviderManager.sendTextMessage(formattedNumber, message);
+
+      if (result.success) {
+        console.log(`✅ OTP WhatsApp sent successfully to ${formattedNumber} (messageId: ${result.messageId})`);
+        await this.updateWhatsAppDeliveryStatus(otpId, 'sent');
+
+        // Audit log: OTP sent via WhatsApp
+        await logOTPSent(userId, otpId, `whatsapp:${phoneNumber}`);
+
+        return true;
+      } else {
+        console.error(`❌ Failed to send OTP via WhatsApp: ${result.error}`);
+        await this.updateWhatsAppDeliveryStatus(otpId, 'failed', result.error);
+
+        // Audit log: OTP WhatsApp send failed
+        await logOTPSendFailed(userId, otpId, `WhatsApp: ${result.error || 'Unknown error'}`);
+
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error sending OTP via WhatsApp:', error);
+      await this.updateWhatsAppDeliveryStatus(otpId, 'failed', (error as Error).message);
+
+      // Audit log: OTP WhatsApp send failed
+      await logOTPSendFailed(userId, otpId, `WhatsApp: ${(error as Error).message}`);
+
+      return false;
+    }
+  }
+
+  /**
+   * Generate OTP and send via SMS, Email, and WhatsApp (convenience method)
    * Updated to check for existing valid OTP within 24 hours
    */
   static async generateAndSendOTP(
@@ -676,7 +765,7 @@ This is an automated message from the EFF Membership Management System.
 
           return {
             success: true,
-            message: 'You have an active OTP. Please check your SMS and Email for the code sent earlier.',
+            message: 'You have an active OTP. Please check your SMS, Email, and WhatsApp for the code sent earlier.',
             expires_at: activeOTP.expires_at,
             otp_id: activeOTP.otp_id,
             is_existing: true
@@ -687,16 +776,17 @@ This is an automated message from the EFF Membership Management System.
       // No valid OTP exists, generate new one
       const otpResult = await this.generateOTP(userId, phoneNumber, ipAddress, userAgent);
 
-      // Determine if we should send SMS (only if valid phone number)
-      const shouldSendSMS = phoneNumber && phoneNumber !== 'N/A' && phoneNumber.trim() !== '';
+      // Determine if we should send to phone-based channels (only if valid phone number)
+      const hasValidPhone = phoneNumber && phoneNumber !== 'N/A' && phoneNumber.trim() !== '';
 
-      // Send OTP via SMS and/or Email
+      // Send OTP via SMS, Email, and WhatsApp
       let smsSent = false;
       let emailSent = false;
+      let whatsappSent = false;
 
-      if (shouldSendSMS) {
-        // Send via both SMS and Email
-        [smsSent, emailSent] = await Promise.all([
+      if (hasValidPhone) {
+        // Send via SMS, Email, and WhatsApp in parallel
+        [smsSent, emailSent, whatsappSent] = await Promise.all([
           this.sendOTPViaSMS(
             userId,
             otpResult.otp_id,
@@ -710,10 +800,17 @@ This is an automated message from the EFF Membership Management System.
             otpResult.otp_code,
             email,
             userName
+          ),
+          this.sendOTPViaWhatsApp(
+            userId,
+            otpResult.otp_id,
+            otpResult.otp_code,
+            phoneNumber,
+            userName
           )
         ]);
       } else {
-        // Send via Email only
+        // No valid phone number - send via Email only, mark WhatsApp as not attempted
         console.log(`📧 No valid phone number, sending OTP via email only to ${email}`);
         emailSent = await this.sendOTPViaEmail(
           userId,
@@ -722,10 +819,11 @@ This is an automated message from the EFF Membership Management System.
           email,
           userName
         );
+        await this.updateWhatsAppDeliveryStatus(otpResult.otp_id, 'not_attempted', 'No valid phone number');
       }
 
       // Check if at least one delivery method succeeded
-      if (!smsSent && !emailSent) {
+      if (!smsSent && !emailSent && !whatsappSent) {
         return {
           success: false,
           message: 'Failed to send OTP. Please try again or contact support.'
@@ -733,14 +831,15 @@ This is an automated message from the EFF Membership Management System.
       }
 
       // Build success message based on what was sent
-      let deliveryMessage = 'OTP sent successfully';
-      if (smsSent && emailSent) {
-        deliveryMessage += ' via SMS and Email';
-      } else if (smsSent) {
-        deliveryMessage += ' via SMS (Email delivery failed)';
-      } else {
-        deliveryMessage += ' via Email';
-      }
+      const channels: string[] = [];
+      if (smsSent) channels.push('SMS');
+      if (emailSent) channels.push('Email');
+      if (whatsappSent) channels.push('WhatsApp');
+
+      const deliveryMessage = `OTP sent successfully via ${channels.join(', ')}`;
+
+      // Log summary
+      console.log(`📊 OTP delivery summary for user ${userId}: SMS=${smsSent}, Email=${emailSent}, WhatsApp=${whatsappSent}`);
 
       return {
         success: true,

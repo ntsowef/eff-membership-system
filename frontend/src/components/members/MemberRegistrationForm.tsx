@@ -17,6 +17,7 @@ import {
 import { Save, ArrowBack, ArrowForward } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { lookupApi, geographicApi, memberApi } from '../../services/api';
+import { useAuthStore } from '../../store';
 
 // =====================================================================================
 // INTERFACES
@@ -96,11 +97,19 @@ const steps = ['Personal Information', 'Geographic Information', 'Contact & Addi
 
 const MemberRegistrationForm: React.FC = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<MemberFormData>(initialFormData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Determine province restriction based on admin level
+  const isNationalAdmin = user?.admin_level === 'national' || user?.role === 'SUPER_ADMIN';
+  const isProvinceAdmin = user?.admin_level === 'province';
+  const isDistrictAdmin = user?.admin_level === 'district';
+  const isMunicipalityAdmin = user?.admin_level === 'municipality';
+  const isWardAdmin = user?.admin_level === 'ward';
 
   // Lookup data
   const [genders, setGenders] = useState<LookupOption[]>([]);
@@ -117,10 +126,36 @@ const MemberRegistrationForm: React.FC = () => {
   const [wards, setWards] = useState<GeographicOption[]>([]);
   const [votingStations, setVotingStations] = useState<LookupOption[]>([]);
 
-  // Load initial lookup data
+  // Load initial lookup data and apply province restriction
   useEffect(() => {
     loadLookupData();
     loadProvinces();
+
+    // Auto-set geographic fields based on admin level
+    if (isProvinceAdmin && user?.province_code) {
+      setFormData((prev) => ({ ...prev, province_code: user.province_code || '' }));
+    } else if (isDistrictAdmin && user?.province_code && user?.district_code) {
+      setFormData((prev) => ({
+        ...prev,
+        province_code: user.province_code || '',
+        district_code: user.district_code || '',
+      }));
+    } else if (isMunicipalityAdmin && user?.province_code && user?.district_code && user?.municipal_code) {
+      setFormData((prev) => ({
+        ...prev,
+        province_code: user.province_code || '',
+        district_code: user.district_code || '',
+        municipality_code: user.municipal_code || '',
+      }));
+    } else if (isWardAdmin && user?.province_code && user?.district_code && user?.municipal_code && user?.ward_code) {
+      setFormData((prev) => ({
+        ...prev,
+        province_code: user.province_code || '',
+        district_code: user.district_code || '',
+        municipality_code: user.municipal_code || '',
+        ward_code: user.ward_code || '',
+      }));
+    }
   }, []);
 
   // Load districts when province changes
@@ -174,12 +209,13 @@ const MemberRegistrationForm: React.FC = () => {
           lookupApi.getQualificationLevels(),
         ]);
 
-      setGenders(gendersRes.data || []);
-      setRaces(racesRes.data || []);
-      setCitizenships(citizenshipsRes.data || []);
-      setLanguages(languagesRes.data || []);
-      setOccupations(occupationsRes.data || []);
-      setQualifications(qualificationsRes.data || []);
+      // Map backend column names (e.g., gender_id, gender_name) to { id, name } format
+      setGenders((gendersRes.data || []).map((g: any) => ({ id: g.gender_id, name: g.gender_name })));
+      setRaces((racesRes.data || []).map((r: any) => ({ id: r.race_id, name: r.race_name })));
+      setCitizenships((citizenshipsRes.data || []).map((c: any) => ({ id: c.citizenship_id, name: c.citizenship_name })));
+      setLanguages((languagesRes.data || []).map((l: any) => ({ id: l.language_id, name: l.language_name })));
+      setOccupations((occupationsRes.data || []).map((o: any) => ({ id: o.occupation_id, name: o.occupation_name })));
+      setQualifications((qualificationsRes.data || []).map((q: any) => ({ id: q.qualification_id, name: q.qualification_name })));
     } catch (err) {
       console.error('Failed to load lookup data:', err);
     }
@@ -215,7 +251,7 @@ const MemberRegistrationForm: React.FC = () => {
 
   const loadMunicipalities = async (districtCode: string) => {
     try {
-      const response = await geographicApi.getMunicipalities(districtCode);
+      const response = await geographicApi.getMunicipalitiesByDistrict(districtCode);
       setMunicipalities(
         response.data.map((m: any) => ({
           code: m.municipality_code,
@@ -351,13 +387,13 @@ const MemberRegistrationForm: React.FC = () => {
         {/* Step Content */}
         <Box sx={{ minHeight: 400 }}>
           {/* STEP 1: Personal Information */}
-          {activeStep === 0 && <PersonalInformationStep />}
+          {activeStep === 0 && PersonalInformationStep()}
 
           {/* STEP 2: Geographic Information */}
-          {activeStep === 1 && <GeographicInformationStep />}
+          {activeStep === 1 && GeographicInformationStep()}
 
           {/* STEP 3: Contact & Additional */}
-          {activeStep === 2 && <ContactAdditionalStep />}
+          {activeStep === 2 && ContactAdditionalStep()}
         </Box>
 
         {/* Navigation Buttons */}
@@ -536,7 +572,9 @@ const MemberRegistrationForm: React.FC = () => {
             Geographic Information
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Select your location from province down to ward
+            {!isNationalAdmin
+              ? 'Your geographic scope is restricted based on your admin level'
+              : 'Select the member\'s location from province down to ward'}
           </Typography>
         </Grid>
 
@@ -553,6 +591,8 @@ const MemberRegistrationForm: React.FC = () => {
               handleChange('municipality_code', '');
               handleChange('ward_code', '');
             }}
+            disabled={!isNationalAdmin}
+            helperText={!isNationalAdmin ? 'Restricted to your assigned province' : ''}
           >
             <MenuItem value="">
               <em>Select Province</em>
@@ -577,7 +617,7 @@ const MemberRegistrationForm: React.FC = () => {
               handleChange('municipality_code', '');
               handleChange('ward_code', '');
             }}
-            disabled={!formData.province_code}
+            disabled={!formData.province_code || isDistrictAdmin || isMunicipalityAdmin || isWardAdmin}
           >
             <MenuItem value="">
               <em>Select District</em>
@@ -601,7 +641,7 @@ const MemberRegistrationForm: React.FC = () => {
               handleChange('municipality_code', e.target.value);
               handleChange('ward_code', '');
             }}
-            disabled={!formData.district_code}
+            disabled={!formData.district_code || isMunicipalityAdmin || isWardAdmin}
           >
             <MenuItem value="">
               <em>Select Municipality</em>
@@ -622,7 +662,7 @@ const MemberRegistrationForm: React.FC = () => {
             label="Ward"
             value={formData.ward_code}
             onChange={(e) => handleChange('ward_code', e.target.value)}
-            disabled={!formData.municipality_code}
+            disabled={!formData.municipality_code || isWardAdmin}
           >
             <MenuItem value="">
               <em>Select Ward</em>

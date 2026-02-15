@@ -168,6 +168,22 @@ const SMSManagement: React.FC = () => {
   });
   const [showDeliveryReport, setShowDeliveryReport] = useState(false);
 
+  // Quick Send SMS state
+  const [quickSendRecipients, setQuickSendRecipients] = useState('');
+  const [quickSendMessage, setQuickSendMessage] = useState('');
+  const [quickSendLoading, setQuickSendLoading] = useState(false);
+  const [quickSendResult, setQuickSendResult] = useState<{
+    success: boolean;
+    total: number;
+    successful: number;
+    failed: number;
+    invalidNumbers: string[];
+    results: Array<{ recipient: string; success: boolean; messageId?: string; error?: string; deliveryStatus?: string }>;
+  } | null>(null);
+
+  // Delivery status polling
+  const [isPollingDelivery, setIsPollingDelivery] = useState(false);
+
   // Form state
   const [templateForm, setTemplateForm] = useState({
     name: '',
@@ -352,6 +368,124 @@ const SMSManagement: React.FC = () => {
       console.error('Create campaign error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Quick Send SMS handlers
+  const handleQuickSend = async () => {
+    try {
+      setQuickSendLoading(true);
+      setQuickSendResult(null);
+      setError(null);
+
+      // Parse recipients (comma, semicolon, newline, or space separated)
+      const recipientList = quickSendRecipients
+        .split(/[,;\n\s]+/)
+        .map(r => r.trim())
+        .filter(r => r.length > 0);
+
+      if (recipientList.length === 0) {
+        setError('Please enter at least one phone number');
+        return;
+      }
+
+      if (quickSendMessage.trim().length === 0) {
+        setError('Please enter a message');
+        return;
+      }
+
+      if (quickSendMessage.length > 159) {
+        setError('Message exceeds 159 characters');
+        return;
+      }
+
+      const response = await api.post('/sms/quick-send', {
+        recipients: recipientList,
+        message: quickSendMessage.trim()
+      });
+
+      const data = response.data.data;
+      setQuickSendResult({
+        success: true,
+        total: data.total_recipients,
+        successful: data.successful,
+        failed: data.failed,
+        invalidNumbers: data.invalid_numbers || [],
+        results: data.results || []
+      });
+
+      if (data.successful > 0) {
+        setSuccess(`SMS sent successfully to ${data.successful} of ${data.total_recipients} recipients`);
+        // Clear form on success
+        setQuickSendRecipients('');
+        setQuickSendMessage('');
+      }
+    } catch (err: any) {
+      console.error('Quick send error:', err);
+      setError(err.response?.data?.error?.message || 'Failed to send SMS');
+      setQuickSendResult({
+        success: false,
+        total: 0,
+        successful: 0,
+        failed: 0,
+        invalidNumbers: err.response?.data?.error?.invalid_numbers || [],
+        results: []
+      });
+    } finally {
+      setQuickSendLoading(false);
+    }
+  };
+
+  const resetQuickSend = () => {
+    setQuickSendRecipients('');
+    setQuickSendMessage('');
+    setQuickSendResult(null);
+    setError(null);
+    setIsPollingDelivery(false);
+  };
+
+  // Refresh delivery status for sent messages
+  const refreshDeliveryStatus = async () => {
+    if (!quickSendResult || quickSendResult.results.length === 0) return;
+
+    // Get message IDs from results
+    const messageIds = quickSendResult.results
+      .filter(r => r.success && r.messageId)
+      .map(r => r.messageId as string);
+
+    if (messageIds.length === 0) return;
+
+    try {
+      setIsPollingDelivery(true);
+      const response = await api.post('/sms/logs/batch', { messageIds });
+
+      if (response.data.success) {
+        const statusMap = new Map<string, { message_id: string; status: string | null }>(
+          response.data.data.results.map((r: { message_id: string; status: string | null }) => [r.message_id, r])
+        );
+
+        // Update results with delivery status
+        setQuickSendResult(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            results: prev.results.map(result => {
+              if (result.messageId && statusMap.has(result.messageId)) {
+                const statusEntry = statusMap.get(result.messageId);
+                return {
+                  ...result,
+                  deliveryStatus: statusEntry?.status || 'unknown'
+                };
+              }
+              return result;
+            })
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Failed to refresh delivery status:', err);
+    } finally {
+      setIsPollingDelivery(false);
     }
   };
 
@@ -1714,6 +1848,283 @@ const SMSManagement: React.FC = () => {
     </Box>
   );
 
+  const renderQuickSend = () => (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h6">Quick Send SMS</Typography>
+        <ActionButton
+          variant="outlined"
+          onClick={resetQuickSend}
+          icon={RefreshIcon}
+        >
+          Clear Form
+        </ActionButton>
+      </Box>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                Compose Message
+              </Typography>
+
+              <TextField
+                fullWidth
+                label="Recipients"
+                placeholder="Enter phone numbers (comma, space, or newline separated)&#10;e.g., 0821234567, 0839876543"
+                multiline
+                rows={4}
+                value={quickSendRecipients}
+                onChange={(e) => setQuickSendRecipients(e.target.value)}
+                margin="normal"
+                helperText="South African format: +27, 27, or 0 prefix. Separate multiple numbers with comma, space, or newline."
+              />
+
+              <TextField
+                fullWidth
+                label="Message"
+                placeholder="Type your SMS message here..."
+                multiline
+                rows={4}
+                value={quickSendMessage}
+                onChange={(e) => {
+                  if (e.target.value.length <= 159) {
+                    setQuickSendMessage(e.target.value);
+                  }
+                }}
+                margin="normal"
+                error={quickSendMessage.length > 159}
+                helperText={
+                  <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Maximum 159 characters for single SMS</span>
+                    <span style={{
+                      color: quickSendMessage.length > 140
+                        ? quickSendMessage.length > 159
+                          ? theme.palette.error.main
+                          : theme.palette.warning.main
+                        : 'inherit',
+                      fontWeight: quickSendMessage.length > 140 ? 600 : 400
+                    }}>
+                      {159 - quickSendMessage.length} characters remaining
+                    </span>
+                  </Box>
+                }
+                inputProps={{ maxLength: 159 }}
+              />
+
+              <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                <ActionButton
+                  onClick={handleQuickSend}
+                  loading={quickSendLoading}
+                  disabled={!quickSendRecipients.trim() || !quickSendMessage.trim() || quickSendMessage.length > 159}
+                  icon={SendIcon}
+                  gradient={true}
+                  vibrant={true}
+                  fullWidth
+                >
+                  Send SMS
+                </ActionButton>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                Send Result
+              </Typography>
+
+              {!quickSendResult && !quickSendLoading && (
+                <Box sx={{
+                  p: 4,
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                  border: `1px dashed ${theme.palette.divider}`,
+                  borderRadius: 2
+                }}>
+                  <SendIcon sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
+                  <Typography>
+                    Send results will appear here after sending
+                  </Typography>
+                </Box>
+              )}
+
+              {quickSendLoading && (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <CircularProgress size={48} />
+                  <Typography sx={{ mt: 2 }}>Sending SMS...</Typography>
+                </Box>
+              )}
+
+              {quickSendResult && (
+                <Box>
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={4}>
+                      <Box sx={{
+                        p: 2,
+                        textAlign: 'center',
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        borderRadius: 2
+                      }}>
+                        <Typography variant="h4" color="primary">{quickSendResult.total}</Typography>
+                        <Typography variant="caption">Total</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Box sx={{
+                        p: 2,
+                        textAlign: 'center',
+                        bgcolor: alpha(theme.palette.success.main, 0.1),
+                        borderRadius: 2
+                      }}>
+                        <Typography variant="h4" color="success.main">{quickSendResult.successful}</Typography>
+                        <Typography variant="caption">Sent</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Box sx={{
+                        p: 2,
+                        textAlign: 'center',
+                        bgcolor: alpha(theme.palette.error.main, 0.1),
+                        borderRadius: 2
+                      }}>
+                        <Typography variant="h4" color="error">{quickSendResult.failed}</Typography>
+                        <Typography variant="caption">Failed</Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  {quickSendResult.invalidNumbers.length > 0 && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2">Invalid phone numbers:</Typography>
+                      <Typography variant="body2">
+                        {quickSendResult.invalidNumbers.join(', ')}
+                      </Typography>
+                    </Alert>
+                  )}
+
+                  {quickSendResult.results.length > 0 && (
+                    <>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                        <Button
+                          size="small"
+                          startIcon={isPollingDelivery ? <CircularProgress size={16} /> : <RefreshIcon />}
+                          onClick={refreshDeliveryStatus}
+                          disabled={isPollingDelivery}
+                        >
+                          {isPollingDelivery ? 'Refreshing...' : 'Refresh Delivery Status'}
+                        </Button>
+                      </Box>
+                      <TableContainer sx={{ maxHeight: 300 }}>
+                        <Table size="small" stickyHeader>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Recipient</TableCell>
+                              <TableCell>Send Status</TableCell>
+                              <TableCell>Delivery Status</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {quickSendResult.results.map((result, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{result.recipient}</TableCell>
+                                <TableCell>
+                                  <Chip
+                                    size="small"
+                                    label={result.success ? 'Sent' : 'Failed'}
+                                    color={result.success ? 'success' : 'error'}
+                                    icon={result.success ? <CheckCircleIcon /> : <ErrorIcon />}
+                                  />
+                                  {result.error && (
+                                    <Typography variant="caption" color="error" display="block">
+                                      {result.error}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {result.success ? (
+                                    <Chip
+                                      size="small"
+                                      label={result.deliveryStatus || 'pending'}
+                                      color={
+                                        result.deliveryStatus === 'delivered' ? 'success' :
+                                        result.deliveryStatus === 'failed' ? 'error' :
+                                        result.deliveryStatus === 'sent' ? 'info' :
+                                        'default'
+                                      }
+                                      icon={
+                                        result.deliveryStatus === 'delivered' ? <CheckCircleIcon /> :
+                                        result.deliveryStatus === 'failed' ? <ErrorIcon /> :
+                                        <PendingIcon />
+                                      }
+                                    />
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">-</Typography>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </>
+                  )}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Tips Card */}
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            Tips for Sending SMS
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <CheckCircleIcon color="success" fontSize="small" />
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>Phone Number Format</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Use South African format: +27821234567, 27821234567, or 0821234567
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <CheckCircleIcon color="success" fontSize="small" />
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>Character Limit</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Keep messages under 159 characters for single SMS delivery
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <CheckCircleIcon color="success" fontSize="small" />
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>Multiple Recipients</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Separate numbers with commas, spaces, or put each on a new line
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+
   const renderProviderStatus = () => (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -2002,6 +2413,12 @@ const SMSManagement: React.FC = () => {
               iconPosition="start"
               sx={{ gap: 1 }}
             />
+            <Tab
+              label="Quick Send"
+              icon={<SendIcon />}
+              iconPosition="start"
+              sx={{ gap: 1 }}
+            />
           </Tabs>
 
           <Box sx={{ p: 4 }}>
@@ -2017,6 +2434,7 @@ const SMSManagement: React.FC = () => {
             {!loading && currentTab === 3 && renderBirthdaySMS()}
             {!loading && currentTab === 4 && renderMonthlyStats()}
             {!loading && currentTab === 5 && renderProviderStatus()}
+            {!loading && currentTab === 6 && renderQuickSend()}
           </Box>
         </Paper>
       </Container>

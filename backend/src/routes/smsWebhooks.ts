@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { SMSDeliveryTrackingService } from '../services/smsDeliveryTrackingService';
 import { SMSProviderMonitoringService } from '../services/smsProviderMonitoringService';
+import { SMSLogService } from '../services/smsLogService';
 import { executeQuery } from '../config/database';
 import { logger } from '../utils/logger';
 import { ValidationError } from '../middleware/errorHandler';
@@ -49,8 +50,11 @@ router.post('/delivery/:provider', logWebhookRequest, async (req: Request, res: 
       throw new ValidationError('Invalid webhook data format');
     }
 
-    // Process the delivery status webhook
+    // Process the delivery status webhook (existing tracking)
     await SMSDeliveryTrackingService.processDeliveryWebhook(webhookData);
+
+    // Also update the SMS send log table
+    await SMSLogService.processWebhookDeliveryUpdate(webhookData);
 
     // Update webhook log with success
     await executeQuery(`
@@ -122,6 +126,9 @@ router.post('/delivery/json-applink', logWebhookRequest, async (req: Request, re
     };
 
     await SMSDeliveryTrackingService.processDeliveryWebhook(processedData);
+
+    // Also update the SMS send log table
+    await SMSLogService.processWebhookDeliveryUpdate(processedData);
 
     // Update webhook log with success
     await executeQuery(`

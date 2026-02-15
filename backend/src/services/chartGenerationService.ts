@@ -963,4 +963,473 @@ export class ChartGenerationService {
       occupationChart
     };
   }
+
+  // ================================================
+  // VOTER REGISTRATION REPORT CHARTS
+  // ================================================
+
+  // Color palette for voter registration categories
+  private static readonly VOTER_REG_COLORS = {
+    good_standing_with_phone: '#28a745',    // Green
+    good_standing_without_phone: '#6c757d', // Gray
+    expired_with_phone: '#dc3545',          // Red
+    expired_without_phone: '#ffc107'        // Yellow/Amber
+  };
+
+  // Generate Voter Registration Category Bar Chart
+  static async generateVoterRegistrationCategoryBarChart(summary: any, regionName: string): Promise<Buffer> {
+    const chartCanvas = this.createChartCanvas();
+
+    const categories = [
+      'Good Standing\n(With Phone)',
+      'Good Standing\n(No Phone)',
+      'Expired\n(With Phone)',
+      'Expired\n(No Phone)'
+    ];
+
+    const data = [
+      summary.good_standing_with_phone,
+      summary.good_standing_without_phone,
+      summary.expired_with_phone,
+      summary.expired_without_phone
+    ];
+
+    const colors = [
+      this.VOTER_REG_COLORS.good_standing_with_phone,
+      this.VOTER_REG_COLORS.good_standing_without_phone,
+      this.VOTER_REG_COLORS.expired_with_phone,
+      this.VOTER_REG_COLORS.expired_without_phone
+    ];
+
+    const configuration: ChartConfiguration = {
+      type: 'bar',
+      data: {
+        labels: categories,
+        datasets: [{
+          label: 'Members',
+          data: data,
+          backgroundColor: colors,
+          borderWidth: 1,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `Voter Registration Report - ${regionName}`,
+            font: { size: 16, weight: 'bold' },
+            padding: 20
+          },
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Number of Members' },
+            ticks: {
+              callback: function(value) {
+                return (value as number).toLocaleString();
+              }
+            }
+          },
+          x: {
+            ticks: {
+              maxRotation: 0,
+              font: { size: 10 }
+            }
+          }
+        }
+      }
+    };
+
+    return await chartCanvas.renderToBuffer(configuration);
+  }
+
+  // Generate Voter Registration Category Donut Chart
+  static async generateVoterRegistrationCategoryDonutChart(summary: any, regionName: string): Promise<Buffer> {
+    const chartCanvas = this.createChartCanvas();
+
+    const labels = [
+      'Good Standing (With Phone)',
+      'Good Standing (No Phone)',
+      'Expired (With Phone)',
+      'Expired (No Phone)'
+    ];
+
+    const data = [
+      summary.good_standing_with_phone,
+      summary.good_standing_without_phone,
+      summary.expired_with_phone,
+      summary.expired_without_phone
+    ];
+
+    const colors = [
+      this.VOTER_REG_COLORS.good_standing_with_phone,
+      this.VOTER_REG_COLORS.good_standing_without_phone,
+      this.VOTER_REG_COLORS.expired_with_phone,
+      this.VOTER_REG_COLORS.expired_without_phone
+    ];
+
+    const total = data.reduce((a, b) => a + b, 0);
+
+    const configuration: ChartConfiguration = {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors,
+          borderColor: '#ffffff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `Member Distribution - ${regionName}`,
+            font: { size: 16, weight: 'bold' },
+            padding: 20
+          },
+          legend: {
+            position: 'right',
+            labels: {
+              padding: 15,
+              font: { size: 11 }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed;
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                return `${context.label}: ${value.toLocaleString()} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    return await chartCanvas.renderToBuffer(configuration);
+  }
+
+  // Generate Voter Registration Status Pie Chart
+  static async generateVoterRegistrationStatusPieChart(summary: any, regionName: string): Promise<Buffer> {
+    const chartCanvas = this.createChartCanvas();
+
+    const labels = ['Registered to Vote', 'Not Registered'];
+    const data = [summary.registered_voters, summary.not_registered_voters];
+    const colors = ['#17a2b8', '#e83e8c']; // Teal and Pink
+    const total = data.reduce((a, b) => a + b, 0);
+
+    const configuration: ChartConfiguration = {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors,
+          borderColor: '#ffffff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `Voter Registration Status - ${regionName}`,
+            font: { size: 16, weight: 'bold' },
+            padding: 20
+          },
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              font: { size: 12 }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed;
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                return `${context.label}: ${value.toLocaleString()} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    return await chartCanvas.renderToBuffer(configuration);
+  }
+
+  // Generate Regional Breakdown Bar Chart (for sub-regions)
+  static async generateVoterRegistrationRegionalBarChart(regions: any[], regionType: string, parentRegionName: string): Promise<Buffer> {
+    const chartCanvas = new ChartJSNodeCanvas({
+      width: 800,
+      height: 450,
+      backgroundColour: this.CHART_BACKGROUND_COLOR,
+      chartCallback: (ChartJS) => {
+        ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
+      }
+    });
+
+    // Sort by total and take top 15 for readability
+    const sortedRegions = [...regions].sort((a, b) => b.total - a.total).slice(0, 15);
+
+    const configuration: ChartConfiguration = {
+      type: 'bar',
+      data: {
+        labels: sortedRegions.map(r => r.name.length > 20 ? r.name.substring(0, 18) + '...' : r.name),
+        datasets: [
+          {
+            label: 'Good Standing (Phone)',
+            data: sortedRegions.map(r => r.good_standing_with_phone),
+            backgroundColor: this.VOTER_REG_COLORS.good_standing_with_phone,
+            borderWidth: 1
+          },
+          {
+            label: 'Good Standing (No Phone)',
+            data: sortedRegions.map(r => r.good_standing_without_phone),
+            backgroundColor: this.VOTER_REG_COLORS.good_standing_without_phone,
+            borderWidth: 1
+          },
+          {
+            label: 'Expired (Phone)',
+            data: sortedRegions.map(r => r.expired_with_phone),
+            backgroundColor: this.VOTER_REG_COLORS.expired_with_phone,
+            borderWidth: 1
+          },
+          {
+            label: 'Expired (No Phone)',
+            data: sortedRegions.map(r => r.expired_without_phone),
+            backgroundColor: this.VOTER_REG_COLORS.expired_without_phone,
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `${regionType} Breakdown - ${parentRegionName}`,
+            font: { size: 16, weight: 'bold' },
+            padding: 15
+          },
+          legend: {
+            position: 'top',
+            labels: {
+              padding: 10,
+              font: { size: 10 }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              font: { size: 9 }
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            title: { display: true, text: 'Members' },
+            ticks: {
+              callback: function(value) {
+                return (value as number).toLocaleString();
+              }
+            }
+          }
+        }
+      }
+    };
+
+    return await chartCanvas.renderToBuffer(configuration);
+  }
+
+  // Generate Not Registered by Phone Availability Donut Chart
+  static async generateNotRegisteredByPhoneChart(summary: any, regionName: string): Promise<Buffer> {
+    const chartCanvas = this.createChartCanvas();
+
+    const notRegWithPhone = summary.not_registered_with_phone || 0;
+    const notRegWithoutPhone = summary.not_registered_without_phone || 0;
+    const total = notRegWithPhone + notRegWithoutPhone;
+
+    // Calculate percentages
+    const pctWithPhone = total > 0 ? ((notRegWithPhone / total) * 100).toFixed(1) : '0';
+    const pctWithoutPhone = total > 0 ? ((notRegWithoutPhone / total) * 100).toFixed(1) : '0';
+
+    // Include percentages in labels for visibility
+    const labels = [
+      `WITH Phone: ${notRegWithPhone.toLocaleString()} (${pctWithPhone}%)`,
+      `WITHOUT Phone: ${notRegWithoutPhone.toLocaleString()} (${pctWithoutPhone}%)`
+    ];
+    const data = [notRegWithPhone, notRegWithoutPhone];
+    const colors = ['#fd7e14', '#6f42c1']; // Orange and Purple
+
+    const configuration: ChartConfiguration = {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: colors,
+          borderColor: '#ffffff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `Not Registered Members by Phone Availability - ${regionName}`,
+            font: { size: 14, weight: 'bold' },
+            padding: { top: 10, bottom: 10 }
+          },
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: { size: 11 },
+              padding: 15,
+              boxWidth: 15
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed;
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                return `${value.toLocaleString()} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    return await chartCanvas.renderToBuffer(configuration);
+  }
+
+  // Generate Registered vs Not Registered by Phone Stacked Bar Chart
+  static async generateVoterRegByPhoneBarChart(summary: any, regionName: string): Promise<Buffer> {
+    const chartCanvas = this.createChartCanvas();
+
+    const configuration: ChartConfiguration = {
+      type: 'bar',
+      data: {
+        labels: ['Registered to Vote', 'Not Registered to Vote'],
+        datasets: [
+          {
+            label: 'WITH Phone',
+            data: [summary.registered_with_phone || 0, summary.not_registered_with_phone || 0],
+            backgroundColor: '#28a745',
+            borderColor: '#1e7e34',
+            borderWidth: 1
+          },
+          {
+            label: 'WITHOUT Phone',
+            data: [summary.registered_without_phone || 0, summary.not_registered_without_phone || 0],
+            backgroundColor: '#dc3545',
+            borderColor: '#bd2130',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `Voter Registration Status by Phone Availability - ${regionName}`,
+            font: { size: 16, weight: 'bold' },
+            padding: 20
+          },
+          legend: {
+            position: 'bottom',
+            labels: { font: { size: 12 }, padding: 15 }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed.y;
+                return `${context.dataset.label}: ${value.toLocaleString()}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: {
+              callback: (value: any) => value.toLocaleString()
+            }
+          }
+        }
+      }
+    };
+
+    return await chartCanvas.renderToBuffer(configuration);
+  }
+
+  // Generate all charts for voter registration report
+  static async generateVoterRegistrationCharts(summary: any, regions?: any[]): Promise<{
+    categoryBarChart: Buffer;
+    categoryDonutChart: Buffer;
+    voterStatusChart: Buffer;
+    notRegisteredByPhoneChart?: Buffer;
+    voterRegByPhoneChart?: Buffer;
+    regionalChart?: Buffer;
+  }> {
+    console.log('🎨 Generating voter registration report charts...');
+
+    const regionName = summary.region_name || 'South Africa';
+    const regionType = summary.region_type || 'country';
+
+    // Generate base charts
+    const [categoryBarChart, categoryDonutChart, voterStatusChart] = await Promise.all([
+      this.generateVoterRegistrationCategoryBarChart(summary, regionName),
+      this.generateVoterRegistrationCategoryDonutChart(summary, regionName),
+      this.generateVoterRegistrationStatusPieChart(summary, regionName)
+    ]);
+
+    // Generate new phone availability charts if data is available
+    let notRegisteredByPhoneChart: Buffer | undefined;
+    let voterRegByPhoneChart: Buffer | undefined;
+    if (summary.not_registered_with_phone !== undefined) {
+      [notRegisteredByPhoneChart, voterRegByPhoneChart] = await Promise.all([
+        this.generateNotRegisteredByPhoneChart(summary, regionName),
+        this.generateVoterRegByPhoneBarChart(summary, regionName)
+      ]);
+    }
+
+    let regionalChart: Buffer | undefined;
+    if (regions && regions.length > 0) {
+      const subRegionType = regionType === 'country' ? 'Province' : 'Municipality';
+      regionalChart = await this.generateVoterRegistrationRegionalBarChart(regions, subRegionType, regionName);
+    }
+
+    console.log('✅ All voter registration charts generated successfully');
+
+    return {
+      categoryBarChart,
+      categoryDonutChart,
+      voterStatusChart,
+      notRegisteredByPhoneChart,
+      voterRegByPhoneChart,
+      regionalChart
+    };
+  }
 }

@@ -90,7 +90,7 @@ router.get('/',
   })
 );
 
-// Export members (CSV/PDF export) - MUST be before /:id route
+// Export members (CSV/PDF/Excel export) - MUST be before /:id route
 router.get('/export',
   validate({
     query: memberFilterSchema.keys({
@@ -103,6 +103,11 @@ router.get('/export',
       format = 'csv',
       ids,
       ward_code,
+      voting_district_code,
+      municipality_code,
+      district_code,
+      province_code,
+      membership_status,
       gender_id,
       race_id,
       age_min,
@@ -126,43 +131,18 @@ router.get('/export',
       search: search as string
     };
 
-    // Handle specific member IDs export vs filtered export
-    if (ids && typeof ids === 'string') {
-      // Export specific members by IDs
-      const memberIds = ids.split(',').map((id: string) => parseInt(id.trim())).filter((id: number) => !isNaN(id));
-      if (memberIds.length === 0) {
-        throw new ValidationError('Invalid member IDs provided');
-      }
-
-      // Get specific members by IDs
-      const memberPromises = memberIds.map((id: number) => MemberModel.getMemberById(id));
-      const memberResults = await Promise.all(memberPromises);
-      members = memberResults.filter(member => member !== null);
-
-      if (members.length === 0) {
-        throw new NotFoundError('No members found with the provided IDs');
-      }
-    } else {
-      // Export all members with filters (no pagination for export)
-      members = await MemberModel.getAllMembers(filters, 10000, 0);
-    }
-
-    // Handle different export formats
+    // Handle PDF format separately (uses its own data fetching)
     if (format === 'pdf') {
       try {
-        // Generate PDF using PDFExportService
         const pdfBuffer = await PDFExportService.exportMembersToPDF(filters, {
           title: 'Members Directory Export',
           subtitle: `Generated on ${new Date().toLocaleDateString()}`,
-          orientation: 'landscape' // Better for table data
+          orientation: 'landscape'
         });
 
-        // Set response headers for PDF download
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=members-export-${new Date().toISOString().split('T')[0]}.pdf`);
         res.setHeader('Content-Length', pdfBuffer.length.toString());
-
-        // Send PDF buffer
         res.send(pdfBuffer);
         return;
       } catch (error) {
@@ -180,28 +160,191 @@ router.get('/export',
       }
     }
 
-    // Generate CSV content
-    const csvHeaders = [
-      'Member ID', 'First Name', 'Last Name', 'Email', 'Cell Number',
-      'Age', 'Gender', 'Ward', 'Municipality', 'District', 'Province', 'Status'
+    // For CSV and Excel: use vw_member_details which includes voting_district_name and voter_status
+    if (ids && typeof ids === 'string') {
+      const memberIds = ids.split(',').map((id: string) => parseInt(id.trim())).filter((id: number) => !isNaN(id));
+      if (memberIds.length === 0) {
+        throw new ValidationError('Invalid member IDs provided');
+      }
+      const placeholders = memberIds.map((_, i) => `$${i + 1}`).join(',');
+      members = await executeQuery(
+        `SELECT * FROM vw_member_details WHERE member_id IN (${placeholders})`,
+        memberIds
+      );
+      if (members.length === 0) {
+        throw new NotFoundError('No members found with the provided IDs');
+      }
+    } else {
+      // Build WHERE clause for filtered export using vw_member_details
+      let whereClause = 'WHERE 1=1';
+      const params: any[] = [];
+
+      if (province_code) {
+        whereClause += ` AND province_code = $${params.length + 1}`;
+        params.push(province_code);
+      }
+      if (district_code) {
+        whereClause += ` AND district_code = $${params.length + 1}`;
+        params.push(district_code);
+      }
+      if (municipality_code) {
+        whereClause += ` AND municipality_code = $${params.length + 1}`;
+        params.push(municipality_code);
+      }
+      if (ward_code) {
+        whereClause += ` AND ward_code = $${params.length + 1}`;
+        params.push(ward_code);
+      }
+      if (voting_district_code) {
+        whereClause += ` AND voting_district_code = $${params.length + 1}`;
+        params.push(voting_district_code);
+      }
+      if (membership_status && membership_status !== 'all') {
+        if (membership_status === 'active') {
+          whereClause += ` AND (membership_status = 'Active' OR membership_status = 'Good Standing')`;
+        } else if (membership_status === 'expired') {
+          whereClause += ` AND membership_status = 'Expired'`;
+        }
+      }
+      if (gender_id) {
+        whereClause += ` AND gender_id = $${params.length + 1}`;
+        params.push(parseInt(gender_id as string));
+      }
+      if (race_id) {
+        whereClause += ` AND race_id = $${params.length + 1}`;
+        params.push(parseInt(race_id as string));
+      }
+      if (age_min) {
+        whereClause += ` AND age >= $${params.length + 1}`;
+        params.push(parseInt(age_min as string));
+      }
+      if (age_max) {
+        whereClause += ` AND age <= $${params.length + 1}`;
+        params.push(parseInt(age_max as string));
+      }
+      if (has_email === 'true') {
+        whereClause += ' AND email IS NOT NULL';
+      }
+      if (has_cell_number === 'true') {
+        whereClause += ' AND cell_number IS NOT NULL';
+      }
+      if (search) {
+        const searchIndex = params.length + 1;
+        whereClause += ` AND (firstname ILIKE $${searchIndex} OR surname ILIKE $${searchIndex + 1} OR id_number ILIKE $${searchIndex + 2})`;
+        const searchTerm = `%${search}%`;
+        params.push(searchTerm, searchTerm, searchTerm);
+      }
+
+      members = await executeQuery(
+        `SELECT * FROM vw_member_details ${whereClause} ORDER BY firstname, surname LIMIT 10000`,
+        params
+      );
+    }
+
+    // Helper to compute membership status display
+    const getMembershipStatus = (member: any): string => {
+      if (member.membership_status) return member.membership_status;
+      if (member.membership_standing) return member.membership_standing;
+      return 'Active';
+    };
+
+    // Helper to compute voter registration status
+    const getVoterRegistrationStatus = (member: any): string => {
+      if (member.voter_status && member.voter_status !== 'Unknown') return member.voter_status;
+      if (member.voter_status_name && member.voter_status_name !== 'Unknown') return member.voter_status_name;
+      if (member.voter_registration_number) return 'Registered';
+      return 'Not Registered';
+    };
+
+    // Column order: First Name, Last Name, ID Number, Email, Cell Number, Age, Gender,
+    // Voting District Name, Voter Registration Status, Ward, Municipality, District, Province, Membership Status
+    const exportHeaders = [
+      'First Name', 'Last Name', 'ID Number', 'Email', 'Cell Number',
+      'Age', 'Gender', 'Voting District Name', 'Voter Registration Status',
+      'Ward', 'Municipality', 'District', 'Province', 'Membership Status'
     ];
 
-    const csvRows = members.map(member => [
-      member.member_id,
-      member.firstname,
+    const exportRows = members.map((member: any) => [
+      member.firstname || '',
       member.surname || '',
+      member.id_number || '',
       member.email || '',
       member.cell_number || '',
       member.age || '',
       member.gender_name || '',
+      member.voting_district_name || '',
+      getVoterRegistrationStatus(member),
       member.ward_name || '',
       member.municipality_name || '',
       member.district_name || '',
       member.province_name || '',
-      'Active' // Default membership status since column doesn't exist
+      getMembershipStatus(member)
     ]);
 
-    const csvContent = [csvHeaders, ...csvRows]
+    if (format === 'excel') {
+      // Generate proper Excel (.xlsx) file using ExcelJS
+      const ExcelJS = require('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Members Export');
+
+      // Add title row
+      const colCount = exportHeaders.length;
+      const lastCol = String.fromCharCode(64 + colCount); // e.g., 'N' for 14 columns
+      worksheet.mergeCells(`A1:${lastCol}1`);
+      const titleCell = worksheet.getCell('A1');
+      titleCell.value = 'Members Export';
+      titleCell.font = { size: 16, bold: true };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // Add export date
+      worksheet.mergeCells(`A2:${lastCol}2`);
+      const dateCell = worksheet.getCell('A2');
+      dateCell.value = `Generated: ${new Date().toLocaleString()}`;
+      dateCell.font = { size: 10, italic: true };
+      dateCell.alignment = { horizontal: 'center' };
+
+      // Add empty row
+      worksheet.addRow([]);
+
+      // Add headers with styling
+      const headerRow = worksheet.addRow(exportHeaders);
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4472C4' }
+      };
+      headerRow.alignment = { horizontal: 'center' };
+
+      // Add data rows
+      exportRows.forEach((row: any[]) => {
+        worksheet.addRow(row);
+      });
+
+      // Auto-fit columns
+      worksheet.columns.forEach((column: any) => {
+        let maxLength = 0;
+        column.eachCell?.({ includeEmpty: true }, (cell: any) => {
+          const columnLength = cell.value ? cell.value.toString().length : 10;
+          if (columnLength > maxLength) {
+            maxLength = columnLength;
+          }
+        });
+        column.width = Math.min(maxLength + 2, 50);
+      });
+
+      // Set response headers for Excel download
+      const filename = `members_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      await workbook.xlsx.write(res);
+      res.end();
+      return;
+    }
+
+    // Default: Generate CSV content
+    const csvContent = [exportHeaders, ...exportRows]
       .map(row => row.map(field => `"${field}"`).join(','))
       .join('\n');
 
@@ -710,7 +853,7 @@ router.get('/:id/activities',
         CONCAT('Member joined in ', COALESCE(vd.voting_district_name, w.ward_name, m.ward_code)) as description,
         m.created_at as date
       FROM members_consolidated m
-      LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS UNSIGNED) = vd.voting_district_code
+      LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS INTEGER) = vd.voting_district_code
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       WHERE m.member_id = ?
       ORDER BY m.created_at DESC
@@ -727,7 +870,7 @@ router.get('/:id/activities',
     // Add meeting attendance activities
     const meetingQuery = `
       SELECT
-        CONCAT('meeting_', ma.id) as id,
+        CONCAT('meeting_', ma.attendance_id) as id,
         'meeting' as type,
         CONCAT('Attended meeting: ', COALESCE(m.meeting_title, 'Meeting')) as description,
         ma.created_at as date
@@ -753,7 +896,7 @@ router.get('/:id/activities',
         CONCAT('Registered to vote in ', COALESCE(vd.voting_district_name, w.ward_name, m.ward_code)) as description,
         COALESCE(m.voter_registration_date, m.created_at) as date
       FROM members_consolidated m
-      LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS UNSIGNED) = vd.voting_district_code
+      LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS INTEGER) = vd.voting_district_code
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       WHERE m.member_id = ? AND m.voter_registration_date IS NOT NULL
       LIMIT 1

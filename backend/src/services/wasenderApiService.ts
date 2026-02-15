@@ -164,7 +164,40 @@ export class WasenderApiService {
   }
 
   /**
+   * Upload a media file (base64) to Wasender and get a public URL
+   * Uses the POST /api/upload endpoint
+   * The returned URL is active for 24 hours.
+   *
+   * @param base64Data - Base64 encoded file data (without data URL prefix)
+   * @param mimetype - MIME type of the file (e.g., 'image/png', 'audio/ogg')
+   * @returns The public URL of the uploaded file
+   */
+  static async uploadMedia(base64Data: string, mimetype: string): Promise<string> {
+    try {
+      const response = await this.getClient().post('/upload', {
+        mimetype: mimetype,
+        base64: base64Data
+      });
+
+      const publicUrl = response.data?.publicUrl;
+      if (!publicUrl) {
+        throw new Error('Upload succeeded but no publicUrl returned');
+      }
+
+      logger.info('Media file uploaded to Wasender', { mimetype, publicUrl: publicUrl.substring(0, 80) });
+      return publicUrl;
+    } catch (error: any) {
+      logger.error('Failed to upload media to Wasender', {
+        mimetype,
+        error: error.response?.data || error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Send an image message via WhatsApp (using URL) - with rate limiting
+   * Uses the correct Wasender API format: { to, imageUrl, text }
    */
   static async sendImageMessage(to: string, imageUrl: string, caption?: string): Promise<WasenderSendResponse> {
     if (!this.isEnabled()) {
@@ -174,20 +207,32 @@ export class WasenderApiService {
     const formattedPhone = this.formatPhoneNumber(to);
 
     return this.queueMessage(async () => {
-      const response = await this.getClient().post('/send-message', {
-        to: formattedPhone,
-        image: { url: imageUrl },
-        caption: caption
-      });
+      try {
+        const response = await this.getClient().post('/send-message', {
+          to: formattedPhone,
+          imageUrl: imageUrl,
+          text: caption || undefined
+        });
 
-      logger.info('WhatsApp image sent', { to: formattedPhone });
-      return response.data;
+        logger.info('WhatsApp image sent', { to: formattedPhone });
+        return response.data;
+      } catch (error: any) {
+        logger.error('Failed to send WhatsApp image', {
+          to,
+          error: error.response?.data || error.message
+        });
+        throw error;
+      }
     });
   }
 
   /**
    * Send an image message via WhatsApp using base64 data (with rate limiting)
-   * This is useful for sending dynamically generated images
+   * This is useful for sending dynamically generated images like membership cards.
+   *
+   * Two-step process:
+   * 1. Upload the base64 image via POST /api/upload to get a public URL
+   * 2. Send the image message using the public URL via POST /api/send-message
    */
   static async sendImageBase64(
     to: string,
@@ -199,29 +244,21 @@ export class WasenderApiService {
       return { success: false, error: 'WhatsApp bot is disabled' };
     }
 
-    const formattedPhone = this.formatPhoneNumber(to);
+    try {
+      // Step 1: Upload the base64 image to get a public URL
+      logger.info('Uploading image to Wasender for WhatsApp delivery...', { mimetype });
+      const publicUrl = await this.uploadMedia(base64Data, mimetype);
 
-    return this.queueMessage(async () => {
-      try {
-        const response = await this.getClient().post('/send-message', {
-          to: formattedPhone,
-          image: {
-            base64: base64Data,
-            mimetype: mimetype
-          },
-          caption: caption
-        });
-
-        logger.info('WhatsApp image (base64) sent', { to: formattedPhone });
-        return response.data;
-      } catch (error: any) {
-        logger.error('Failed to send WhatsApp image (base64)', {
-          to,
-          error: error.response?.data || error.message
-        });
-        throw error;
-      }
-    });
+      // Step 2: Send the image message using the public URL
+      logger.info('Image uploaded, sending via WhatsApp...', { publicUrl: publicUrl.substring(0, 80) });
+      return await this.sendImageMessage(to, publicUrl, caption);
+    } catch (error: any) {
+      logger.error('Failed to send WhatsApp image (base64 upload+send)', {
+        to,
+        error: error.response?.data || error.message
+      });
+      throw error;
+    }
   }
 
   /**
@@ -371,6 +408,213 @@ export class WasenderApiService {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
+
+    return results;
+  }
+
+  // ==========================================
+  // Audio/Voice Note Methods
+  // ==========================================
+
+  /**
+   * Send an audio/voice note via WhatsApp (using URL) - with rate limiting
+   *
+   * @param to - Recipient phone number (E.164 format or local format)
+   * @param audioUrl - Publicly accessible URL of the audio file
+   * @returns WasenderSendResponse
+   *
+   * Supported formats: AAC, MP3, OGG, AMR
+   * Maximum file size: 16MB
+   *
+   * Note: For best compatibility as a voice note, use OGG with OPUS codec
+   */
+  static async sendAudioMessage(
+    to: string,
+    audioUrl: string
+  ): Promise<WasenderSendResponse> {
+    if (!this.isEnabled()) {
+      logger.warn('WhatsApp bot is disabled, audio message not sent', { to });
+      return { success: false, error: 'WhatsApp bot is disabled' };
+    }
+
+    const formattedPhone = this.formatPhoneNumber(to);
+
+    return this.queueMessage(async () => {
+      try {
+        const response = await this.getClient().post('/send-message', {
+          to: formattedPhone,
+          audioUrl: audioUrl
+        });
+
+        logger.info('WhatsApp audio/voice note sent', {
+          to: formattedPhone,
+          audioUrl: audioUrl.substring(0, 50) + '...',
+          msgId: response.data?.data?.msgId
+        });
+
+        return response.data;
+      } catch (error: any) {
+        logger.error('Failed to send WhatsApp audio message', {
+          to,
+          audioUrl: audioUrl.substring(0, 50) + '...',
+          error: error.response?.data || error.message
+        });
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Send an audio/voice note via WhatsApp using base64 data (with rate limiting)
+   * This is useful for sending recorded voice notes or dynamically generated audio
+   *
+   * @param to - Recipient phone number (E.164 format or local format)
+   * @param base64Data - Base64 encoded audio data (without data URL prefix)
+   * @param mimetype - Audio MIME type (default: 'audio/ogg; codecs=opus' for voice notes)
+   * @returns WasenderSendResponse
+   *
+   * Recommended MIME types:
+   * - 'audio/ogg; codecs=opus' - Native WhatsApp voice note format (recommended)
+   * - 'audio/mp3' or 'audio/mpeg' - MP3 audio
+   * - 'audio/aac' - AAC audio
+   * - 'audio/amr' - AMR audio
+   */
+  static async sendAudioBase64(
+    to: string,
+    base64Data: string,
+    mimetype: string = 'audio/ogg; codecs=opus'
+  ): Promise<WasenderSendResponse> {
+    if (!this.isEnabled()) {
+      logger.warn('WhatsApp bot is disabled, audio message not sent', { to });
+      return { success: false, error: 'WhatsApp bot is disabled' };
+    }
+
+    const formattedPhone = this.formatPhoneNumber(to);
+
+    return this.queueMessage(async () => {
+      try {
+        const response = await this.getClient().post('/send-message', {
+          to: formattedPhone,
+          audio: {
+            base64: base64Data,
+            mimetype: mimetype
+          }
+        });
+
+        logger.info('WhatsApp audio (base64) sent', {
+          to: formattedPhone,
+          mimetype,
+          msgId: response.data?.data?.msgId
+        });
+
+        return response.data;
+      } catch (error: any) {
+        logger.error('Failed to send WhatsApp audio (base64)', {
+          to,
+          mimetype,
+          error: error.response?.data || error.message
+        });
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Send bulk audio/voice note messages (with rate limiting)
+   * Broadcasts the same audio file to multiple recipients
+   *
+   * @param recipients - Array of phone numbers to send to
+   * @param audioUrl - Publicly accessible URL of the audio file
+   * @param delayMs - Additional delay between messages (on top of built-in rate limiting)
+   * @returns Array of results for each recipient
+   */
+  static async sendBulkAudioMessages(
+    recipients: string[],
+    audioUrl: string,
+    delayMs: number = 1000
+  ): Promise<Array<{ to: string; success: boolean; error?: string }>> {
+    const results: Array<{ to: string; success: boolean; error?: string }> = [];
+
+    logger.info('Starting bulk audio broadcast', {
+      recipientCount: recipients.length,
+      audioUrl: audioUrl.substring(0, 50) + '...'
+    });
+
+    for (const phone of recipients) {
+      try {
+        await this.sendAudioMessage(phone, audioUrl);
+        results.push({ to: phone, success: true });
+      } catch (error: any) {
+        results.push({
+          to: phone,
+          success: false,
+          error: error.message
+        });
+      }
+
+      // Additional rate limiting delay
+      if (delayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    logger.info('Bulk audio broadcast completed', {
+      total: recipients.length,
+      success: successCount,
+      failed: recipients.length - successCount
+    });
+
+    return results;
+  }
+
+  /**
+   * Send bulk audio/voice note messages using base64 data (with rate limiting)
+   * Broadcasts the same audio to multiple recipients using base64 encoded data
+   *
+   * @param recipients - Array of phone numbers to send to
+   * @param base64Data - Base64 encoded audio data
+   * @param mimetype - Audio MIME type
+   * @param delayMs - Additional delay between messages
+   * @returns Array of results for each recipient
+   */
+  static async sendBulkAudioBase64(
+    recipients: string[],
+    base64Data: string,
+    mimetype: string = 'audio/ogg; codecs=opus',
+    delayMs: number = 1000
+  ): Promise<Array<{ to: string; success: boolean; error?: string }>> {
+    const results: Array<{ to: string; success: boolean; error?: string }> = [];
+
+    logger.info('Starting bulk audio (base64) broadcast', {
+      recipientCount: recipients.length,
+      mimetype
+    });
+
+    for (const phone of recipients) {
+      try {
+        await this.sendAudioBase64(phone, base64Data, mimetype);
+        results.push({ to: phone, success: true });
+      } catch (error: any) {
+        results.push({
+          to: phone,
+          success: false,
+          error: error.message
+        });
+      }
+
+      // Additional rate limiting delay
+      if (delayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    logger.info('Bulk audio (base64) broadcast completed', {
+      total: recipients.length,
+      success: successCount,
+      failed: recipients.length - successCount
+    });
 
     return results;
   }

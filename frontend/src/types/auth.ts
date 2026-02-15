@@ -21,6 +21,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  cell_number?: string;
   firstname?: string;
   surname?: string;
   phone?: string;

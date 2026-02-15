@@ -5,6 +5,66 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 /**
+ * Municipality Combination Mapping
+ * Defines which municipalities should be combined into single rows on reports.
+ * Each entry has: codes (municipality_code values to combine), label (display name),
+ * and optionally targetDistrict (district_code where this combined row should appear
+ * if municipalities come from different districts).
+ */
+interface MunicipalityCombination {
+  codes: string[];
+  label: string;
+  targetDistrict?: string; // Only needed for cross-district combinations
+}
+
+const MUNICIPALITY_COMBINATIONS: MunicipalityCombination[] = [
+  // === Eastern Cape ===
+  { codes: ['EC101', 'EC102'], label: 'Dr. Beyers Naude / Blue Crane Route' },
+  { codes: ['EC108', 'EC109'], label: 'Kouga / Kou-Kamma' },
+  { codes: ['EC124', 'EC123'], label: 'Amahlathi / Great Kei' },
+  // === Free State ===
+  { codes: ['FS161', 'FS163'], label: 'Letsemeng / Mohokare' },
+  { codes: ['FS183', 'FS182'], label: 'Tswelopele / Tokologo' },
+  { codes: ['MAN002', 'MAN004', 'MAN003'], label: 'MAN-Botshabelo / MAN-Thaba Nchu / MAN-Naledi' },
+  // === Gauteng ===
+  { codes: ['TSH005', 'TSH006'], label: 'TSH - 5 / TSH - 6' },
+  // === KwaZulu-Natal ===
+  { codes: ['ETH009', 'ETH010'], label: 'ETH - South Central / ETH - South West' },
+  { codes: ['KZN252', 'KZN253'], label: 'Newcastle / eMadlangeni' },
+  { codes: ['KZN436', 'KZN224'], label: 'Dr. Nkosazana Dlamini Zuma / Impendle', targetDistrict: 'DC43' },
+  { codes: ['KZN225', 'KZN223'], label: 'Msunduzi / Mpofana' },
+  { codes: ['KZN227', 'KZN226'], label: 'Richmond / Mkhambathini' },
+  { codes: ['KZN242', 'KZN241'], label: 'Nqutu / Endumeni' },
+  // === Mpumalanga ===
+  { codes: ['MP305', 'MP306'], label: 'Lekwa / Dipaleseng' },
+  // === North West ===
+  { codes: ['NW373', 'NW374'], label: 'Rustenburg / Kgetlengrivier' },
+  { codes: ['NW393', 'NW396'], label: 'Mamusa / Lekwa-Teemane' },
+  // === Northern Cape ===
+  { codes: ['NC085', 'NC086'], label: 'Tsantsabane / Kgatelopele' },
+  { codes: ['NC073', 'NC076', 'NC075'], label: 'Emthanjeni / Thembelihle / Renosterberg' },
+  { codes: ['NC071', 'NC074'], label: 'Ubuntu / Kareeberg' },
+  { codes: ['NC078', 'NC077'], label: 'Siyancuma / Siyathemba' },
+  { codes: ['NC094', 'NC093'], label: 'Phokwane / Magareng' },
+  { codes: ['NC065', 'NC084', 'NC066'], label: 'Hantam / !Kheis / Karoo Hoogland', targetDistrict: 'DC6' },
+  { codes: ['NC064', 'NC067'], label: 'Kamiesberg / Khâi-Ma' },
+  { codes: ['NC062', 'NC061'], label: 'Nama Khoi / Richtersveld' },
+  // === Western Cape ===
+  { codes: ['CPT006', 'CPT010'], label: 'CPT - Zone 5/9' },
+  { codes: ['WC013', 'WC012'], label: 'Bergrivier / Cederberg' },
+  { codes: ['WC033', 'WC034'], label: 'Cape Agulhas / Swellendam' },
+  { codes: ['WC026', 'WC051'], label: 'Langeberg / Laingsburg', targetDistrict: 'DC2' },
+  { codes: ['WC048', 'WC047'], label: 'Knysna / Bitou' },
+  { codes: ['WC045', 'WC052'], label: 'Oudtshoorn / Prince Albert', targetDistrict: 'DC4' },
+];
+
+// Build a quick lookup: municipality_code → combination info
+const MUNI_CODE_TO_COMBINATION = new Map<string, MunicipalityCombination>();
+MUNICIPALITY_COMBINATIONS.forEach(combo => {
+  combo.codes.forEach(code => MUNI_CODE_TO_COMBINATION.set(code, combo));
+});
+
+/**
  * Excel Report Generation Service
  * Handles generation of Excel reports for ward audits, daily reports, and SRPA delegates
  */
@@ -134,10 +194,9 @@ export class ExcelReportService {
   }
   
   /**
-   * Generate Comprehensive Audit Excel Report (matching original format)
-   * Sheet1: Provincial Summary
-   * Sheet4: Municipality/District Detail
-   * Uses ExcelJS for full styling support
+   * Generate Ward Audit Report matching Audit.xlsx format exactly.
+   * Sheet4: Municipality/District Detail with Excel formulas
+   * Sheet1: Provincial Summary referencing Sheet4
    */
   static async generateWardAuditReport(filters: {
     standing?: string;
@@ -150,372 +209,559 @@ export class ExcelReportService {
     try {
       const { province_code } = filters;
 
-      // Create workbook with ExcelJS
+      // Create workbook
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'EFF Membership System';
       workbook.created = new Date();
 
-      // ===== SHEET 1: PROVINCIAL SUMMARY =====
-      const provincialQuery = `
+      // ===== DATA QUERY =====
+      const muniQuery = `
         SELECT
-          m.province_name as "PROVINCE",
-          COUNT(DISTINCT w.ward_code) as "NUMBER OF IEC WARDS",
-          COUNT(DISTINCT CASE WHEN m.membership_number IS NOT NULL THEN m.member_id END) as "TOTAL NUMBER OF REGISTERS ISSUED",
-          COUNT(DISTINCT CASE WHEN wd.delegate_id IS NOT NULL AND wd.delegate_status = 'Active' THEN w.ward_code END) as "NUMBER OF BRANCHES CONVENED BPA/BGA",
-          COUNT(DISTINCT w.ward_code) - COUNT(DISTINCT CASE WHEN wd.delegate_id IS NOT NULL AND wd.delegate_status = 'Active' THEN w.ward_code END) as "NUMBER OF BRANCHES NOT CONVENED BPA/BGA",
-          COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Good Standing', 'Excellent Standing') THEN w.ward_code END) as "NUMBER OF BRANCHES PASSED FINAL AUDIT TO THE 1ST SRPA",
-          COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Poor Standing', 'Critical Standing') THEN w.ward_code END) as "NUMBER OF BRANCHES FAILED AUDIT FINAL AUDIT TO THE 1ST SRPA",
-          COUNT(DISTINCT CASE WHEN wma.ward_standing = 'Fair Standing' THEN w.ward_code END) as "NUMBER OF BRANCHES CURRENTLY IN AUDIT",
-          ROUND(
-            CAST(COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Good Standing', 'Excellent Standing') THEN w.ward_code END) AS NUMERIC) /
-            NULLIF(COUNT(DISTINCT w.ward_code), 0),
-            4
-          ) as "PERCENTAGE % TOWARDS 1ST SRPA"
+          COALESCE(p.province_name, parent_p.province_name) as province_name,
+          COALESCE(d.district_name, parent_d.district_name) as district_name,
+          COALESCE(d.district_code, parent_d.district_code) as district_code,
+          mu.municipality_code,
+          COALESCE(mu.municipality_name, d.district_name) as municipality_name,
+          mu.municipality_type,
+          COUNT(DISTINCT w.ward_code) as ward_count,
+          COUNT(DISTINCT CASE WHEN wd.delegate_id IS NOT NULL AND wd.delegate_status = 'Active' THEN w.ward_code END) as convened,
+          COUNT(DISTINCT w.ward_code) - COUNT(DISTINCT CASE WHEN wd.delegate_id IS NOT NULL AND wd.delegate_status = 'Active' THEN w.ward_code END) as not_convened,
+          COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Good Standing', 'Excellent Standing') THEN w.ward_code END) as passed,
+          COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Poor Standing', 'Critical Standing', 'Fair Standing') THEN w.ward_code END) as failed
         FROM wards w
-        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
+        LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
+        LEFT JOIN municipalities parent_mu ON mu.parent_municipality_id = parent_mu.municipality_id
+        LEFT JOIN districts d ON mu.district_code = d.district_code
+        LEFT JOIN districts parent_d ON parent_mu.district_code = parent_d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN provinces parent_p ON parent_d.province_code = parent_p.province_code
         LEFT JOIN ward_delegates wd ON w.ward_code = wd.ward_code
         LEFT JOIN vw_ward_membership_audit wma ON w.ward_code = wma.ward_code
-        ${province_code ? 'WHERE m.province_code = $1' : ''}
-        GROUP BY m.province_name
-        ORDER BY m.province_name
+        WHERE COALESCE(mu.municipality_type, 'Local') != 'Metropolitan'
+        ${province_code ? 'AND COALESCE(p.province_code, parent_p.province_code) = $1' : ''}
+        GROUP BY COALESCE(p.province_name, parent_p.province_name),
+                 COALESCE(d.district_name, parent_d.district_name),
+                 COALESCE(d.district_code, parent_d.district_code),
+                 mu.municipality_code, mu.municipality_name, mu.municipality_type, d.district_name
+        ORDER BY COALESCE(p.province_name, parent_p.province_name),
+                 COALESCE(d.district_name, parent_d.district_name),
+                 COALESCE(mu.municipality_name, d.district_name)
       `;
 
-      const provincialParams = province_code ? [province_code] : [];
-      const provincialData = await executeQuery(provincialQuery, provincialParams);
+      const muniParams = province_code ? [province_code] : [];
+      const muniDataRaw = await executeQuery(muniQuery, muniParams);
 
-      // Create Sheet1 with ExcelJS
-      const sheet1 = workbook.addWorksheet('Sheet1');
-
-      // Define columns with headers
-      sheet1.columns = [
-        { header: 'PROVINCE', key: 'PROVINCE', width: 20 },
-        { header: 'NUMBER OF IEC WARDS', key: 'NUMBER OF IEC WARDS', width: 20 },
-        { header: 'TOTAL NUMBER OF REGISTERS ISSUED', key: 'TOTAL NUMBER OF REGISTERS ISSUED', width: 35 },
-        { header: 'NUMBER OF BRANCHES CONVENED BPA/BGA', key: 'NUMBER OF BRANCHES CONVENED BPA/BGA', width: 40 },
-        { header: 'NUMBER OF BRANCHES NOT CONVENED BPA/BGA', key: 'NUMBER OF BRANCHES NOT CONVENED BPA/BGA', width: 45 },
-        { header: 'NUMBER OF BRANCHES PASSED FINAL AUDIT TO THE 1ST SRPA', key: 'NUMBER OF BRANCHES PASSED FINAL AUDIT TO THE 1ST SRPA', width: 55 },
-        { header: 'NUMBER OF BRANCHES FAILED AUDIT FINAL AUDIT TO THE 1ST SRPA', key: 'NUMBER OF BRANCHES FAILED AUDIT FINAL AUDIT TO THE 1ST SRPA', width: 60 },
-        { header: 'NUMBER OF BRANCHES CURRENTLY IN AUDIT', key: 'NUMBER OF BRANCHES CURRENTLY IN AUDIT', width: 40 },
-        { header: 'PERCENTAGE % TOWARDS 1ST SRPA', key: 'PERCENTAGE % TOWARDS 1ST SRPA', width: 30 }
-      ];
-
-      // Add data rows
-      provincialData.forEach((row: any) => {
-        sheet1.addRow(row);
+      // Build lookup: municipality_code -> raw data row
+      const muniLookup = new Map<string, any>();
+      muniDataRaw.forEach((row: any) => {
+        if (row.municipality_code) muniLookup.set(row.municipality_code, row);
       });
 
-      // Style header row
-      sheet1.getRow(1).eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF4472C4' }
-        };
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        };
-      });
+      // Process combinations and build grouped structure
+      const processedComboCodes = new Set<string>();
+      const grouped: Record<string, Record<string, { districtCode: string; rows: any[] }>> = {};
+      const combinedRows: Array<{ targetProvince: string; targetDistrict: string; targetDistrictCode: string; row: any }> = [];
 
-      // Style data rows
-      sheet1.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) {
-          row.eachCell((cell, colNumber) => {
-            cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
-            };
-
-            // Right-align numbers
-            if (colNumber > 1 && colNumber < 9) {
-              cell.alignment = { horizontal: 'right', vertical: 'middle' };
-              cell.numFmt = '#,##0';
-            }
-            // Format percentage
-            else if (colNumber === 9) {
-              cell.alignment = { horizontal: 'right', vertical: 'middle' };
-              cell.numFmt = '0.00%';
-            }
-            // Left-align text
-            else {
-              cell.alignment = { horizontal: 'left', vertical: 'middle' };
-            }
-          });
+      for (const combo of MUNICIPALITY_COMBINATIONS) {
+        const parts: Array<{ code: string; data: any }> = [];
+        for (const code of combo.codes) {
+          const data = muniLookup.get(code);
+          if (data) parts.push({ code, data });
         }
-      });
+        if (parts.length === 0) continue;
+        combo.codes.forEach(code => processedComboCodes.add(code));
 
-      // ===== SHEET 4: MUNICIPALITY/DISTRICT DETAIL =====
-      const municipalityQuery = `
-        SELECT
-          m.province_name,
-          COALESCE(m.municipality_name, m.district_name) as "MUNICIPALITY/ DISTRICTS",
-          COUNT(DISTINCT w.ward_code) as "NUMBER OF IEC WARDS",
-          '' as "empty_col",
-          COUNT(DISTINCT CASE WHEN wd.delegate_id IS NOT NULL AND wd.delegate_status = 'Active' THEN w.ward_code END) as "NUMBER OF BRANCHES CONVENED",
-          COUNT(DISTINCT w.ward_code) - COUNT(DISTINCT CASE WHEN wd.delegate_id IS NOT NULL AND wd.delegate_status = 'Active' THEN w.ward_code END) as "NUMBER OF BRANCHES NOT CONVENED",
-          COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Good Standing', 'Excellent Standing') THEN w.ward_code END) as "NUMBER OF BRANCHES PASSED AUDIT",
-          COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Poor Standing', 'Critical Standing', 'Fair Standing') THEN w.ward_code END) as "NUMBER OF BRANCHES FAILED AUDIT",
-          ROUND(
-            CAST(COUNT(DISTINCT CASE WHEN wma.ward_standing IN ('Good Standing', 'Excellent Standing') THEN w.ward_code END) AS NUMERIC) /
-            NULLIF(COUNT(DISTINCT w.ward_code), 0),
-            4
-          ) as "PERCENTAGE % TOWARDS BPA/BGA"
-        FROM wards w
-        LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
-        LEFT JOIN ward_delegates wd ON w.ward_code = wd.ward_code
-        LEFT JOIN vw_ward_membership_audit wma ON w.ward_code = wma.ward_code
-        ${province_code ? 'WHERE m.province_code = $1' : ''}
-        GROUP BY m.province_name, COALESCE(m.municipality_name, m.district_name)
-        ORDER BY m.province_name, COALESCE(m.municipality_name, m.district_name)
-      `;
-
-      const municipalityParams = province_code ? [province_code] : [];
-      const municipalityDataRaw = await executeQuery(municipalityQuery, municipalityParams);
-
-      // Group municipalities by province
-      const groupedByProvince: Record<string, any[]> = {};
-      municipalityDataRaw.forEach((row: any) => {
-        const provinceName = row.province_name || 'Unknown Province';
-        if (!groupedByProvince[provinceName]) {
-          groupedByProvince[provinceName] = [];
+        let targetDistrictCode = combo.targetDistrict || parts[0].data.district_code;
+        let targetDistrictName = parts[0].data.district_name;
+        let targetProvince = parts[0].data.province_name;
+        if (combo.targetDistrict) {
+          const mp = parts.find(p => p.data.district_code === combo.targetDistrict);
+          if (mp) { targetDistrictName = mp.data.district_name; targetProvince = mp.data.province_name; }
         }
-        groupedByProvince[provinceName].push(row);
-      });
 
-      // Calculate totals for each province
-      const calculateProvinceTotals = (municipalities: any[]) => {
-        const totals = {
-          'NUMBER OF IEC WARDS': 0,
-          'NUMBER OF BRANCHES CONVENED': 0,
-          'NUMBER OF BRANCHES NOT CONVENED': 0,
-          'NUMBER OF BRANCHES PASSED AUDIT': 0,
-          'NUMBER OF BRANCHES FAILED AUDIT': 0,
-        };
-
-        municipalities.forEach(muni => {
-          totals['NUMBER OF IEC WARDS'] += muni['NUMBER OF IEC WARDS'] || 0;
-          totals['NUMBER OF BRANCHES CONVENED'] += muni['NUMBER OF BRANCHES CONVENED'] || 0;
-          totals['NUMBER OF BRANCHES NOT CONVENED'] += muni['NUMBER OF BRANCHES NOT CONVENED'] || 0;
-          totals['NUMBER OF BRANCHES PASSED AUDIT'] += muni['NUMBER OF BRANCHES PASSED AUDIT'] || 0;
-          totals['NUMBER OF BRANCHES FAILED AUDIT'] += muni['NUMBER OF BRANCHES FAILED AUDIT'] || 0;
+        const wardParts: number[] = [];
+        let totalPassed = 0, totalFailed = 0;
+        parts.forEach(p => {
+          wardParts.push(Number(p.data.ward_count) || 0);
+          totalPassed += Number(p.data.passed) || 0;
+          totalFailed += Number(p.data.failed) || 0;
         });
+        const totalWards = wardParts.reduce((a, b) => a + b, 0);
 
-        // Calculate weighted percentage
-        const percentage = totals['NUMBER OF IEC WARDS'] > 0
-          ? totals['NUMBER OF BRANCHES PASSED AUDIT'] / totals['NUMBER OF IEC WARDS']
-          : 0;
-
-        return {
-          ...totals,
-          'PERCENTAGE % TOWARDS BPA/BGA': percentage,
-        };
-      };
-
-      // Prepare data with province headers and totals (with row tracking for formulas)
-      const municipalityData: any[] = [];
-      const totalsRowInfo: Array<{ rowNumber: number; startRow: number; endRow: number }> = [];
-
-      Object.entries(groupedByProvince).forEach(([provinceName, municipalities]) => {
-        // Add province header row
-        municipalityData.push({
-          'MUNICIPALITY/ DISTRICTS': provinceName,
-          'NUMBER OF IEC WARDS': '',
-          '': '',
-          'NUMBER OF BRANCHES CONVENED': '',
-          'NUMBER OF BRANCHES NOT CONVENED': '',
-          'NUMBER OF BRANCHES PASSED AUDIT': '',
-          'NUMBER OF BRANCHES FAILED AUDIT': '',
-          'PERCENTAGE % TOWARDS BPA/BGA': '',
-          _isProvinceHeader: true,
+        combinedRows.push({
+          targetProvince: targetProvince || 'Unknown Province',
+          targetDistrict: targetDistrictName || 'Unknown District',
+          targetDistrictCode: targetDistrictCode || '',
+          row: {
+            label: combo.label,
+            wardParts,
+            wardTotal: totalWards,
+            passed: totalPassed,
+            failed: totalFailed,
+            _isCombined: true,
+          }
         });
+      }
 
-        // Track the start row for this province's municipalities (after header row)
-        const startRow = municipalityData.length + 2; // +2 because: +1 for Excel 1-based, +1 for header row
-
-        // Add municipality rows
-        municipalities.forEach(muni => {
-          municipalityData.push({
-            'MUNICIPALITY/ DISTRICTS': muni['MUNICIPALITY/ DISTRICTS'],
-            'NUMBER OF IEC WARDS': muni['NUMBER OF IEC WARDS'],
-            '': '',
-            'NUMBER OF BRANCHES CONVENED': muni['NUMBER OF BRANCHES CONVENED'],
-            'NUMBER OF BRANCHES NOT CONVENED': muni['NUMBER OF BRANCHES NOT CONVENED'],
-            'NUMBER OF BRANCHES PASSED AUDIT': muni['NUMBER OF BRANCHES PASSED AUDIT'],
-            'NUMBER OF BRANCHES FAILED AUDIT': muni['NUMBER OF BRANCHES FAILED AUDIT'],
-            'PERCENTAGE % TOWARDS BPA/BGA': muni['PERCENTAGE % TOWARDS BPA/BGA'],
-          });
-        });
-
-        // Track the end row for this province's municipalities
-        const endRow = municipalityData.length + 1; // +1 for Excel 1-based indexing
-
-        // Add province totals row (will be populated with formulas later)
-        municipalityData.push({
-          'MUNICIPALITY/ DISTRICTS': `${provinceName} - Total`,
-          'NUMBER OF IEC WARDS': '',
-          '': '',
-          'NUMBER OF BRANCHES CONVENED': '',
-          'NUMBER OF BRANCHES NOT CONVENED': '',
-          'NUMBER OF BRANCHES PASSED AUDIT': '',
-          'NUMBER OF BRANCHES FAILED AUDIT': '',
-          'PERCENTAGE % TOWARDS BPA/BGA': '',
-          _isProvinceTotals: true,
-        });
-
-        // Store info for adding formulas later
-        totalsRowInfo.push({
-          rowNumber: municipalityData.length + 1, // +1 for Excel 1-based indexing
-          startRow,
-          endRow,
+      // Process regular (non-combined) municipalities
+      muniDataRaw.forEach((row: any) => {
+        const code = row.municipality_code;
+        if (!code || processedComboCodes.has(code)) return;
+        const pn = row.province_name || 'Unknown Province';
+        const dn = row.district_name || 'Unknown District';
+        const dc = row.district_code || '';
+        if (!grouped[pn]) grouped[pn] = {};
+        if (!grouped[pn][dn]) grouped[pn][dn] = { districtCode: dc, rows: [] };
+        grouped[pn][dn].rows.push({
+          label: row.municipality_name || dn,
+          wardTotal: Number(row.ward_count) || 0,
+          passed: Number(row.passed) || 0,
+          failed: Number(row.failed) || 0,
+          _isCombined: false,
         });
       });
 
-      // Create Sheet4 with ExcelJS
+      // Insert combined rows into grouped structure
+      combinedRows.forEach(cr => {
+        if (!grouped[cr.targetProvince]) grouped[cr.targetProvince] = {};
+        if (!grouped[cr.targetProvince][cr.targetDistrict]) {
+          grouped[cr.targetProvince][cr.targetDistrict] = { districtCode: cr.targetDistrictCode, rows: [] };
+        }
+        grouped[cr.targetProvince][cr.targetDistrict].rows.push(cr.row);
+      });
+
+      // ===== BUILD SHEET4: MUNICIPALITY/DISTRICT DETAIL =====
       const sheet4 = workbook.addWorksheet('Sheet4');
 
-      // Define columns with headers
-      sheet4.columns = [
-        { header: 'MUNICIPALITY/ DISTRICTS', key: 'MUNICIPALITY/ DISTRICTS', width: 35 },
-        { header: 'NUMBER OF IEC WARDS', key: 'NUMBER OF IEC WARDS', width: 20 },
-        { header: '', key: '', width: 5 },
-        { header: 'NUMBER OF BRANCHES CONVENED', key: 'NUMBER OF BRANCHES CONVENED', width: 30 },
-        { header: 'NUMBER OF BRANCHES NOT CONVENED', key: 'NUMBER OF BRANCHES NOT CONVENED', width: 35 },
-        { header: 'NUMBER OF BRANCHES PASSED AUDIT', key: 'NUMBER OF BRANCHES PASSED AUDIT', width: 35 },
-        { header: 'NUMBER OF BRANCHES FAILED AUDIT', key: 'NUMBER OF BRANCHES FAILED AUDIT', width: 35 },
-        { header: 'PERCENTAGE % TOWARDS BPA/BGA', key: 'PERCENTAGE % TOWARDS BPA/BGA', width: 30 }
+      // Column widths matching example
+      sheet4.getColumn(1).width = 26.7;
+      sheet4.getColumn(2).width = 12.5;
+      sheet4.getColumn(3).width = 3.5;
+      sheet4.getColumn(4).width = 15.3;
+      sheet4.getColumn(5).width = 18.6;
+      sheet4.getColumn(6).width = 15.9;
+      sheet4.getColumn(7).width = 13.5;
+      sheet4.getColumn(8).width = 16;
+
+      // Header row (row 1)
+      const headerRow = sheet4.getRow(1);
+      const headers = [
+        'MUNICIPALITY',
+        'NUMBER OF IEC WARDS',
+        '',
+        'NUMBER OF BRANCHES CONVENED',
+        'NUMBER OF BRANCHES NOT CONVENED',
+        'NUMBER OF BRANCHES PASSED AUDIT',
+        'NUMBER OF BRANCHES FAILED AUDIT',
+        '' // Will use rich text
       ];
-
-      // Add data rows and track special rows
-      const provinceHeaderRows: number[] = [];
-      const provinceTotalsRows: number[] = [];
-
-      municipalityData.forEach((row: any, index: number) => {
-        const excelRow = sheet4.addRow(row);
-        const rowNumber = excelRow.number;
-
-        if (row._isProvinceHeader) {
-          provinceHeaderRows.push(rowNumber);
-        } else if (row._isProvinceTotals) {
-          provinceTotalsRows.push(rowNumber);
+      headers.forEach((h, i) => {
+        const cell = headerRow.getCell(i + 1);
+        if (i === 7) {
+          // Rich text for column H with superscript ST
+          cell.value = {
+            richText: [
+              { text: 'PERCENTAGE % TOWARDS 1', font: { name: 'Arial', size: 9, bold: true } },
+              { text: 'ST', font: { name: 'Arial', size: 9, bold: true, vertAlign: 'superscript' } },
+              { text: ' SRPA', font: { name: 'Arial', size: 9, bold: true } }
+            ]
+          };
+        } else {
+          cell.value = h;
         }
-      });
-
-      // Add SUM formulas to totals rows
-      totalsRowInfo.forEach((info) => {
-        const totalsRow = sheet4.getRow(info.rowNumber);
-
-        // Column B (2): NUMBER OF IEC WARDS
-        totalsRow.getCell(2).value = { formula: `SUM(B${info.startRow}:B${info.endRow})` };
-
-        // Column D (4): NUMBER OF BRANCHES CONVENED
-        totalsRow.getCell(4).value = { formula: `SUM(D${info.startRow}:D${info.endRow})` };
-
-        // Column E (5): NUMBER OF BRANCHES NOT CONVENED
-        totalsRow.getCell(5).value = { formula: `SUM(E${info.startRow}:E${info.endRow})` };
-
-        // Column F (6): NUMBER OF BRANCHES PASSED AUDIT
-        totalsRow.getCell(6).value = { formula: `SUM(F${info.startRow}:F${info.endRow})` };
-
-        // Column G (7): NUMBER OF BRANCHES FAILED AUDIT
-        totalsRow.getCell(7).value = { formula: `SUM(G${info.startRow}:G${info.endRow})` };
-
-        // Column H (8): PERCENTAGE % TOWARDS BPA/BGA (calculated: passed / total wards)
-        totalsRow.getCell(8).value = { formula: `IF(B${info.rowNumber}=0,0,F${info.rowNumber}/B${info.rowNumber})` };
-      });
-
-      // Style header row
-      sheet4.getRow(1).eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF4472C4' }
-        };
+        cell.font = { name: 'Arial', size: 9, bold: true };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } };
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' }
         };
       });
+      headerRow.height = 40;
 
-      // Style data rows
-      sheet4.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) {
-          const isProvinceHeader = provinceHeaderRows.includes(rowNumber);
-          const isProvinceTotals = provinceTotalsRows.includes(rowNumber);
+      // Track Excel row numbers for formulas
+      let currentRow = 2; // Data starts at row 2
+      const districtTotalRows: number[] = []; // All district TOTAL row numbers
+      const provinceTotalRows: number[] = []; // All province total row numbers
+      const provinceData: Array<{ name: string; totalRow: number }> = [];
 
-          row.eachCell((cell, colNumber) => {
-            cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
-            };
+      // Helper: style a cell
+      const styleCell = (cell: any, opts: { bold?: boolean; grey?: boolean; pct?: boolean; numFmt?: string } = {}) => {
+        cell.font = { name: 'Arial', size: 9, bold: opts.bold || false };
+        if (opts.grey) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } };
+        }
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+        if (opts.pct) {
+          cell.numFmt = '0%';
+        }
+      };
 
-            // Province Header Row Styling
-            if (isProvinceHeader) {
-              cell.font = { bold: true, size: 12 };
-              cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFE3F2FD' } // Light blue background
-              };
-              cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      // Helper: write a municipality data row
+      const writeMuniRow = (row: number, label: string, isCombined: boolean, wardParts: number[], wardTotal: number, passed: number, failed: number) => {
+        const r = sheet4.getRow(row);
+        // Col A: label
+        const cellA = r.getCell(1);
+        cellA.value = label;
+        styleCell(cellA);
+
+        // Col B: ward count or "X + Y = Z" text
+        const cellB = r.getCell(2);
+        if (isCombined && wardParts && wardParts.length > 1) {
+          cellB.value = wardParts.join(' + ') + ' = ' + wardTotal;
+        } else {
+          cellB.value = wardTotal;
+        }
+        styleCell(cellB);
+        cellB.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col C: combined total number (only for combined rows)
+        const cellC = r.getCell(3);
+        if (isCombined) {
+          cellC.value = wardTotal;
+        }
+        styleCell(cellC);
+        cellC.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col F: passed (value)
+        const cellF = r.getCell(6);
+        cellF.value = passed;
+        styleCell(cellF);
+        cellF.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col G: failed (value)
+        const cellG = r.getCell(7);
+        cellG.value = failed;
+        styleCell(cellG);
+        cellG.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col D: convened = F + G (formula)
+        const cellD = r.getCell(4);
+        cellD.value = { formula: `F${row}+G${row}` };
+        styleCell(cellD);
+        cellD.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col E: not convened = B - D (or C - D for combined)
+        const cellE = r.getCell(5);
+        if (isCombined) {
+          cellE.value = { formula: `C${row}-D${row}` };
+        } else {
+          cellE.value = { formula: `B${row}-D${row}` };
+        }
+        styleCell(cellE);
+        cellE.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col H: percentage = F / B (or F / C for combined)
+        const cellH = r.getCell(8);
+        if (isCombined) {
+          cellH.value = { formula: `F${row}/C${row}` };
+        } else {
+          cellH.value = { formula: `F${row}/B${row}` };
+        }
+        styleCell(cellH, { pct: true });
+        cellH.alignment = { horizontal: 'center', vertical: 'middle' };
+      };
+
+      // Helper: write a TOTAL row (district or province or grand)
+      const writeTotalRow = (row: number, label: string, sumRowNumbers: number[], hasCombinedInRange: boolean, combinedWardParts: number[]) => {
+        const r = sheet4.getRow(row);
+
+        // Col A
+        const cellA = r.getCell(1);
+        cellA.value = label;
+        styleCell(cellA, { bold: true, grey: true });
+
+        // Col B: SUM of ward counts - but if combined rows exist, can't just SUM (text cells)
+        // For district totals: SUM the range but handle combined rows specially
+        const cellB = r.getCell(2);
+        if (hasCombinedInRange && combinedWardParts.length > 0) {
+          // Build formula: SUM of non-combined B cells + explicit combined ward totals
+          const nonCombinedRows = sumRowNumbers.filter((_, i) => !combinedWardParts[i]);
+          // Actually simpler: just use C column for combined, B for non-combined
+          // Or just compute the value since formulas get complex
+          let totalWards = 0;
+          // We'll compute it from the data we have
+          cellB.value = { formula: `SUM(C${sumRowNumbers[0]}:C${sumRowNumbers[sumRowNumbers.length - 1]})` };
+        } else {
+          cellB.value = { formula: `SUM(B${sumRowNumbers[0]}:B${sumRowNumbers[sumRowNumbers.length - 1]})` };
+        }
+        styleCell(cellB, { bold: true, grey: true });
+        cellB.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col C
+        const cellC = r.getCell(3);
+        styleCell(cellC, { bold: true, grey: true });
+
+        // Col D: SUM
+        const cellD = r.getCell(4);
+        cellD.value = { formula: `SUM(D${sumRowNumbers[0]}:D${sumRowNumbers[sumRowNumbers.length - 1]})` };
+        styleCell(cellD, { bold: true, grey: true });
+        cellD.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col E: SUM
+        const cellE = r.getCell(5);
+        cellE.value = { formula: `SUM(E${sumRowNumbers[0]}:E${sumRowNumbers[sumRowNumbers.length - 1]})` };
+        styleCell(cellE, { bold: true, grey: true });
+        cellE.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col F: SUM
+        const cellF = r.getCell(6);
+        cellF.value = { formula: `SUM(F${sumRowNumbers[0]}:F${sumRowNumbers[sumRowNumbers.length - 1]})` };
+        styleCell(cellF, { bold: true, grey: true });
+        cellF.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col G: SUM
+        const cellG = r.getCell(7);
+        cellG.value = { formula: `SUM(G${sumRowNumbers[0]}:G${sumRowNumbers[sumRowNumbers.length - 1]})` };
+        styleCell(cellG, { bold: true, grey: true });
+        cellG.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Col H: F/B
+        const cellH = r.getCell(8);
+        cellH.value = { formula: `F${row}/B${row}` };
+        styleCell(cellH, { bold: true, grey: true, pct: true });
+        cellH.alignment = { horizontal: 'center', vertical: 'middle' };
+      };
+
+      // Helper: write province/grand total referencing specific rows
+      const writeRefTotalRow = (row: number, label: string, refRows: number[]) => {
+        const r = sheet4.getRow(row);
+        const refList = refRows.map(rr => `B${rr}`).join(',');
+
+        const cellA = r.getCell(1);
+        cellA.value = label;
+        styleCell(cellA, { bold: true, grey: true });
+
+        ['B', 'C', 'D', 'E', 'F', 'G'].forEach((col, idx) => {
+          const cell = r.getCell(idx + 2);
+          if (col === 'C') {
+            styleCell(cell, { bold: true, grey: true });
+            return;
+          }
+          cell.value = { formula: `SUM(${refRows.map(rr => `${col}${rr}`).join(',')})` };
+          styleCell(cell, { bold: true, grey: true });
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        const cellH = r.getCell(8);
+        cellH.value = { formula: `F${row}/B${row}` };
+        styleCell(cellH, { bold: true, grey: true, pct: true });
+        cellH.alignment = { horizontal: 'center', vertical: 'middle' };
+      };
+
+      // ===== POPULATE SHEET4 DATA =====
+      const sortedProvinces = Object.keys(grouped).sort();
+
+      // Ehlanzeni special handling
+      const EHLANZENI_CITY_MUNIS = ['City of Mbombela', 'Nkomazi'];
+      const EHLANZENI_BUSH_MUNIS = ['Bushbuckridge', 'Thaba Chweu'];
+
+      for (const provinceName of sortedProvinces) {
+        const districts = grouped[provinceName];
+        const sortedDistricts = Object.keys(districts).sort();
+        const distTotalRowsForProvince: number[] = [];
+
+        for (const districtName of sortedDistricts) {
+          const { rows } = districts[districtName];
+          rows.sort((a: any, b: any) => (a.label || '').localeCompare(b.label || ''));
+
+          // Check if this is Ehlanzeni - split into sub-groups
+          const isEhlanzeni = districtName.toLowerCase().includes('ehlanzeni');
+
+          if (isEhlanzeni) {
+            // Split into City of Mbombela group and Bushbuckridge group
+            const cityGroup = rows.filter((r: any) => EHLANZENI_CITY_MUNIS.some(m => r.label.includes(m)));
+            const bushGroup = rows.filter((r: any) => EHLANZENI_BUSH_MUNIS.some(m => r.label.includes(m)));
+            const otherGroup = rows.filter((r: any) =>
+              !EHLANZENI_CITY_MUNIS.some(m => r.label.includes(m)) &&
+              !EHLANZENI_BUSH_MUNIS.some(m => r.label.includes(m))
+            );
+
+            // Ehlanzeni-City of Mbombela sub-group
+            if (cityGroup.length > 0) {
+              const startRow = currentRow;
+              const muniRowNums: number[] = [];
+              const hasCombined = cityGroup.some((m: any) => m._isCombined);
+              cityGroup.forEach((muni: any) => {
+                writeMuniRow(currentRow, muni.label, muni._isCombined, muni.wardParts || [], muni.wardTotal, muni.passed, muni.failed);
+                muniRowNums.push(currentRow);
+                currentRow++;
+              });
+              // TOTAL row
+              writeTotalRow(currentRow, 'TOTAL', muniRowNums, hasCombined, []);
+              distTotalRowsForProvince.push(currentRow);
+              districtTotalRows.push(currentRow);
+              currentRow++;
             }
-            // Province Totals Row Styling
-            else if (isProvinceTotals) {
-              cell.font = { bold: true, size: 11 };
-              cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFF5F5F5' } // Light grey background
-              };
 
-              // Right-align numbers (columns 2, 4-7)
-              if ((colNumber >= 2 && colNumber <= 2) || (colNumber >= 4 && colNumber <= 7)) {
-                cell.alignment = { horizontal: 'right', vertical: 'middle' };
-                cell.numFmt = '#,##0';
-              }
-              // Format percentage (column 8)
-              else if (colNumber === 8) {
-                cell.alignment = { horizontal: 'right', vertical: 'middle' };
-                cell.numFmt = '0.00%';
-              }
-              // Left-align text
-              else {
-                cell.alignment = { horizontal: 'left', vertical: 'middle' };
-              }
+            // Ehlanzeni-Bushbuckridge sub-group
+            if (bushGroup.length > 0) {
+              const muniRowNums: number[] = [];
+              const hasCombined = bushGroup.some((m: any) => m._isCombined);
+              bushGroup.forEach((muni: any) => {
+                writeMuniRow(currentRow, muni.label, muni._isCombined, muni.wardParts || [], muni.wardTotal, muni.passed, muni.failed);
+                muniRowNums.push(currentRow);
+                currentRow++;
+              });
+              writeTotalRow(currentRow, 'TOTAL', muniRowNums, hasCombined, []);
+              distTotalRowsForProvince.push(currentRow);
+              districtTotalRows.push(currentRow);
+              currentRow++;
             }
-            // Regular Municipality Row Styling
-            else {
-              // Right-align numbers (columns 2, 4-7)
-              if ((colNumber >= 2 && colNumber <= 2) || (colNumber >= 4 && colNumber <= 7)) {
-                cell.alignment = { horizontal: 'right', vertical: 'middle' };
-                cell.numFmt = '#,##0';
-              }
-              // Format percentage (column 8)
-              else if (colNumber === 8) {
-                cell.alignment = { horizontal: 'right', vertical: 'middle' };
-                cell.numFmt = '0.00%';
-              }
-              // Left-align text
-              else {
-                cell.alignment = { horizontal: 'left', vertical: 'middle' };
-              }
+
+            // Any other munis in Ehlanzeni
+            if (otherGroup.length > 0) {
+              const muniRowNums: number[] = [];
+              otherGroup.forEach((muni: any) => {
+                writeMuniRow(currentRow, muni.label, muni._isCombined, muni.wardParts || [], muni.wardTotal, muni.passed, muni.failed);
+                muniRowNums.push(currentRow);
+                currentRow++;
+              });
+              writeTotalRow(currentRow, 'TOTAL', muniRowNums, false, []);
+              distTotalRowsForProvince.push(currentRow);
+              districtTotalRows.push(currentRow);
+              currentRow++;
             }
-          });
+          } else {
+            // Normal district processing
+            const muniRowNums: number[] = [];
+            const hasCombined = rows.some((m: any) => m._isCombined);
+            rows.forEach((muni: any) => {
+              writeMuniRow(currentRow, muni.label, muni._isCombined, muni.wardParts || [], muni.wardTotal, muni.passed, muni.failed);
+              muniRowNums.push(currentRow);
+              currentRow++;
+            });
+            // District TOTAL row
+            writeTotalRow(currentRow, 'TOTAL', muniRowNums, hasCombined, []);
+            distTotalRowsForProvince.push(currentRow);
+            districtTotalRows.push(currentRow);
+            currentRow++;
+          }
+        }
+
+        // Province total row - references district TOTAL rows
+        writeRefTotalRow(currentRow, provinceName.toUpperCase(), distTotalRowsForProvince);
+        provinceTotalRows.push(currentRow);
+        provinceData.push({ name: provinceName, totalRow: currentRow });
+        currentRow++;
+      }
+
+      // Grand total row - references all province total rows
+      writeRefTotalRow(currentRow, 'TOTAL', provinceTotalRows);
+      const grandTotalRow = currentRow;
+
+      // ===== BUILD SHEET1: PROVINCIAL SUMMARY =====
+      const sheet1 = workbook.addWorksheet('Sheet1');
+
+      // Sheet1 column widths
+      sheet1.getColumn(1).width = 4;   // #
+      sheet1.getColumn(2).width = 18;  // Province
+      sheet1.getColumn(3).width = 14;  // IEC Wards
+      sheet1.getColumn(4).width = 18;  // Registers Issued
+      sheet1.getColumn(5).width = 18;  // Convened
+      sheet1.getColumn(6).width = 18;  // Not Convened
+      sheet1.getColumn(7).width = 18;  // Passed
+      sheet1.getColumn(8).width = 18;  // Failed
+      sheet1.getColumn(9).width = 18;  // In Audit
+      sheet1.getColumn(10).width = 4;  // spacer
+      sheet1.getColumn(11).width = 22; // Previous War Council
+      sheet1.getColumn(12).width = 16; // Percentage
+
+      // Sheet1 Header row
+      const s1Header = sheet1.getRow(1);
+      const s1Headers = [
+        '#', 'PROVINCE', 'NUMBER OF IEC WARDS', 'TOTAL NUMBER OF REGISTERS ISSUED',
+        'NUMBER OF BRANCHES CONVENED BPA/BGA', 'NUMBER OF BRANCHES NOT CONVENED BPA/BGA',
+        'NUMBER OF BRANCHES PASSED AUDIT', 'NUMBER OF BRANCHES FAILED AUDIT',
+        'NUMBER OF BRANCHES CURRENTLY IN AUDIT', '',
+        'NUMBER OF BRANCHES CONVENED BPA/BGA FROM PREVIOUS WAR COUNCIL',
+        '' // Rich text percentage header
+      ];
+      s1Headers.forEach((h, i) => {
+        const cell = s1Header.getCell(i + 1);
+        if (i === 11) {
+          cell.value = {
+            richText: [
+              { text: 'PERCENTAGE % TOWARDS 1', font: { name: 'Arial', size: 9, bold: true } },
+              { text: 'ST', font: { name: 'Arial', size: 9, bold: true, vertAlign: 'superscript' } },
+              { text: ' SRPA', font: { name: 'Arial', size: 9, bold: true } }
+            ]
+          };
+        } else {
+          cell.value = h;
+        }
+        cell.font = { name: 'Arial', size: 9, bold: true };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+      });
+      s1Header.height = 45;
+
+      // Sheet1 data rows - one per province
+      provinceData.forEach((prov, idx) => {
+        const s1Row = idx + 2;
+        const r = sheet1.getRow(s1Row);
+        const s4Ref = prov.totalRow; // Sheet4 province total row
+
+        r.getCell(1).value = idx + 1; // #
+        r.getCell(2).value = prov.name; // Province name
+        r.getCell(3).value = { formula: `Sheet4!B${s4Ref}` }; // IEC Wards
+        r.getCell(4).value = 0; // Registers issued (placeholder)
+        r.getCell(5).value = { formula: `Sheet4!D${s4Ref}` }; // Convened
+        r.getCell(6).value = { formula: `Sheet4!E${s4Ref}` }; // Not Convened
+        r.getCell(7).value = { formula: `Sheet4!F${s4Ref}` }; // Passed
+        r.getCell(8).value = { formula: `Sheet4!G${s4Ref}` }; // Failed
+        r.getCell(9).value = 0; // In Audit (placeholder)
+        r.getCell(10).value = null; // spacer
+        r.getCell(11).value = 0; // Previous War Council (placeholder)
+        r.getCell(12).value = { formula: `Sheet4!H${s4Ref}` }; // Percentage
+
+        // Style all cells
+        for (let c = 1; c <= 12; c++) {
+          const cell = r.getCell(c);
+          cell.font = { name: 'Arial', size: 9 };
+          cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' }
+          };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          if (c === 12) cell.numFmt = '0%';
         }
       });
 
-      // Generate buffer with ExcelJS
+      // Sheet1 total row
+      const s1TotalRow = provinceData.length + 2;
+      const s1r = sheet1.getRow(s1TotalRow);
+      s1r.getCell(1).value = '';
+      s1r.getCell(2).value = 'TOTAL';
+      for (let c = 3; c <= 12; c++) {
+        if (c === 10) continue; // spacer
+        const colLetter = String.fromCharCode(64 + c); // C, D, E, ...
+        s1r.getCell(c).value = { formula: `SUM(${colLetter}2:${colLetter}${s1TotalRow - 1})` };
+      }
+      // Override percentage: F total / B total from Sheet4
+      s1r.getCell(12).value = { formula: `Sheet4!H${grandTotalRow}` };
+
+      // Style total row
+      for (let c = 1; c <= 12; c++) {
+        const cell = s1r.getCell(c);
+        cell.font = { name: 'Arial', size: 9, bold: true };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } };
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (c === 12) cell.numFmt = '0%';
+      }
+
+      // Generate buffer
       const buffer = await workbook.xlsx.writeBuffer();
       return Buffer.from(buffer);
 
@@ -984,6 +1230,127 @@ export class ExcelReportService {
 
     } catch (error: any) {
       throw new Error(`Failed to generate expired members Excel report: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate Expiring Members Report (Excel or CSV)
+   * Lists members whose membership expires on or after 1st October 2026
+   */
+  static async generateExpiringMembersReport(filters: {
+    province_code?: string;
+    municipality_code?: string;
+  }, format: 'excel' | 'csv' = 'excel'): Promise<Buffer> {
+    try {
+      const { province_code, municipality_code } = filters;
+
+      // Build dynamic query with parameterized filters
+      const conditions: string[] = [
+        'm.expiry_date IS NOT NULL',
+        `m.expiry_date >= '2026-10-01'`
+      ];
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (province_code) {
+        conditions.push(`m.province_code = $${paramIndex}`);
+        params.push(province_code);
+        paramIndex++;
+      }
+      if (municipality_code) {
+        conditions.push(`m.municipality_code = $${paramIndex}`);
+        params.push(municipality_code);
+        paramIndex++;
+      }
+
+      const expiringMembersQuery = `
+        SELECT
+          CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
+          m.id_number AS "ID Number",
+          m.ward_code AS "Ward Code",
+          m.municipality_code AS "Municipality Code",
+          m.municipality_name AS "Municipality Name",
+          m.voting_district_code AS "Voting District Code",
+          m.province_code AS "Province Code",
+          m.province_name AS "Province Name",
+          m.district_code AS "District Code",
+          m.district_name AS "District Name",
+          m.expiry_date AS "Expiry Date"
+        FROM members_consolidated m
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY m.province_name, m.municipality_name, m.ward_code, CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname)
+      `;
+
+      const expiringMembers = await executeQuery(expiringMembersQuery, params);
+
+      // CSV format
+      if (format === 'csv') {
+        const headers = [
+          'Full Name', 'ID Number', 'Ward Code',
+          'Municipality Code', 'Municipality Name', 'Voting District Code',
+          'Province Code', 'Province Name', 'District Code', 'District Name', 'Expiry Date'
+        ];
+        const csvRows = [headers.join(',')];
+        expiringMembers.forEach((row: any) => {
+          const values = headers.map(h => {
+            let val = row[h] ?? '';
+            if (h === 'Expiry Date' && val) {
+              val = new Date(val).toISOString().split('T')[0];
+            }
+            // Escape CSV values
+            const strVal = String(val).replace(/"/g, '""');
+            return `"${strVal}"`;
+          });
+          csvRows.push(values.join(','));
+        });
+        return Buffer.from(csvRows.join('\n'), 'utf-8');
+      }
+
+      // Excel format
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'EFF Membership System';
+      workbook.created = new Date();
+
+      const worksheet = workbook.addWorksheet('Expiring Members');
+
+      worksheet.columns = [
+        { header: 'Full Name', key: 'Full Name', width: 35 },
+        { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Ward Code', key: 'Ward Code', width: 15 },
+        { header: 'Municipality Code', key: 'Municipality Code', width: 20 },
+        { header: 'Municipality Name', key: 'Municipality Name', width: 30 },
+        { header: 'Voting District Code', key: 'Voting District Code', width: 22 },
+        { header: 'Province Code', key: 'Province Code', width: 16 },
+        { header: 'Province Name', key: 'Province Name', width: 20 },
+        { header: 'District Code', key: 'District Code', width: 16 },
+        { header: 'District Name', key: 'District Name', width: 25 },
+        { header: 'Expiry Date', key: 'Expiry Date', width: 15 }
+      ];
+
+      expiringMembers.forEach((row: any) => {
+        worksheet.addRow({
+          'Full Name': row['Full Name'],
+          'ID Number': row['ID Number'],
+          'Ward Code': row['Ward Code'],
+          'Municipality Code': row['Municipality Code'],
+          'Municipality Name': row['Municipality Name'],
+          'Voting District Code': row['Voting District Code'],
+          'Province Code': row['Province Code'],
+          'Province Name': row['Province Name'],
+          'District Code': row['District Code'],
+          'District Name': row['District Name'],
+          'Expiry Date': row['Expiry Date'] ? new Date(row['Expiry Date']).toISOString().split('T')[0] : ''
+        });
+      });
+
+      // Apply styling
+      this.styleExcelJSSheet(worksheet, expiringMembers.length, 11);
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      return Buffer.from(buffer);
+
+    } catch (error: any) {
+      throw new Error(`Failed to generate expiring members report: ${error.message}`);
     }
   }
 

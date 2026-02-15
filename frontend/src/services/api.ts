@@ -111,8 +111,12 @@ export const geographicApi = {
   getDistricts: (provinceCode?: string) =>
     apiGet('/geographic/districts', provinceCode ? { province: provinceCode } : {}),
 
-  // Municipalities - Filter by district (corrected from province filtering)
-  getMunicipalities: (districtCode?: string) =>
+  // Municipalities - Filter by province or district
+  getMunicipalities: (provinceCode?: string) =>
+    apiGet('/geographic/municipalities', provinceCode ? { province: provinceCode } : {}),
+
+  // Municipalities - Filter by district
+  getMunicipalitiesByDistrict: (districtCode?: string) =>
     apiGet('/geographic/municipalities', districtCode ? { district: districtCode } : {}),
 
   // Get single municipality by code

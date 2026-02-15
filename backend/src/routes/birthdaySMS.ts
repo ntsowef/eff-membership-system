@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import BirthdaySMSService from '../services/birthdaySMSService';
 import BirthdayScheduler from '../services/birthdayScheduler';
+import BirthdayReportService from '../services/birthdayReportService';
 import { executeQuery } from '../config/database';
 import { authenticate, requireSMSPermission } from '../middleware/auth';
 
@@ -1065,6 +1066,174 @@ router.get('/delivery-report/export', authenticate, requireSMSPermission(), asyn
       success: false,
       error: {
         message: 'Failed to export delivery report',
+        details: error.message
+      }
+    });
+  }
+});
+
+// ==========================================
+// BIRTHDAY MONTHLY REPORT ENDPOINTS
+// ==========================================
+
+// Get monthly birthday report summary only (fast - for initial load)
+router.get('/monthly-report/summary', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { province_code, municipality_code, municipality_name } = req.query;
+
+    const filters = {
+      province_code: province_code as string | undefined,
+      municipality_code: municipality_code as string | undefined,
+      municipality_name: municipality_name as string | undefined
+    };
+
+    const report = await BirthdayReportService.getMonthlyBirthdayReportSummary(filters);
+
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error: any) {
+    console.error('Failed to get monthly birthday report summary:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to retrieve monthly birthday report summary',
+        details: error.message
+      }
+    });
+  }
+});
+
+// Get paginated members for a specific category
+router.get('/monthly-report/category', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { province_code, municipality_code, municipality_name, category, page, limit } = req.query;
+
+    if (!category) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Category parameter is required' }
+      });
+      return;
+    }
+
+    const validCategories = ['good_standing_with_phone', 'good_standing_without_phone', 'expired_with_phone', 'expired_without_phone'];
+    if (!validCategories.includes(category as string)) {
+      res.status(400).json({
+        success: false,
+        error: { message: `Invalid category. Must be one of: ${validCategories.join(', ')}` }
+      });
+      return;
+    }
+
+    const filters = {
+      province_code: province_code as string | undefined,
+      municipality_code: municipality_code as string | undefined,
+      municipality_name: municipality_name as string | undefined,
+      category: category as 'good_standing_with_phone' | 'good_standing_without_phone' | 'expired_with_phone' | 'expired_without_phone',
+      page: page ? parseInt(page as string) : 1,
+      limit: limit ? parseInt(limit as string) : 50
+    };
+
+    const result = await BirthdayReportService.getCategoryMembers(filters);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error: any) {
+    console.error('Failed to get category members:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to retrieve category members',
+        details: error.message
+      }
+    });
+  }
+});
+
+// Get monthly birthday report (legacy - fetches all data)
+// WARNING: This endpoint may be slow for large datasets - use /summary + /category for UI
+router.get('/monthly-report', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { province_code, municipality_code, municipality_name, page, limit } = req.query;
+
+    const filters = {
+      province_code: province_code as string | undefined,
+      municipality_code: municipality_code as string | undefined,
+      municipality_name: municipality_name as string | undefined,
+      page: page ? parseInt(page as string) : 1,
+      limit: limit ? parseInt(limit as string) : 1000
+    };
+
+    const report = await BirthdayReportService.getMonthlyBirthdayReport(filters);
+
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error: any) {
+    console.error('Failed to get monthly birthday report:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to retrieve monthly birthday report',
+        details: error.message
+      }
+    });
+  }
+});
+
+// Export monthly birthday report to Excel
+router.get('/monthly-report/export', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { province_code, municipality_code, municipality_name } = req.query;
+
+    const filters = {
+      province_code: province_code as string | undefined,
+      municipality_code: municipality_code as string | undefined,
+      municipality_name: municipality_name as string | undefined
+    };
+
+    const excelBuffer = await BirthdayReportService.exportBirthdayReportToExcel(filters);
+
+    // Get current month name for filename
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const currentDate = new Date();
+    const monthName = monthNames[currentDate.getMonth()];
+    const year = currentDate.getFullYear();
+
+    // Province name mapping for filename
+    const provinceNames: Record<string, string> = {
+      'EC': 'Eastern_Cape', 'FS': 'Free_State', 'GP': 'Gauteng',
+      'KZN': 'KwaZulu_Natal', 'LP': 'Limpopo', 'MP': 'Mpumalanga',
+      'NC': 'Northern_Cape', 'NW': 'North_West', 'WC': 'Western_Cape'
+    };
+
+    // Add region to filename if filtered
+    let filenameExtra = '';
+    if (municipality_name) {
+      filenameExtra = `_${(municipality_name as string).replace(/[^a-zA-Z0-9]/g, '_')}`;
+    } else if (municipality_code) {
+      filenameExtra = `_${municipality_code}`;
+    } else if (province_code) {
+      filenameExtra = `_${provinceNames[province_code as string] || province_code}`;
+    }
+
+    const filename = `Birthday_Report_${monthName}_${year}${filenameExtra}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(excelBuffer);
+  } catch (error: any) {
+    console.error('Failed to export monthly birthday report:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to export monthly birthday report',
         details: error.message
       }
     });

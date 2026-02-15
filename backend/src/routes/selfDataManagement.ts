@@ -37,11 +37,16 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    console.log(`📁 [Multer] Destination callback - saving to: ${uploadDir}`);
+    console.log(`📁 [Multer] Original filename: ${file.originalname}`);
+    console.log(`📁 [Multer] Mimetype: ${file.mimetype}`);
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `upload-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const filename = `upload-${uniqueSuffix}${path.extname(file.originalname)}`;
+    console.log(`📁 [Multer] Generated filename: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -90,7 +95,30 @@ const bulkDeleteSchema = Joi.object({
 router.post('/bulk-upload',
   authenticate,
   requirePermission('self_data_management.write'),
+  (req, res, next) => {
+    console.log('📥 [Pre-Multer] Incoming upload request');
+    console.log('📥 [Pre-Multer] Content-Type:', req.headers['content-type']);
+    console.log('📥 [Pre-Multer] Content-Length:', req.headers['content-length']);
+    next();
+  },
   upload.single('file'),
+  (req, res, next) => {
+    console.log('📤 [Post-Multer] Multer completed');
+    console.log('📤 [Post-Multer] req.file exists:', !!req.file);
+    if (req.file) {
+      console.log('📤 [Post-Multer] File details:', {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        encoding: req.file.encoding,
+        mimetype: req.file.mimetype,
+        destination: req.file.destination,
+        filename: req.file.filename,
+        path: req.file.path,
+        size: req.file.size
+      });
+    }
+    next();
+  },
   asyncHandler(async (req: Request, res: Response) => {
     if (!req.file) {
       throw new ValidationError('No file uploaded');
@@ -99,6 +127,23 @@ router.post('/bulk-upload',
     if (!req.user) {
       throw new ValidationError('User not authenticated');
     }
+
+    // CRITICAL: Verify file was actually saved to disk before proceeding
+    if (!fs.existsSync(req.file.path)) {
+      console.error(`❌ File upload failed - file not saved to disk: ${req.file.path}`);
+      throw new ValidationError('File upload failed - file was not saved to disk. Please try again.');
+    }
+
+    // Verify file size matches what was reported
+    const actualFileStats = fs.statSync(req.file.path);
+    if (actualFileStats.size !== req.file.size) {
+      console.error(`❌ File size mismatch - expected: ${req.file.size}, actual: ${actualFileStats.size}`);
+      // Clean up the partial file
+      try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
+      throw new ValidationError('File upload incomplete - please try again.');
+    }
+
+    console.log(`✅ File verified on disk: ${req.file.path} (${actualFileStats.size} bytes)`);
 
     let uploadedFile;
     let jobQueued = false;
@@ -561,7 +606,7 @@ const previewByIdsSchema = Joi.object({
 const removeByIdsSchema = Joi.object({
   id_numbers: Joi.array().items(Joi.string().min(1).max(13)).min(1).max(1000).required(),
   removal_reason: Joi.string().max(200).default('Termination of Membership'),
-  removal_type: Joi.string().valid('expelled', 'suspended', 'terminated', 'deceased').default('terminated'),
+  removal_type: Joi.string().valid('expelled', 'suspended', 'terminated', 'deceased', 'data_cleanup').default('terminated'),
   confirmation: Joi.string().valid('CONFIRM').required()
 });
 
@@ -569,7 +614,7 @@ const expelledMembersQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(500).default(50),
   offset: Joi.number().integer().min(0).default(0),
   search: Joi.string().max(100).optional(),
-  removal_type: Joi.string().valid('expelled', 'suspended', 'terminated', 'deceased').optional(),
+  removal_type: Joi.string().valid('expelled', 'suspended', 'terminated', 'deceased', 'data_cleanup').optional(),
   province: Joi.string().max(50).optional(),
   batch_id: Joi.string().max(50).optional(),
   from_date: Joi.string().isoDate().optional(),

@@ -85,8 +85,8 @@ export class DatabaseOperationsService {
           // SKIP new member inserts for deceased voters - they cannot be new members
           if (isDeceased) {
             await client.query('ROLLBACK');
-            client.release();
             // Record as skipped operation (not an error, just a business rule)
+            // Note: Don't call client.release() here - the finally block will handle it
             successfulOperations.push({
               id_number: record['ID Number'],
               success: true,
@@ -94,7 +94,7 @@ export class DatabaseOperationsService {
               error: 'Deceased voter - cannot be added as new member',
               record
             });
-            return; // Exit early
+            return; // Exit early - finally block will release the client
           }
           memberId = await this.insertMember(client, record, iecResult);
         } else if (type === 'update') {
@@ -758,7 +758,7 @@ export class DatabaseOperationsService {
     // Always set subscription_type_id to 7 (Renewal) for renewal records
     const subscriptionTypeId = 7;
 
-    console.log(`   🔄 Processing renewal for member ${memberId}:`);
+    console.log(`      Processing renewal for member ${memberId}:`);
     console.log(`      Previous expiry: ${record.db_expiry_date?.toISOString().split('T')[0] || 'N/A'}`);
     console.log(`      New expiry: ${newExpiryDate?.toISOString().split('T')[0] || 'N/A'} (calculated: last_payment_date + 2 years)`);
     console.log(`      Classification: ${record.renewal_classification}`);
@@ -792,9 +792,9 @@ export class DatabaseOperationsService {
     const updated = result.rowCount! > 0;
 
     if (updated) {
-      console.log(`      ✅ Renewal processed successfully`);
+      console.log(`       Renewal processed successfully`);
     } else {
-      console.log(`      ❌ Renewal failed: member not found`);
+      console.log(`       Renewal failed: member not found`);
     }
 
     return { memberId: updated ? memberId : null, updated };

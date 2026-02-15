@@ -182,6 +182,48 @@ export const reportsApi = {
   },
 
   /**
+   * Generate and download Expiring Members Report
+   * Contains members whose membership expires on or after 1st October 2026
+   */
+  downloadExpiringMembersReport: async (filters: {
+    province_code?: string;
+    municipality_code?: string;
+    format: 'csv' | 'excel';
+  }) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      if (filters.municipality_code) params.append('municipality_code', filters.municipality_code);
+      params.append('format', filters.format);
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/expiring-members?${params.toString()}`,
+        {
+          responseType: 'blob',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      const ext = filters.format === 'csv' ? 'csv' : 'xlsx';
+      link.setAttribute('download', `expiring-members-${dateStr}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Expiring Members Report downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading Expiring Members Report:', error);
+      throw new Error(error.response?.data?.message || 'Failed to download Expiring Members Report');
+    }
+  },
+
+  /**
    * Generate and download Not Registered Members Report
    * Contains members who are not registered to vote (voting_district_code = '99999999')
    */
@@ -339,6 +381,15 @@ export const reportsApi = {
         sheets: 1,
         format: 'Excel',
         icon: 'CompareArrows',
+        category: 'Membership Reports',
+      },
+      {
+        id: 'expiring-members',
+        name: 'Expiring Members Report',
+        description: 'Members whose membership expires on or after 1st October 2026',
+        sheets: 1,
+        format: 'CSV/Excel',
+        icon: 'Schedule',
         category: 'Membership Reports',
       },
     ];

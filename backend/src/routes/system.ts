@@ -53,6 +53,95 @@ router.get('/health', authenticate, requireAdminLevel(1), async (req: Request, r
   }
 });
 
+// Get system overview (aggregated data for System page dashboard)
+router.get('/overview', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Gather all data in parallel
+    const [systemHealth, cacheStats, dbStatsResult] = await Promise.all([
+      MonitoringService.getSystemHealth().catch(() => null),
+      cacheService.getStats().catch(() => ({ connected: false, metrics: { hitRate: 0, hits: 0, misses: 0 } })),
+      Promise.all([
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM members_consolidated'),
+        executeQuerySingle<{ count: number }>("SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status_id = 1"),
+        executeQuerySingle<{ count: number }>("SELECT COUNT(*) as count FROM members_consolidated WHERE created_at >= NOW() - INTERVAL '30 days'"),
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM users'),
+        executeQuerySingle<{ count: number }>('SELECT COUNT(*) as count FROM user_sessions WHERE expires_at > NOW() AND is_active = TRUE'),
+      ]).catch(() => [{ count: 0 }, { count: 0 }, { count: 0 }, { count: 0 }, { count: 0 }])
+    ]);
+
+    const [totalMembers, activeMembers, newMembers30d, totalUsers, activeSessions] = dbStatsResult as any[];
+
+    // Build system info
+    const uptimeSeconds = process.uptime();
+    const days = Math.floor(uptimeSeconds / 86400);
+    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const uptimeStr = days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
+
+    // Extract metrics from MonitoringService
+    const metrics = systemHealth?.metrics;
+
+    // Cache stats
+    const cacheMetrics = cacheStats?.metrics || cacheStats;
+    const cacheConnected = cacheStats?.connected || false;
+    const hitRate = cacheMetrics?.hitRate || cacheMetrics?.hit_rate || 0;
+
+    // Try to get total keys and memory from Redis info
+    let totalKeys = 0;
+    let memoryUsageMB = 0;
+    if (cacheConnected && cacheStats?.keyspace) {
+      const keyspaceMatch = cacheStats.keyspace.match(/keys=(\d+)/);
+      if (keyspaceMatch) totalKeys = parseInt(keyspaceMatch[1]);
+    }
+    if (cacheConnected && cacheStats?.info) {
+      const memMatch = cacheStats.info.match(/used_memory:(\d+)/);
+      if (memMatch) memoryUsageMB = parseInt(memMatch[1]) / (1024 * 1024);
+    }
+
+    const overview = {
+      system_info: {
+        version: process.env.APP_VERSION || '2.1.0',
+        environment: process.env.NODE_ENV || 'production',
+        uptime: uptimeStr,
+        last_restart: new Date(Date.now() - uptimeSeconds * 1000).toISOString(),
+        status: systemHealth?.status || 'healthy'
+      },
+      system_metrics: {
+        cpu: metrics?.cpu?.usage_percentage || 0,
+        memory: metrics?.memory?.usage_percentage || 0,
+        disk: metrics?.disk?.usage_percentage || 0,
+        network: 0,
+        active_users: activeSessions?.count || 0,
+        total_requests: 0,
+        error_rate: metrics?.api?.error_rate || 0,
+        response_time: metrics?.api?.average_response_time || 0
+      },
+      database_stats: {
+        total_members: totalMembers?.count || 0,
+        active_members: activeMembers?.count || 0,
+        new_members_30d: newMembers30d?.count || 0,
+        total_users: totalUsers?.count || 0,
+        active_sessions: activeSessions?.count || 0
+      },
+      cache_stats: {
+        connected: cacheConnected,
+        hit_rate: hitRate,
+        total_keys: totalKeys,
+        memory_usage: memoryUsageMB
+      }
+    };
+
+    res.json({
+      success: true,
+      message: 'System overview retrieved successfully',
+      data: overview,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get system logs (real data from database)
 router.get('/logs', authenticate, requireAdminLevel(1), async (req: Request, res: Response, next: NextFunction) => {
   try {

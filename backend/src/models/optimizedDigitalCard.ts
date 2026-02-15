@@ -226,28 +226,34 @@ export class OptimizedDigitalCardModel {
            .font('Helvetica')
            .text('DIGITAL MEMBERSHIP CARD', 20, 32);
 
-        // Member information - Centered at Top
+        // Member information - Centered (shifted down into dark blue area)
         doc.fillColor('#000000')
            .fontSize(16)
            .font('Helvetica-Bold')
-           .text(`${memberData.first_name} ${memberData.last_name}`, 0, 70, { align: 'center', width: 350 });
+           .text(`${memberData.first_name} ${memberData.last_name}`, 0, 80, { align: 'center', width: 350 });
+
+        // ID Number - Center display
+        const pdfIdDisplay = memberData.id_number || memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .text(pdfIdDisplay, 0, 100, { align: 'center', width: 350 });
 
         doc.fontSize(12)
            .font('Helvetica')
-           .text(`${memberData.municipality_name}`, 0, 95, { align: 'center', width: 350 })
-           .text(`Ward Code: ${memberData.ward_code}`, 0, 115, { align: 'center', width: 350 })
-           .text(`${memberData.voting_station_name}`, 0, 135, { align: 'center', width: 350 });
+           .text(`${memberData.municipality_name}`, 0, 120, { align: 'center', width: 350 })
+           .text(`Ward Code: ${memberData.ward_code}`, 0, 138, { align: 'center', width: 350 })
+           .text(`${memberData.voting_station_name}`, 0, 156, { align: 'center', width: 350 });
 
-        // Membership dates - Centered
+        // Membership dates - Centered (shifted down)
         doc.fontSize(10)
            .font('Helvetica')
-           .text(`Member Since: ${new Date(memberData.join_date).toLocaleDateString()}`, 50, 165, { align: 'center', width: 120 })
-           .text(`Valid Until: ${new Date(memberData.expiry_date).toLocaleDateString()}`, 180, 165, { align: 'center', width: 120 });
+           .text(`Member Since: ${new Date(memberData.join_date).toLocaleDateString()}`, 50, 178, { align: 'center', width: 120 })
+           .text(`Valid Until: ${new Date(memberData.expiry_date).toLocaleDateString()}`, 180, 178, { align: 'center', width: 120 });
 
-        // Footer
+        // Footer (shifted down)
         doc.fontSize(8)
            .fillColor('#1976d2')
-           .text('This is a digitally generated membership card. Scan QR code to verify authenticity.', 20, 200, {
+           .text('This is a digitally generated membership card. Scan QR code to verify authenticity.', 20, 208, {
              width: 310,
              align: 'center'
            });

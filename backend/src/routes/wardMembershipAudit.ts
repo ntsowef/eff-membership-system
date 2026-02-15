@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validation';
 import { authenticate, requirePermission, applyGeographicFilter } from '../middleware/auth';
 import { PDFExportService } from '../services/pdfExportService';
+import { ExcelReportService } from '../services/excelReportService';
 import Joi from 'joi';
 
 const router = express.Router();
@@ -721,15 +722,47 @@ router.get('/ward/:wardCode/details',
         LIMIT 10
       `;
 
-      const [wardInfo, wardTrends, municipalityWards] = await Promise.all([
+      // Get voter registration stats for the ward
+      const voterStatsQuery = `
+        SELECT
+          COUNT(*) as total_members,
+          COUNT(CASE WHEN vs.status_name = 'Registered' THEN 1 END) as registered_voters,
+          COUNT(CASE WHEN vs.status_name != 'Registered' OR vs.status_name IS NULL THEN 1 END) as unregistered_voters
+        FROM members_consolidated m
+        LEFT JOIN voter_statuses vs ON m.voter_status_id = vs.status_id
+        WHERE m.ward_code = ?
+      `;
+
+      // Get individual member data for the ward
+      const membersQuery = `
+        SELECT
+          m.member_id, m.firstname, m.surname, m.email, m.membership_number,
+          m.ward_code, m.voting_district_code, vd.voting_district_name,
+          m.expiry_date, m.voter_status_id,
+          ms.status_name as membership_status, ms.is_active,
+          vs.status_name as voter_status
+        FROM members_consolidated m
+        LEFT JOIN membership_statuses ms ON m.membership_status_id = ms.status_id
+        LEFT JOIN voter_statuses vs ON m.voter_status_id = vs.status_id
+        LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
+        WHERE m.ward_code = ?
+        ORDER BY ms.is_active DESC, m.surname ASC
+        LIMIT 500
+      `;
+
+      const [wardInfo, wardTrends, municipalityWards, voterStats, membersResult] = await Promise.all([
         executeQuery(wardInfoQuery, [wardCode]),
         executeQuery(wardTrendsQuery, []), // No parameters needed for empty trends query
-        executeQuery(municipalityWardsQuery, [wardCode, wardCode])
+        executeQuery(municipalityWardsQuery, [wardCode, wardCode]),
+        executeQuery(voterStatsQuery, [wardCode]),
+        executeQuery(membersQuery, [wardCode])
       ]);
 
       const wardData = Array.isArray(wardInfo) ? wardInfo[0] : wardInfo.rows?.[0];
       const trendsData = Array.isArray(wardTrends) ? wardTrends : wardTrends.rows || [];
       const comparisonData = Array.isArray(municipalityWards) ? municipalityWards : municipalityWards.rows || [];
+      const voterData = Array.isArray(voterStats) ? voterStats[0] : voterStats.rows?.[0];
+      const membersData = Array.isArray(membersResult) ? membersResult : membersResult.rows || [];
 
       if (!wardData) {
         return res.status(404).json({
@@ -740,6 +773,43 @@ router.get('/ward/:wardCode/details',
 
       // Generate recommendations based on ward performance
       const recommendations = generateWardRecommendations(wardData);
+
+      // Build members array with issue classification
+      const members = membersData.map((row: any) => {
+        let issue_type = 'none';
+        let issue_description = 'No issues';
+        let severity: string = 'low';
+
+        if (!row.is_active && row.membership_status === 'Expired') {
+          issue_type = 'expired';
+          issue_description = `Membership expired on ${row.expiry_date ? new Date(row.expiry_date).toLocaleDateString() : 'unknown date'}`;
+          severity = 'high';
+        } else if (!row.is_active) {
+          issue_type = 'inactive';
+          issue_description = `Membership status: ${row.membership_status || 'Inactive'}`;
+          severity = 'medium';
+        } else if (row.voter_status !== 'Registered') {
+          issue_type = 'not_registered_voter';
+          issue_description = `Voter status: ${row.voter_status || 'Unknown'}`;
+          severity = 'medium';
+        }
+
+        return {
+          member_id: row.member_id,
+          membership_number: row.membership_number || `MEM${String(row.member_id).padStart(6, '0')}`,
+          first_name: row.firstname || '',
+          last_name: row.surname || '',
+          email: row.email || '',
+          membership_status: row.membership_status || 'Unknown',
+          is_active: row.is_active || false,
+          voting_district_code: row.voting_district_code || null,
+          voting_district_name: row.voting_district_name || null,
+          voter_status: row.voter_status || 'Unknown',
+          issue_type,
+          issue_description,
+          severity
+        };
+      });
 
       return res.json({
         success: true,
@@ -763,6 +833,11 @@ router.get('/ward/:wardCode/details',
             members_needed_next_level: parseInt(wardData.members_needed_next_level),
             last_updated: wardData.last_updated
           },
+          voter_stats: {
+            registered_voters: parseInt(voterData?.registered_voters || '0'),
+            unregistered_voters: parseInt(voterData?.unregistered_voters || '0')
+          },
+          members,
           historical_trends: trendsData.map((row: any) => ({
             trend_month: row.trend_month,
             active_members: parseInt(row.active_members),
@@ -1140,135 +1215,22 @@ router.get('/export',
 
           return res.send(pdfBuffer);
         } else if (format === 'excel') {
-          // Generate Excel using ExcelJS
-          const ExcelJS = require('exceljs');
-          const workbook = new ExcelJS.Workbook();
-          const worksheet = workbook.addWorksheet('Ward Audit Report');
-
-          // Add title
-          worksheet.mergeCells('A1:M1');
-          const titleCell = worksheet.getCell('A1');
-          titleCell.value = 'Ward Membership Audit Report';
-          titleCell.font = { bold: true, size: 16 };
-          titleCell.alignment = { horizontal: 'center' };
-
-          // Add date
-          worksheet.mergeCells('A2:M2');
-          const dateCell = worksheet.getCell('A2');
-          dateCell.value = `Generated on: ${new Date().toLocaleDateString('en-ZA')}`;
-          dateCell.alignment = { horizontal: 'center' };
-
-          // Add filter info
-          let filterInfo = 'Filters: ';
-          const filterParts: string[] = [];
-          if (standing) filterParts.push(`Standing: ${standing}`);
-          if (municipalityCode) filterParts.push(`Municipality: ${municipalityCode}`);
-          if (province_code) filterParts.push(`Province: ${province_code}`);
-          if (search) filterParts.push(`Search: ${search}`);
-          filterInfo += filterParts.length > 0 ? filterParts.join(', ') : 'None';
-
-          worksheet.mergeCells('A3:M3');
-          const filterCell = worksheet.getCell('A3');
-          filterCell.value = filterInfo;
-          filterCell.alignment = { horizontal: 'center' };
-
-          // Empty row
-          worksheet.addRow([]);
-
-          // Add headers (row 5)
-          worksheet.columns = [
-            { header: 'Ward Code', key: 'ward_code', width: 15 },
-            { header: 'Ward Name', key: 'ward_name', width: 25 },
-            { header: 'Municipality', key: 'municipality_name', width: 25 },
-            { header: 'District', key: 'district_name', width: 25 },
-            { header: 'Province', key: 'province_name', width: 20 },
-            { header: 'Active Members', key: 'active_members', width: 15 },
-            { header: 'Expired Members', key: 'expired_members', width: 15 },
-            { header: 'Inactive Members', key: 'inactive_members', width: 15 },
-            { header: 'Total Members', key: 'total_members', width: 15 },
-            { header: 'Standing', key: 'ward_standing', width: 18 },
-            { header: 'Active %', key: 'active_percentage', width: 12 },
-            { header: 'Target %', key: 'target_achievement_percentage', width: 12 },
-            { header: 'Members Needed', key: 'members_needed_next_level', width: 15 }
-          ];
-
-          // Style header row
-          const headerRow = worksheet.getRow(5);
-          headerRow.values = ['Ward Code', 'Ward Name', 'Municipality', 'District', 'Province',
-                              'Active Members', 'Expired Members', 'Inactive Members', 'Total Members',
-                              'Standing', 'Active %', 'Target %', 'Members Needed'];
-          headerRow.font = { bold: true };
-          headerRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF4472C4' }
-          };
-          headerRow.eachCell((cell: any) => {
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.alignment = { horizontal: 'center' };
+          // Generate Ward Audit Report using ExcelReportService (matching Audit.xlsx format)
+          const excelBuffer = await ExcelReportService.generateWardAuditReport({
+            province_code: province_code as string,
+            municipality_code: municipalityCode as string,
+            standing: standing as string,
+            search: search as string,
+            limit: limit as number
           });
-
-          // Add data rows
-          wards.forEach((ward: any) => {
-            const row = worksheet.addRow({
-              ward_code: ward.ward_code,
-              ward_name: ward.ward_name,
-              municipality_name: ward.municipality_name,
-              district_name: ward.district_name,
-              province_name: ward.province_name,
-              active_members: ward.active_members || 0,
-              expired_members: ward.expired_members || 0,
-              inactive_members: ward.inactive_members || 0,
-              total_members: ward.total_members || 0,
-              ward_standing: ward.ward_standing,
-              active_percentage: ward.active_percentage ? `${ward.active_percentage}%` : '0%',
-              target_achievement_percentage: ward.target_achievement_percentage ? `${ward.target_achievement_percentage}%` : '0%',
-              members_needed_next_level: ward.members_needed_next_level || 0
-            });
-
-            // Color code standing column
-            const standingCell = row.getCell('ward_standing');
-            if (ward.ward_standing === 'Good Standing') {
-              standingCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
-            } else if (ward.ward_standing === 'Acceptable Standing') {
-              standingCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
-            } else if (ward.ward_standing === 'Needs Improvement') {
-              standingCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B6B' } };
-            }
-          });
-
-          // Add summary row
-          worksheet.addRow([]);
-          const summaryRow = worksheet.addRow({
-            ward_code: 'TOTAL',
-            ward_name: `${wards.length} Wards`,
-            municipality_name: '',
-            district_name: '',
-            province_name: '',
-            active_members: wards.reduce((sum: number, w: any) => sum + (w.active_members || 0), 0),
-            expired_members: wards.reduce((sum: number, w: any) => sum + (w.expired_members || 0), 0),
-            inactive_members: wards.reduce((sum: number, w: any) => sum + (w.inactive_members || 0), 0),
-            total_members: wards.reduce((sum: number, w: any) => sum + (w.total_members || 0), 0),
-            ward_standing: '',
-            active_percentage: '',
-            target_achievement_percentage: '',
-            members_needed_next_level: ''
-          });
-          summaryRow.font = { bold: true };
-          summaryRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' }
-          };
 
           // Set response headers for Excel download
-          const filename = `ward-audit-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+          const filename = `Ward_Audit_Report.xlsx`;
           res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+          res.setHeader('Content-Length', excelBuffer.length);
 
-          // Write to response
-          await workbook.xlsx.write(res);
-          return res.end();
+          return res.send(excelBuffer);
         } else if (format === 'csv') {
           // Generate CSV
           const headers = ['Ward Code', 'Ward Name', 'Municipality', 'District', 'Province',

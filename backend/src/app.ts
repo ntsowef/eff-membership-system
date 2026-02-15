@@ -52,6 +52,7 @@ import {
 // Import background jobs
 import { MeetingStatusJob } from './jobs/meetingStatusJob';
 import { MembershipStatusJob } from './jobs/membershipStatusJob';
+import { BirthdayMessageJob } from './jobs/birthdayMessageJob';
 import { scheduleWardAuditViewRefresh } from './jobs/refreshMaterializedViews';
 
 // Import queue workers and file storage
@@ -303,29 +304,14 @@ app.use(`${apiPrefix}/internal`, internalRoutes); // Internal API for Python scr
 app.use(`${apiPrefix}/bulk-upload`, bulkUploadRoutes); // New bulk upload API
 app.use(`${apiPrefix}/whatsapp`, whatsappBotRoutes); // WhatsApp Bot (WasenderAPI)
 
-// Root endpoint - POST handler for WasenderAPI webhook (fallback)
+// Root endpoint - POST handler (webhook payloads are logged but NOT processed here to avoid double replies)
 app.post('/', async (req: Request, res: Response) => {
-  // Forward to WhatsApp webhook handler if it looks like a WasenderAPI payload
+  // If it looks like a WasenderAPI webhook payload, just acknowledge it — do NOT process.
+  // The primary webhook handler is at /api/v1/whatsapp/webhook
   if (req.body?.event || req.body?.data) {
-    const { WhatsAppBotService } = await import('./services/whatsappBotService');
     const { logger } = await import('./utils/logger');
-
-    // Respond immediately
+    logger.info('WhatsApp webhook hit root / (ignored to prevent double reply)', { event: req.body?.event });
     res.status(200).json({ received: true });
-
-    try {
-      const payload = req.body;
-      logger.info('WhatsApp webhook received at root /', { event: payload.event });
-
-      if (payload.event === 'messages.received' || payload.event === 'messages.upsert') {
-        if (payload.data?.messages) {
-          const { WhatsAppBotService } = await import('./services/whatsappBotService');
-          await WhatsAppBotService.handleIncomingMessage(payload.data.messages);
-        }
-      }
-    } catch (error: any) {
-      logger.error('Error processing WhatsApp webhook at /', { error: error.message });
-    }
     return;
   }
 
@@ -528,6 +514,10 @@ const startServer = async (): Promise<void> => {
       MembershipStatusJob.start();
       if (verbose) console.log(`👥 Membership Status Update Job: Active (daily at midnight)`);
 
+      // Start birthday message job (daily at 08:00 SAST)
+      BirthdayMessageJob.start();
+      if (verbose) console.log(`🎂 Birthday Message Job: Active (daily at 08:00 SAST)`);
+
       // Start ward audit materialized view refresh job (every 15 minutes)
       scheduleWardAuditViewRefresh();
       if (verbose) console.log(`🔄 Ward Audit Materialized View Refresh: Active (every 15 minutes)`);
@@ -600,6 +590,9 @@ const startServer = async (): Promise<void> => {
 
       // Stop membership status job
       MembershipStatusJob.stop();
+
+      // Stop birthday message job
+      BirthdayMessageJob.stop();
 
       // Close queue connections
       if (verbose) console.log('🔄 Closing queue connections...');

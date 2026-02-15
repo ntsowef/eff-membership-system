@@ -2,47 +2,51 @@ import { Router } from 'express';
 import { LookupModel } from '../models/lookups';
 import { asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { validate, commonSchemas } from '../middleware/validation';
+import { cacheMiddleware } from '../middleware/cacheMiddleware';
 
 const router = Router();
 
+// OPTIMIZED: All lookup endpoints now use cacheMiddleware with 1-hour TTL
+// Lookup data rarely changes, so long caching is appropriate
+
 // Get all lookup data in one call
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const lookupData = await LookupModel.getAllLookupData();
   sendSuccess(res, lookupData, 'All lookup data retrieved successfully');
 }));
 
 // Gender lookups
-router.get('/genders', asyncHandler(async (req, res) => {
+router.get('/genders', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const genders = await LookupModel.getAllGenders();
   sendSuccess(res, genders, 'Genders retrieved successfully');
 }));
 
 // Race lookups
-router.get('/races', asyncHandler(async (req, res) => {
+router.get('/races', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const races = await LookupModel.getAllRaces();
   sendSuccess(res, races, 'Races retrieved successfully');
 }));
 
 // Citizenship lookups
-router.get('/citizenships', asyncHandler(async (req, res) => {
+router.get('/citizenships', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const citizenships = await LookupModel.getAllCitizenships();
   sendSuccess(res, citizenships, 'Citizenships retrieved successfully');
 }));
 
 // Language lookups
-router.get('/languages', asyncHandler(async (req, res) => {
+router.get('/languages', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const languages = await LookupModel.getAllLanguages();
   sendSuccess(res, languages, 'Languages retrieved successfully');
 }));
 
 // Occupation category lookups
-router.get('/occupation-categories', asyncHandler(async (req, res) => {
+router.get('/occupation-categories', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const categories = await LookupModel.getAllOccupationCategories();
   sendSuccess(res, categories, 'Occupation categories retrieved successfully');
 }));
 
 // Occupation lookups
-router.get('/occupations', asyncHandler(async (req, res) => {
+router.get('/occupations', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const { category_id } = req.query;
 
   let occupations;
@@ -70,6 +74,7 @@ router.get('/occupations', asyncHandler(async (req, res) => {
 // Get occupations by category
 router.get('/occupations/category/:categoryId',
   validate({ params: commonSchemas.categoryId }),
+  cacheMiddleware({ ttl: 3600 }),
   asyncHandler(async (req, res) => {
     const { categoryId } = req.params;
     const occupations = await LookupModel.getOccupationsByCategory(parseInt(categoryId));
@@ -78,48 +83,49 @@ router.get('/occupations/category/:categoryId',
 );
 
 // Qualification level lookups
-router.get('/qualification-levels', asyncHandler(async (req, res) => {
+router.get('/qualification-levels', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const qualificationLevels = await LookupModel.getAllQualificationLevels();
   sendSuccess(res, qualificationLevels, 'Qualification levels retrieved successfully');
 }));
 
 // Subscription type lookups
-router.get('/subscription-types', asyncHandler(async (req, res) => {
+router.get('/subscription-types', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const subscriptionTypes = await LookupModel.getAllSubscriptionTypes();
   sendSuccess(res, subscriptionTypes, 'Subscription types retrieved successfully');
 }));
 
 // Membership status lookups
-router.get('/membership-statuses', asyncHandler(async (req, res) => {
+router.get('/membership-statuses', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const { active_only } = req.query;
-  
+
   let membershipStatuses;
   if (active_only === 'true') {
     membershipStatuses = await LookupModel.getActiveMembershipStatuses();
   } else {
     membershipStatuses = await LookupModel.getAllMembershipStatuses();
   }
-  
+
   sendSuccess(res, membershipStatuses, 'Membership statuses retrieved successfully');
 }));
 
 // Voting station lookups
-router.get('/voting-stations', asyncHandler(async (req, res) => {
+router.get('/voting-stations', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const { ward_code } = req.query;
-  
+
   let votingStations;
   if (ward_code) {
     votingStations = await LookupModel.getVotingStationsByWard(ward_code as string);
   } else {
     votingStations = await LookupModel.getAllVotingStations();
   }
-  
+
   sendSuccess(res, votingStations, 'Voting stations retrieved successfully');
 }));
 
 // Get voting stations by ward
 router.get('/voting-stations/ward/:wardCode',
   validate({ params: commonSchemas.wardCode }),
+  cacheMiddleware({ ttl: 3600 }),
   asyncHandler(async (req, res) => {
     const { wardCode } = req.params;
     const votingStations = await LookupModel.getVotingStationsByWard(wardCode);
@@ -128,7 +134,7 @@ router.get('/voting-stations/ward/:wardCode',
 );
 
 // Get lookup data summary
-router.get('/summary', asyncHandler(async (req, res) => {
+router.get('/summary', cacheMiddleware({ ttl: 3600 }), asyncHandler(async (req, res) => {
   const [
     genders,
     races,

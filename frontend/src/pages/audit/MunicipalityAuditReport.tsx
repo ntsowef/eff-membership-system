@@ -18,7 +18,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  TextField,
   IconButton,
   Tooltip,
   Avatar,
@@ -29,9 +28,6 @@ import {
 } from '@mui/material';
 import {
   Business,
-  // LocationCity,
-  // People,
-  // TrendingUp,
   Warning,
   CheckCircle,
   Download,
@@ -43,6 +39,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import CascadingGeographicFilter from '../../components/common/CascadingGeographicFilter';
 
 interface MunicipalityAuditSummary {
   municipality_code: string;
@@ -61,6 +58,7 @@ interface MunicipalityAuditSummary {
 
 interface AuditFilters {
   province_code?: string;
+  municipality_code?: string;
 }
 
 const MunicipalityAuditReport: React.FC = () => {
@@ -70,34 +68,74 @@ const MunicipalityAuditReport: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [filters, setFilters] = useState<AuditFilters>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
-  // Fetch municipality audit data
+  // Fetch municipality audit data from ward-membership-audit API
   const { data: auditData, isLoading, refetch } = useQuery({
     queryKey: ['municipality-audit', page, rowsPerPage, filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', (page + 1).toString());
       params.append('limit', rowsPerPage.toString());
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
-      
-      const response = await api.get(`/audit/municipalities?${params.toString()}`);
+
+      // Use ward-membership-audit API which has real data
+      const response = await api.get(`/audit/ward-membership/municipalities?${params.toString()}`);
       return response.data;
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
-  const municipalities: MunicipalityAuditSummary[] = auditData?.municipalities || [];
-  const pagination = auditData?.pagination || { total: 0, totalPages: 0 };
-  const summary = auditData?.summary || {};
+  // Map response from ward-membership-audit format to expected format
+  const municipalitiesRaw = auditData?.data?.municipalities || [];
+  const municipalities: MunicipalityAuditSummary[] = municipalitiesRaw.map((m: any) => ({
+    municipality_code: m.municipality_code,
+    municipality_name: m.municipality_name,
+    province_code: m.province_code || '',
+    province_name: m.province_name,
+    total_wards: m.total_wards || 0,
+    wards_meeting_threshold: m.compliant_wards || 0,
+    threshold_compliance_percentage: m.compliance_percentage ?? 0,
+    total_members: m.total_all_members || 0,
+    total_registered_voters: 0,
+    wards_over_101_members: m.good_standing_wards || 0,
+    high_priority_issues: m.needs_improvement_wards || 0,
+    last_audit_date: m.last_updated
+  }));
 
-  const handleFilterChange = (field: keyof AuditFilters, value: string) => {
+  const paginationRaw = auditData?.data?.pagination || {};
+  const pagination = {
+    total: paginationRaw.total_records || 0,
+    totalPages: paginationRaw.total_pages || 0
+  };
+
+  // Calculate summary from municipalities data
+  const summary = {
+    total_municipalities: pagination.total,
+    municipalities_meeting_70_percent: municipalitiesRaw.filter((m: any) => m.compliance_percentage >= 70).length,
+    municipalities_with_high_issues: municipalitiesRaw.filter((m: any) => m.needs_improvement_wards > 5).length,
+    average_compliance_rate: municipalitiesRaw.length > 0
+      ? municipalitiesRaw.reduce((sum: number, m: any) => sum + (m.compliance_percentage || 0), 0) / municipalitiesRaw.length
+      : 0,
+    total_members_audited: municipalitiesRaw.reduce((sum: number, m: any) => sum + (m.total_all_members || 0), 0)
+  };
+
+  const handleProvinceChange = (provinceCode: string) => {
     setFilters(prev => ({
       ...prev,
-      [field]: value || undefined
+      province_code: provinceCode || undefined,
+      municipality_code: undefined // Clear municipality when province changes
+    }));
+    setPage(0);
+  };
+
+  const handleMunicipalityChange = (municipalityCode: string) => {
+    setFilters(prev => ({
+      ...prev,
+      municipality_code: municipalityCode || undefined
     }));
     setPage(0);
   };
@@ -291,21 +329,48 @@ const MunicipalityAuditReport: React.FC = () => {
 
         {/* Filters */}
         {showFilters && (
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Filters
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+              Geographic Filters
             </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  fullWidth
-                  label="Province Code"
-                  value={filters.province_code || ''}
-                  onChange={(e) => handleFilterChange('province_code', e.target.value)}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Filter municipality audit data by selecting a province and municipality. The municipality dropdown will populate based on your province selection.
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <CascadingGeographicFilter
+                  selectedProvince={filters.province_code}
+                  selectedMunicipality={filters.municipality_code}
+                  onProvinceChange={handleProvinceChange}
+                  onMunicipalityChange={handleMunicipalityChange}
                   size="small"
+                  fullWidth={false}
                 />
               </Grid>
             </Grid>
+            {(filters.province_code || filters.municipality_code) && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
+                  <Typography variant="body2" color="text.secondary" component="span">
+                    <strong>Active Filters:</strong>
+                  </Typography>
+                  {filters.province_code && (
+                    <Chip
+                      label={`Province: ${filters.province_code}`}
+                      size="small"
+                      onDelete={() => handleProvinceChange('')}
+                    />
+                  )}
+                  {filters.municipality_code && (
+                    <Chip
+                      label={`Municipality: ${filters.municipality_code}`}
+                      size="small"
+                      onDelete={() => handleMunicipalityChange('')}
+                    />
+                  )}
+                </Box>
+              </Box>
+            )}
           </Paper>
         )}
 

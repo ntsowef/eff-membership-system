@@ -363,9 +363,14 @@ export function initializeBulkUploadWorker(): void {
       const { QueueStatusService } = await import('../services/bulk-upload/queueStatusService');
       QueueStatusService.sendJobFailedNotification(jobId, userId, fileName, error.message || 'Processing failed');
 
-      // Clean up uploaded file on error
-      if (fs.existsSync(filePath)) {
+      // Only clean up uploaded file when all retries are exhausted
+      // job.attemptsMade is 0-indexed, job.opts.attempts is the total number of attempts
+      const isLastAttempt = (job.attemptsMade + 1) >= (job.opts.attempts || 1);
+      if (isLastAttempt && fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
+        console.log(`🗑️ Cleaned up uploaded file after final failure: ${filePath}`);
+      } else if (!isLastAttempt) {
+        console.log(`⚠️ Keeping file for retry (attempt ${job.attemptsMade + 1}/${job.opts.attempts}): ${filePath}`);
       }
 
       // Re-throw error for Bull to handle retry logic

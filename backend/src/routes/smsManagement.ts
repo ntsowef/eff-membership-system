@@ -385,4 +385,350 @@ router.post('/mock-send', authenticate, requireSMSPermission(), async (req: Requ
   }
 });
 
+// Quick Send SMS endpoint - send to one or multiple recipients
+router.post('/quick-send', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { recipients, message } = req.body;
+
+    // Validate inputs
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'Recipients array is required and must not be empty',
+          code: 'INVALID_RECIPIENTS'
+        }
+      });
+      return;
+    }
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'Message is required and must not be empty',
+          code: 'INVALID_MESSAGE'
+        }
+      });
+      return;
+    }
+
+    // Validate message length (159 characters max for single SMS)
+    if (message.length > 159) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: `Message exceeds maximum length of 159 characters (current: ${message.length})`,
+          code: 'MESSAGE_TOO_LONG'
+        }
+      });
+      return;
+    }
+
+    // Validate and normalize phone numbers
+    const phoneRegex = /^(\+27|27|0)[0-9]{9}$/;
+    const normalizedRecipients: string[] = [];
+    const invalidNumbers: string[] = [];
+
+    for (const recipient of recipients) {
+      const cleaned = recipient.replace(/[\s\-\(\)]/g, '').trim();
+
+      if (!phoneRegex.test(cleaned)) {
+        invalidNumbers.push(recipient);
+        continue;
+      }
+
+      // Normalize to international format (27...)
+      let normalized = cleaned;
+      if (normalized.startsWith('+27')) {
+        normalized = normalized.substring(1); // Remove +
+      } else if (normalized.startsWith('0')) {
+        normalized = '27' + normalized.substring(1); // Replace 0 with 27
+      }
+
+      normalizedRecipients.push(normalized);
+    }
+
+    if (invalidNumbers.length > 0 && normalizedRecipients.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'All phone numbers are invalid',
+          code: 'ALL_INVALID_NUMBERS',
+          invalid_numbers: invalidNumbers
+        }
+      });
+      return;
+    }
+
+    // Import SMS service and SMS Log service
+    const { SMSService } = await import('../services/smsService');
+    const { SMSLogService } = await import('../services/smsLogService');
+
+    // Get sender info from authenticated user
+    const user = (req as any).user;
+    const senderId = user?.id;
+    const senderName = user?.name || user?.username;
+
+    // Send SMS to each recipient with logging
+    const results: Array<{
+      recipient: string;
+      success: boolean;
+      messageId?: string;
+      error?: string;
+    }> = [];
+
+    for (const recipient of normalizedRecipients) {
+      // Generate unique message ID for tracking
+      const messageId = SMSLogService.generateMessageId('quick_send');
+
+      try {
+        // Log the SMS send attempt
+        await SMSLogService.logSMSSend({
+          message_id: messageId,
+          source_type: 'quick_send',
+          recipient_phone: recipient,
+          message_content: message,
+          sender_id: senderId,
+          sender_name: senderName,
+          status: 'sending'
+        });
+
+        // Send the SMS
+        const result = await SMSService.sendSMS(recipient, message, 'EFF');
+
+        // Update log with result
+        await SMSLogService.updateSMSLog(messageId, {
+          status: result.success ? 'sent' : 'failed',
+          provider_message_id: result.messageId,
+          error_message: result.error
+        });
+
+        results.push({
+          recipient,
+          success: result.success,
+          messageId: messageId,
+          error: result.error
+        });
+      } catch (err: any) {
+        // Update log with failure
+        await SMSLogService.updateSMSLog(messageId, {
+          status: 'failed',
+          error_message: err.message || 'Unknown error'
+        });
+
+        results.push({
+          recipient,
+          success: false,
+          messageId: messageId,
+          error: err.message || 'Unknown error'
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      data: {
+        total_recipients: normalizedRecipients.length,
+        successful: successCount,
+        failed: failedCount,
+        invalid_numbers: invalidNumbers,
+        results,
+        message: `SMS sent to ${successCount} of ${normalizedRecipients.length} recipients`
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to send quick SMS:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to send SMS',
+        details: error.message
+      }
+    });
+  }
+});
+
+// ============================================
+// SMS Delivery Status / Logs Endpoints
+// ============================================
+
+// Get SMS send logs with filters
+router.get('/logs', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { SMSLogService } = await import('../services/smsLogService');
+
+    const options = {
+      limit: parseInt(req.query.limit as string) || 100,
+      sourceType: req.query.source_type as any,
+      recipientPhone: req.query.recipient_phone as string,
+      memberId: req.query.member_id as string,
+      status: req.query.status as any,
+      startDate: req.query.start_date ? new Date(req.query.start_date as string) : undefined,
+      endDate: req.query.end_date ? new Date(req.query.end_date as string) : undefined
+    };
+
+    const logs = await SMSLogService.getRecentSMSLogs(options);
+
+    res.json({
+      success: true,
+      data: {
+        logs,
+        total: logs.length,
+        filters: {
+          source_type: options.sourceType,
+          status: options.status,
+          limit: options.limit
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to get SMS logs:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get SMS logs', details: error.message }
+    });
+  }
+});
+
+// Get SMS delivery status by message ID
+router.get('/logs/:messageId', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { SMSLogService } = await import('../services/smsLogService');
+    const { messageId } = req.params;
+
+    const log = await SMSLogService.getSMSLogByMessageId(messageId);
+
+    if (!log) {
+      res.status(404).json({
+        success: false,
+        error: { message: 'SMS log not found', code: 'NOT_FOUND' }
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: log
+    });
+  } catch (error: any) {
+    console.error('Failed to get SMS log:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get SMS log', details: error.message }
+    });
+  }
+});
+
+// Get SMS logs by source type with pagination
+router.get('/logs/source/:sourceType', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { SMSLogService } = await import('../services/smsLogService');
+    const { sourceType } = req.params;
+
+    const options = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 50,
+      status: req.query.status as any
+    };
+
+    const result = await SMSLogService.getSMSLogsBySource(sourceType as any, options);
+
+    res.json({
+      success: true,
+      data: {
+        logs: result.logs,
+        total: result.total,
+        page: options.page,
+        limit: options.limit,
+        totalPages: Math.ceil(result.total / options.limit)
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to get SMS logs by source:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get SMS logs', details: error.message }
+    });
+  }
+});
+
+// Get SMS delivery statistics by source
+router.get('/delivery-stats', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { SMSLogService } = await import('../services/smsLogService');
+
+    const stats = await SMSLogService.getDeliveryStatsBySource();
+
+    res.json({
+      success: true,
+      data: {
+        statistics: stats,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to get delivery stats:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get delivery statistics', details: error.message }
+    });
+  }
+});
+
+// Get multiple SMS statuses by message IDs (batch lookup)
+router.post('/logs/batch', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { SMSLogService } = await import('../services/smsLogService');
+    const { messageIds } = req.body;
+
+    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'messageIds array is required', code: 'INVALID_INPUT' }
+      });
+      return;
+    }
+
+    // Limit batch size
+    if (messageIds.length > 100) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Maximum 100 message IDs per request', code: 'BATCH_TOO_LARGE' }
+      });
+      return;
+    }
+
+    const results: any[] = [];
+    for (const messageId of messageIds) {
+      const log = await SMSLogService.getSMSLogByMessageId(messageId);
+      results.push({
+        message_id: messageId,
+        found: !!log,
+        status: log?.status || null,
+        delivery_timestamp: log?.delivery_timestamp || null,
+        error_message: log?.error_message || null
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        results,
+        total: results.length,
+        found: results.filter(r => r.found).length
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to batch lookup SMS logs:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to batch lookup SMS logs', details: error.message }
+    });
+  }
+});
+
 export default router;

@@ -1,6 +1,7 @@
 import { executeQuery } from '../config/database';
 import { SMSManagementService } from './smsManagementService';
 import { renderTemplateString } from '../utils/templateRenderer';
+import { SMSLogService } from './smsLogService';
 
 // Create a simple logger if it doesn't exist
 const logger = {
@@ -347,6 +348,21 @@ export class BirthdaySMSService {
       // Generate personalized message or use custom message
       const personalizedMessage = customMessage || await this.generateBirthdayMessage(member, config);
 
+      // Generate unique message ID for tracking
+      const trackingMessageId = SMSLogService.generateMessageId('birthday');
+
+      // Log the SMS send attempt
+      await SMSLogService.logSMSSend({
+        message_id: trackingMessageId,
+        source_type: 'birthday',
+        source_reference_id: memberId.toString(),
+        recipient_phone: member.cell_number,
+        recipient_name: member.full_name,
+        recipient_member_id: member.member_id?.toString(),
+        message_content: personalizedMessage,
+        status: 'sending'
+      });
+
       // Send the SMS
       const smsResult = await SMSManagementService.sendSMSMessage({
         recipient_phone: member.cell_number,
@@ -357,6 +373,13 @@ export class BirthdaySMSService {
         retry_count: 0,
         cost_per_sms: 0.05,
         total_cost: 0.05
+      });
+
+      // Update SMS log with result
+      await SMSLogService.updateSMSLog(trackingMessageId, {
+        status: smsResult.success ? 'sent' : 'failed',
+        provider_message_id: smsResult.messageId,
+        error_message: smsResult.error
       });
 
       if (smsResult.success) {
@@ -373,7 +396,7 @@ export class BirthdaySMSService {
           member.full_name,
           member.cell_number,
           personalizedMessage,
-          smsResult.messageId || '',
+          trackingMessageId, // Use our tracking message ID
           'delivered',
           currentYear,
           member.current_age
@@ -382,7 +405,7 @@ export class BirthdaySMSService {
         return {
           success: true,
           message: 'Birthday SMS sent to ' + member.full_name + '',
-          messageId: smsResult.messageId
+          messageId: trackingMessageId
         };
       } else {
         return { success: false, error: smsResult.error || 'Failed to send SMS' };

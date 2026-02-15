@@ -48,7 +48,10 @@ import {
   CalendarToday,
   EventBusy,
   HowToReg,
+  HowToVote,
   CompareArrows,
+  Cake,
+  Schedule,
 } from '@mui/icons-material';
 import PerformanceDashboard from '../../components/reports/PerformanceDashboard';
 import StrategicInsights from '../../components/reports/StrategicInsights';
@@ -57,6 +60,8 @@ import DemographicsReport from '../../components/reports/DemographicsReport';
 import ProvincialDistributionReport from '../../components/reports/ProvincialDistributionReport';
 import RegionalComparisonReport from '../../components/reports/RegionalComparisonReport';
 import MonthlySummaryReport from '../../components/reports/MonthlySummaryReport';
+import BirthdayReport from '../../components/reports/BirthdayReport';
+import VoterRegistrationReport from '../../components/reports/VoterRegistrationReport';
 import { reportsApi } from '../../services/reportsApi';
 
 const ReportsPage: React.FC = () => {
@@ -67,6 +72,8 @@ const ReportsPage: React.FC = () => {
   const [provincialDistributionOpen, setProvincialDistributionOpen] = useState(false);
   const [regionalComparisonOpen, setRegionalComparisonOpen] = useState(false);
   const [monthlySummaryOpen, setMonthlySummaryOpen] = useState(false);
+  const [birthdayReportOpen, setBirthdayReportOpen] = useState(false);
+  const [voterRegistrationReportOpen, setVoterRegistrationReportOpen] = useState(false);
 
   // Excel Reports State
   const [isDownloading, setIsDownloading] = useState(false);
@@ -85,6 +92,8 @@ const ReportsPage: React.FC = () => {
     ward_code: '',
   });
 
+  const [exportFormat, setExportFormat] = useState<'csv' | 'excel'>('excel');
+
   // Fetch provinces for dropdown
   const { data: provincesData } = useQuery({
     queryKey: ['provinces'],
@@ -97,6 +106,20 @@ const ReportsPage: React.FC = () => {
     ? provincesData.data.data
     : Array.isArray(provincesData?.data)
     ? provincesData.data
+    : [];
+
+  // Fetch municipalities for dropdown (filtered by selected province)
+  const { data: municipalitiesData } = useQuery({
+    queryKey: ['municipalities', reportFilters.province_code],
+    queryFn: () => geographicApi.getMunicipalities(reportFilters.province_code || undefined),
+    staleTime: 10 * 60 * 1000,
+    enabled: selectedExcelReport === 'expiring-members',
+  });
+
+  const municipalities = Array.isArray(municipalitiesData?.data?.data)
+    ? municipalitiesData.data.data
+    : Array.isArray(municipalitiesData?.data)
+    ? municipalitiesData.data
     : [];
 
   // Excel Report Download Handler
@@ -138,6 +161,13 @@ const ReportsPage: React.FC = () => {
         case 'different-ward':
           result = await reportsApi.downloadDifferentWardMembersReport({
             province_code: reportFilters.province_code,
+          });
+          break;
+        case 'expiring-members':
+          result = await reportsApi.downloadExpiringMembersReport({
+            province_code: reportFilters.province_code || undefined,
+            municipality_code: reportFilters.municipality_code || undefined,
+            format: exportFormat,
           });
           break;
         default:
@@ -256,6 +286,18 @@ const ReportsPage: React.FC = () => {
     // Handle Monthly Summary Report specially
     if (reportName === 'Monthly Summary') {
       setMonthlySummaryOpen(true);
+      return;
+    }
+
+    // Handle Birthday Report specially
+    if (reportName === 'Birthday Report') {
+      setBirthdayReportOpen(true);
+      return;
+    }
+
+    // Handle Voter Registration Report specially
+    if (reportName === 'Voter Registration Report') {
+      setVoterRegistrationReportOpen(true);
       return;
     }
 
@@ -426,6 +468,30 @@ const ReportsPage: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Schedule color="success" />
+                  <Typography variant="h6">Expiring Members</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Members whose membership expires on or after 1st October 2026 (CSV/Excel)
+                </Typography>
+                <Chip label="CSV/Excel" size="small" color="success" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="success"
+                  startIcon={isDownloading && downloadingReport === 'expiring-members' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('expiring-members')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
       </Paper>
 
@@ -508,6 +574,28 @@ const ReportsPage: React.FC = () => {
               sx={{ py: 1.5 }}
             >
               Performance Dashboard
+            </Button>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<Cake />}
+              onClick={() => handleGenerateReport('Birthday Report')}
+              sx={{ py: 1.5 }}
+            >
+              Birthday Report
+            </Button>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<HowToVote />}
+              onClick={() => handleGenerateReport('Voter Registration Report')}
+              sx={{ py: 1.5 }}
+            >
+              Voter Registration
             </Button>
           </Grid>
         </Grid>
@@ -761,6 +849,7 @@ const ReportsPage: React.FC = () => {
           {selectedExcelReport === 'expired-members' && 'Expired Members Report Filters'}
           {selectedExcelReport === 'not-registered' && 'Not Registered Members Report Filters'}
           {selectedExcelReport === 'different-ward' && 'Different Ward Members Report Filters'}
+          {selectedExcelReport === 'expiring-members' && 'Expiring Members Report Filters'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -814,6 +903,58 @@ const ReportsPage: React.FC = () => {
                 </Select>
               </FormControl>
             )}
+            {selectedExcelReport === 'expiring-members' && (
+              <>
+                <FormControl fullWidth>
+                  <InputLabel id="expiring-province-select-label">Province (Optional)</InputLabel>
+                  <Select
+                    labelId="expiring-province-select-label"
+                    value={reportFilters.province_code}
+                    onChange={(e) => setReportFilters({ ...reportFilters, province_code: e.target.value, municipality_code: '' })}
+                    label="Province (Optional)"
+                  >
+                    <MenuItem value="">
+                      <em>All Provinces</em>
+                    </MenuItem>
+                    {provinces.map((province: { province_code: string; province_name: string }) => (
+                      <MenuItem key={province.province_code} value={province.province_code}>
+                        {province.province_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="expiring-municipality-select-label">Municipality (Optional)</InputLabel>
+                  <Select
+                    labelId="expiring-municipality-select-label"
+                    value={reportFilters.municipality_code}
+                    onChange={(e) => setReportFilters({ ...reportFilters, municipality_code: e.target.value })}
+                    label="Municipality (Optional)"
+                  >
+                    <MenuItem value="">
+                      <em>All Municipalities</em>
+                    </MenuItem>
+                    {municipalities.map((muni: { municipality_code: string; municipality_name: string }) => (
+                      <MenuItem key={muni.municipality_code} value={muni.municipality_code}>
+                        {muni.municipality_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="export-format-label">Export Format</InputLabel>
+                  <Select
+                    labelId="export-format-label"
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value as 'csv' | 'excel')}
+                    label="Export Format"
+                  >
+                    <MenuItem value="excel">Excel (.xlsx)</MenuItem>
+                    <MenuItem value="csv">CSV (.csv)</MenuItem>
+                  </Select>
+                </FormControl>
+              </>
+            )}
             <Alert severity="info">
               {selectedExcelReport === 'ward-audit' && 'This report contains 2 worksheets: Provincial Summary and Municipality Detail'}
               {selectedExcelReport === 'daily-report' && 'This report contains 2 worksheets: Municipality/District Analysis and IEC Wards Master List (~4,400 wards)'}
@@ -821,6 +962,7 @@ const ReportsPage: React.FC = () => {
               {selectedExcelReport === 'expired-members' && 'This report lists members whose membership has expired, including Member ID, Full Name, ID Number, Province, Municipality, Ward, Expiry Date, and Days Expired'}
               {selectedExcelReport === 'not-registered' && 'This report lists members who are not registered to vote (voting_district_code = 99999999), including Member ID, Full Name, ID Number, Province, Municipality, Ward, and Membership Status'}
               {selectedExcelReport === 'different-ward' && 'This report lists members registered to a different ward than their membership ward (voting_district_code = 22222222), including Member ID, Full Name, ID Number, Membership Ward, Registered Ward, Province, and Municipality'}
+              {selectedExcelReport === 'expiring-members' && 'This report lists members whose membership expires on or after 1st October 2026, including Full Name, ID Number, Ward, Municipality, Voting District, Province, District, and Expiry Date'}
             </Alert>
           </Box>
         </DialogContent>
@@ -832,9 +974,31 @@ const ReportsPage: React.FC = () => {
             disabled={isDownloading}
             startIcon={isDownloading ? <CircularProgress size={16} /> : <Download />}
           >
-            Download Excel
+            {selectedExcelReport === 'expiring-members' ? `Download ${exportFormat === 'csv' ? 'CSV' : 'Excel'}` : 'Download Excel'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Birthday Report Dialog */}
+      <Dialog
+        open={birthdayReportOpen}
+        onClose={() => setBirthdayReportOpen(false)}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{ sx: { height: '90vh' } }}
+      >
+        <BirthdayReport onClose={() => setBirthdayReportOpen(false)} />
+      </Dialog>
+
+      {/* Voter Registration Report Dialog */}
+      <Dialog
+        open={voterRegistrationReportOpen}
+        onClose={() => setVoterRegistrationReportOpen(false)}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{ sx: { height: '90vh' } }}
+      >
+        <VoterRegistrationReport onClose={() => setVoterRegistrationReportOpen(false)} />
       </Dialog>
 
       {/* Snackbar for notifications */}

@@ -517,7 +517,7 @@ export class MessageService {
           throw new Error('No phone number for recipient');
         }
 
-        const { WasenderApiService: wsApi } = await import('./wasenderApiService');
+        const { WhatsAppProviderManager } = await import('./whatsappProviderManager');
 
         // Handle media messages
         if (message.template_id) {
@@ -529,7 +529,7 @@ export class MessageService {
         // Check if content has image or document markers (custom logic for now)
         // In a real scenario, we might have message_type or metadata
         if (message.message_type === 'Text' || message.message_type === 'Template') {
-          await wsApi.sendTextMessage(recipientPhone, message.content);
+          await WhatsAppProviderManager.sendTextMessage(recipientPhone, message.content);
         }
 
         return true;
