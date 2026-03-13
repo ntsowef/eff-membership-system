@@ -237,7 +237,7 @@ router.post('/mark-read', authenticate, async (req: Request, res: Response, next
     if (!isAdmin) {
       // Verify all notifications belong to the user
       const userNotifications = await NotificationModel.getNotifications(1000, 0, { user_id: req.user!.id });
-      const userNotificationIds = userNotifications.map(n => n.id);
+      const userNotificationIds = userNotifications.map(n => n.notification_id);
       
       const invalidIds = ids.filter(id => !userNotificationIds.includes(id));
       if (invalidIds.length > 0) {
