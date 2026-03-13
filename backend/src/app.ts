@@ -53,6 +53,8 @@ import {
 import { MeetingStatusJob } from './jobs/meetingStatusJob';
 import { MembershipStatusJob } from './jobs/membershipStatusJob';
 import { BirthdayMessageJob } from './jobs/birthdayMessageJob';
+import { MembershipRenewalSMSJob } from './jobs/membershipRenewalSMSJob';
+import { MonthlyFileArchiveJob } from './jobs/monthlyFileArchiveJob';
 import { scheduleWardAuditViewRefresh } from './jobs/refreshMaterializedViews';
 
 // Import queue workers and file storage
@@ -82,10 +84,13 @@ import securityRoutes from './routes/security'; // ✅ MIGRATED TO PRISMA
 import importExportRoutes from './routes/importExport';
 // import smsRoutes from './routes/sms'; // Temporarily disabled due to conflicts
 import smsManagementRoutes from './routes/smsManagement';
+import smsReportsRoutes from './routes/smsReports';
 import smsWebhookRoutes from './routes/smsWebhooks';
 import smsIntegrationTestRoutes from './routes/smsIntegrationTest';
 import communicationRoutes from './routes/communication';
 import birthdaySMSRoutes from './routes/birthdaySMS';
+import voterRegistrationSMSRoutes from './routes/voterRegistrationSMS';
+import membershipRenewalSMSRoutes from './routes/membershipRenewalSMS';
 import cacheManagementRoutes from './routes/cacheManagement';
 import sessionManagementRoutes from './routes/sessionManagement';
 import adminManagementRoutes from './routes/adminManagement';
@@ -109,6 +114,8 @@ import bulkUploadRoutes from './routes/bulkUploadRoutes';
 import metricsRoutes from './routes/metrics';
 import whatsappBotRoutes from './routes/whatsappBot';
 import emergencyAccessRoutes from './routes/emergencyAccess';
+import memberRenewalLogRoutes from './routes/memberRenewalLog';
+import provincialAdminPerformanceRoutes from './routes/provincialAdminPerformance';
 import { createAuthRoutes } from './middleware/auth';
 import { cacheService } from './services/cacheService';
 import { cacheMetricsMiddleware } from './middleware/cacheMetrics';
@@ -276,11 +283,14 @@ app.use(`${apiPrefix}/system`, systemRoutes);
 app.use(`${apiPrefix}/security`, securityRoutes); // ✅ MIGRATED TO PRISMA
 app.use(`${apiPrefix}/import-export`, importExportRoutes);
 // app.use(`${apiPrefix}/sms`, smsRoutes); // Temporarily disabled
+app.use(`${apiPrefix}/sms/reports`, smsReportsRoutes);
 app.use(`${apiPrefix}/sms`, smsManagementRoutes);
 app.use(`${apiPrefix}/sms-webhooks`, smsWebhookRoutes);
 app.use(`${apiPrefix}/sms-test`, smsIntegrationTestRoutes);
 app.use(`${apiPrefix}/communication`, communicationRoutes);
 app.use(`${apiPrefix}/birthday-sms`, birthdaySMSRoutes);
+app.use(`${apiPrefix}/voter-registration-sms`, voterRegistrationSMSRoutes);
+app.use(`${apiPrefix}/membership-renewal-sms`, membershipRenewalSMSRoutes);
 app.use(`${apiPrefix}/cache`, cacheManagementRoutes);
 app.use(`${apiPrefix}/session`, sessionManagementRoutes);
 app.use(`${apiPrefix}/admin-management`, adminManagementRoutes);
@@ -303,6 +313,8 @@ app.use(`${apiPrefix}/self-data-management`, selfDataManagementRoutes);
 app.use(`${apiPrefix}/internal`, internalRoutes); // Internal API for Python scripts
 app.use(`${apiPrefix}/bulk-upload`, bulkUploadRoutes); // New bulk upload API
 app.use(`${apiPrefix}/whatsapp`, whatsappBotRoutes); // WhatsApp Bot (WasenderAPI)
+app.use(`${apiPrefix}/renewal-logs`, memberRenewalLogRoutes); // Dedicated renewal logging
+app.use(`${apiPrefix}/admin-performance`, provincialAdminPerformanceRoutes); // Provincial admin leaderboard
 
 // Root endpoint - POST handler (webhook payloads are logged but NOT processed here to avoid double replies)
 app.post('/', async (req: Request, res: Response) => {
@@ -518,9 +530,17 @@ const startServer = async (): Promise<void> => {
       BirthdayMessageJob.start();
       if (verbose) console.log(`🎂 Birthday Message Job: Active (daily at 08:00 SAST)`);
 
+      // Membership renewal SMS job disabled — credits must be managed manually
+      // MembershipRenewalSMSJob.start();
+      if (verbose) console.log(`📱 Membership Renewal SMS Job: Disabled (manual send only)`);
+
       // Start ward audit materialized view refresh job (every 15 minutes)
       scheduleWardAuditViewRefresh();
       if (verbose) console.log(`🔄 Ward Audit Materialized View Refresh: Active (every 15 minutes)`);
+
+      // Start monthly file archive job (1st of every month at 01:00 AM SAST)
+      MonthlyFileArchiveJob.start();
+      if (verbose) console.log(`📦 Monthly File Archive Job: Active (1st of every month at 01:00 AM SAST)`);
 
       // Start file cleanup job (daily at 2 AM)
       const scheduleFileCleanup = () => {
@@ -593,6 +613,12 @@ const startServer = async (): Promise<void> => {
 
       // Stop birthday message job
       BirthdayMessageJob.stop();
+
+      // Membership renewal SMS job disabled
+      // MembershipRenewalSMSJob.stop();
+
+      // Stop monthly file archive job
+      MonthlyFileArchiveJob.stop();
 
       // Close queue connections
       if (verbose) console.log('🔄 Closing queue connections...');
