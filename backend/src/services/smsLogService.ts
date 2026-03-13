@@ -1,7 +1,7 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { logger } from '../utils/logger';
 
-export type SMSSourceType = 'quick_send' | 'birthday' | 'campaign' | 'expiration_reminder' | 'bulk' | 'manual';
+export type SMSSourceType = 'quick_send' | 'birthday' | 'campaign' | 'expiration_reminder' | 'bulk' | 'manual' | 'voter_registration' | 'system' | 'otp';
 export type SMSStatus = 'pending' | 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'expired';
 
 export interface SMSSendLogEntry {
@@ -272,7 +272,7 @@ export class SMSLogService {
     try {
       // Extract message ID from webhook data (flexible parsing)
       const messageId = webhookData.message_id || webhookData.messageId ||
-                        webhookData.id || webhookData.reference || webhookData.ref;
+        webhookData.id || webhookData.reference || webhookData.ref;
 
       if (!messageId) {
         logger.warn('Webhook missing message ID', { webhookData });
@@ -281,7 +281,7 @@ export class SMSLogService {
 
       // Map status from webhook
       const rawStatus = webhookData.status || webhookData.delivery_status ||
-                        webhookData.state || webhookData.message_status;
+        webhookData.state || webhookData.message_status;
       const status = this.mapWebhookStatus(rawStatus);
 
       // Update the log entry

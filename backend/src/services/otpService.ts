@@ -507,11 +507,17 @@ export class OTPService {
 
       console.log(`📱 Sending OTP to ${formattedNumber}...`);
 
+      // Generate unique message ID for tracking
+      const trackingId = `otp_${otpId}_${Date.now()}`;
+
       // Send SMS using SMS service
       const result = await SMSService.sendSMS(
         formattedNumber,
         message,
-        'EFF-MFA' // From name/number
+        'EFF-MFA', // From name/number
+        trackingId,
+        'otp',
+        userId.toString()
       );
 
       if (result.success) {

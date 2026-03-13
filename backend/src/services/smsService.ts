@@ -4,12 +4,15 @@ import { logger } from '../utils/logger';
 import { renderTemplateString } from '../utils/templateRenderer';
 import axios from 'axios';
 import { config } from '../config/config';
+import { SMSCreditService } from './smsCreditService';
+import { SMSLogService, SMSSourceType } from './smsLogService';
 
 // SMS Provider interfaces
 export interface LegacySMSMessage {
   to: string;
   message: string;
   from: string;
+  message_id?: string;
 }
 
 export interface SMSResponse {
@@ -32,6 +35,7 @@ class JSONApplinkProvider implements SMSProvider {
   private authenticationCode: string;
   private affiliateCode: string;
   private fromNumber?: string;
+  private postbackUrl: string;
   private rateLimitPerMinute: number;
   private lastRequestTime: number = 0;
   private requestCount: number = 0;
@@ -41,12 +45,14 @@ class JSONApplinkProvider implements SMSProvider {
     authenticationCode: string;
     affiliateCode: string;
     fromNumber?: string;
+    postbackUrl?: string;
     rateLimitPerMinute?: number;
   }) {
     this.apiUrl = config.apiUrl;
     this.authenticationCode = config.authenticationCode;
     this.affiliateCode = config.affiliateCode;
     this.fromNumber = config.fromNumber;
+    this.postbackUrl = config.postbackUrl || process.env.SMS_CALLBACK_URL || 'https://api.effmemberportal.org/api/v1/sms-webhooks/delivery/json-applink';
     this.rateLimitPerMinute = config.rateLimitPerMinute || 100;
   }
 
@@ -63,7 +69,15 @@ class JSONApplinkProvider implements SMSProvider {
     // Check if we've exceeded the rate limit
     if (this.requestCount >= this.rateLimitPerMinute) {
       const waitTime = oneMinute - (now - this.lastRequestTime);
-      throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`);
+      if (waitTime > 0) {
+        logger.info(`Rate limit reached (${this.rateLimitPerMinute} per min). Cooling down for ${Math.ceil(waitTime / 1000)}s...`);
+        // Stop iterating until the minute has passed
+        await new Promise(resolve => setTimeout(resolve, waitTime + 500));
+
+        // Reset counter after cooling down
+        this.requestCount = 0;
+        this.lastRequestTime = Date.now();
+      }
     }
 
     this.requestCount++;
@@ -82,17 +96,19 @@ class JSONApplinkProvider implements SMSProvider {
       };
 
       // Prepare request payload in JSON Applink's required format
-      // This is the CORRECT format that works with JSON Applink API
+      // postbackUrl is required for delivery report callbacks
       const payload = {
         affiliateCode: this.affiliateCode,
         authenticationCode: this.authenticationCode,
         submitDateTime: new Date().toISOString(),
         messageType: 'text',
+        postBackUrl: this.postbackUrl,
         recipientList: {
           recipient: [
             {
               msisdn: message.to,
-              message: message.message
+              message: message.message,
+              correlator: message.message_id
             }
           ]
         }
@@ -414,7 +430,47 @@ export class SMSService {
   }
 
   // Send SMS using current provider
-  static async sendSMS(to: string, message: string, from: string): Promise<SMSResponse> {
+  static async sendSMS(
+    to: string, 
+    message: string, 
+    from: string, 
+    messageId?: string,
+    sourceType: SMSSourceType = 'system',
+    sourceReferenceId?: string
+  ): Promise<SMSResponse> {
+    const trackingId = messageId || SMSLogService.generateMessageId(sourceType);
+
+    // Initial logging
+    try {
+      await SMSLogService.logSMSSend({
+        message_id: trackingId,
+        source_type: sourceType,
+        source_reference_id: sourceReferenceId,
+        recipient_phone: to,
+        message_content: message,
+        status: 'sending'
+      });
+    } catch (logErr) {
+      logger.warn('Initial SMS logging failed', { error: logErr });
+    }
+
+    // Check message length (SMS standard single page limit)
+    if (message.length > 160) {
+      const failError = `Message exceeds 160 character limit (length: ${message.length}). Please shorten your message.`;
+      
+      // Update log with failure
+      await SMSLogService.updateSMSLog(trackingId, {
+        status: 'failed',
+        error_message: failError
+      }).catch(e => logger.warn('Failed to update SMS log for length error', { error: e }));
+
+      return {
+        success: false,
+        error: failError,
+        provider: 'validation'
+      };
+    }
+
     // Check if SMS is enabled
     if (config.sms?.enabled === false) {
       logger.info('SMS sending is disabled via configuration', {
@@ -430,8 +486,46 @@ export class SMSService {
       };
     }
 
+    // Credit check — block if no credits remain
+    try {
+      const hasCredits = await SMSCreditService.hasSufficientCredits(1);
+      if (!hasCredits) {
+        logger.warn('SMS blocked — insufficient credits', { to });
+        return {
+          success: false,
+          error: 'Insufficient SMS credits. Please purchase more credits.',
+          provider: 'credit_check'
+        };
+      }
+    } catch (creditError) {
+      // If credit table doesn't exist yet, allow sending (graceful degradation)
+      logger.warn('SMS credit check failed, allowing send', { error: creditError });
+    }
+
     const provider = this.getProvider();
-    return provider.sendSMS({ to, message, from });
+    const result = await provider.sendSMS({ to, message, from, message_id: trackingId });
+
+    // Update log with result
+    try {
+      await SMSLogService.updateSMSLog(trackingId, {
+        status: result.success ? 'sent' : 'failed',
+        provider_message_id: result.messageId,
+        error_message: result.error
+      });
+    } catch (logErr) {
+      logger.warn('SMS log update failed after send', { error: logErr });
+    }
+
+    // Deduct credit after successful send
+    if (result.success) {
+      try {
+        await SMSCreditService.deductCredits(1, to);
+      } catch (deductError) {
+        logger.warn('SMS sent but credit deduction failed', { to, error: deductError });
+      }
+    }
+
+    return result;
   }
 
   // Get provider health status
@@ -485,7 +579,7 @@ export class SMSService {
 
       // Get target members based on notification type and member_ids
       const targetMembers = await this.getTargetMembers(notification_type, member_ids);
-      
+
       if (targetMembers.length === 0) {
         return {
           successful_sends: 0,
@@ -497,7 +591,7 @@ export class SMSService {
 
       // Get SMS template
       const template = custom_message || this.SMS_TEMPLATES[notification_type as keyof typeof this.SMS_TEMPLATES]?.template;
-      
+
       if (!template) {
         throw new Error(`Invalid notification type: ${notification_type}`);
       }
@@ -511,10 +605,10 @@ export class SMSService {
         try {
           // Personalize message
           const personalizedMessage = this.personalizeMessage(template, member);
-          
+
           // Simulate SMS sending (in real implementation, integrate with SMS provider)
           const smsResult = await this.sendSMSInternal(member.phone_number, personalizedMessage, send_immediately);
-          
+
           notificationDetails.push({
             member_id: member.member_id,
             member_name: `${member.first_name} ${member.last_name}`,

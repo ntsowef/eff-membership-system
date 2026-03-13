@@ -1,11 +1,12 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import { emailService } from '../services/emailService';
-// import { smsService } from '../services/smsService'; // Temporarily disabled
+import { SMSService } from '../services/smsService';
+import { SMSLogService } from '../services/smsLogService';
 
 // Notification interfaces
 export interface Notification {
-  id: number;
+  notification_id: number;
   user_id?: number;
   member_id?: number;
   recipient_type: 'User' | 'Member' | 'Admin';
@@ -68,6 +69,7 @@ export class NotificationModel {
           user_id, member_id, recipient_type, notification_type, delivery_channel,
           title, message, template_id, template_data, delivery_status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+        RETURNING notification_id
       `;
 
       const params = [
@@ -83,7 +85,7 @@ export class NotificationModel {
       ];
 
       const result = await executeQuery(query, params);
-      const notificationId = result.insertId;
+      const notificationId = result[0]?.notification_id || result.insertId;
 
       // Send immediately if requested
       if (notificationData.send_immediately) {
@@ -106,8 +108,8 @@ export class NotificationModel {
           u.email as recipient_email
         FROM notifications n
         LEFT JOIN users u ON n.user_id = u.id
-        LEFT JOIN members_consolidated m ON n.member_id = m.id
-        WHERE n.id = ?
+        LEFT JOIN members_consolidated m ON n.member_id = m.member_id
+        WHERE n.notification_id = ?
       `;
 
       const notification = await executeQuerySingle<NotificationDetails>(query, [id]);
@@ -187,7 +189,7 @@ export class NotificationModel {
           u.email as recipient_email
         FROM notifications n
         LEFT JOIN users u ON n.user_id = u.id
-        LEFT JOIN members_consolidated m ON n.member_id = m.id
+        LEFT JOIN members_consolidated m ON n.member_id = m.member_id
         ${whereClause}
         ORDER BY n.created_at DESC
         LIMIT ? OFFSET ?
@@ -300,7 +302,7 @@ export class NotificationModel {
       fields.push('updated_at = CURRENT_TIMESTAMP');
       params.push(id);
 
-      const query = `UPDATE notifications SET ${fields.join(', ')} WHERE id = ?`;
+      const query = `UPDATE notifications SET ${fields.join(', ')} WHERE notification_id = ?`;
       const result = await executeQuery(query, params);
 
       return result.affectedRows > 0;
@@ -327,7 +329,7 @@ export class NotificationModel {
       const query = `
         UPDATE notifications 
         SET read_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE id IN (${placeholders}) AND read_at IS NULL
+        WHERE notification_id IN (${placeholders}) AND read_at IS NULL
       `;
 
       const result = await executeQuery(query, ids);
@@ -437,9 +439,17 @@ export class NotificationModel {
         smsMessage = smsMessage.substring(0, 157) + '...';
       }
 
-      // Send SMS (temporarily disabled)
-      // const result = await smsService.sendSMS(phoneNumber, smsMessage);
-      const result = { success: false, error: 'SMS service temporarily disabled', provider: 'mock' };
+      // Send SMS using the centralized SMSService
+      const trackingId = SMSLogService.generateMessageId(
+        notification.notification_type === 'System' ? 'system' : 'campaign'
+      );
+
+      const result = await SMSService.sendSMS(
+        phoneNumber,
+        smsMessage,
+        'EFF',
+        trackingId
+      );
 
       if (result.success) {
         console.log(`SMS sent successfully to ${phoneNumber} via ${result.provider}`);
@@ -479,7 +489,7 @@ export class NotificationModel {
       let failed = 0;
 
       for (const notification of pendingNotifications) {
-        const success = await this.sendNotification(notification.id);
+        const success = await this.sendNotification(notification.notification_id);
         if (success) {
           sent++;
         } else {
@@ -496,7 +506,7 @@ export class NotificationModel {
   // Delete notification
   static async deleteNotification(id: number): Promise<boolean> {
     try {
-      const query = 'DELETE FROM notifications WHERE id = ?';
+      const query = 'DELETE FROM notifications WHERE notification_id = ?';
       const result = await executeQuery(query, [id]);
 
       return result.affectedRows > 0;
