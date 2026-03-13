@@ -19,7 +19,7 @@ interface BackupInfo {
 }
 
 export class BackupService {
-  private static BACKUP_DIR = path.join(process.cwd(), 'backups');
+  private static BACKUP_DIR = process.env.BACKUP_PATH || path.join(process.cwd(), 'backups');
   private static MAX_BACKUPS = 10; // Keep last 10 backups
 
   /**
