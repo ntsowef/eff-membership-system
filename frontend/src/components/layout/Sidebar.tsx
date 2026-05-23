@@ -46,6 +46,9 @@ import {
   Groups,
   WhatsApp,
   Security,
+  AccountBalanceWallet,
+  CreditCard as CardIcon,
+  PersonOff as PersonOffIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../store';
 import LogoutButton from '../auth/LogoutButton';
@@ -55,21 +58,27 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-interface MenuItem {
+// ─── Shared Menu Types & Data ──────────────────────────────────────────────────
+export interface MenuItem {
   id: string;
   label: string;
   icon: React.ReactElement;
   path?: string;
   children?: MenuItem[];
-  // Permission requirements
-  requireSMS?: boolean; // Requires SMS permission (National Admin only)
-  requireElectionManagement?: boolean; // Requires election management permission (National/Provincial Admin)
-  requireDelegatesManagement?: boolean; // Requires delegates management permission
-  adminLevels?: ('national' | 'province' | 'district' | 'municipality' | 'ward')[]; // Required admin levels
-  permissions?: string[]; // Custom permission requirements
+  requireSMS?: boolean;
+  requireElectionManagement?: boolean;
+  requireDelegatesManagement?: boolean;
+  adminLevels?: ('national' | 'province' | 'district' | 'municipality' | 'ward')[];
+  permissions?: string[];
 }
 
-const menuItems: MenuItem[] = [
+/**
+ * Reorganised menu items – elections removed, grouped logically:
+ * Dashboards → Membership → Search → Leadership & Meetings →
+ * Communication → Finance → Analytics → Audit & Compliance → Administration → Profile
+ */
+export const menuItems: MenuItem[] = [
+  // ── Dashboards ──
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -81,8 +90,10 @@ const menuItems: MenuItem[] = [
     label: 'Hierarchical Dashboard',
     icon: <AccountTree />,
     path: '/admin/dashboard/hierarchical',
-    adminLevels: ['national', 'province', 'municipality'], // National, Province, and Municipal Admin only
+    adminLevels: ['national', 'province', 'municipality'],
   },
+
+  // ── Membership ──
   {
     id: 'members',
     label: 'Members',
@@ -117,9 +128,25 @@ const menuItems: MenuItem[] = [
         label: 'Renewal Management',
         icon: <TrendingUp />,
         path: '/admin/renewal-management',
+        adminLevels: ['national'],
+      },
+      {
+        id: 'digital-cards',
+        label: 'Digital Membership Cards',
+        icon: <CardIcon />,
+        path: '/admin/digital-cards',
       },
     ],
   },
+  {
+    id: 'applications',
+    label: 'Applications',
+    icon: <Assignment />,
+    path: '/admin/applications',
+    adminLevels: ['national'],
+  },
+
+  // ── Search & Lookup ──
   {
     id: 'search',
     label: 'Search & Lookup',
@@ -151,25 +178,14 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
-  {
-    id: 'applications',
-    label: 'Applications',
-    icon: <Assignment />,
-    path: '/admin/applications',
-  },
+
+  // ── Leadership & Meetings ──
   {
     id: 'leadership',
     label: 'Leadership',
     icon: <SupervisorAccount />,
     path: '/admin/leadership',
-    adminLevels: ['national', 'province'], // Only National and Provincial Admin can manage leadership
-  },
-  {
-    id: 'elections',
-    label: 'Elections',
-    icon: <HowToVote />,
-    path: '/admin/elections',
-    adminLevels: ['national'], // Only National Admin
+    adminLevels: ['national', 'province'],
   },
   {
     id: 'meetings',
@@ -202,34 +218,65 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
+
+  // ── Communication ──
   {
     id: 'sms',
     label: 'SMS Communication',
     icon: <Sms />,
-    path: '/admin/sms',
-    requireSMS: true, // Only National Admin
+    requireSMS: true,
+    children: [
+      {
+        id: 'sms-management',
+        label: 'SMS Management',
+        icon: <Sms />,
+        path: '/admin/sms',
+      },
+      {
+        id: 'voter-registration-sms',
+        label: 'Voter Registration SMS',
+        icon: <HowToVote />,
+        path: '/admin/voter-registration-sms',
+      },
+      {
+        id: 'membership-renewal-sms',
+        label: 'Membership Renewal SMS',
+        icon: <Schedule />,
+        path: '/admin/membership-renewal-sms',
+      },
+      {
+        id: 'sms-credits',
+        label: 'SMS Credits',
+        icon: <AccountBalanceWallet />,
+        path: '/admin/sms-credits',
+      },
+    ],
   },
   {
     id: 'whatsapp',
     label: 'WhatsApp Communication',
     icon: <WhatsApp />,
     path: '/admin/whatsapp',
-    requireSMS: true, // Only National Admin
+    requireSMS: true,
   },
+
+  // ── Finance ──
   {
     id: 'financial-dashboard',
     label: 'Financial Dashboard',
     icon: <AccountBalance />,
     path: '/admin/financial-dashboard',
-    adminLevels: ['national'], // Only National Admin
+    adminLevels: ['national'],
   },
   {
     id: 'financial-transactions',
     label: 'Transaction History',
     icon: <History />,
     path: '/admin/financial-transactions',
-    adminLevels: ['national'], // Only National Admin
+    adminLevels: ['national'],
   },
+
+  // ── Analytics & Reports ──
   {
     id: 'analytics',
     label: 'Analytics',
@@ -246,6 +293,7 @@ const menuItems: MenuItem[] = [
         label: 'Business Intelligence',
         icon: <Assessment />,
         path: '/admin/business-intelligence',
+        adminLevels: ['national'],
       },
       {
         id: 'reports',
@@ -254,6 +302,34 @@ const menuItems: MenuItem[] = [
         path: '/admin/reports',
       },
     ],
+  },
+
+  // ── Audit & Compliance ──
+  {
+    id: 'lge2026',
+    label: 'LGE2026',
+    icon: <HowToVote />,
+    children: [
+      {
+        id: 'lge2026-ward-audits',
+        label: 'Ward Audits',
+        icon: <Assessment />,
+        path: '/admin/ward-audit',
+      },
+      {
+        id: 'lge2026-candidates-list',
+        label: 'Ward Candidates List',
+        icon: <People />,
+        path: '/admin/lge2026/candidates',
+      },
+      {
+        id: 'lge2026-candidate-selection',
+        label: 'Ward Candidate Selection',
+        icon: <HowToReg />,
+        path: '/admin/lge2026/candidate-selection',
+      },
+    ],
+    adminLevels: ['national', 'province'],
   },
   {
     id: 'ward-audit',
@@ -273,21 +349,21 @@ const menuItems: MenuItem[] = [
         path: '/admin/srpa-delegate-setter',
       },
     ],
-    adminLevels: ['national', 'province'], // National and Provincial Admin only
+    adminLevels: ['national', 'province'],
   },
   {
     id: 'delegates-management',
     label: 'Delegates Management',
     icon: <Groups />,
     path: '/admin/delegates-management',
-    requireDelegatesManagement: true, // Requires delegates management permission
+    requireDelegatesManagement: true,
   },
   {
     id: 'self-data-management',
     label: 'Self Data Management',
     icon: <CloudUpload />,
     path: '/admin/self-data-management',
-    adminLevels: ['national', 'province'], // National and Provincial Admin only
+    adminLevels: ['national', 'province'],
   },
   {
     id: 'audit',
@@ -326,26 +402,35 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
+
+  // ── Administration ──
   {
     id: 'users',
     label: 'User Management',
     icon: <SupervisorAccount />,
     path: '/admin/users',
-    adminLevels: ['national', 'province'], // National and Provincial Admin only
+    adminLevels: ['national', 'province'],
   },
   {
     id: 'admin-management',
     label: 'Admin Management',
     icon: <AdminPanelSettings />,
     path: '/admin/admin-management',
-    adminLevels: ['national'], // National Admin only
+    adminLevels: ['national'],
   },
   {
     id: 'mfa-emergency-access',
     label: 'MFA Emergency Access',
     icon: <Security />,
     path: '/admin/mfa-emergency-access',
-    adminLevels: ['national'], // National Admin only
+    adminLevels: ['national'],
+  },
+  {
+    id: 'deceased-purge',
+    label: 'Deceased Member Purge',
+    icon: <PersonOffIcon />,
+    path: '/admin/deceased-purge',
+    adminLevels: ['national'],
   },
   {
     id: 'super-admin',
@@ -401,24 +486,74 @@ const menuItems: MenuItem[] = [
         path: '/admin/super-admin/lookup-data',
       },
     ],
-    permissions: ['super_admin_only'], // Super Admin only
+    permissions: ['super_admin_only'],
   },
   {
     id: 'system',
     label: 'System',
     icon: <Settings />,
     path: '/admin/system',
-    adminLevels: ['national'], // National Admin only
+    adminLevels: ['national'],
   },
+
+  // ── Profile ──
   {
     id: 'profile',
     label: 'Profile & Settings',
     icon: <AccountCircle />,
     path: '/admin/profile',
-    // Available to all authenticated users
   },
 ];
 
+// ─── Shared permission helpers (used by both Sidebar and HorizontalNav) ──────
+export function isMenuItemVisible(
+  item: MenuItem,
+  permissions: { canAccessSMSManagement: boolean; canAccessElectionManagement: boolean; canAccessDelegatesManagement: boolean },
+  user: { admin_level?: string; role?: string } | null,
+): boolean {
+  if (item.requireSMS && !permissions.canAccessSMSManagement) return false;
+  if (item.requireElectionManagement && !permissions.canAccessElectionManagement) return false;
+  if (item.requireDelegatesManagement && !permissions.canAccessDelegatesManagement) return false;
+
+  if (item.adminLevels && item.adminLevels.length > 0) {
+    const userAdminLevel = user?.admin_level;
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    if (isSuperAdmin) return true;
+    if (!userAdminLevel || userAdminLevel === 'none' || !item.adminLevels.includes(userAdminLevel as any)) return false;
+  }
+
+  if (item.permissions && item.permissions.length > 0) {
+    const isFinancialReviewer = user?.role === 'FINANCIAL_REVIEWER' || user?.role === 'FINANCIAL_APPROVER';
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const isMembershipApprover = user?.role === 'MEMBERSHIP_APPROVER';
+    const isNationalAdmin = user?.admin_level === 'national';
+    const isProvincialAdmin = user?.admin_level === 'province';
+
+    if (item.permissions.includes('super_admin_only')) return isSuperAdmin;
+    if (item.permissions.some(p => p.startsWith('financial.'))) {
+      return isFinancialReviewer || isSuperAdmin || isMembershipApprover || isNationalAdmin || isProvincialAdmin;
+    }
+    return true;
+  }
+
+  return true;
+}
+
+export function getVisibleMenuItems(
+  items: MenuItem[],
+  permissions: { canAccessSMSManagement: boolean; canAccessElectionManagement: boolean; canAccessDelegatesManagement: boolean },
+  user: { admin_level?: string; role?: string } | null,
+): MenuItem[] {
+  return items
+    .filter(item => isMenuItemVisible(item, permissions, user))
+    .map(item => ({
+      ...item,
+      children: item.children ? getVisibleMenuItems(item.children, permissions, user) : undefined,
+    }))
+    .filter(item => !item.children || item.children.length > 0);
+}
+
+// ─── Sidebar Component ──────────────────────────────────────────────────────────
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -427,101 +562,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { permissions } = usePermissionCheck();
   const [openItems, setOpenItems] = React.useState<string[]>([]);
 
-  // Function to check if a menu item should be visible
-  const isMenuItemVisible = (item: MenuItem): boolean => {
-    // Check SMS permission requirement
-    if (item.requireSMS && !permissions.canAccessSMSManagement) {
-      return false;
-    }
-
-    // Check election management permission requirement
-    if (item.requireElectionManagement && !permissions.canAccessElectionManagement) {
-      return false;
-    }
-
-    // Check delegates management permission requirement
-    if (item.requireDelegatesManagement && !permissions.canAccessDelegatesManagement) {
-      return false;
-    }
-
-    // Check admin level requirements
-    if (item.adminLevels && item.adminLevels.length > 0) {
-      const userAdminLevel = user?.admin_level;
-      const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-
-      // Allow super admins to bypass admin level restrictions
-      if (isSuperAdmin) {
-        return true;
-      }
-
-      // Check if user's admin level is in the allowed list (excluding 'none')
-      if (!userAdminLevel || userAdminLevel === 'none' || !item.adminLevels.includes(userAdminLevel as any)) {
-        return false;
-      }
-    }
-
-    // Check custom permission requirements
-    if (item.permissions && item.permissions.length > 0) {
-      // Check if user has financial reviewer role or super admin role
-      const isFinancialReviewer = user?.role === 'FINANCIAL_REVIEWER' || user?.role === 'FINANCIAL_APPROVER';
-      const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-      const isMembershipApprover = user?.role === 'MEMBERSHIP_APPROVER';
-      const isNationalAdmin = user?.admin_level === 'national';
-      const isProvincialAdmin = user?.admin_level === 'province';
-
-      // For super admin only features
-      if (item.permissions.includes('super_admin_only')) {
-        return isSuperAdmin;
-      }
-
-      // For financial dashboard, allow financial reviewers, membership approvers, super admins, and national/provincial admins
-      if (item.permissions.some(p => p.startsWith('financial.'))) {
-        return isFinancialReviewer || isSuperAdmin || isMembershipApprover || isNationalAdmin || isProvincialAdmin;
-      }
-
-      return true; // For other permissions, allow by default for now
-    }
-
-    return true;
-  };
-
-  // Filter menu items based on permissions
-  const getVisibleMenuItems = (items: MenuItem[]): MenuItem[] => {
-    return items
-      .filter(isMenuItemVisible)
-      .map(item => ({
-        ...item,
-        children: item.children ? getVisibleMenuItems(item.children) : undefined
-      }))
-      .filter(item => !item.children || item.children.length > 0); // Remove parent items with no visible children
-  };
-
-  const visibleMenuItems = getVisibleMenuItems(menuItems);
+  const visibleMenuItems = getVisibleMenuItems(menuItems, permissions, user);
 
   const handleItemClick = (item: MenuItem) => {
     if (item.children) {
-      // Toggle submenu
       setOpenItems(prev =>
         prev.includes(item.id)
           ? prev.filter(id => id !== item.id)
           : [...prev, item.id]
       );
     } else if (item.path) {
-      // Navigate to path
       navigate(item.path);
       onClose?.();
     }
   };
 
-  const isItemActive = (path: string) => {
-    return location.pathname === path;
-  };
+  const isItemActive = (path: string) => location.pathname === path;
 
-  const isParentActive = (item: MenuItem) => {
+  const isParentActive = (item: MenuItem): boolean => {
     if (item.path && isItemActive(item.path)) return true;
-    if (item.children) {
-      return item.children.some(child => child.path && isItemActive(child.path));
-    }
+    if (item.children) return item.children.some(child => child.path && isItemActive(child.path));
     return false;
   };
 
@@ -543,7 +603,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               my: 0.5,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
-                backgroundColor: '#055305', // EFF Green for hover
+                backgroundColor: '#055305',
                 color: '#FFFFFF',
                 transform: 'translateX(4px)',
                 '& .MuiListItemIcon-root': {
@@ -551,12 +611,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 },
               },
               '&.Mui-selected': {
-                backgroundColor: '#FFAB00', // EFF Yellow for current/active
+                backgroundColor: '#FFAB00',
                 color: '#000000',
                 fontWeight: 600,
                 boxShadow: '0px 4px 12px rgba(255, 171, 0, 0.3)',
                 '&:hover': {
-                  backgroundColor: '#FF8F00', // Darker yellow on hover
+                  backgroundColor: '#FF8F00',
                   color: '#000000',
                 },
                 '& .MuiListItemIcon-root': {

@@ -550,7 +550,109 @@ router.patch('/bulk-update',
   }
 );
 
+// Permanently delete individual user
+router.delete('/users/:id',
+  authenticate,
+  requirePermission('users.manage'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = parseInt(req.params.id);
+      const deletedBy = req.user!.id;
 
+      // Prevent self-deletion
+      if (userId === deletedBy) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'SELF_DELETE',
+            message: 'You cannot delete your own account',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Validate user exists
+      const existingUser = await executeQuerySingle<any>(`
+        SELECT u.id, u.name, u.email, u.admin_level, u.is_active, r.name as role_name
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.id = ?
+      `, [userId]);
+
+      if (!existingUser) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Prevent deleting super admins
+      if (existingUser.role_name === 'super_admin' || existingUser.admin_level === 'super_admin') {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'CANNOT_DELETE_SUPER_ADMIN',
+            message: 'Super admin accounts cannot be deleted',
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // Log the action before deletion (so audit has the data)
+      await logAudit(
+        deletedBy,
+        AuditAction.DELETE,
+        EntityType.USER,
+        userId,
+        existingUser,
+        {
+          action: 'hard_delete_user',
+          target_user: existingUser.name,
+          target_email: existingUser.email,
+          target_admin_level: existingUser.admin_level
+        },
+        req
+      );
+
+      // Nullify references in related tables that have FK to users
+      const nullifyTables = [
+        { table: 'lge2026_candidates', column: 'nominated_by' },
+        { table: 'lge2026_candidates', column: 'decided_by' },
+        { table: 'user_creation_workflows', column: 'reviewed_by' },
+      ];
+      for (const { table, column } of nullifyTables) {
+        try {
+          await executeQuery(`UPDATE ${table} SET ${column} = NULL WHERE ${column} = ?`, [userId]);
+        } catch (_) { /* table may not exist */ }
+      }
+
+      // Delete rows in related tables that require the user_id
+      const deleteTables = [
+        'sessions', 'user_sessions', 'mfa_secrets', 'backup_codes',
+        'search_history', 'notification_preferences', 'audit_logs',
+      ];
+      for (const table of deleteTables) {
+        try {
+          await executeQuery(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+        } catch (_) { /* table may not exist */ }
+      }
+
+      // Permanently delete the user
+      await executeQuery(`DELETE FROM users WHERE id = ?`, [userId]);
+
+      sendSuccess(res, { id: userId }, `User "${existingUser.name}" has been permanently deleted`);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // Get available roles for admin creation
 router.get('/roles',

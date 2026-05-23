@@ -53,6 +53,11 @@ export class UserManagementAPI {
     return response.data;
   }
 
+  static async deleteUser(userId: number) {
+    const response = await api.delete(`/admin-management/users/${userId}`);
+    return response.data;
+  }
+
   static async logout() {
     const sessionId = localStorage.getItem('sessionId');
     const response = await api.post('/auth/logout', {}, {

@@ -180,10 +180,29 @@ const UserManagementPage: React.FC = () => {
     resetPasswordMutation.mutate(userData);
   };
 
+  // Mutation for deleting (deactivating) users
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: number) => UserManagementAPI.deleteUser(userId),
+    onSuccess: (response) => {
+      addNotification({
+        type: 'success',
+        message: response.message || 'User deactivated successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        message: error.response?.data?.error?.message || error.response?.data?.message || 'Failed to delete user',
+      });
+    },
+  });
+
   const handleDeleteUser = (user: User) => {
-    if (window.confirm(`Are you sure you want to delete user "${user.name}"?`)) {
-      console.log('Delete user:', user.id);
-      // TODO: Implement delete functionality
+    if (window.confirm(`Are you sure you want to permanently delete user "${user.name}"? This action cannot be undone.`)) {
+      deleteUserMutation.mutate(user.id);
     }
   };
 

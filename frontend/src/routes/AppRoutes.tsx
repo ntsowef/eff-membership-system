@@ -11,6 +11,7 @@ import ProtectedRoute from '../components/auth/ProtectedRoute';
 import HomePage from '../pages/public/HomePage';
 import MembershipApplicationPage from '../pages/public/MembershipApplicationPage';
 import ApplicationStatusPage from '../pages/public/ApplicationStatusPage';
+import PaymentResultPage from '../pages/public/PaymentResultPage';
 
 // Auth Pages
 import LoginPage from '../pages/auth/LoginPage';
@@ -54,6 +55,9 @@ import SelfDataManagementPage from '../pages/selfDataManagement/SelfDataManageme
 import ApplicationsListPage from '../pages/applications/ApplicationsListPage';
 import ApplicationDetailPage from '../pages/applications/ApplicationDetailPage';
 
+// Digital Card Management
+import DigitalMembershipCards from '../pages/admin/DigitalMembershipCards';
+
 // Leadership Pages
 import LeadershipPage from '../pages/leadership/LeadershipPage';
 import ElectionsPage from '../pages/elections/ElectionsPage';
@@ -73,6 +77,9 @@ import DocumentViewerPage from '../pages/meetings/DocumentViewerPage';
 
 // SMS Pages
 import SMSPage from '../pages/sms/SMSPage';
+import VoterRegistrationSMSPage from '../pages/sms/VoterRegistrationSMSPage';
+import MembershipRenewalSMSPage from '../pages/sms/MembershipRenewalSMSPage';
+import SMSCreditManagement from '../pages/admin/sms/SMSCreditManagement';
 
 // Demo Components
 import PermissionDemo from '../components/demo/PermissionDemo';
@@ -83,6 +90,7 @@ import SystemPage from '../pages/system/SystemPage';
 // User Management Pages
 import UserManagementPage from '../pages/users/UserManagementPage';
 import AdminManagementDashboard from '../pages/admin/AdminManagementDashboard';
+import DeceasedPurgePage from '../pages/admin/DeceasedPurgePage';
 import SRPADelegateSetter from '../pages/admin/SRPADelegateSetter';
 import WhatsAppManagement from '../pages/admin/WhatsAppManagement';
 import MFAEmergencyAccess from '../pages/admin/MFAEmergencyAccess';
@@ -120,6 +128,10 @@ import WardDetailAudit from '../pages/audit/WardDetailAudit';
 import WardComplianceDashboard from '../pages/wardAudit/WardAuditDashboard';
 import WardComplianceDetail from '../pages/wardAudit/WardComplianceDetail';
 import MunicipalityDelegateReport from '../pages/wardAudit/MunicipalityDelegateReport';
+
+// LGE2026 Pages
+import WardCandidateSelectionPage from '../pages/lge2026/WardCandidateSelectionPage';
+import WardCandidatesListPage from '../pages/lge2026/WardCandidatesListPage';
 
 // Delegates Management Pages
 import DelegatesManagementPage from '../pages/delegatesManagement/DelegatesManagementPage';
@@ -162,8 +174,11 @@ const AppRoutes: React.FC = () => {
         <Route path="apply" element={<MembershipApplicationPage />} />
         <Route path="application-status" element={<ApplicationStatusPage />} />
         <Route path="renew" element={<MemberRenewalPortal />} />
-        <Route path="my-card" element={<MyMembershipCardPage />} />
       </Route>
+
+      {/* Standalone Public Routes */}
+      <Route path="/my-card" element={<MyMembershipCardPage />} />
+      <Route path="/payment-result" element={<PaymentResultPage />} />
 
       {/* Admin/Dashboard Routes */}
       <Route path="/admin" element={
@@ -192,7 +207,10 @@ const AppRoutes: React.FC = () => {
         {/* Membership Renewal Management */}
         <Route path="renewal-management" element={<RenewalManagementPage />} />
 
-        {/* Application Management */}
+        {/* Digital Membership Cards Management */}
+        <Route path="digital-cards" element={<DigitalMembershipCards />} />
+
+        {/* Audit & Compliance */}
         <Route path="applications">
           <Route index element={<ApplicationsListPage />} />
           <Route path=":id" element={<ApplicationDetailPage />} />
@@ -250,10 +268,24 @@ const AppRoutes: React.FC = () => {
           <Route path="hierarchical/:id/attendance" element={<MeetingAttendancePage />} />
         </Route>
 
-        {/* SMS - National Admin only */}
         <Route path="sms" element={
           <ProtectedRoute requireAdminLevel="national">
             <SMSPage />
+          </ProtectedRoute>
+        } />
+        <Route path="voter-registration-sms" element={
+          <ProtectedRoute requireAdminLevel="national">
+            <VoterRegistrationSMSPage />
+          </ProtectedRoute>
+        } />
+        <Route path="membership-renewal-sms" element={
+          <ProtectedRoute requireAdminLevel="national">
+            <MembershipRenewalSMSPage />
+          </ProtectedRoute>
+        } />
+        <Route path="sms-credits" element={
+          <ProtectedRoute requireAdminLevel="national">
+            <SMSCreditManagement />
           </ProtectedRoute>
         } />
         <Route path="whatsapp" element={
@@ -297,6 +329,21 @@ const AppRoutes: React.FC = () => {
           <Route path="municipality/:municipalityCode" element={<MunicipalityDelegateReport />} />
         </Route>
 
+        {/* LGE2026 - Local Government Elections 2026 */}
+        <Route path="lge2026">
+          <Route index element={<Navigate to="/admin/lge2026/candidates" replace />} />
+          <Route path="candidates" element={
+            <ProtectedRoute requireAdminLevel="province">
+              <WardCandidatesListPage />
+            </ProtectedRoute>
+          } />
+          <Route path="candidate-selection" element={
+            <ProtectedRoute requireAdminLevel="province">
+              <WardCandidateSelectionPage />
+            </ProtectedRoute>
+          } />
+        </Route>
+
         {/* Delegates Management */}
         <Route path="delegates-management" element={<DelegatesManagementPage />} />
 
@@ -331,6 +378,13 @@ const AppRoutes: React.FC = () => {
         <Route path="admin-management" element={
           <ProtectedRoute requireAdminLevel="national">
             <AdminManagementDashboard />
+          </ProtectedRoute>
+        } />
+
+        {/* Deceased Member Purge - National Admin only */}
+        <Route path="deceased-purge" element={
+          <ProtectedRoute requireAdminLevel="national">
+            <DeceasedPurgePage />
           </ProtectedRoute>
         } />
 
