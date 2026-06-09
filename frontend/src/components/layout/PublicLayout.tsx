@@ -247,7 +247,7 @@ const PublicLayout: React.FC = () => {
                 mb: 2,
               }}
             >
-              Fighting for radical economic transformation and true democracy
+              Economic Freedom In Our Lifetime
             </Typography>
             <Typography
               variant="caption"

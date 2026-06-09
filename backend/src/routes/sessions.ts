@@ -364,9 +364,9 @@ router.get('/statistics',
         SELECT
           COUNT(*) as total_active_sessions,
           COUNT(DISTINCT user_id) as unique_active_users,
-          AVG(TIMESTAMPDIFF(MINUTE, created_at, last_activity)) as avg_session_duration_minutes,
-          COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 END) as sessions_created_last_hour,
-          COUNT(CASE WHEN last_activity >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 END) as sessions_active_last_hour
+          AVG(EXTRACT(EPOCH FROM (last_activity - created_at)) / 60) as avg_session_duration_minutes,
+          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '1 hour' THEN 1 END) as sessions_created_last_hour,
+          COUNT(CASE WHEN last_activity >= NOW() - INTERVAL '1 hour' THEN 1 END) as sessions_active_last_hour
         FROM user_sessions
         WHERE expires_at > NOW() AND is_active = TRUE
       `);

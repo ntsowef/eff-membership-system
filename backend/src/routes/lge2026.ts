@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import Joi from 'joi';
 import ExcelJS from 'exceljs';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { Lge2026Model } from '../models/lge2026';
 import { asyncHandler } from '../middleware/errorHandler';
 import { authenticate, requirePermission } from '../middleware/auth';
@@ -8,6 +11,46 @@ import { sendSuccess, sendError } from '../utils/responseHelpers';
 import { validate } from '../middleware/validation';
 
 const router = Router();
+
+// =====================================================
+// Candidate Document Upload Configuration
+// =====================================================
+const CANDIDATE_DOCS_DIR = process.env.UPLOAD_DIR
+  ? path.join(process.env.UPLOAD_DIR, 'candidate-documents')
+  : path.join('uploads', 'candidate-documents');
+
+if (!fs.existsSync(CANDIDATE_DOCS_DIR)) {
+  fs.mkdirSync(CANDIDATE_DOCS_DIR, { recursive: true });
+}
+
+const candidateDocStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, CANDIDATE_DOCS_DIR),
+  filename: (_req, file, cb) => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    const ext = path.extname(file.originalname);
+    cb(null, `candidate_${file.fieldname}_${timestamp}_${random}${ext}`);
+  },
+});
+
+const candidateDocUpload = multer({
+  storage: candidateDocStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per file
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type not allowed: ${file.mimetype}. Accepted: PDF, JPEG, PNG, DOC, DOCX`));
+    }
+  },
+});
 
 // =====================================================
 // Validation Schemas
@@ -227,7 +270,10 @@ router.get('/ward/:ward_code/eligible-members',
 router.post('/ward/:ward_code/candidate',
   authenticate,
   requirePermission('ward_audit.manage_delegates'),
-  validate({ params: wardCodeSchema, body: nominateSchema }),
+  candidateDocUpload.fields([
+    { name: 'candidate_cv', maxCount: 1 },
+    { name: 'iec_form_c2', maxCount: 1 },
+  ]),
   asyncHandler(async (req: Request, res: Response) => {
     const { ward_code } = req.params;
     const userId = getUserId(req);
@@ -235,12 +281,38 @@ router.post('/ward/:ward_code/candidate',
       return sendError(res, 'Authenticated user_id is required', 401);
     }
 
+    const body = req.body;
+    const memberId = parseInt(body.member_id, 10);
+    if (!memberId || isNaN(memberId)) {
+      return sendError(res, 'member_id is required', 400);
+    }
+
+    // Extract uploaded files
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    let cvPath: string | null = null;
+    let cvOriginalName: string | null = null;
+    let iecFormC2Path: string | null = null;
+    let iecFormC2OriginalName: string | null = null;
+
+    if (files?.candidate_cv?.[0]) {
+      cvPath = files.candidate_cv[0].filename;
+      cvOriginalName = files.candidate_cv[0].originalname;
+    }
+    if (files?.iec_form_c2?.[0]) {
+      iecFormC2Path = files.iec_form_c2[0].filename;
+      iecFormC2OriginalName = files.iec_form_c2[0].originalname;
+    }
+
     const candidate = await Lge2026Model.nominateCandidate({
       ward_code,
-      member_id: req.body.member_id,
+      member_id: memberId,
       nominated_by: userId,
-      notes: req.body.notes ?? null,
-      campaign_statement: req.body.campaign_statement ?? null,
+      notes: body.notes || null,
+      campaign_statement: body.campaign_statement || null,
+      cv_path: cvPath,
+      cv_original_name: cvOriginalName,
+      iec_form_c2_path: iecFormC2Path,
+      iec_form_c2_original_name: iecFormC2OriginalName,
     });
 
     sendSuccess(res, candidate, 'Ward Councillor Candidate nominated successfully', 201);

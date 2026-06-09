@@ -1202,14 +1202,13 @@ export class StatisticsModel {
 
       // Get age distribution (6-bucket model)
       const ageQuery = `
-        SELECT
           CASE
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 18 THEN 'Under 18'
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 25 THEN '18-24'
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 35 THEN '25-34'
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 45 THEN '35-44'
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 55 THEN '45-54'
-            WHEN TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 65 THEN '55-64'
+            WHEN DATEDIFF(?, date_of_birth) / 365.25 < 18 THEN 'Under 18'
+            WHEN DATEDIFF(?, date_of_birth) / 365.25 < 25 THEN '18-24'
+            WHEN DATEDIFF(?, date_of_birth) / 365.25 < 35 THEN '25-34'
+            WHEN DATEDIFF(?, date_of_birth) / 365.25 < 45 THEN '35-44'
+            WHEN DATEDIFF(?, date_of_birth) / 365.25 < 55 THEN '45-54'
+            WHEN DATEDIFF(?, date_of_birth) / 365.25 < 65 THEN '55-64'
             ELSE '65+'
           END as age_group,
           COUNT(*) as member_count
@@ -1243,11 +1242,11 @@ export class StatisticsModel {
       // Get registration patterns by day of month
       const registrationPatternsQuery = `
         SELECT
-          DAY(created_at) as day_of_month,
+          DAYOFMONTH(created_at) as day_of_month,
           COUNT(*) as registrations
         FROM vw_member_details
         WHERE DATE(created_at) BETWEEN ? AND ?
-        GROUP BY DAY(created_at)
+        GROUP BY DAYOFMONTH(created_at)
         ORDER BY registrations DESC
         LIMIT 5
       `;

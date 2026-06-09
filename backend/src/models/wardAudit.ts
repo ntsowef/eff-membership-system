@@ -1,5 +1,6 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError, createValidationError } from '../middleware/errorHandler';
+import { Lge2026Model } from './lge2026';
 
 // =====================================================
 // Type Definitions
@@ -107,6 +108,10 @@ export interface WardMeetingRecord {
   meeting_verified_by?: number;
   meeting_verified_at?: string;
   meeting_verification_notes?: string;
+
+  // Meeting package (uploaded documents for dispute review)
+  meeting_package_path?: string;
+  meeting_package_original_name?: string;
 
   created_at: string;
   updated_at: string;
@@ -233,11 +238,21 @@ export class WardAuditModel {
 
   static async getWardsByMunicipality(municipalityCode: string): Promise<WardComplianceSummary[]> {
     try {
-      // ✅ OPTIMIZED: Using materialized view for 100x faster performance
+      // ✅ OPTIMIZED: Using materialized view for 100x faster performance.
+      // Joined with lge2026_candidates so the dashboard can render the
+      // new Criterion 5 (Ward Councillor Candidate selected) without an
+      // extra round-trip per ward.
       const query = `
-        SELECT * FROM mv_ward_compliance_summary
-        WHERE municipality_code = $1
-        ORDER BY ward_code, ward_name
+        SELECT
+          mv.*,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM lge2026_candidates lc
+             WHERE lc.ward_code = mv.ward_code
+               AND lc.status IN ('nominated', 'approved')
+          ) THEN TRUE ELSE FALSE END AS has_active_candidate
+        FROM mv_ward_compliance_summary mv
+        WHERE mv.municipality_code = $1
+        ORDER BY mv.ward_code, mv.ward_name
       `;
       return await executeQuery<WardComplianceSummary>(query, [municipalityCode]);
     } catch (error) {
@@ -422,7 +437,7 @@ export class WardAuditModel {
   // =====================================================
 
   static async createMeetingRecord(data: {
-    meeting_id?: number; // Make optional - will be generated if not provided
+    meeting_id?: number;
     ward_code: string;
     meeting_type: string;
     presiding_officer_id?: number;
@@ -440,6 +455,8 @@ export class WardAuditModel {
     meeting_took_place_verified?: boolean;
     meeting_verified_by?: number;
     meeting_verification_notes?: string;
+    meeting_package_path?: string | null;
+    meeting_package_original_name?: string | null;
   }): Promise<WardMeetingRecord> {
     try {
       console.log('📝 Creating meeting record with data:', {
@@ -516,13 +533,14 @@ export class WardAuditModel {
           quorum_required, quorum_achieved, quorum_met, total_attendees,
           meeting_outcome, key_decisions, action_items, next_meeting_date,
           quorum_verified_manually, quorum_verified_by, quorum_verified_at, quorum_verification_notes,
-          meeting_took_place_verified, meeting_verified_by, meeting_verified_at, meeting_verification_notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          meeting_took_place_verified, meeting_verified_by, meeting_verified_at, meeting_verification_notes,
+          meeting_package_path, meeting_package_original_name
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING *
       `;
 
       const result = await executeQuery<WardMeetingRecord>(query, [
-        meeting_id, // Use the generated meeting_id
+        meeting_id,
         data.ward_code,
         data.meeting_type,
         data.presiding_officer_id || null,
@@ -542,7 +560,9 @@ export class WardAuditModel {
         data.meeting_took_place_verified || false,
         data.meeting_verified_by || null,
         data.meeting_took_place_verified ? new Date().toISOString() : null,
-        data.meeting_verification_notes || null
+        data.meeting_verification_notes || null,
+        data.meeting_package_path || null,
+        data.meeting_package_original_name || null
       ]);
 
       return result[0];
@@ -753,6 +773,21 @@ export class WardAuditModel {
 
     } catch (error) {
       throw createDatabaseError('Failed to delete meeting record', error);
+    }
+  }
+
+  /**
+   * Get a single meeting record by its record_id
+   * Used for package download and pre-delete lookups
+   */
+  static async getMeetingRecordById(recordId: number): Promise<WardMeetingRecord | null> {
+    try {
+      const query = `
+        SELECT * FROM ward_meeting_records WHERE record_id = $1
+      `;
+      return await executeQuerySingle<WardMeetingRecord>(query, [recordId]);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch meeting record by ID', error);
     }
   }
 
@@ -1047,19 +1082,11 @@ export class WardAuditModel {
       // Get all meetings for attendance tracking
       const allMeetings = await this.getWardMeetings(wardCode);
 
-      // Get delegates (Criterion 5)
+      // Get historical delegates (kept for backward-compatible payload)
       const delegates = await this.getWardDelegates(wardCode);
 
-      // Count delegates by assembly type
-      const srpaDelegates = delegates.filter(d =>
-        d.assembly_code === 'SRPA' && d.delegate_status === 'Active'
-      ).length;
-      const ppaDelegates = delegates.filter(d =>
-        d.assembly_code === 'PPA' && d.delegate_status === 'Active'
-      ).length;
-      const npaDelegates = delegates.filter(d =>
-        d.assembly_code === 'NPA' && d.delegate_status === 'Active'
-      ).length;
+      // Criterion 5 (LGE2026): exactly one active Ward Councillor Candidate per ward.
+      const activeCandidate = await Lge2026Model.getActiveCandidateByWard(wardCode);
 
       // Criterion 2: Meeting Quorum Verification
       const criterion2Passed = latestMeeting ? latestMeeting.quorum_met : false;
@@ -1070,9 +1097,8 @@ export class WardAuditModel {
       // Criterion 4: Presiding Officer Information
       const criterion4Passed = latestMeeting ? !!latestMeeting.presiding_officer_id : false;
 
-      // Criterion 5: Delegate Selection (at least 3 delegates total across any assemblies)
-      const totalDelegates = srpaDelegates + ppaDelegates + npaDelegates;
-      const criterion5Passed = totalDelegates >= 3;
+      // Criterion 5: Ward Councillor Candidate selected (LGE2026 replacement for SRPA/PPA/NPA)
+      const criterion5Passed = !!activeCandidate;
 
       // Overall compliance
       const allCriteriaPassed =
@@ -1105,11 +1131,14 @@ export class WardAuditModel {
         } : null,
         criterion_5_passed: criterion5Passed,
         criterion_5_data: {
-          srpa_delegates: srpaDelegates,
-          ppa_delegates: ppaDelegates,
-          npa_delegates: npaDelegates,
-          total_delegates: delegates.length,
-          delegates: delegates
+          // LGE2026: a ward is compliant on Criterion 5 when it has a single
+          // active Ward Councillor Candidate (status = nominated or approved).
+          active_candidate: activeCandidate,
+          has_active_candidate: !!activeCandidate,
+
+          // Legacy delegate data retained for backward compatibility / audit trail.
+          // No longer affects compliance — see Lge2026Model.
+          legacy_delegates: delegates,
         },
         all_criteria_passed: allCriteriaPassed,
         criteria_passed_count: [

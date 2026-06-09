@@ -978,6 +978,11 @@ class FlexibleMembershipIngestion:
                     voter_registration_id, is_registered_voter, last_voter_verification_date
                 ) VALUES %s
                 ON CONFLICT (id_number) DO UPDATE SET
+                    firstname = COALESCE(EXCLUDED.firstname, members_consolidated.firstname),
+                    surname = COALESCE(EXCLUDED.surname, members_consolidated.surname),
+                    cell_number = COALESCE(EXCLUDED.cell_number, members_consolidated.cell_number),
+                    email = COALESCE(EXCLUDED.email, members_consolidated.email),
+                    residential_address = COALESCE(EXCLUDED.residential_address, members_consolidated.residential_address),
                     date_joined = COALESCE(EXCLUDED.date_joined, members_consolidated.date_joined),
                     last_payment_date = COALESCE(EXCLUDED.last_payment_date, members_consolidated.last_payment_date),
                     expiry_date = COALESCE(EXCLUDED.expiry_date, members_consolidated.expiry_date),

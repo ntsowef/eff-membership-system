@@ -36,8 +36,7 @@ import * as yup from 'yup';
 import { useAuth, useUI } from '../../store';
 import { UserManagementAPI } from '../../lib/userManagementApi';
 import PublicHeader from '../../components/layout/PublicHeader';
-import OTPVerificationForm from '../../components/auth/OTPVerificationForm';
-import { api } from '../../lib/api';
+// OTP verification removed — OTP/MFA globally disabled
 import { devLog } from '../../utils/logger';
 
 // Validation schema
@@ -71,15 +70,7 @@ const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // OTP state
-  const [showOtpForm, setShowOtpForm] = useState(false);
-  const [otpData, setOtpData] = useState<{
-    userId: number;
-    phoneNumberMasked: string;
-    emailMasked: string;
-    expiresAt?: Date;
-    isExistingOtp?: boolean;
-  } | null>(null);
+
 
   const form = useForm<LoginFormData>({
     resolver: yupResolver(loginSchema) as any,
@@ -107,53 +98,36 @@ const LoginPage: React.FC = () => {
       const response = await UserManagementAPI.login(data.email, data.password);
 
       if (response.success) {
-        // Check if OTP is required
-        if (response.data.requires_otp) {
-          // Show OTP form
-          setOtpData({
-            userId: response.data.user_id,
-            phoneNumberMasked: response.data.phone_number_masked,
-            emailMasked: response.data.email_masked,
-            expiresAt: response.data.otp_expires_at ? new Date(response.data.otp_expires_at) : undefined,
-            isExistingOtp: response.data.is_existing_otp,
-          });
-          setShowOtpForm(true);
-
-          addNotification({
-            type: 'info',
-            message: response.message || 'Please enter the verification code sent to your phone and email.'
-          });
+        // Direct login — OTP/MFA disabled
+        // Store remember me preference
+        if (data.rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
         } else {
-          // Store remember me preference
-          if (data.rememberMe) {
-            localStorage.setItem('rememberMe', 'true');
-          } else {
-            localStorage.removeItem('rememberMe');
-          }
-
-          // Login user with session ID
-          login(response.data.user, response.data.token, response.data.session_id);
-
-          addNotification({
-            type: 'success',
-            message: `Welcome back, ${response.data.user.name}!`
-          });
-
-          // Navigate to intended destination or role-based dashboard
-          let defaultDashboard = '/admin/dashboard';
-
-          // Redirect super admin users to Super Admin Dashboard
-          if (response.data.user.role === 'SUPER_ADMIN') {
-            defaultDashboard = '/admin/super-admin/dashboard';
-          }
-
-          const from = (location.state as any)?.from?.pathname || defaultDashboard;
-
-          // Use React Router navigation (client-side, no page reload)
-          // This preserves the Zustand store state and axios interceptors
-          devLog('✅ Login successful, redirecting to:', from);
-          navigate(from, { replace: true });
+          localStorage.removeItem('rememberMe');
         }
+
+        // Login user with session ID
+        login(response.data.user, response.data.token, response.data.session_id);
+
+        addNotification({
+          type: 'success',
+          message: `Welcome back, ${response.data.user.name}!`
+        });
+
+        // Navigate to intended destination or role-based dashboard
+        let defaultDashboard = '/admin/dashboard';
+
+        // Redirect super admin users to Super Admin Dashboard
+        if (response.data.user.role === 'SUPER_ADMIN') {
+          defaultDashboard = '/admin/super-admin/dashboard';
+        }
+
+        const from = (location.state as any)?.from?.pathname || defaultDashboard;
+
+        // Use React Router navigation (client-side, no page reload)
+        // This preserves the Zustand store state and axios interceptors
+        devLog('✅ Login successful, redirecting to:', from);
+        navigate(from, { replace: true });
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -185,114 +159,7 @@ const LoginPage: React.FC = () => {
     setShowPassword(!showPassword);
   };
 
-  const handleOtpVerify = async (otpCode: string) => {
-    if (!otpData) return;
 
-    setIsSubmitting(true);
-    setError(null);
-    setLoading(true);
-
-    try {
-      const response = await api.post('/auth/verify-otp', {
-        user_id: otpData.userId,
-        otp_code: otpCode,
-      });
-
-      if (response.data.success) {
-        // Store remember me preference
-        const rememberMe = form.getValues('rememberMe');
-        if (rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
-        } else {
-          localStorage.removeItem('rememberMe');
-        }
-
-        // Login user with session ID
-        login(response.data.data.user, response.data.data.token, response.data.data.session_id);
-
-        addNotification({
-          type: 'success',
-          message: `Welcome back, ${response.data.data.user.name}!`
-        });
-
-        // Navigate to intended destination or role-based dashboard
-        let defaultDashboard = '/admin/dashboard';
-
-        // Redirect super admin users to Super Admin Dashboard
-        if (response.data.data.user.role === 'SUPER_ADMIN') {
-          defaultDashboard = '/admin/super-admin/dashboard';
-        }
-
-        const from = (location.state as any)?.from?.pathname || defaultDashboard;
-        devLog('✅ OTP verified, redirecting to:', from);
-        navigate(from, { replace: true });
-      }
-    } catch (error: any) {
-      console.error('OTP verification error:', error);
-
-      let errorMessage = 'Invalid verification code. Please try again.';
-
-      if (error.response?.data?.error?.message) {
-        errorMessage = error.response.data.error.message;
-      } else if (error.response?.status === 429) {
-        errorMessage = 'Too many verification attempts. Please try again later.';
-      }
-
-      setError(errorMessage);
-      addNotification({
-        type: 'error',
-        message: errorMessage
-      });
-    } finally {
-      setIsSubmitting(false);
-      setLoading(false);
-    }
-  };
-
-  const handleOtpResend = async () => {
-    if (!otpData) return;
-
-    try {
-      const response = await api.post('/auth/resend-otp', {
-        user_id: otpData.userId,
-      });
-
-      if (response.data.success) {
-        // Update OTP data with new expiration
-        setOtpData({
-          ...otpData,
-          expiresAt: response.data.data.otp_expires_at ? new Date(response.data.data.otp_expires_at) : undefined,
-          isExistingOtp: response.data.data.is_existing_otp,
-        });
-
-        addNotification({
-          type: 'success',
-          message: response.data.message || 'Verification code resent successfully!'
-        });
-      }
-    } catch (error: any) {
-      console.error('OTP resend error:', error);
-
-      let errorMessage = 'Failed to resend verification code. Please try again.';
-
-      if (error.response?.data?.error?.message) {
-        errorMessage = error.response.data.error.message;
-      }
-
-      addNotification({
-        type: 'error',
-        message: errorMessage
-      });
-
-      throw error; // Re-throw to let the OTP form handle it
-    }
-  };
-
-  const handleBackToLogin = () => {
-    setShowOtpForm(false);
-    setOtpData(null);
-    setError(null);
-  };
 
   return (
     <Box>
@@ -321,21 +188,6 @@ const LoginPage: React.FC = () => {
         }}
       >
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, py: 4 }}>
-        {/* Show OTP form if OTP is required */}
-        {showOtpForm && otpData ? (
-          <OTPVerificationForm
-            userId={otpData.userId}
-            phoneNumberMasked={otpData.phoneNumberMasked}
-            emailMasked={otpData.emailMasked}
-            expiresAt={otpData.expiresAt}
-            isExistingOtp={otpData.isExistingOtp}
-            onVerify={handleOtpVerify}
-            onResend={handleOtpResend}
-            onBack={handleBackToLogin}
-            loading={isSubmitting}
-            error={error}
-          />
-        ) : (
         <Paper
           elevation={0}
           sx={{
@@ -616,7 +468,6 @@ const LoginPage: React.FC = () => {
             </form>
           </CardContent>
         </Paper>
-        )}
 
         {/* Footer */}
         <Box sx={{ textAlign: 'center', mt: 4 }}>

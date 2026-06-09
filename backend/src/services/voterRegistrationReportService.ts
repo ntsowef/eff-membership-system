@@ -681,7 +681,7 @@ export class VoterRegistrationReportService {
       { header: 'Voter Registered', key: 'voter_status', width: 15 },
       { header: 'Province', key: 'province_name', width: 20 },
       { header: 'Municipality', key: 'municipality_name', width: 25 },
-      { header: 'Ward', key: 'ward_code', width: 12 }
+      { header: 'Ward Code', key: 'ward_code', width: 12 }
     ];
 
     const addDataSheet = (name: string, members: VoterRegistrationReportMember[]) => {

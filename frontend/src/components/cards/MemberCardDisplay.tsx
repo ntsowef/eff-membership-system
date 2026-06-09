@@ -27,16 +27,25 @@ import {
   Fullscreen,
   Close,
   Image,
-  ArrowBack,
 } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../lib/api';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import cardFrontImage from '../../assets/images/Eff_first.png';
 import cardBackImage from '../../assets/images/Eff_second.png';
 import { showWarning, showError, showSuccess } from '../../utils/sweetAlert';
+
+// Custom Card Icon matching the template
+const CustomCardIcon = () => (
+  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="5" width="20" height="14" rx="3" stroke="#DC143C" strokeWidth="1.5" />
+    <path d="M2 10H22" stroke="#DC143C" strokeWidth="1.5" />
+    <path d="M7 15H11" stroke="#DC143C" strokeLinecap="round" strokeWidth="1.5" />
+  </svg>
+);
+
 
 interface MemberCardData {
   member_id: string;
@@ -86,6 +95,7 @@ const getProvinceCode = (provinceName: string | null | undefined): string => {
 
 const MemberCardDisplay: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Below 600px
   const [idNumber, setIdNumber] = useState('');
@@ -93,6 +103,9 @@ const MemberCardDisplay: React.FC = () => {
   const [showCard, setShowCard] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isLandscapeMode, setIsLandscapeMode] = useState(false);
+
+  // Flag to ensure auto-fetch happens only once per id parmar
+  const [hasAutoFetched, setHasAutoFetched] = useState(false);
 
   // Handle body scroll lock when in landscape mode
   useEffect(() => {
@@ -152,17 +165,22 @@ const MemberCardDisplay: React.FC = () => {
 
     if (daysUntilExpiry < 0 || data.membership_status === 'Expired') {
       return {
-        message: `Your membership expired ${Math.abs(daysUntilExpiry)} days ago. Renew now to continue enjoying member benefits.`,
+        /* message: `Your membership expired ${Math.abs(daysUntilExpiry)} days ago. Renew now to continue enjoying member benefits.`,**/
+        message: `Your membership expired. Please contact your branch secretary for renewal of membership`,
         severity: 'error'
       };
     } else if (daysUntilExpiry <= 30) {
       return {
-        message: `Your membership expires in ${daysUntilExpiry} days. Renew now to avoid interruption.`,
+        message: `Your membership about to expire. Please contact your branch secretary for renewal of membership`,
+
+        /*  message: `Your membership expires in ${daysUntilExpiry} days. Renew now to avoid interruption.`,*/
         severity: 'error'
       };
     } else {
       return {
-        message: `Your membership expires in ${daysUntilExpiry} days. Renew early to ensure continuous membership.`,
+        message: `Your membership is about to expire. Please contact your branch secretary for renewal of membership`,
+
+        /*message: `Your membership expires in ${daysUntilExpiry} days. Renew early to ensure continuous membership.`,*/
         severity: 'warning'
       };
     }
@@ -199,15 +217,27 @@ const MemberCardDisplay: React.FC = () => {
     onSuccess: async (data) => {
       setMemberData(data);
       setShowCard(true);
+
+      // Track the card view
+      try {
+        await api.post(`/digital-cards/track-view/${data.member_id}`, {
+          id_number: data.id_number,
+          source: 'public'
+        });
+      } catch (err) {
+        // Silently fail tracking to not disrupt user experience
+        console.error('Failed to track card view:', err);
+      }
     }
+
   });
 
   // Download card PDF - using client-side generation
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingPNG, setIsGeneratingPNG] = useState(false);
 
-  const handleViewCard = () => {
-    const trimmedId = idNumber.trim();
+  const handleViewCard = (submitIdNumber: string = idNumber) => {
+    const trimmedId = submitIdNumber.trim();
 
     if (!trimmedId) {
       showWarning('Please enter your ID Number', 'ID Required');
@@ -222,6 +252,18 @@ const MemberCardDisplay: React.FC = () => {
 
     fetchMemberMutation.mutate(trimmedId);
   };
+
+  // Auto-fetch if ID is present in URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const urlId = searchParams.get('id');
+
+    if (urlId && /^\d{13}$/.test(urlId) && !hasAutoFetched) {
+      setIdNumber(urlId);
+      setHasAutoFetched(true);
+      handleViewCard(urlId);
+    }
+  }, [location.search, hasAutoFetched]);
 
   const handleDownloadCard = async () => {
     if (!memberData || !showCard) return;
@@ -486,62 +528,52 @@ const MemberCardDisplay: React.FC = () => {
         <Paper
           elevation={0}
           sx={{
-            p: 5,
+            py: { xs: 6, md: 8 },
+            px: { xs: 4, md: 6 },
             mb: 4,
-            borderRadius: 4,
-            border: '1px solid rgba(220, 20, 60, 0.15)',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 100px rgba(220, 20, 60, 0.05)',
+            width: '100%',
+            maxWidth: '900px',
+            mx: 'auto',
+            borderRadius: '40px',
+            background: '#FFFFFF',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.1)',
           }}
         >
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <CreditCard sx={{ fontSize: 56, color: '#DC143C', mb: 2 }} />
-            <Typography
-              variant="h4"
-              component="h2"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                color: 'text.primary',
-                mb: 2,
-              }}
-            >
-              Access Your Digital Card
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.05rem' }}>
-              Enter your South African ID Number to view and download your digital membership card
-            </Typography>
-          </Box>
 
-          <Grid container spacing={3} alignItems="end">
-            <Grid item xs={12} sm={8}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={8} md={9}>
               <TextField
                 fullWidth
-                label="ID Number"
+                label=""
                 value={idNumber}
                 onChange={(e) => {
-                  // Only allow digits and limit to 13 characters
                   const value = e.target.value.replace(/\D/g, '').slice(0, 13);
                   setIdNumber(value);
                 }}
-                placeholder="Enter your ID Number (e.g., 8001015009087)"
-                helperText="Enter your 13-digit South African ID Number"
+                placeholder="ID Number"
                 inputProps={{
                   maxLength: 13,
                   inputMode: 'numeric',
-                  pattern: '[0-9]*'
+                  style: { 
+                    height: '56px', 
+                    padding: '0 16px', 
+                    boxSizing: 'border-box',
+                    fontFamily: '"Poppins", sans-serif'
+                  }
                 }}
                 error={idNumber.length > 0 && idNumber.length !== 13}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    handleViewCard();
+                    handleViewCard(idNumber);
                   }
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
+                    borderRadius: '16px', // Rounded corners like template
+                    height: '64px', // Slightly taller for premium feel
+                    bgcolor: '#F8FAFC',
                     '&:hover fieldset': {
-                      borderColor: '#DC143C',
+                      borderColor: '#CBD5E0',
                     },
                     '&.Mui-focused fieldset': {
                       borderColor: '#DC143C',
@@ -549,19 +581,35 @@ const MemberCardDisplay: React.FC = () => {
                   },
                 }}
               />
+              <Typography variant="caption" sx={{ mt: 1.5, display: 'block', ml: 1, color: '#718096', fontFamily: '"Poppins", sans-serif', fontSize: '0.85rem' }}>
+                 Enter your 13-digit South African ID Number
+              </Typography>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={4} md={3}>
               <Button
                 fullWidth
                 variant="contained"
-                size="large"
-                onClick={handleViewCard}
+                onClick={() => handleViewCard(idNumber)}
                 disabled={!idNumber.trim() || idNumber.length !== 13 || fetchMemberMutation.isPending}
                 startIcon={fetchMemberMutation.isPending ? <CircularProgress size={20} /> : <CreditCard />}
                 sx={{
-                  py: 1.8,
+                  height: '64px',
+                  borderRadius: '16px',
+                  bgcolor: '#E2E8F0', 
+                  color: '#718096',
+                  boxShadow: 'none',
+                  textTransform: 'none',
+                  fontWeight: 700,
                   fontSize: '1rem',
-                  fontWeight: 600,
+                  fontFamily: '"Poppins", sans-serif',
+                  '&:not(:disabled)': {
+                    bgcolor: '#DC143C',
+                    color: '#FFFFFF',
+                  },
+                  '&:hover': {
+                    bgcolor: '#B01030',
+                    boxShadow: 'none',
+                  },
                 }}
               >
                 {fetchMemberMutation.isPending ? 'Loading...' : 'View My Card'}
@@ -586,28 +634,7 @@ const MemberCardDisplay: React.FC = () => {
           )}
 
           {/* Help Information */}
-          <Alert
-            severity="info"
-            sx={{
-              mt: 3,
-              borderRadius: 2,
-              bgcolor: 'rgba(220, 20, 60, 0.05)',
-              border: '1px solid rgba(220, 20, 60, 0.1)',
-              '& .MuiAlert-icon': {
-                color: '#DC143C',
-              },
-            }}
-          >
-            <Typography variant="body2" gutterBottom fontWeight={600}>
-              Need help with your ID Number?
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              • Use your South African ID Number (13 digits)<br />
-              • Check your ID document or driver's license<br />
-              • Contact our support team for assistance<br />
-              • Example format: 8001015009087
-            </Typography>
-          </Alert>
+
         </Paper>
       )}
 
@@ -616,139 +643,97 @@ const MemberCardDisplay: React.FC = () => {
         <Paper
           elevation={0}
           sx={{
-            p: 5,
-            borderRadius: 4,
-            border: '1px solid rgba(220, 20, 60, 0.15)',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 100px rgba(220, 20, 60, 0.05)',
+            p: { xs: 3, md: 5 },
+            borderRadius: '40px',
+            background: '#FFFFFF',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.1)',
           }}
         >
           {/* Card Actions */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<ArrowBack />}
-                onClick={() => navigate('/')}
-                sx={{
-                  borderColor: '#DC143C',
-                  color: '#DC143C',
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  '&:hover': {
-                    borderColor: '#DC143C',
-                    bgcolor: 'rgba(220, 20, 60, 0.1)',
-                  },
-                }}
-              >
-                Back
-              </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Box>
-                <Typography variant="h5" fontWeight={700} color="text.primary">
+                <Typography variant="h6" fontWeight={700} color="text.primary" sx={{ lineHeight: 1.2 }}>
                   Your Digital Membership Card
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
                   {isFlipped ? 'Back Side' : 'Front Side'} • Click card to flip
                 </Typography>
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
               <Tooltip title={isFlipped ? "Flip to Front" : "Flip to Back"}>
                 <IconButton
                   onClick={handleFlipCard}
+                  size="small"
                   sx={{
                     color: '#DC143C',
-                    '&:hover': {
-                      bgcolor: 'rgba(220, 20, 60, 0.1)',
-                    },
+                    '&:hover': { bgcolor: 'rgba(220, 20, 60, 0.08)' },
                   }}
                 >
-                  {isFlipped ? <FlipToFront /> : <FlipToBack />}
+                  {isFlipped ? <FlipToFront fontSize="small" /> : <FlipToBack fontSize="small" />}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Download PDF">
                 <IconButton
                   onClick={handleDownloadCard}
                   disabled={isGeneratingPDF}
+                  size="small"
                   sx={{
                     color: '#DC143C',
-                    '&:hover': {
-                      bgcolor: 'rgba(220, 20, 60, 0.1)',
-                    },
+                    '&:hover': { bgcolor: 'rgba(220, 20, 60, 0.08)' },
                   }}
                 >
-                  {isGeneratingPDF ? <CircularProgress size={20} sx={{ color: '#DC143C' }} /> : <Download />}
+                  {isGeneratingPDF ? <CircularProgress size={16} sx={{ color: '#DC143C' }} /> : <Download fontSize="small" />}
                 </IconButton>
               </Tooltip>
-              <Tooltip title={`Download PNG (${isFlipped ? 'Back' : 'Front'} Side)`}>
+              <Tooltip title={`Download PNG`}>
                 <IconButton
                   onClick={handleDownloadPNG}
                   disabled={isGeneratingPNG}
+                  size="small"
                   sx={{
                     color: '#DC143C',
-                    '&:hover': {
-                      bgcolor: 'rgba(220, 20, 60, 0.1)',
-                    },
+                    '&:hover': { bgcolor: 'rgba(220, 20, 60, 0.08)' },
                   }}
                 >
-                  {isGeneratingPNG ? <CircularProgress size={20} sx={{ color: '#DC143C' }} /> : <Image />}
+                  {isGeneratingPNG ? <CircularProgress size={16} sx={{ color: '#DC143C' }} /> : <Image fontSize="small" />}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Share Card">
                 <IconButton
                   onClick={handleShareCard}
+                  size="small"
                   sx={{
                     color: '#DC143C',
-                    '&:hover': {
-                      bgcolor: 'rgba(220, 20, 60, 0.1)',
-                    },
+                    '&:hover': { bgcolor: 'rgba(220, 20, 60, 0.08)' },
                   }}
                 >
-                  <Share />
+                  <Share fontSize="small" />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Print Card">
                 <IconButton
                   onClick={handlePrintCard}
+                  size="small"
                   sx={{
                     color: '#DC143C',
-                    '&:hover': {
-                      bgcolor: 'rgba(220, 20, 60, 0.1)',
-                    },
+                    '&:hover': { bgcolor: 'rgba(220, 20, 60, 0.08)' },
                   }}
                 >
-                  <Print />
+                  <Print fontSize="small" />
                 </IconButton>
               </Tooltip>
-              {/* Fullscreen Landscape Mode - Mobile Only */}
-              {isMobile && (
-                <Tooltip title="View Fullscreen (Landscape)">
-                  <IconButton
-                    onClick={handleToggleLandscapeMode}
-                    sx={{
-                      color: '#DC143C',
-                      bgcolor: 'rgba(220, 20, 60, 0.1)',
-                      '&:hover': {
-                        bgcolor: 'rgba(220, 20, 60, 0.2)',
-                      },
-                    }}
-                  >
-                    <Fullscreen />
-                  </IconButton>
-                </Tooltip>
-              )}
-              <Tooltip title="View Another Card">
+              <Tooltip title="Refresh">
                 <IconButton
                   onClick={handleReset}
+                  size="small"
                   sx={{
                     color: 'text.secondary',
-                    '&:hover': {
-                      bgcolor: 'rgba(0, 0, 0, 0.05)',
-                    },
+                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.05)' },
                   }}
                 >
-                  <Refresh />
+                  <Refresh fontSize="small" />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -758,35 +743,19 @@ const MemberCardDisplay: React.FC = () => {
           {shouldShowRenewalButton(memberData) && (
             <Alert
               severity={getRenewalMessage(memberData).severity}
-              icon={<Warning />}
+              icon={<Warning sx={{ fontSize: '1.2rem' }} />}
               sx={{
                 mb: 4,
-                borderRadius: 2,
+                borderRadius: '12px',
+                bgcolor: '#FFF5F5',
+                color: '#C53030',
+                border: '1px solid #FEB2B2',
                 '& .MuiAlert-icon': {
-                  color: getRenewalMessage(memberData).severity === 'error' ? '#DC143C' : '#ed6c02',
+                  color: '#C53030',
                 },
-                border: `1px solid ${getRenewalMessage(memberData).severity === 'error' ? 'rgba(220, 20, 60, 0.3)' : 'rgba(237, 108, 2, 0.3)'}`,
               }}
-              action={
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<Autorenew />}
-                  onClick={handleRenewMembership}
-                  sx={{
-                    bgcolor: '#DC143C',
-                    color: 'white',
-                    fontWeight: 600,
-                    '&:hover': {
-                      bgcolor: '#B01030',
-                    },
-                  }}
-                >
-                  Renew Now
-                </Button>
-              }
             >
-              <Typography variant="body2" fontWeight={600}>
+              <Typography variant="body2" fontWeight={500}>
                 {getRenewalMessage(memberData).message}
               </Typography>
             </Alert>

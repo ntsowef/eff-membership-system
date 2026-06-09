@@ -59,13 +59,25 @@ export const lge2026Api = {
 
   /**
    * Nominate a Ward Councillor Candidate (only one active candidate per ward).
+   * Supports optional CV and IEC Form C2 document uploads.
    */
   nominateCandidate: async (
     wardCode: string,
-    data: NominateCandidateRequest
+    data: NominateCandidateRequest,
+    cvFile?: File,
+    iecFormC2File?: File,
   ): Promise<Lge2026Candidate> => {
     try {
-      const res = await api.post(`/lge2026/ward/${wardCode}/candidate`, data);
+      const formData = new FormData();
+      formData.append('member_id', String(data.member_id));
+      if (data.notes) formData.append('notes', data.notes);
+      if (data.campaign_statement) formData.append('campaign_statement', data.campaign_statement);
+      if (cvFile) formData.append('candidate_cv', cvFile);
+      if (iecFormC2File) formData.append('iec_form_c2', iecFormC2File);
+
+      const res = await api.post(`/lge2026/ward/${wardCode}/candidate`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return unwrap<Lge2026Candidate>(res);
     } catch (error: any) {
       throw new Error(

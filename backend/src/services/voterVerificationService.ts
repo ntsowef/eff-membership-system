@@ -77,54 +77,9 @@ export interface VoterCategory {
 }
 
 export class VoterVerificationService {
-  private static readonly API_BASE_URL = 'https://api.elections.org.za/';
-  private static accessToken: string | null = null;
-  private static tokenExpiry: Date | null = null;
+  // Voter verification is routed through the IECProxy service
+  // (config.iec.proxyUrl); no direct IEC authentication is performed here.
   private static currentElectoralEvent: ElectoralEvent | null = null;
-
-  static async getAccessToken(): Promise<string> {
-    // Check if token is still valid
-    if (this.accessToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
-      return this.accessToken;
-    }
-
-    const maxRetries = 3;
-    let retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        const response = await axios.post('' + this.API_BASE_URL + 'token',
-          new URLSearchParams({
-            grant_type: 'password',
-            username: config.iec.username,
-            password: config.iec.password
-          }), {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            timeout: config.iec.timeout
-          }
-        );
-
-        if (response.data.access_token) {
-          this.accessToken = response.data.access_token;
-          // Set expiry to 50 minutes (tokens usually last 1 hour)
-          this.tokenExpiry = new Date(Date.now() + 50 * 60 * 1000);
-          console.log('✅ IEC API access token obtained');
-          return this.accessToken as string;
-        }
-      } catch (error) {
-        retryCount++;
-        console.error('❌ Failed to get access token (attempt ' + retryCount + '):', error);
-        
-        if (retryCount < maxRetries) {
-          await this.delay(2000 * retryCount); // Exponential backoff
-        }
-      }
-    }
-
-    throw new Error('Failed to obtain IEC API access token after multiple attempts');
-  }
 
   /**
    * Get current municipal electoral event context
@@ -162,18 +117,14 @@ export class VoterVerificationService {
     electoralEventId?: number
   ): Promise<VoterData | null> {
     try {
-      const accessToken = await this.getAccessToken();
-      let url = '${this.API_BASE_URL}api/Voters/IDNumber/' + idNumber + '';
-
-      // Add electoral event ID to the request if provided
-      if (electoralEventId) {
-        url += '? ElectoralEventID=' + electoralEventId + '';
-      }
+      // Route the voter lookup through the IECProxy service. The proxy handles
+      // authentication / Cloudflare bypass and returns the raw IEC payload.
+      const url = `${config.iec.proxyUrl}/api/voters/${idNumber}`;
 
       const response : AxiosResponse = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'bearer ' + accessToken + ''
+          'Accept': 'application/json'
         },
         timeout: config.iec.timeout
       });
@@ -223,13 +174,14 @@ export class VoterVerificationService {
 
   static async fetchVoterData(idNumber: string): Promise<VoterData | null> {
     try {
-      const accessToken = await this.getAccessToken();
-      const url = '${this.API_BASE_URL}api/Voters/IDNumber/' + idNumber + '';
-      
+      // Route the voter lookup through the IECProxy service. The proxy handles
+      // authentication / Cloudflare bypass and returns the raw IEC payload.
+      const url = `${config.iec.proxyUrl}/api/voters/${idNumber}`;
+
       const response: AxiosResponse = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'bearer ' + accessToken + ''
+          'Accept': 'application/json'
         },
         timeout: config.iec.timeout
       });
@@ -710,8 +662,12 @@ export class VoterVerificationService {
         const notRegisteredInWard = categories.NotRegisteredInWard.length;
         const notRegistered = categories.NotRegisteredVoter.length;
         const deceased = categories.Deceased.length;
-        const total = registeredInWard + notRegisteredInWard + notRegistered + deceased;
+        // Quorum rule: members registered IN THIS WARD plus members registered
+        // in OTHER WARDS all count toward the official total in good standing
+        // and quorum. Not-registered and deceased members are NOT counted.
+        const total = registeredInWard + notRegisteredInWard;
         const quorum = Math.floor(total / 2) + 1;
+        console.log(`📊 Attendance register stats - In-ward: ${registeredInWard}, Other-ward: ${notRegisteredInWard}, Total (counted): ${total}, Not registered: ${notRegistered}, Deceased: ${deceased}, Quorum: ${quorum}`);
 
         // Get province and municipality from first registered voter
         const province = categories.RegisteredInWard[0].PROVINCE || 'Unknown';

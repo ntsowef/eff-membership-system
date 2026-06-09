@@ -5,108 +5,123 @@ import {
   Typography,
 } from '@mui/material';
 import MemberCardDisplay from '../../components/cards/MemberCardDisplay';
+import logo from '../../assets/images/EFF_Reglogo.png';
 
 const MyMembershipCard: React.FC = () => {
   return (
-    <Box>
-      {/* Hero Section */}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        width: '100%',
+        bgcolor: '#006030', // Green footer color as base
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflowX: 'hidden'
+      }}
+    >
+      {/* Top Red Section */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
-          color: 'white',
-          py: 8,
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'radial-gradient(circle at 20% 50%, rgba(220, 20, 60, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139, 0, 0, 0.15) 0%, transparent 50%)',
-            pointerEvents: 'none'
-          },
+          flex: 1,
+          bgcolor: '#E60000', // Crimson Red
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          pt: { xs: 6, md: 8 },
+          pb: { xs: 10, md: 15 },
+          px: 2,
         }}
       >
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Box textAlign="center">
-            <Typography
-              variant="overline"
-              sx={{
-                color: '#DC143C',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                letterSpacing: '0.15em',
-                mb: 2,
-                display: 'block',
-                textShadow: '0 2px 8px rgba(220, 20, 60, 0.3)',
-                animation: 'fadeInUp 0.8s ease-out 0.1s both',
-                '@keyframes fadeInUp': {
-                  '0%': { opacity: 0, transform: 'translateY(20px)' },
-                  '100%': { opacity: 1, transform: 'translateY(0)' }
-                }
-              }}
-            >
-              DIGITAL MEMBERSHIP SYSTEM
-            </Typography>
-            <Typography
-              variant="h2"
-              component="h1"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                fontSize: { xs: '2.5rem', md: '3.5rem' },
-                lineHeight: 1.1,
-                mb: 3,
-                textShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                animation: 'fadeInUp 0.8s ease-out 0.2s both',
-              }}
-            >
-              Your Digital Membership Card
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                opacity: 0.9,
-                lineHeight: 1.7,
-                fontWeight: 400,
-                fontSize: '1.1rem',
-                maxWidth: '700px',
-                mx: 'auto',
-                color: 'rgba(255, 255, 255, 0.9)',
-                animation: 'fadeInUp 0.8s ease-out 0.3s both',
-              }}
-            >
-              Access your secure digital membership card instantly. Enter your ID number below to view and download your card.
-            </Typography>
-          </Box>
-        </Container>
-      </Box>
+        {/* Brand Logo */}
+        <Box
+          sx={{
+            width: 100,
+            height: 100,
+            bgcolor: 'black',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 4,
+            border: '2px solid #FFCE00',
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+          }}
+        >
+          <img src={logo} alt="EFF Logo" style={{ width: '85%', height: 'auto' }} />
+        </Box>
 
-      {/* Main Content */}
-      <Box sx={{ bgcolor: '#FAFAFA', py: 8 }}>
-        <Container maxWidth="lg">
-          {/* Main Card Display */}
+        {/* Brand Title */}
+        <Typography
+          variant="h2"
+          sx={{
+            color: '#FFCE00', // Yellow
+            fontWeight: 800,
+            textAlign: 'center',
+            fontFamily: '"Poppins", sans-serif',
+            fontSize: { xs: '2.5rem', md: '4rem' },
+            textTransform: 'uppercase',
+            letterSpacing: '-0.02em',
+            mb: 2,
+            lineHeight: 1
+          }}
+        >
+          Your EFF Digital<br />Membership Card
+        </Typography>
+
+        {/* Brand Subtitle */}
+        <Typography
+          variant="h6"
+          sx={{
+            color: '#FFFFFF',
+            textAlign: 'center',
+            fontFamily: '"Poppins", sans-serif',
+            maxWidth: '800px',
+            fontWeight: 400,
+            mb: 6,
+            opacity: 0.9,
+            fontSize: { xs: '1.1rem', md: '1.4rem' }
+          }}
+        >
+          Access your secure digital membership card instantly. Enter your ID number below to view and download your card.
+        </Typography>
+
+        {/* Content Container (White Box) */}
+        <Container maxWidth={false} sx={{ maxWidth: '1000px', position: 'relative', mt: -2 }}>
           <MemberCardDisplay />
         </Container>
       </Box>
 
-      {/* Footer */}
+      {/* Bottom Green Section (Footer) */}
       <Box
         sx={{
-          bgcolor: '#1a1a1a',
-          color: 'white',
+          bgcolor: '#006030',
           py: 4,
-          textAlign: 'center',
-          borderTop: '1px solid rgba(220, 20, 60, 0.2)',
+          px: 2,
+          textAlign: 'center'
         }}
       >
-        <Container maxWidth="lg">
-          <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            © 2025 Economic Freedom Fighters. All rights reserved. | Digital Membership Cards System
-          </Typography>
-        </Container>
+        <Typography
+          variant="h5"
+          sx={{
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontFamily: '"Poppins", sans-serif',
+            mb: 0.5
+          }}
+        >
+          Economic Freedom in our Lifetime
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'rgba(255,255,255,0.7)',
+            fontFamily: '"Poppins", sans-serif'
+          }}
+        >
+          @2026 Economic Freedom Fighters. All rights reserved
+        </Typography>
       </Box>
     </Box>
   );

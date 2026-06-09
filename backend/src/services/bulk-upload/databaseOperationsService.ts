@@ -96,6 +96,28 @@ export class DatabaseOperationsService {
             });
             return; // Exit early - finally block will release the client
           }
+
+          // SKIP new member inserts for people IEC verified as NOT registered to vote.
+          // Only skip when we have an authoritative IEC result for this ID (present
+          // in iecResults map and free of verification errors). Unverified records
+          // (IEC disabled, rate-limited, or verification error) are still inserted
+          // with special VD codes, matching existing behavior.
+          const wasVerifiedByIec = iecResults.has(record['ID Number']) && !iecResult.error;
+          const vdCode = iecResult.voting_district_code ? String(iecResult.voting_district_code).trim() : '';
+          const isNotRegisteredToVote = wasVerifiedByIec &&
+            (iecResult.is_registered === false || vdCode === '99999999' || vdCode === '999999999');
+
+          if (isNotRegisteredToVote) {
+            await client.query('ROLLBACK');
+            successfulOperations.push({
+              id_number: record['ID Number'],
+              success: true,
+              operation: 'skip',
+              error: 'Not registered to vote (IEC) - not inserted as new member',
+              record
+            });
+            return; // Exit early - finally block will release the client
+          }
           memberId = await this.insertMember(client, record, iecResult);
         } else if (type === 'update') {
           // For existing members who are deceased, we still update them but set status to Inactive
@@ -183,7 +205,7 @@ export class DatabaseOperationsService {
     const expiredMemberRenewals = successfulOperations.filter(op => op.operation === 'renewal' && op.renewal_classification === 'expired_member_renewal').length;
     const skipped = successfulOperations.filter(op => op.operation === 'skip').length;
 
-    console.log(`   ✅ Completed: ${inserts} inserts, ${updates} updates, ${renewals} renewals (${earlyRenewals} early, ${expiredMemberRenewals} expired), ${skipped} skipped (deceased)`);
+    console.log(`   ✅ Completed: ${inserts} inserts, ${updates} updates, ${renewals} renewals (${earlyRenewals} early, ${expiredMemberRenewals} expired), ${skipped} skipped (deceased / not registered to vote)`);
 
     return {
       successful_operations: successfulOperations,

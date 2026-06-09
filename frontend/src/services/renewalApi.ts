@@ -1,12 +1,9 @@
-/**
- * API Service for Membership Renewal
- */
-
 import { api } from '../lib/api';
 import type {
   GetMemberRenewalDataResponse,
   RenewalProcessRequest,
   RenewalProcessResponse,
+  PaymentVerificationResponse,
 } from '../types/renewal';
 
 /**
@@ -22,12 +19,23 @@ export const getMemberRenewalData = async (
 
 /**
  * Process membership renewal with payment
- * REQUIRES AUTHENTICATION - User must be logged in
+ * For Card payments, returns checkout session details.
+ * For Cash/EFT/Mobile, processes the renewal directly.
  */
 export const processRenewal = async (
   renewalData: RenewalProcessRequest
-): Promise<RenewalProcessResponse> => {
+): Promise<any> => {
   const response = await api.post('/renewals/process', renewalData);
+  return response.data.data;
+};
+
+/**
+ * Verify a card-based renewal payment after Peach checkout completes.
+ */
+export const verifyRenewalPayment = async (
+  checkoutId: string
+): Promise<PaymentVerificationResponse> => {
+  const response = await api.get(`/renewals/verify-renewal-payment/${checkoutId}`);
   return response.data.data;
 };
 

@@ -55,6 +55,7 @@ import { MembershipStatusJob } from './jobs/membershipStatusJob';
 import { BirthdayMessageJob } from './jobs/birthdayMessageJob';
 import { MembershipRenewalSMSJob } from './jobs/membershipRenewalSMSJob';
 import { MonthlyFileArchiveJob } from './jobs/monthlyFileArchiveJob';
+import { DeceasedPurgeJob } from './jobs/deceasedPurgeJob';
 import { scheduleWardAuditViewRefresh } from './jobs/refreshMaterializedViews';
 
 // Import queue workers and file storage
@@ -70,6 +71,7 @@ import memberSearchRoutes from './routes/memberSearch';
 import memberAuditRoutes from './routes/memberAudit';
 import wardMembershipAuditRoutes from './routes/wardMembershipAudit';
 import wardAuditRoutes from './routes/wardAudit';
+import lge2026Routes from './routes/lge2026';
 import delegatesManagementRoutes from './routes/delegatesManagement';
 import srpaDelegateConfigRoutes from './routes/srpaDelegateConfig';
 
@@ -116,6 +118,7 @@ import whatsappBotRoutes from './routes/whatsappBot';
 import emergencyAccessRoutes from './routes/emergencyAccess';
 import memberRenewalLogRoutes from './routes/memberRenewalLog';
 import provincialAdminPerformanceRoutes from './routes/provincialAdminPerformance';
+import deceasedPurgeRoutes from './routes/deceasedPurge';
 import { createAuthRoutes } from './middleware/auth';
 import { cacheService } from './services/cacheService';
 import { cacheMetricsMiddleware } from './middleware/cacheMetrics';
@@ -183,9 +186,9 @@ if (config.server.env !== 'development') {
   });
 
   app.use(limiter);
-  if (isVerboseLogging()) console.log('✅ Rate limiting enabled');
+  if (isVerboseLogging()) console.log(' Rate limiting enabled');
 } else {
-  if (isVerboseLogging()) console.log('⚠️  Rate limiting disabled for development');
+  if (isVerboseLogging()) console.log('  Rate limiting disabled for development');
 }
 
 // Compression middleware
@@ -268,6 +271,7 @@ app.use(`${apiPrefix}/search`, memberSearchRoutes);
 app.use(`${apiPrefix}/audit`, memberAuditRoutes);
 app.use(`${apiPrefix}/audit/ward-membership`, wardMembershipAuditRoutes);
 app.use(`${apiPrefix}/ward-audit`, wardAuditRoutes);
+app.use(`${apiPrefix}/lge2026`, lge2026Routes);
 app.use(`${apiPrefix}/delegates-management`, delegatesManagementRoutes);
 app.use(`${apiPrefix}/srpa-delegate-config`, srpaDelegateConfigRoutes);
 
@@ -315,6 +319,7 @@ app.use(`${apiPrefix}/bulk-upload`, bulkUploadRoutes); // New bulk upload API
 app.use(`${apiPrefix}/whatsapp`, whatsappBotRoutes); // WhatsApp Bot (WasenderAPI)
 app.use(`${apiPrefix}/renewal-logs`, memberRenewalLogRoutes); // Dedicated renewal logging
 app.use(`${apiPrefix}/admin-performance`, provincialAdminPerformanceRoutes); // Provincial admin leaderboard
+app.use(`${apiPrefix}/deceased-purge`, deceasedPurgeRoutes); // Monthly IEC deceased member purge
 
 // Root endpoint - POST handler (webhook payloads are logged but NOT processed here to avoid double replies)
 app.post('/', async (req: Request, res: Response) => {
@@ -388,6 +393,9 @@ app.get('/api/dashboard/stats', (_req: Request, res: Response) => {
 app.get('/api/dashboard/ward-stats', (_req: Request, res: Response) => {
   res.json({ success: true, data: [], message: 'Deprecated endpoint - no data available' });
 });
+app.get('/api/support/unread-count', (_req: Request, res: Response) => {
+  res.json({ success: true, data: { count: 0 } });
+});
 
 // 404 handler for undefined routes
 app.use(notFoundHandler);
@@ -410,9 +418,9 @@ const startServer = async (): Promise<void> => {
     // Create database views for voting districts (temporarily disabled)
     // try {
     //   await ViewsService.createMembersVotingDistrictViews();
-    //   if (verbose) console.log('✅ Members voting district views created successfully');
+    //   if (verbose) console.log(' Members voting district views created successfully');
     // } catch (error) {
-    //   console.warn('⚠️  Failed to create voting district views:', error);
+    //   console.warn(' Failed to create voting district views:', error);
     // }
 
     // Initialize Redis connection (skip if Redis is disabled)
@@ -421,9 +429,9 @@ const startServer = async (): Promise<void> => {
       if (verbose) console.log('DEBUG: Connecting to Redis...');
       try {
         await redisService.connect();
-        if (verbose) console.log('✅ Redis connected successfully');
+        if (verbose) console.log(' Redis connected successfully');
       } catch (error) {
-        console.warn('⚠️  Redis connection failed, using fallback cache:', error);
+        console.warn('  Redis connection failed, using fallback cache:', error);
       }
 
       // Initialize cache service
@@ -431,24 +439,24 @@ const startServer = async (): Promise<void> => {
       await cacheService.connect();
       if (verbose) console.log('DEBUG: Cache service initialized');
     } else {
-      console.log('⚠️  Redis disabled via REDIS_ENABLED=false - skipping Redis/cache initialization');
+      console.log('  Redis disabled via REDIS_ENABLED=false - skipping Redis/cache initialization');
     }
 
     // Initialize queue service (after database is ready)
     if (verbose) console.log('DEBUG: Initializing queue service...');
     QueueService.initialize();
-    if (verbose) console.log('✅ Queue service initialized');
+    if (verbose) console.log(' Queue service initialized');
 
     // Ensure upload directories exist
     if (verbose) console.log('DEBUG: Ensuring upload directories exist...');
     await FileStorageService.ensureUploadDirectories();
-    if (verbose) console.log('✅ Upload directories ensured');
+    if (verbose) console.log(' Upload directories ensured');
 
     // Start upload queue workers (skip if Redis is disabled)
     if (redisEnabled) {
       if (verbose) console.log('DEBUG: Starting upload queue workers...');
       startAllQueueWorkers();
-      if (verbose) console.log('✅ Upload queue workers started');
+      if (verbose) console.log(' Upload queue workers started');
     } else {
       console.log('⚠️  Redis disabled - upload queue workers skipped');
     }
@@ -456,7 +464,7 @@ const startServer = async (): Promise<void> => {
     // Start performance monitoring
     if (verbose) console.log('DEBUG: Starting performance monitoring...');
     performanceMonitor.startMonitoring(30000); // Monitor every 30 seconds
-    if (verbose) console.log('✅ Performance monitoring started');
+    if (verbose) console.log(' Performance monitoring started');
 
     // Create HTTP server
     if (verbose) console.log('DEBUG: Creating HTTP server...');
@@ -486,7 +494,7 @@ const startServer = async (): Promise<void> => {
       initializeBulkUploadWorker();
       if (verbose) console.log('DEBUG: Bulk upload queue worker initialized');
     } else {
-      console.log('⚠️  Redis disabled - bulk upload queue worker skipped');
+      console.log('  Redis disabled - bulk upload queue worker skipped');
     }
 
     // Start bulk upload file monitor
@@ -498,49 +506,53 @@ const startServer = async (): Promise<void> => {
     // Start HTTP server
     server.listen(config.server.port, () => {
       // Always show startup messages (essential for knowing the server is running)
-      console.log('🚀 Server started successfully!');
-      console.log(`📍 Server running on port ${config.server.port}`);
-      console.log(`🌐 API available at: http://localhost:${config.server.port}${apiPrefix}`);
+      console.log(' Server started successfully!');
+      console.log(` Server running on port ${config.server.port}`);
+      console.log(` API available at: http://localhost:${config.server.port}${apiPrefix}`);
 
       // Show additional startup info only in verbose mode
       if (verbose) {
-        console.log(`📊 Health check: http://localhost:${config.server.port}${apiPrefix}/health`);
+        console.log(` Health check: http://localhost:${config.server.port}${apiPrefix}/health`);
         console.log(`🔌 WebSocket service: ${WebSocketService.isInitialized() ? 'Initialized' : 'Failed'}`);
-        console.log(`📁 File watcher: ${fileWatcher.isActive() ? 'Active' : 'Inactive'}`);
-        console.log(`⚡ Cache Service: ${cacheService.isAvailable() ? 'Connected' : 'Disconnected'}`);
+        console.log(` File watcher: ${fileWatcher.isActive() ? 'Active' : 'Inactive'}`);
+        console.log(` Cache Service: ${cacheService.isAvailable() ? 'Connected' : 'Disconnected'}`);
       }
 
       // Start SMS provider monitoring
       SMSProviderMonitoringService.startMonitoring();
-      if (verbose) console.log(`📱 SMS Provider Monitoring: Active`);
+      if (verbose) console.log(` SMS Provider Monitoring: Active`);
 
       // Start scheduled maintenance checker (every 1 minute)
       setInterval(scheduledMaintenanceChecker, 60000);
-      if (verbose) console.log(`🔧 Scheduled Maintenance Checker: Active`);
+      if (verbose) console.log(`Scheduled Maintenance Checker: Active`);
 
       // Start meeting status update job (every 5 minutes)
       MeetingStatusJob.start();
-      if (verbose) console.log(`📅 Meeting Status Update Job: Active`);
+      if (verbose) console.log(` Meeting Status Update Job: Active`);
 
       // Start membership status update job (daily at midnight)
       MembershipStatusJob.start();
-      if (verbose) console.log(`👥 Membership Status Update Job: Active (daily at midnight)`);
+      if (verbose) console.log(` Membership Status Update Job: Active (daily at midnight)`);
 
       // Start birthday message job (daily at 08:00 SAST)
       BirthdayMessageJob.start();
-      if (verbose) console.log(`🎂 Birthday Message Job: Active (daily at 08:00 SAST)`);
+      if (verbose) console.log(` Birthday Message Job: Active (daily at 08:00 SAST)`);
 
       // Membership renewal SMS job disabled — credits must be managed manually
-      // MembershipRenewalSMSJob.start();
-      if (verbose) console.log(`📱 Membership Renewal SMS Job: Disabled (manual send only)`);
+      MembershipRenewalSMSJob.start();
+      if (verbose) console.log(` Membership Renewal SMS Job: Disabled (manual send only)`);
 
       // Start ward audit materialized view refresh job (every 15 minutes)
       scheduleWardAuditViewRefresh();
-      if (verbose) console.log(`🔄 Ward Audit Materialized View Refresh: Active (every 15 minutes)`);
+      if (verbose) console.log(`Ward Audit Materialized View Refresh: Active (every 15 minutes)`);
 
       // Start monthly file archive job (1st of every month at 01:00 AM SAST)
       MonthlyFileArchiveJob.start();
-      if (verbose) console.log(`📦 Monthly File Archive Job: Active (1st of every month at 01:00 AM SAST)`);
+      if (verbose) console.log(` Monthly File Archive Job: Active (1st of every month at 01:00 AM SAST)`);
+
+      // Start deceased member purge job (1st of every month at 01:00 AM SAST)
+      DeceasedPurgeJob.start();
+      if (verbose) console.log(` Deceased Member Purge Job: Active (1st of every month at 01:00 AM SAST)`);
 
       // Start file cleanup job (daily at 2 AM)
       const scheduleFileCleanup = () => {
@@ -558,7 +570,7 @@ const startServer = async (): Promise<void> => {
             const result = await FileStorageService.cleanupOldFiles();
             if (verbose) console.log(`✅ File cleanup complete: ${result.deletedCount} files deleted, ${result.freedSpaceMB}MB freed`);
           } catch (error) {
-            console.error('❌ File cleanup failed:', error);
+            console.error(' File cleanup failed:', error);
           }
           scheduleFileCleanup(); // Schedule next run
         }, timeUntilNextRun);
@@ -582,7 +594,7 @@ const startServer = async (): Promise<void> => {
             await cleanupOldJobs(7 * 24 * 60 * 60 * 1000); // 7 days
             if (verbose) console.log('✅ Queue cleanup complete');
           } catch (error) {
-            console.error('❌ Queue cleanup failed:', error);
+            console.error(' Queue cleanup failed:', error);
           }
           scheduleQueueCleanup(); // Schedule next run
         }, timeUntilNextRun);
@@ -614,8 +626,8 @@ const startServer = async (): Promise<void> => {
       // Stop birthday message job
       BirthdayMessageJob.stop();
 
-      // Membership renewal SMS job disabled
-      // MembershipRenewalSMSJob.stop();
+      // Membership renewal SMS job 
+      MembershipRenewalSMSJob.stop();
 
       // Stop monthly file archive job
       MonthlyFileArchiveJob.stop();

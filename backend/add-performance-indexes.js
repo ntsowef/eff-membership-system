@@ -66,6 +66,11 @@ const indexes = [
     description: 'Index for membership date queries'
   },
   {
+    name: 'idx_members_consolidated_updated_at',
+    sql: 'CREATE INDEX IF NOT EXISTS idx_members_consolidated_updated_at ON members_consolidated(updated_at)',
+    description: 'Index for renewal tracking and time-series queries on updated_at'
+  },
+  {
     name: 'idx_voting_stations_is_active',
     sql: 'CREATE INDEX IF NOT EXISTS idx_voting_stations_is_active ON voting_stations(is_active)',
     description: 'Index for active station counts'

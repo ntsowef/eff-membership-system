@@ -291,7 +291,7 @@ const MembershipApplicationPage: React.FC = () => {
       case 3:
         return <PartyDeclarationStep errors={errors} />;
       case 4:
-        return <PaymentStep errors={errors} />;
+        return <PaymentStep errors={errors} onPaymentSuccess={() => setApplicationStep(5)} />;
       case 5:
         return <ReviewStep />;
       default:

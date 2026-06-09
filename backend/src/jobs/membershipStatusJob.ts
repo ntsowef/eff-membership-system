@@ -116,28 +116,38 @@ export class MembershipStatusJob {
       `);
       result.details.to_good_standing = activeResult.rowCount || 0;
 
-      // Update to Grace Period (status_id=7)
+      // Grace Period (status_id=7)
+      // While the "→ Expired" suspension is active (CURRENT_DATE <= 2026-11-30)
+      // we also keep rows whose expiry is >90 days past in Grace Period so they
+      // do not flip to Expired. The trigger applies the same rule.
       const gracePeriodResult = await executeQuery(`
         UPDATE members_consolidated
         SET
           membership_status_id = 7,
           updated_at = CURRENT_TIMESTAMP
         WHERE
-          expiry_date >= CURRENT_DATE - INTERVAL '90 days'
-          AND expiry_date < CURRENT_DATE
-          AND membership_status_id NOT IN (3, 4, 5) -- Don't override Suspended, Cancelled, Pending
+          membership_status_id NOT IN (3, 4, 5) -- Don't override Suspended, Cancelled, Pending
           AND membership_status_id != 7
+          AND expiry_date IS NOT NULL
+          AND expiry_date < CURRENT_DATE
+          AND (
+            expiry_date >= CURRENT_DATE - INTERVAL '90 days'
+            OR CURRENT_DATE <= DATE '2026-11-30'
+          )
       `);
       result.details.to_grace_period = gracePeriodResult.rowCount || 0;
 
       // Update to Expired (status_id=2)
+      // SUSPENDED until 2026-11-30 (inclusive). The condition CURRENT_DATE > '2026-11-30'
+      // is what re-enables this transition automatically from 2026-12-01 onwards.
       const expiredResult = await executeQuery(`
         UPDATE members_consolidated
         SET
           membership_status_id = 2,
           updated_at = CURRENT_TIMESTAMP
         WHERE
-          expiry_date < CURRENT_DATE - INTERVAL '90 days'
+          CURRENT_DATE > DATE '2026-11-30'
+          AND expiry_date < CURRENT_DATE - INTERVAL '90 days'
           AND membership_status_id NOT IN (3, 4, 5) -- Don't override Suspended, Cancelled, Pending
           AND membership_status_id != 2
       `);

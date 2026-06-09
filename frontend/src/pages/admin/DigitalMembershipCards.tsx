@@ -31,6 +31,12 @@ import { api } from '../../lib/api';
 import DigitalCardGenerator from '../../components/cards/DigitalCardGenerator';
 import CardVerification from '../../components/cards/CardVerification';
 import BulkCardGenerator from '../../components/cards/BulkCardGenerator';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { showSuccess, showError } from '../../utils/sweetAlert';
+
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -87,6 +93,98 @@ const DigitalMembershipCards: React.FC = () => {
     refetchStats();
   };
 
+  // Export functions
+  const downloadPDF = () => {
+    if (!statisticsData) return;
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text('Digital Membership Card Statistics Report', 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+
+      // Summary Table
+      autoTable(doc, {
+        startY: 40,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Cards Issued', statisticsData.total_cards_issued.toLocaleString()],
+          ['Active Cards', statisticsData.active_cards.toLocaleString()],
+          ['Inactive Cards', (statisticsData.inactive_cards || 0).toLocaleString()],
+          ['Issued This Month', statisticsData.cards_issued_this_month.toLocaleString()],
+          ['Verifications Today', statisticsData.verification_requests_today.toLocaleString()],
+          ['Total Card Views (New Tracking)', (statisticsData.total_views || 0).toLocaleString()],
+          ['Unique Viewers', (statisticsData.unique_members || 0).toLocaleString()],
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: '#DC143C' }
+      });
+
+      // Recent Activity Table
+      if (statisticsData.recent_card_views && statisticsData.recent_card_views.length > 0) {
+        doc.text('Recent Card Access Activity', 14, (doc as any).lastAutoTable.finalY + 15);
+        autoTable(doc, {
+          startY: (doc as any).lastAutoTable.finalY + 20,
+          head: [['Member Name', 'ID Number', 'Viewed At', 'IP Address', 'Source']],
+          body: statisticsData.recent_card_views.map((v: any) => [
+            v.member_name || 'N/A',
+            v.id_number,
+            new Date(v.viewed_at).toLocaleString(),
+            v.ip_address || 'N/A',
+            v.source || 'public'
+          ]),
+          headStyles: { fillColor: '#1976d2' }
+        });
+      }
+
+      doc.save(`digital-cards-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      showSuccess('PDF Report generated successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      showError('Failed to generate PDF report');
+    }
+  };
+
+  const downloadExcel = () => {
+    if (!statisticsData) return;
+    try {
+      const summaryData = [
+        { Metric: 'Total Cards Issued', Value: statisticsData.total_cards_issued },
+        { Metric: 'Active Cards', Value: statisticsData.active_cards },
+        { Metric: 'Inactive Cards', Value: statisticsData.inactive_cards || 0 },
+        { Metric: 'Issued This Month', Value: statisticsData.cards_issued_this_month },
+        { Metric: 'Verifications Today', Value: statisticsData.verification_requests_today },
+        { Metric: 'Total Card Views', Value: statisticsData.total_views || 0 },
+        { Metric: 'Unique Viewers', Value: statisticsData.unique_members || 0 },
+      ];
+
+      const activityData = statisticsData.recent_card_views || [];
+
+      const wb = XLSX.utils.book_new();
+      const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+      const wsActivity = XLSX.utils.json_to_sheet(activityData.map((v: any) => ({
+        'Member Name': v.member_name || 'N/A',
+        'ID Number': v.id_number,
+        'Viewed At': new Date(v.viewed_at).toLocaleString(),
+        'IP Address': v.ip_address || 'N/A',
+        'Source': v.source || 'public'
+      })));
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+      XLSX.utils.book_append_sheet(wb, wsActivity, 'Recent Activity');
+
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(data, `digital-cards-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      showSuccess('Excel Report generated successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      showError('Failed to generate Excel report');
+    }
+  };
+
+
   return (
     <Box sx={{ flexGrow: 1, bgcolor: 'background.default', minHeight: '100vh' }}>
       {/* Header */}
@@ -132,6 +230,14 @@ const DigitalMembershipCards: React.FC = () => {
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
+              variant="contained"
+              startIcon={<Download />}
+              onClick={() => setActiveTab(3)}
+              sx={{ bgcolor: '#DC143C', '&:hover': { bgcolor: '#B01030' } }}
+            >
+              Export Reports
+            </Button>
+            <Button
               variant="outlined"
               startIcon={<Refresh />}
               onClick={handleRefresh}
@@ -139,61 +245,87 @@ const DigitalMembershipCards: React.FC = () => {
               Refresh Data
             </Button>
           </Box>
+
         </Box>
 
         {/* Statistics Cards */}
         {statisticsData && (
-          <Grid container spacing={3} sx={{ mt: 2 }}>
-            <Grid item xs={12} sm={6} md={3}>
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12} sm={4} md={2}>
               <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary.main" fontWeight="bold">
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h5" color="primary.main" fontWeight="bold">
                     {statisticsData.total_cards_issued.toLocaleString()}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Cards Issued
+                  <Typography variant="caption" color="text.secondary">
+                    Total Issued
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={4} md={2}>
               <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="success.main" fontWeight="bold">
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h5" color="success.main" fontWeight="bold">
                     {statisticsData.active_cards.toLocaleString()}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary">
                     Active Cards
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={4} md={2}>
               <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="info.main" fontWeight="bold">
-                    {statisticsData.cards_issued_this_month.toLocaleString()}
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h5" color="info.main" fontWeight="bold">
+                    {(statisticsData.total_views || 0).toLocaleString()}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Issued This Month
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Total Card Views
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={4} md={2}>
               <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="h4" color="warning.main" fontWeight="bold">
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h5" color="error.main" fontWeight="bold">
+                    {(statisticsData.unique_members || 0).toLocaleString()}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Unique Viewers
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={4} md={2}>
+              <Card>
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h5" color="warning.main" fontWeight="bold">
                     {statisticsData.verification_requests_today}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Verifications Today
+                  <Typography variant="caption" color="text.secondary">
+                    Verifications
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={4} md={2}>
+              <Card>
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h5" color="secondary.main" fontWeight="bold">
+                    {statisticsData.views_today || 0}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Views Today
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
         )}
+
 
         {/* System Status */}
         <Box sx={{ mt: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -327,8 +459,43 @@ const DigitalMembershipCards: React.FC = () => {
                   <Grid item xs={12} md={6}>
                     <Card>
                       <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                          <Typography variant="h6">
+                            Recent View Activity
+                          </Typography>
+                          <Box>
+                            <Button size="small" variant="text" onClick={downloadPDF} sx={{ color: '#DC143C' }}>PDF</Button>
+                            <Button size="small" variant="text" onClick={downloadExcel} sx={{ color: '#1976d2' }}>Excel</Button>
+                          </Box>
+                        </Box>
+                        {(statisticsData.recent_card_views || []).length > 0 ? (
+                           statisticsData.recent_card_views.map((view: any, index: number) => (
+                            <Box key={index} sx={{ mb: 1, p: 1.5, bgcolor: 'grey.50', borderRadius: 1, borderLeft: '3px solid #DC143C' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {view.member_name || 'Unknown Member'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {new Date(view.viewed_at).toLocaleTimeString()}
+                                </Typography>
+                              </Box>
+                              <Typography variant="caption" display="block">
+                                ID: {view.id_number} • IP: {view.ip_address || '---'} • Source: {view.source || 'public'}
+                              </Typography>
+                            </Box>
+                          ))
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">No recent access records found.</Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Card>
+                      <CardContent>
                         <Typography variant="h6" gutterBottom>
-                          Recent Activity
+                          Card Generation Activity
                         </Typography>
                         {statisticsData.recent_activity.map((activity: any, index: number) => (
                           <Box key={index} sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
@@ -346,6 +513,7 @@ const DigitalMembershipCards: React.FC = () => {
                       </CardContent>
                     </Card>
                   </Grid>
+
                 </Grid>
               </Box>
             )}

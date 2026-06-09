@@ -176,6 +176,10 @@ export class Lge2026Model {
     nominated_by: number;
     notes?: string | null;
     campaign_statement?: string | null;
+    cv_path?: string | null;
+    cv_original_name?: string | null;
+    iec_form_c2_path?: string | null;
+    iec_form_c2_original_name?: string | null;
   }): Promise<Lge2026Candidate> {
     try {
       // Verify member belongs to this ward (defensive — UI should already enforce this).
@@ -203,8 +207,9 @@ export class Lge2026Model {
 
       const insert = await executeQuerySingle<{ candidate_id: number }>(
         `INSERT INTO lge2026_candidates
-           (ward_code, member_id, status, nominated_by, notes, campaign_statement)
-         VALUES ($1, $2, 'nominated', $3, $4, $5)
+           (ward_code, member_id, status, nominated_by, notes, campaign_statement,
+            cv_path, cv_original_name, iec_form_c2_path, iec_form_c2_original_name)
+         VALUES ($1, $2, 'nominated', $3, $4, $5, $6, $7, $8, $9)
          RETURNING candidate_id`,
         [
           data.ward_code,
@@ -212,6 +217,10 @@ export class Lge2026Model {
           data.nominated_by,
           data.notes ?? null,
           data.campaign_statement ?? null,
+          data.cv_path ?? null,
+          data.cv_original_name ?? null,
+          data.iec_form_c2_path ?? null,
+          data.iec_form_c2_original_name ?? null,
         ]
       );
       if (!insert) {

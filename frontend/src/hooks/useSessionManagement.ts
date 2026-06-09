@@ -16,7 +16,7 @@ interface SessionStatus {
 // }
 
 export const useSessionManagement = () => {
-  const { logout, token } = useAuth();
+  const { logout, token, sessionId } = useAuth();
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>({
     isValid: true,
     timeRemaining: 10,
@@ -129,6 +129,17 @@ export const useSessionManagement = () => {
         canExtend: true
       });
 
+      // Also extend the database session on the backend
+      if (sessionId) {
+        try {
+          await _api.post('/session/extend', { session_id: sessionId });
+          devLog('🔄 Session extended on backend');
+        } catch {
+          // Don't fail the local extension if backend call fails
+          devLog('⚠️ Backend session extend failed, local extension still applied');
+        }
+      }
+
       devLog('🔄 Session extended by 10 minutes');
 
       // Dispatch custom event to notify all hook instances to re-check immediately
@@ -141,7 +152,7 @@ export const useSessionManagement = () => {
     } finally {
       setIsExtending(false);
     }
-  }, [token, isExtending]);
+  }, [token, isExtending, sessionId]);
 
   // Dismiss warning (user chooses not to extend)
   const dismissWarning = useCallback(() => {

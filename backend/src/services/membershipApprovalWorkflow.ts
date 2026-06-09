@@ -30,7 +30,13 @@ export class MembershipApprovalWorkflow {
       const blockingIssues: string[] = [];
       
       // Check payment status
-      const payments = await PaymentService.getApplicationPayments(applicationId);
+      const paymentQuery = `
+        SELECT payment_status as status, amount, payment_method
+        FROM payments
+        WHERE member_id = $1
+        ORDER BY created_at DESC
+      `;
+      const payments = await executeQuery(paymentQuery, [applicationId]) as any[];
       const completedPayment = payments.find(p => p.status?.toLowerCase() === 'completed');
       const pendingPayment = payments.find(p => p.status?.toLowerCase() === 'verification_required' || p.status?.toLowerCase() === 'pending');
 
@@ -229,15 +235,15 @@ export class MembershipApprovalWorkflow {
       const paymentStats = await PaymentService.getPaymentStatistics(dateFrom, dateTo);
       
       const detailedQuery = `
-        SELECT 
+        SELECT
           pt.created_at::DATE as transaction_date,
           pt.payment_method,
           COUNT(*) as transaction_count,
           SUM(pt.amount) as daily_total,
-          COUNT(CASE WHEN pt.status = 'completed' THEN 1 END) as successful_count,
-          COUNT(CASE WHEN pt.status = 'failed' THEN 1 END) as failed_count,
-          COUNT(CASE WHEN pt.status = 'verification_required' THEN 1 END) as pending_count
-        FROM payment_transactions pt
+          COUNT(CASE WHEN pt.payment_status = 'Completed' THEN 1 END) as successful_count,
+          COUNT(CASE WHEN pt.payment_status = 'Failed' THEN 1 END) as failed_count,
+          COUNT(CASE WHEN pt.payment_status = 'Pending' THEN 1 END) as pending_count
+        FROM payments pt
         WHERE pt.created_at::DATE BETWEEN $1 AND $2
         GROUP BY pt.created_at::DATE, pt.payment_method
         ORDER BY transaction_date DESC, pt.payment_method

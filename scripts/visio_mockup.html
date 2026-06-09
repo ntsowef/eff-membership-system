@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background-color: white;
+    margin: 0;
+    padding: 60px;
+    width: 1400px;
+    height: 1000px;
+    position: relative;
+    box-sizing: border-box;
+  }
+  
+  .title {
+    font-size: 28px;
+    font-weight: bold;
+    color: #2F5496; /* Visio classic dark blue */
+    text-align: center;
+    margin-bottom: 50px;
+    width: 100%;
+  }
+
+  /* Visio-style Box */
+  .visio-box {
+    position: absolute;
+    border: 1px solid #5B9BD5;
+    background-color: white;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .visio-box-header {
+    background-color: #5B9BD5;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px 12px;
+    text-align: center;
+    border-bottom: 1px solid #41719C;
+  }
+  
+  .visio-box-content {
+    padding: 15px;
+    font-size: 13px;
+    color: #333;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background-color: #EDF4FA; 
+  }
+
+  .box-green { border-color: #70AD47; }
+  .box-green .visio-box-header { background-color: #70AD47; border-bottom-color: #507E32; }
+  .box-green .visio-box-content { background-color: #E2EED9; }
+
+  .box-grey { border-color: #A5A5A5; }
+  .box-grey .visio-box-header { background-color: #A5A5A5; border-bottom-color: #7B7B7B; }
+  .box-grey .visio-box-content { background-color: #F2F2F2; }
+
+  /* Databases */
+  .visio-db {
+    position: absolute;
+    width: 120px;
+    height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .db-cylinder {
+    width: 100px;
+    height: 90px;
+    background: #5B9BD5;
+    border: 2px solid #41719C;
+    border-radius: 50px / 15px;
+    position: relative;
+    box-shadow: inset -10px -10px 20px rgba(0,0,0,0.1), 2px 2px 5px rgba(0,0,0,0.1);
+  }
+  .db-cylinder::before {
+    content: "";
+    position: absolute;
+    top: -2px; left: -2px;
+    width: 100px;
+    height: 30px;
+    border: 2px solid #41719C;
+    border-radius: 50px / 15px;
+    background: #84B3E0;
+    box-sizing: content-box;
+  }
+  .db-label {
+    margin-top: 15px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+  }
+
+  /* Connecting SVG Lines */
+  .line-container {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: -1;
+  }
+  
+  polyline, line, path {
+    fill: none;
+    stroke: #41719C;
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  
+  .dashed {
+    stroke-dasharray: 5, 5;
+    stroke: #7B7B7B;
+  }
+
+</style>
+</head>
+<body>
+
+  <div class="title">Enterprise System Integration Architecture</div>
+
+  <svg class="line-container">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#41719C" />
+      </marker>
+      <marker id="arrow-dashed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#7B7B7B" />
+      </marker>
+    </defs>
+    <!-- MVR to API -->
+    <path d="M 280 250 L 280 440 L 640 440" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+    <!-- MMS to API -->
+    <path d="M 640 250 L 640 400" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+    <!-- EM to API -->
+    <path d="M 1000 250 L 1000 440 L 640 440" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+    
+    <!-- IEC to API -->
+    <path class="dashed" d="M 180 500 L 440 500" marker-end="url(#arrow-dashed)" marker-start="url(#arrow-dashed)"/>
+    
+    <!-- SMS to API -->
+    <path class="dashed" d="M 1100 500 L 840 500" marker-end="url(#arrow-dashed)" marker-start="url(#arrow-dashed)"/>
+
+    <!-- API to DB -->
+    <path d="M 640 600 L 640 760" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+    
+    <!-- API to Cache -->
+    <path d="M 640 700 L 860 700 L 860 760" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  </svg>
+
+  <!-- Applications row -->
+  <div class="visio-box" style="top: 150px; left: 180px; width: 200px; height: 100px;">
+    <div class="visio-box-header">Mass-Voter Registration</div>
+    <div class="visio-box-content">Mobile & Field Application<br/>(React Native)</div>
+  </div>
+
+  <div class="visio-box" style="top: 150px; left: 540px; width: 200px; height: 100px;">
+    <div class="visio-box-header">Membership Management</div>
+    <div class="visio-box-content">Web Administration Portal<br/>(React & Node.js)</div>
+  </div>
+
+  <div class="visio-box" style="top: 150px; left: 900px; width: 200px; height: 100px;">
+    <div class="visio-box-header">Election Management</div>
+    <div class="visio-box-content">Elections & Delegate System<br/>(React & Node.js)</div>
+  </div>
+
+  <!-- Gateway row -->
+  <div class="visio-box box-green" style="top: 400px; left: 440px; width: 400px; height: 200px;">
+    <div class="visio-box-header">Integration Layer</div>
+    <div class="visio-box-content">
+      <strong>Unified API Gateway</strong><br/><br/>
+      Event Message Bus (Redis Streams)<br/>
+      Auth & Rate Limiting (Kong)
+    </div>
+  </div>
+
+  <!-- External Systems -->
+  <div class="visio-box box-grey" style="top: 450px; left: 80px; width: 140px; height: 100px;">
+    <div class="visio-box-header">IEC Services</div>
+    <div class="visio-box-content">External Voter<br/>Verification</div>
+  </div>
+
+  <div class="visio-box box-grey" style="top: 450px; left: 1060px; width: 140px; height: 100px;">
+    <div class="visio-box-header">Comms APIs</div>
+    <div class="visio-box-content">SMS & WhatsApp<br/>Providers</div>
+  </div>
+
+  <!-- Data Layer -->
+  <div class="visio-db" style="top: 760px; left: 580px;">
+    <div class="db-cylinder"></div>
+    <div class="db-label">Unified Global<br/>Member/Voter DB</div>
+  </div>
+  
+  <div class="visio-db" style="top: 760px; left: 800px;">
+    <div class="db-cylinder" style="background: #A5A5A5; border-color: #7B7B7B;">
+      <style>
+        .visio-db:nth-child(9) .db-cylinder::before { background: #E0E0E0; border-color: #7B7B7B; }
+      </style>
+    </div>
+    <div class="db-label">Distributed<br/>Redis Cache</div>
+  </div>
+
+</body>
+</html>

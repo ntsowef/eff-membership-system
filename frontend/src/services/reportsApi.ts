@@ -32,6 +32,13 @@ export interface ReportFilters {
   format?: 'excel' | 'pdf';
 }
 
+export interface ExpiryReportFilters {
+  province_code?: string;
+  municipality_code?: string;
+  expiry_date_from?: string;
+  expiry_date_to?: string;
+}
+
 /**
  * Reports API Service
  * Handles all report generation and download operations
@@ -147,13 +154,15 @@ export const reportsApi = {
   },
 
   /**
-   * Generate and download Expired Members Report
-   * Contains members whose membership has expired
+   * Generate and download Expired Members Report (expiry_date < CURRENT_DATE)
    */
-  downloadExpiredMembersReport: async (filters: ReportFilters = {}) => {
+  downloadExpiredMembersReport: async (filters: ExpiryReportFilters = {}) => {
     try {
       const params = new URLSearchParams();
       if (filters.province_code) params.append('province_code', filters.province_code);
+      if (filters.municipality_code) params.append('municipality_code', filters.municipality_code);
+      if (filters.expiry_date_from) params.append('expiry_date_from', filters.expiry_date_from);
+      if (filters.expiry_date_to) params.append('expiry_date_to', filters.expiry_date_to);
       params.append('format', 'excel');
 
       const response = await axios.get(
@@ -164,11 +173,16 @@ export const reportsApi = {
         }
       );
 
-      // Create download link
+      const dateStr = new Date().toISOString().split('T')[0];
+      const rangeSuffix = (filters.expiry_date_from || filters.expiry_date_to)
+        ? `-${filters.expiry_date_from || 'start'}-to-${filters.expiry_date_to || 'end'}`
+        : `-${dateStr}`;
+      const filename = `expired-members${rangeSuffix}.xlsx`;
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Expired_Members_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -182,18 +196,16 @@ export const reportsApi = {
   },
 
   /**
-   * Generate and download Expiring Members Report
-   * Contains members whose membership expires on or after 1st October 2026
+   * Generate and download Expiring Members Report (expiry_date >= CURRENT_DATE)
+   * Optional date range defines the look-ahead window.
    */
-  downloadExpiringMembersReport: async (filters: {
-    province_code?: string;
-    municipality_code?: string;
-    format: 'csv' | 'excel';
-  }) => {
+  downloadExpiringMembersReport: async (filters: ExpiryReportFilters & { format: 'csv' | 'excel' }) => {
     try {
       const params = new URLSearchParams();
       if (filters.province_code) params.append('province_code', filters.province_code);
       if (filters.municipality_code) params.append('municipality_code', filters.municipality_code);
+      if (filters.expiry_date_from) params.append('expiry_date_from', filters.expiry_date_from);
+      if (filters.expiry_date_to) params.append('expiry_date_to', filters.expiry_date_to);
       params.append('format', filters.format);
 
       const response = await axios.get(
@@ -204,13 +216,17 @@ export const reportsApi = {
         }
       );
 
-      // Create download link
+      const dateStr = new Date().toISOString().split('T')[0];
+      const rangeSuffix = (filters.expiry_date_from || filters.expiry_date_to)
+        ? `-${filters.expiry_date_from || dateStr}-to-${filters.expiry_date_to || 'open'}`
+        : `-${dateStr}`;
+      const ext = filters.format === 'csv' ? 'csv' : 'xlsx';
+      const filename = `expiring-members${rangeSuffix}.${ext}`;
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      const dateStr = new Date().toISOString().split('T')[0];
-      const ext = filters.format === 'csv' ? 'csv' : 'xlsx';
-      link.setAttribute('download', `expiring-members-${dateStr}.${ext}`);
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -290,6 +306,124 @@ export const reportsApi = {
     } catch (error: any) {
       console.error('Error downloading Different Ward Members Report:', error);
       throw new Error(error.response?.data?.message || 'Failed to download Different Ward Members Report');
+    }
+  },
+
+  /**
+   * Generate and download Duplicate Phone Numbers Report
+   * Identifies members sharing the same cell phone number
+   */
+  downloadDuplicatePhoneReport: async (filters: ReportFilters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      if (filters.municipality_code) params.append('municipality_code', filters.municipality_code);
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/duplicate-phones/export-excel?${params.toString()}`,
+        {
+          responseType: 'blob',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Duplicate_Phone_Numbers_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Duplicate Phone Numbers Report downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading Duplicate Phone Numbers Report:', error);
+      throw new Error(error.response?.data?.message || 'Failed to download Duplicate Phone Numbers Report');
+    }
+  },
+
+  /**
+   * Generate and download Deceased Member Purge Report (Excel — 3 sheets)
+   * Sheet 1: Run Summary  |  Sheet 2: Province Breakdown  |  Sheet 3: Individual Records
+   */
+  downloadDeceasedPurgeReport: async (filters: {
+    province_code?: string;
+    run_id?: number;
+  } = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      if (filters.run_id)        params.append('run_id', String(filters.run_id));
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/deceased-purge?${params.toString()}`,
+        { responseType: 'blob', headers: getAuthHeaders() }
+      );
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const suffix = filters.province_code
+        ? `_${filters.province_code}`
+        : filters.run_id ? `_Run${filters.run_id}` : '';
+      const filename = `Deceased_Purge_Report${suffix}_${dateStr}.xlsx`;
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'Deceased Purge Report downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading Deceased Purge Report:', error);
+      throw new Error(error.response?.data?.message || 'Failed to download Deceased Purge Report');
+    }
+  },
+
+  /**
+   * Generate and download the LGE2026 Package (ZIP)
+   * Contains the existing Attendance Register (Word) and a newly formatted
+   * Membership Spreadsheet (Excel) with a Summary sheet and conditional
+   * column reordering based on the number of Voting Districts per ward.
+   */
+  downloadLGE2026Package: async (filters: ReportFilters = {}) => {
+    try {
+      if (!filters.ward_code) {
+        throw new Error('Ward Code is required for the LGE2026 Package');
+      }
+
+      const params = new URLSearchParams();
+      params.append('ward_code', filters.ward_code);
+      if (filters.province_code) params.append('province_code', filters.province_code);
+      if (filters.municipality_code) params.append('municipality_code', filters.municipality_code);
+
+      const response = await axios.get(
+        `${API_BASE_URL}/reports/lge2026-package?${params.toString()}`,
+        {
+          responseType: 'blob',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `LGE2026_Package_Ward_${filters.ward_code}_${dateStr}.zip`;
+
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/zip' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true, message: 'LGE2026 Package downloaded successfully' };
+    } catch (error: any) {
+      console.error('Error downloading LGE2026 Package:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to download LGE2026 Package');
     }
   },
 
@@ -391,6 +525,15 @@ export const reportsApi = {
         format: 'CSV/Excel',
         icon: 'Schedule',
         category: 'Membership Reports',
+      },
+      {
+        id: 'duplicate-phones',
+        name: 'Duplicate Phone Numbers Report',
+        description: 'Identifies members sharing the same cell phone number',
+        sheets: 2,
+        format: 'Excel',
+        icon: 'PhoneAndroid',
+        category: 'Data Quality Reports',
       },
     ];
   },

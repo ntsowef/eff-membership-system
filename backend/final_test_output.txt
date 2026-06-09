@@ -1,0 +1,42 @@
+--- SMS Webhook Logic Verification (Consolidated) ---
+Initializing database...
+Γ£ô Database initialized
+sms_send_log columns: id, message_id, provider_message_id, source_type, source_reference_id, recipient_phone, recipient_name, recipient_member_id, message_content, message_length, sender_id, sender_name, status, delivery_timestamp, error_code, error_message, retry_count, max_retries, last_retry_at, cost, provider_name, webhook_data, created_at, updated_at
+sms_messages columns: message_id, campaign_id, template_id, member_id, recipient_name, recipient_number, message_text, sender_name, status, sent_at, delivered_at, failed_at, provider_name, provider_message_id, provider_status, provider_response, cost_per_message, currency, error_code, error_message, retry_count, max_retries, created_at, updated_at
+
+Setting up test data for message test-msg-1772480473816...
+Γ£ô Inserted into sms_send_log (using recipient_phone, message_content)
+Γ¥î Database query error: error: new row for relation "sms_messages" violates check constraint "sms_messages_status_check"
+    at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:154:20)
+    at async verifyWebhook (C:\Development\NewProj\Membership-newV2\backend\scripts\verify-sms-webhook-final.ts:52:9) {
+  length: 450,
+  severity: 'ERROR',
+  code: '23514',
+  detail: 'Failing row contains (2, null, null, null, null, 27123456789, Verification Test Message, EFF, sent, null, null, null, null, test-msg-1772480473816, null, null, 0.0000, ZAR, null, null, 0, 3, 2026-03-02 21:41:13.525091, 2026-03-02 21:41:13.525091).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'sms_messages',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'sms_messages_status_check',
+  file: 'execMain.c',
+  line: '2057',
+  routine: 'ExecConstraints'
+}
+Query: 
+            INSERT INTO sms_messages (recipient_number, message_text, status, provider_message_id, created_at)
+            VALUES ('27123456789', 'Verification Test Message', 'sent', $1, CURRENT_TIMESTAMP)
+        
+Params: [ 'test-msg-1772480473816' ]
+Γ¥î Verification failed: new row for relation "sms_messages" violates check constraint "sms_messages_status_check"
+error: new row for relation "sms_messages" violates check constraint "sms_messages_status_check"
+    at C:\Development\NewProj\Membership-newV2\backend\node_modules\pg\lib\client.js:545:17
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async executeQuery (C:\Development\NewProj\Membership-newV2\backend\src\config\database-hybrid.ts:154:20)
+    at async verifyWebhook (C:\Development\NewProj\Membership-newV2\backend\scripts\verify-sms-webhook-final.ts:52:9)

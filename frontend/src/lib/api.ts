@@ -17,12 +17,14 @@ api.interceptors.request.use(
     const authStorage = localStorage.getItem('auth-storage');
     let token = null;
     let sessionId = null;
+    let otpSessionToken = null;
 
     if (authStorage) {
       try {
         const parsed = JSON.parse(authStorage);
         token = parsed.state?.token;
         sessionId = parsed.state?.sessionId;
+        otpSessionToken = parsed.state?.otpSessionToken;
       } catch (error) {
         console.error('❌ Failed to parse auth-storage:', error);
       }
@@ -39,6 +41,10 @@ api.interceptors.request.use(
 
     if (sessionId) {
       config.headers['X-Session-ID'] = sessionId;
+    }
+
+    if (otpSessionToken) {
+      config.headers['X-OTP-Session'] = otpSessionToken;
     }
 
     // Add CSRF protection for state-changing requests

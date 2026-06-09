@@ -52,6 +52,9 @@ import {
   CompareArrows,
   Cake,
   Schedule,
+  PhoneAndroid,
+  PersonOff as PersonOffIcon,
+  Inventory2 as Inventory2Icon,
 } from '@mui/icons-material';
 import PerformanceDashboard from '../../components/reports/PerformanceDashboard';
 import StrategicInsights from '../../components/reports/StrategicInsights';
@@ -90,6 +93,9 @@ const ReportsPage: React.FC = () => {
     province_code: '',
     municipality_code: '',
     ward_code: '',
+    run_id: '',
+    expiry_date_from: '',
+    expiry_date_to: '',
   });
 
   const [exportFormat, setExportFormat] = useState<'csv' | 'excel'>('excel');
@@ -105,22 +111,22 @@ const ReportsPage: React.FC = () => {
   const provinces = Array.isArray(provincesData?.data?.data)
     ? provincesData.data.data
     : Array.isArray(provincesData?.data)
-    ? provincesData.data
-    : [];
+      ? provincesData.data
+      : [];
 
   // Fetch municipalities for dropdown (filtered by selected province)
   const { data: municipalitiesData } = useQuery({
     queryKey: ['municipalities', reportFilters.province_code],
     queryFn: () => geographicApi.getMunicipalities(reportFilters.province_code || undefined),
     staleTime: 10 * 60 * 1000,
-    enabled: selectedExcelReport === 'expiring-members',
+    enabled: selectedExcelReport === 'expiring-members' || selectedExcelReport === 'expired-members',
   });
 
   const municipalities = Array.isArray(municipalitiesData?.data?.data)
     ? municipalitiesData.data.data
     : Array.isArray(municipalitiesData?.data)
-    ? municipalitiesData.data
-    : [];
+      ? municipalitiesData.data
+      : [];
 
   // Excel Report Download Handler
   const handleDownloadExcelReport = async (reportType: string) => {
@@ -128,7 +134,7 @@ const ReportsPage: React.FC = () => {
     setDownloadingReport(reportType);
 
     try {
-      let result;
+      let result: { success: boolean; message: string };
       switch (reportType) {
         case 'ward-audit':
           result = await reportsApi.downloadWardAuditReport({
@@ -150,7 +156,10 @@ const ReportsPage: React.FC = () => {
           break;
         case 'expired-members':
           result = await reportsApi.downloadExpiredMembersReport({
-            province_code: reportFilters.province_code,
+            province_code: reportFilters.province_code || undefined,
+            municipality_code: reportFilters.municipality_code || undefined,
+            expiry_date_from: reportFilters.expiry_date_from || undefined,
+            expiry_date_to: reportFilters.expiry_date_to || undefined,
           });
           break;
         case 'not-registered':
@@ -167,7 +176,28 @@ const ReportsPage: React.FC = () => {
           result = await reportsApi.downloadExpiringMembersReport({
             province_code: reportFilters.province_code || undefined,
             municipality_code: reportFilters.municipality_code || undefined,
+            expiry_date_from: reportFilters.expiry_date_from || undefined,
+            expiry_date_to: reportFilters.expiry_date_to || undefined,
             format: exportFormat,
+          });
+          break;
+        case 'duplicate-phones':
+          result = await reportsApi.downloadDuplicatePhoneReport({
+            province_code: reportFilters.province_code || undefined,
+            municipality_code: reportFilters.municipality_code || undefined,
+          });
+          break;
+        case 'deceased-purge':
+          result = await reportsApi.downloadDeceasedPurgeReport({
+            province_code: reportFilters.province_code || undefined,
+            run_id: reportFilters.run_id ? parseInt(reportFilters.run_id) : undefined,
+          });
+          break;
+        case 'lge2026-package':
+          result = await reportsApi.downloadLGE2026Package({
+            ward_code: reportFilters.ward_code,
+            province_code: reportFilters.province_code || undefined,
+            municipality_code: reportFilters.municipality_code || undefined,
           });
           break;
         default:
@@ -194,6 +224,17 @@ const ReportsPage: React.FC = () => {
 
   const handleOpenFilterDialog = (reportType: string) => {
     setSelectedExcelReport(reportType);
+    // Default 30-day look-ahead for expiring members if no dates set
+    if (reportType === 'expiring-members' && !reportFilters.expiry_date_from && !reportFilters.expiry_date_to) {
+      const today = new Date();
+      const in30Days = new Date(today);
+      in30Days.setDate(today.getDate() + 30);
+      setReportFilters(prev => ({
+        ...prev,
+        expiry_date_from: today.toISOString().split('T')[0],
+        expiry_date_to: in30Days.toISOString().split('T')[0],
+      }));
+    }
     setFilterDialogOpen(true);
   };
 
@@ -476,7 +517,7 @@ const ReportsPage: React.FC = () => {
                   <Typography variant="h6">Expiring Members</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Members whose membership expires on or after 1st October 2026 (CSV/Excel)
+                  Members whose membership is upcoming to expire. Defaults to a 30-day look-ahead window (CSV/Excel)
                 </Typography>
                 <Chip label="CSV/Excel" size="small" color="success" sx={{ mb: 2 }} />
                 <Button
@@ -488,6 +529,78 @@ const ReportsPage: React.FC = () => {
                   disabled={isDownloading}
                 >
                   Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <PhoneAndroid color="secondary" />
+                  <Typography variant="h6">Duplicate Phone Numbers</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Identifies members sharing the same cell phone number (2 sheets: Summary + Details)
+                </Typography>
+                <Chip label="2 Worksheets" size="small" color="secondary" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="secondary"
+                  startIcon={isDownloading && downloadingReport === 'duplicate-phones' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('duplicate-phones')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%', border: '1px solid', borderColor: 'error.light' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <PersonOffIcon color="error" />
+                  <Typography variant="h6">Deceased Member Purge</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Cumulative archive of all IEC-confirmed deceased members — run summary, province breakdown, and individual records
+                </Typography>
+                <Chip label="3 Worksheets" size="small" color="error" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="error"
+                  startIcon={isDownloading && downloadingReport === 'deceased-purge' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('deceased-purge')}
+                  disabled={isDownloading}
+                >
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%', border: '1px solid', borderColor: 'success.light' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Inventory2Icon color="success" />
+                  <Typography variant="h6">LGE2026 Package</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  ZIP bundle for the selected ward — existing Attendance Register (Word) + new Membership Spreadsheet (Excel) with Summary sheet and conditional column reorder based on VD count
+                </Typography>
+                <Chip label="ZIP (Word + Excel)" size="small" color="success" sx={{ mb: 2 }} />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color="success"
+                  startIcon={isDownloading && downloadingReport === 'lge2026-package' ? <CircularProgress size={16} /> : <Download />}
+                  onClick={() => handleOpenFilterDialog('lge2026-package')}
+                  disabled={isDownloading}
+                >
+                  Download Package
                 </Button>
               </CardContent>
             </Card>
@@ -850,6 +963,9 @@ const ReportsPage: React.FC = () => {
           {selectedExcelReport === 'not-registered' && 'Not Registered Members Report Filters'}
           {selectedExcelReport === 'different-ward' && 'Different Ward Members Report Filters'}
           {selectedExcelReport === 'expiring-members' && 'Expiring Members Report Filters'}
+          {selectedExcelReport === 'duplicate-phones' && 'Duplicate Phone Numbers Report Filters'}
+          {selectedExcelReport === 'deceased-purge' && 'Deceased Member Purge Report Filters'}
+          {selectedExcelReport === 'lge2026-package' && 'LGE2026 Package Filters'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -873,6 +989,17 @@ const ReportsPage: React.FC = () => {
                 />
               </>
             )}
+            {selectedExcelReport === 'lge2026-package' && (
+              <TextField
+                label="Ward Code (Required)"
+                value={reportFilters.ward_code}
+                onChange={(e) => setReportFilters({ ...reportFilters, ward_code: e.target.value })}
+                fullWidth
+                required
+                placeholder="e.g., 79790001"
+                helperText="Enter the ward to generate the LGE2026 Package for"
+              />
+            )}
             {selectedExcelReport === 'srpa-delegates' && (
               <TextField
                 label="Ward Code (Optional)"
@@ -883,7 +1010,7 @@ const ReportsPage: React.FC = () => {
                 helperText="Leave empty for all wards"
               />
             )}
-            {(selectedExcelReport === 'expired-members' || selectedExcelReport === 'not-registered' || selectedExcelReport === 'different-ward') && (
+            {(selectedExcelReport === 'not-registered' || selectedExcelReport === 'different-ward' || selectedExcelReport === 'duplicate-phones') && (
               <FormControl fullWidth>
                 <InputLabel id="province-select-label">Province (Optional)</InputLabel>
                 <Select
@@ -902,6 +1029,60 @@ const ReportsPage: React.FC = () => {
                   ))}
                 </Select>
               </FormControl>
+            )}
+            {selectedExcelReport === 'expired-members' && (
+              <>
+                <FormControl fullWidth>
+                  <InputLabel id="expired-province-select-label">Province (Optional)</InputLabel>
+                  <Select
+                    labelId="expired-province-select-label"
+                    value={reportFilters.province_code}
+                    onChange={(e) => setReportFilters({ ...reportFilters, province_code: e.target.value, municipality_code: '' })}
+                    label="Province (Optional)"
+                  >
+                    <MenuItem value=""><em>All Provinces</em></MenuItem>
+                    {provinces.map((province: { province_code: string; province_name: string }) => (
+                      <MenuItem key={province.province_code} value={province.province_code}>
+                        {province.province_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="expired-municipality-select-label">Municipality (Optional)</InputLabel>
+                  <Select
+                    labelId="expired-municipality-select-label"
+                    value={reportFilters.municipality_code}
+                    onChange={(e) => setReportFilters({ ...reportFilters, municipality_code: e.target.value })}
+                    label="Municipality (Optional)"
+                  >
+                    <MenuItem value=""><em>All Municipalities</em></MenuItem>
+                    {municipalities.map((muni: { municipality_code: string; municipality_name: string }) => (
+                      <MenuItem key={muni.municipality_code} value={muni.municipality_code}>
+                        {muni.municipality_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Expiry Date From (Optional)"
+                  type="date"
+                  value={reportFilters.expiry_date_from}
+                  onChange={(e) => setReportFilters({ ...reportFilters, expiry_date_from: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Filter expired members from this date (must be before today)"
+                />
+                <TextField
+                  label="Expiry Date To (Optional)"
+                  type="date"
+                  value={reportFilters.expiry_date_to}
+                  onChange={(e) => setReportFilters({ ...reportFilters, expiry_date_to: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Filter expired members up to this date (must be before today)"
+                />
+              </>
             )}
             {selectedExcelReport === 'expiring-members' && (
               <>
@@ -941,6 +1122,24 @@ const ReportsPage: React.FC = () => {
                     ))}
                   </Select>
                 </FormControl>
+                <TextField
+                  label="Expiry Date From"
+                  type="date"
+                  value={reportFilters.expiry_date_from}
+                  onChange={(e) => setReportFilters({ ...reportFilters, expiry_date_from: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Start of look-ahead window (defaults to today)"
+                />
+                <TextField
+                  label="Expiry Date To"
+                  type="date"
+                  value={reportFilters.expiry_date_to}
+                  onChange={(e) => setReportFilters({ ...reportFilters, expiry_date_to: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  helperText="End of look-ahead window (defaults to 30 days from today)"
+                />
                 <FormControl fullWidth>
                   <InputLabel id="export-format-label">Export Format</InputLabel>
                   <Select
@@ -955,14 +1154,45 @@ const ReportsPage: React.FC = () => {
                 </FormControl>
               </>
             )}
+            {selectedExcelReport === 'deceased-purge' && (
+              <>
+                <FormControl fullWidth>
+                  <InputLabel id="deceased-province-label">Province (Optional)</InputLabel>
+                  <Select
+                    labelId="deceased-province-label"
+                    value={reportFilters.province_code}
+                    onChange={(e) => setReportFilters({ ...reportFilters, province_code: e.target.value })}
+                    label="Province (Optional)"
+                  >
+                    <MenuItem value=""><em>All Provinces</em></MenuItem>
+                    {provinces.map((p: { province_code: string; province_name: string }) => (
+                      <MenuItem key={p.province_code} value={p.province_code}>{p.province_name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Run ID (Optional)"
+                  value={reportFilters.run_id}
+                  onChange={(e) => setReportFilters({ ...reportFilters, run_id: e.target.value })}
+                  fullWidth
+                  placeholder="e.g., 1"
+                  helperText="Filter to a specific monthly run. Leave empty for all runs."
+                  type="number"
+                  inputProps={{ min: 1 }}
+                />
+              </>
+            )}
             <Alert severity="info">
               {selectedExcelReport === 'ward-audit' && 'This report contains 2 worksheets: Provincial Summary and Municipality Detail'}
               {selectedExcelReport === 'daily-report' && 'This report contains 2 worksheets: Municipality/District Analysis and IEC Wards Master List (~4,400 wards)'}
               {selectedExcelReport === 'srpa-delegates' && 'This report contains 10 worksheets: 9 provinces + National Summary'}
-              {selectedExcelReport === 'expired-members' && 'This report lists members whose membership has expired, including Member ID, Full Name, ID Number, Province, Municipality, Ward, Expiry Date, and Days Expired'}
+              {selectedExcelReport === 'expired-members' && 'This report lists members whose expiry_date < today (past membership), including Full Name, ID Number, Ward Code, Municipality Code/Name, Voting District Code, Province Code/Name, District Code/Name, and Expiry Date. Narrow by province, municipality, or date range.'}
               {selectedExcelReport === 'not-registered' && 'This report lists members who are not registered to vote (voting_district_code = 99999999), including Member ID, Full Name, ID Number, Province, Municipality, Ward, and Membership Status'}
               {selectedExcelReport === 'different-ward' && 'This report lists members registered to a different ward than their membership ward (voting_district_code = 22222222), including Member ID, Full Name, ID Number, Membership Ward, Registered Ward, Province, and Municipality'}
-              {selectedExcelReport === 'expiring-members' && 'This report lists members whose membership expires on or after 1st October 2026, including Full Name, ID Number, Ward, Municipality, Voting District, Province, District, and Expiry Date'}
+              {selectedExcelReport === 'expiring-members' && 'This report lists members whose expiry_date >= today (upcoming expiry), including Full Name, ID Number, Ward Code, Municipality Code/Name, Voting District Code, Province Code/Name, District Code/Name, and Expiry Date. Defaults to a 30-day look-ahead window.'}
+              {selectedExcelReport === 'duplicate-phones' && 'This report identifies cell phone numbers shared by 2 or more members. Sheet 1: Summary of duplicate numbers with count. Sheet 2: Detailed member list with names, ID numbers, location, membership status, and expiry date.'}
+              {selectedExcelReport === 'deceased-purge' && 'Sheet 1: Run Summary — one row per monthly purge run. Sheet 2: Province Breakdown — deceased counts per province. Sheet 3: Individual Records — full archive of every IEC-confirmed deceased member with ID number, name, province, municipality, membership number, and detection date.'}
+              {selectedExcelReport === 'lge2026-package' && 'ZIP bundle with two files: (1) Attendance Register (Word, identical to existing) and (2) Membership Spreadsheet (Excel). The Summary sheet shows ward totals plus a per-VD breakdown listing every Voting District in the ward with its registered member count (VDs with zero members are highlighted). The Members sheet always shows "Membership Status" as the very last column.'}
             </Alert>
           </Box>
         </DialogContent>
@@ -971,10 +1201,14 @@ const ReportsPage: React.FC = () => {
           <Button
             variant="contained"
             onClick={() => selectedExcelReport && handleDownloadExcelReport(selectedExcelReport)}
-            disabled={isDownloading}
+            disabled={isDownloading || (selectedExcelReport === 'lge2026-package' && !reportFilters.ward_code)}
             startIcon={isDownloading ? <CircularProgress size={16} /> : <Download />}
           >
-            {selectedExcelReport === 'expiring-members' ? `Download ${exportFormat === 'csv' ? 'CSV' : 'Excel'}` : 'Download Excel'}
+            {selectedExcelReport === 'lge2026-package'
+              ? 'Download Package (ZIP)'
+              : selectedExcelReport === 'expiring-members'
+                ? `Download ${exportFormat === 'csv' ? 'CSV' : 'Excel'}`
+                : 'Download Excel'}
           </Button>
         </DialogActions>
       </Dialog>

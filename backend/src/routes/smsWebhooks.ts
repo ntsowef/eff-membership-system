@@ -1,7 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { SMSDeliveryTrackingService } from '../services/smsDeliveryTrackingService';
+import { SMSCallbackService } from '../services/smsCallbackService';
 import { SMSProviderMonitoringService } from '../services/smsProviderMonitoringService';
-import { SMSLogService } from '../services/smsLogService';
 import { executeQuery } from '../config/database';
 import { logger } from '../utils/logger';
 import { ValidationError } from '../middleware/errorHandler';
@@ -9,241 +8,273 @@ import { authenticate, requireSMSPermission } from '../middleware/auth';
 
 const router = Router();
 
-// Middleware to log all webhook requests
-const logWebhookRequest = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Log the webhook request for debugging and audit purposes
-    await executeQuery(`
-      INSERT INTO sms_webhook_log (
-        provider_name, request_method, request_headers, request_body,
-        request_ip, received_at
-      ) VALUES (?, ?, ?, ?, ?, NOW())
-    `, [
-      req.params.provider || 'unknown',
-      req.method,
-      JSON.stringify(req.headers),
-      JSON.stringify(req.body),
-      req.ip || req.connection.remoteAddress
-    ]);
-
-    next();
-  } catch (error: any) {
-    logger.error('Failed to log webhook request', { error: error.message });
-    next(); // Continue processing even if logging fails
-  }
+// =====================================================================================
+// Helper: get client IP
+// =====================================================================================
+const getClientIP = (req: Request): string => {
+  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+    || req.ip
+    || req.socket?.remoteAddress
+    || 'unknown';
 };
 
-// Generic SMS delivery status webhook endpoint
-router.post('/delivery/:provider', logWebhookRequest, async (req: Request, res: Response, next: NextFunction) => {
+// =====================================================================================
+// JSON Applink specific webhook endpoint
+// MUST be defined BEFORE the generic /:provider route
+// =====================================================================================
+router.post('/delivery/json-applink', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const provider = req.params.provider;
     const webhookData = req.body;
+    const requestIP = getClientIP(req);
 
-    logger.info('SMS delivery webhook received', {
-      provider,
-      headers: req.headers,
-      body: webhookData
+    logger.info('JSON Applink delivery webhook received', {
+      ip: requestIP,
+      body: webhookData,
     });
 
-    // Validate webhook data
+    // Validate request
     if (!webhookData || typeof webhookData !== 'object') {
       throw new ValidationError('Invalid webhook data format');
     }
 
-    // Process the delivery status webhook (existing tracking)
-    await SMSDeliveryTrackingService.processDeliveryWebhook(webhookData);
+    // Authentication and rate limiting removed per user request for all providers
 
-    // Also update the SMS send log table
-    await SMSLogService.processWebhookDeliveryUpdate(webhookData);
 
-    // Update webhook log with success
-    await executeQuery(`
-      UPDATE sms_webhook_log 
-      SET processed_successfully = TRUE, 
-          processed_at = NOW(),
-          response_status = 200,
-          response_message = 'Webhook processed successfully'
-      WHERE provider_name = ? 
-        AND received_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
-      ORDER BY id DESC 
-      LIMIT 1
-    `, [provider]);
-
-    res.status(200).json({
-      success: true,
-      message: 'Delivery status webhook processed successfully',
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error: any) {
-    logger.error('SMS delivery webhook processing failed', {
-      provider: req.params.provider,
-      error: error.message,
-      webhookData: req.body
-    });
-
-    // Update webhook log with error
-    try {
-      await executeQuery(`
-        UPDATE sms_webhook_log 
-        SET processed_successfully = FALSE, 
-            processed_at = NOW(),
-            response_status = 500,
-            response_message = ?,
-            processing_error = ?
-        WHERE provider_name = ? 
-          AND received_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
-        ORDER BY id DESC 
-        LIMIT 1
-      `, [error.message, error.stack, req.params.provider]);
-    } catch (logError: any) {
-      logger.error('Failed to update webhook log with error', { error: logError.message });
+    // If it's a reply (MO), route to processMOCallback
+    if (webhookData.responseType === 'reply') {
+      const result = await SMSCallbackService.processMOCallback(
+        'json-applink', webhookData, req.headers as Record<string, any>, requestIP
+      );
+      
+      res.status(200).json({
+        success: result.success,
+        message: result.success ? 'JSON Applink MO processed' : (result.error || 'MO processing failed'),
+        member_id: result.memberId,
+        id_number: result.idNumber,
+        timestamp: new Date().toISOString(),
+      });
+      return;
     }
 
+    // Process the callback (delivery report)
+    const result = await SMSCallbackService.processCallback(
+      'json-applink', webhookData, req.headers as Record<string, any>, requestIP
+    );
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success ? 'JSON Applink webhook processed successfully' : 'Processing failed',
+      callback_id: result.callbackId,
+      message_id: result.messageId,
+      delivery_status: result.deliveryStatus,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    logger.error('JSON Applink webhook processing failed', { error: error.message });
     next(error);
   }
 });
 
-// JSON Applink specific webhook endpoint (if they have specific format requirements)
-router.post('/delivery/json-applink', logWebhookRequest, async (req: Request, res: Response, next: NextFunction) => {
+// =====================================================================================
+// MO (Mobile Originated) SMS webhook endpoint
+// Used for keywords like "RENEW"
+// =====================================================================================
+router.post('/mo/:provider', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const provider = req.params.provider;
     const webhookData = req.body;
+    const requestIP = getClientIP(req);
 
-    logger.info('JSON Applink delivery webhook received', {
-      headers: req.headers,
-      body: webhookData
-    });
+    logger.info('SMS MO webhook received', { provider, ip: requestIP, body: webhookData });
 
-    // JSON Applink specific processing (customize based on their webhook format)
-    const processedData = {
-      message_id: webhookData.reference || webhookData.message_id || webhookData.id,
-      provider_message_id: webhookData.tracking_id || webhookData.external_id || webhookData.message_id,
-      status: webhookData.status || webhookData.delivery_status,
-      error_code: webhookData.error_code || webhookData.failure_code,
-      error_message: webhookData.error_message || webhookData.failure_reason,
-      delivery_timestamp: webhookData.delivered_at || webhookData.timestamp,
-      cost: webhookData.cost || webhookData.price
-    };
-
-    await SMSDeliveryTrackingService.processDeliveryWebhook(processedData);
-
-    // Also update the SMS send log table
-    await SMSLogService.processWebhookDeliveryUpdate(processedData);
-
-    // Update webhook log with success
-    await executeQuery(`
-      UPDATE sms_webhook_log 
-      SET processed_successfully = TRUE, 
-          processed_at = NOW(),
-          response_status = 200,
-          response_message = 'JSON Applink webhook processed successfully',
-          message_id = ?
-      WHERE provider_name = 'JSON Applink' 
-        AND received_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
-      ORDER BY id DESC 
-      LIMIT 1
-    `, [processedData.message_id]);
-
-    res.status(200).json({
-      success: true,
-      message: 'JSON Applink delivery webhook processed successfully',
-      message_id: processedData.message_id,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error: any) {
-    logger.error('JSON Applink webhook processing failed', {
-      error: error.message,
-      webhookData: req.body
-    });
-
-    // Update webhook log with error
-    try {
-      await executeQuery(`
-        UPDATE sms_webhook_log 
-        SET processed_successfully = FALSE, 
-            processed_at = NOW(),
-            response_status = 500,
-            response_message = ?,
-            processing_error = ?
-        WHERE provider_name = 'JSON Applink' 
-          AND received_at >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)
-        ORDER BY id DESC 
-        LIMIT 1
-      `, [error.message, error.stack]);
-    } catch (logError: any) {
-      logger.error('Failed to update webhook log with error', { error: logError.message });
+    if (!webhookData || typeof webhookData !== 'object') {
+      throw new ValidationError('Invalid webhook data format');
     }
 
+    // Process the MO callback
+    // Note: SMSCallbackService.processMOCallback handles the delegation to business logic
+    const result = await SMSCallbackService.processMOCallback(
+      provider, webhookData, req.headers as Record<string, any>, requestIP
+    );
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success ? 'MO webhook processed successfully' : (result.error || 'Processing failed'),
+      member_id: result.memberId,
+      id_number: result.idNumber,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    logger.error('SMS MO webhook processing failed', { provider: req.params.provider, error: error.message });
     next(error);
   }
 });
 
-// Get webhook logs for debugging (admin only)
-router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
+// =====================================================================================
+// Generic SMS delivery status webhook endpoint
+// =====================================================================================
+router.post('/delivery/:provider', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { provider, limit = 50, offset = 0 } = req.query;
+    const provider = req.params.provider;
+    const webhookData = req.body;
+    const requestIP = getClientIP(req);
 
-    let query = `
-      SELECT id, provider_name, request_method, request_headers, request_body,
-             request_ip, response_status, response_message, processed_successfully,
-             processing_error, message_id, received_at, processed_at
-      FROM sms_webhook_log
-    `;
+    logger.info('SMS delivery webhook received', { provider, ip: requestIP, body: webhookData });
 
+    if (!webhookData || typeof webhookData !== 'object') {
+      throw new ValidationError('Invalid webhook data format');
+    }
+
+    // Authentication and rate limiting removed per user request for all providers
+
+
+    // Process the callback
+    const result = await SMSCallbackService.processCallback(
+      provider, webhookData, req.headers as Record<string, any>, requestIP
+    );
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success ? 'Delivery webhook processed successfully' : 'Processing failed',
+      callback_id: result.callbackId,
+      message_id: result.messageId,
+      delivery_status: result.deliveryStatus,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    logger.error('SMS delivery webhook processing failed', { provider: req.params.provider, error: error.message });
+    next(error);
+  }
+});
+
+// =====================================================================================
+// Get delivery callbacks (admin)
+// =====================================================================================
+router.get('/callbacks', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { provider_name, delivery_status, message_id, page, limit, start_date, end_date } = req.query;
+
+    const result = await SMSCallbackService.getCallbacks({
+      provider_name: provider_name as string,
+      delivery_status: delivery_status as string,
+      message_id: message_id as string,
+      page: page ? parseInt(page as string) : 1,
+      limit: limit ? parseInt(limit as string) : 50,
+      start_date: start_date as string,
+      end_date: end_date as string,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        callbacks: result.callbacks,
+        total: result.total,
+        page: page ? parseInt(page as string) : 1,
+        limit: limit ? parseInt(limit as string) : 50,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to get callbacks', { error: error.message });
+    next(error);
+  }
+});
+
+// =====================================================================================
+// Get callback statistics (admin)
+// =====================================================================================
+router.get('/callback-stats', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { timeframe = 'day' } = req.query;
+    const stats = await SMSCallbackService.getCallbackStats(timeframe as 'hour' | 'day' | 'week' | 'month');
+
+    res.json({
+      success: true,
+      data: { statistics: stats, timeframe, timestamp: new Date().toISOString() },
+    });
+  } catch (error: any) {
+    logger.error('Failed to get callback stats', { error: error.message });
+    next(error);
+  }
+});
+
+// =====================================================================================
+// Retry failed callbacks (admin)
+// =====================================================================================
+router.post('/retry-failed', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { max_attempts = 3 } = req.body;
+    const retried = await SMSCallbackService.retryFailedCallbacks(max_attempts);
+
+    res.json({
+      success: true,
+      message: `Retried ${retried} failed callbacks`,
+      data: { retried_count: retried },
+    });
+  } catch (error: any) {
+    logger.error('Failed to retry callbacks', { error: error.message });
+    next(error);
+  }
+});
+
+// =====================================================================================
+// Get webhook logs (admin)
+// =====================================================================================
+router.get('/logs', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { provider, limit = '50', offset = '0' } = req.query;
+    const conditions: string[] = [];
     const params: any[] = [];
+    let idx = 1;
 
     if (provider) {
-      query += ' WHERE provider_name = ?';
+      conditions.push(`provider_name = $${idx++}`);
       params.push(provider);
     }
 
-    query += ' ORDER BY received_at DESC LIMIT ? OFFSET ?';
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     params.push(parseInt(limit as string), parseInt(offset as string));
 
-    const logs = await executeQuery(query, params);
+    const logs = await executeQuery(
+      `SELECT * FROM sms_webhook_log ${where} ORDER BY received_at DESC LIMIT $${idx++} OFFSET $${idx}`,
+      params
+    );
 
     res.json({
       success: true,
       data: {
         logs: logs || [],
-        total: logs?.length || 0,
+        total: Array.isArray(logs) ? logs.length : 0,
         limit: parseInt(limit as string),
-        offset: parseInt(offset as string)
-      }
+        offset: parseInt(offset as string),
+      },
     });
-
   } catch (error: any) {
     logger.error('Failed to get webhook logs', { error: error.message });
     next(error);
   }
 });
 
-// Get delivery statistics
+// =====================================================================================
+// Get delivery statistics (admin)
+// =====================================================================================
 router.get('/stats', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { timeframe = 'day' } = req.query;
-
-    const stats = await SMSDeliveryTrackingService.getDeliveryStatistics(
-      timeframe as 'hour' | 'day' | 'week' | 'month'
-    );
+    const stats = await SMSCallbackService.getCallbackStats(timeframe as 'hour' | 'day' | 'week' | 'month');
 
     res.json({
       success: true,
-      data: {
-        statistics: stats,
-        timeframe,
-        timestamp: new Date().toISOString()
-      }
+      data: { statistics: stats, timeframe, timestamp: new Date().toISOString() },
     });
-
   } catch (error: any) {
     logger.error('Failed to get delivery statistics', { error: error.message });
     next(error);
   }
 });
 
-// Get provider health status
+// =====================================================================================
+// Get provider health status (admin)
+// =====================================================================================
 router.get('/provider-health', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const healthStatuses = await SMSProviderMonitoringService.getAllProviderHealthStatuses();
@@ -255,17 +286,18 @@ router.get('/provider-health', authenticate, requireSMSPermission(), async (req:
         current_provider: currentProviderHealth,
         all_providers: healthStatuses,
         monitoring_active: SMSProviderMonitoringService.isMonitoringRunning(),
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
-
   } catch (error: any) {
     logger.error('Failed to get provider health status', { error: error.message });
     next(error);
   }
 });
 
-// Trigger manual health check
+// =====================================================================================
+// Trigger manual health check (admin)
+// =====================================================================================
 router.post('/health-check', authenticate, requireSMSPermission(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const healthStatus = await SMSProviderMonitoringService.performHealthCheck();
@@ -273,54 +305,59 @@ router.post('/health-check', authenticate, requireSMSPermission(), async (req: R
     res.json({
       success: true,
       message: 'Health check completed',
-      data: {
-        health_status: healthStatus,
-        timestamp: new Date().toISOString()
-      }
+      data: { health_status: healthStatus, timestamp: new Date().toISOString() },
     });
-
   } catch (error: any) {
     logger.error('Manual health check failed', { error: error.message });
     next(error);
   }
 });
 
-// Test webhook endpoint (for development/testing)
+// =====================================================================================
+// Get supported providers
+// =====================================================================================
+router.get('/providers', authenticate, requireSMSPermission(), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        providers: SMSCallbackService.getSupportedProviders(),
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+// =====================================================================================
+// Test webhook endpoint (development/testing only)
+// =====================================================================================
 router.post('/test/:provider', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const provider = req.params.provider;
+    const requestIP = getClientIP(req);
     const testData = {
       message_id: `test_${Date.now()}`,
       provider_message_id: `${provider}_test_${Date.now()}`,
       status: 'delivered',
-      delivery_timestamp: new Date(),
-      ...req.body
+      delivery_timestamp: new Date().toISOString(),
+      ...req.body,
     };
 
-    await SMSDeliveryTrackingService.trackDeliveryStatus({
-      message_id: testData.message_id,
-      provider_message_id: testData.provider_message_id,
-      status: testData.status,
-      delivery_timestamp: testData.delivery_timestamp,
-      retry_count: 0
-    });
+    const result = await SMSCallbackService.processCallback(
+      provider, testData, req.headers as Record<string, any>, requestIP
+    );
 
-    logger.info('Test webhook processed', {
-      provider,
-      testData
-    });
+    logger.info('Test webhook processed', { provider, result });
 
     res.json({
       success: true,
       message: 'Test webhook processed successfully',
-      data: testData
+      data: { ...testData, callback_id: result.callbackId },
     });
-
   } catch (error: any) {
-    logger.error('Test webhook processing failed', {
-      provider: req.params.provider,
-      error: error.message
-    });
+    logger.error('Test webhook processing failed', { provider: req.params.provider, error: error.message });
     next(error);
   }
 });

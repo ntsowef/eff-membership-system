@@ -1,0 +1,70 @@
+=== TEST 1: Production API - municipalities for Free State ===
+Total municipalities: 23
+Sub-regions: 4
+  581 | MAN001 | MAN - Bloemfontein
+  582 | MAN002 | MAN - Botshabelo
+  583 | MAN003 | MAN - Naledi
+  584 | MAN004 | MAN - Thaba Nchu
+
+=== TEST 2: Production API - positions for Bloemfontein (entity_id=581) ===
+Total positions: 18
+Filled: 12
+Vacant: 6
+
+Filled positions:
+  MCHAIR_MAN001 | MAN - Bloemfontein Sub-Region Chairperson | holders: MPHO RAMATLAMA
+  MSEC_MAN001 | MAN - Bloemfontein Sub-Region Secretary | holders: Deliwe Malebo
+  MTREAS_MAN001 | MAN - Bloemfontein Sub-Region Treasurer | holders: DIMAKATSO MARIA MOSIDI
+  MADD04_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 4 | holders: KGOMOTSO CHOANE
+  MADD05_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 5 | holders: Thabo Mphasane
+  MADD06_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 6 | holders: Keabecoe  Thapedi
+  MADD07_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 7 | holders: Setlaba Johannes Tau
+  MADD09_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 9 | holders: Nomsa Lexie Hlubi
+  MADD10_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 10 | holders: Matshidiso Nomane
+  MADD13_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 13 | holders: Keitumetse Malebo
+  MADD14_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 14 | holders: JAY-BEE RATHEBE
+  MADD15_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 15 | holders: Doctor Mokhuwa
+
+Vacant positions:
+  MADD01_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 1
+  MADD02_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 2
+  MADD03_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 3
+  MADD08_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 8
+  MADD11_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 11
+  MADD12_MAN001 | MAN - Bloemfontein Sub-Region Additional Member 12
+
+=== TEST 3: Production API - positions for Botshabelo (entity_id=582) ===
+Total positions: 18
+Filled: 17
+Vacant: 1
+
+Filled positions:
+  MCHAIR_MAN002 | MAN - Botshabelo Sub-Region Chairperson | holders: JOHANNES BELEME THOMAS
+  MSEC_MAN002 | MAN - Botshabelo Sub-Region Secretary | holders: MOABI LOMET MOKOKO
+  MTREAS_MAN002 | MAN - Botshabelo Sub-Region Treasurer | holders: NKOTSENG SARAH KGOABANE
+  MADD02_MAN002 | MAN - Botshabelo Sub-Region Additional Member 2 | holders: Lindani William Stock
+  MADD03_MAN002 | MAN - Botshabelo Sub-Region Additional Member 3 | holders: MAMATLANE ELISA MOGOTSI
+  MADD04_MAN002 | MAN - Botshabelo Sub-Region Additional Member 4 | holders: TSITSO SIMON MPHATSOE
+  MADD05_MAN002 | MAN - Botshabelo Sub-Region Additional Member 5 | holders: THABO RASEILE
+  MADD06_MAN002 | MAN - Botshabelo Sub-Region Additional Member 6 | holders: MOSELE LYDIA THITO
+  MADD07_MAN002 | MAN - Botshabelo Sub-Region Additional Member 7 | holders: MAMPATHI SANNAH  MOSEKE
+  MADD08_MAN002 | MAN - Botshabelo Sub-Region Additional Member 8 | holders: THAPELO GEORGE MAINE
+  MADD09_MAN002 | MAN - Botshabelo Sub-Region Additional Member 9 | holders: GOPOLANG LIPALE
+  MADD10_MAN002 | MAN - Botshabelo Sub-Region Additional Member 10 | holders: NONTSOKOLO SOPHY MOKHETI
+  MADD11_MAN002 | MAN - Botshabelo Sub-Region Additional Member 11 | holders: MOIPONE SAMSON
+  MADD12_MAN002 | MAN - Botshabelo Sub-Region Additional Member 12 | holders: ITUMELENG JOYCE THIBIRI
+  MADD13_MAN002 | MAN - Botshabelo Sub-Region Additional Member 13 | holders: TINA DILAHLWANE HLAPHO
+  MADD14_MAN002 | MAN - Botshabelo Sub-Region Additional Member 14 | holders: Tsholwane Eddie Phohleli
+  MADD15_MAN002 | MAN - Botshabelo Sub-Region Additional Member 15 | holders: Mpho Tau
+
+=== TEST 4: Production API - positions for Setsoto (entity_id=494) ===
+Total positions: 18
+Filled: 12
+Vacant: 6
+
+Filled positions (first 5):
+  MCHAIR_FS191 | Setsoto Municipal Chairperson | holders: Tebello Manako
+  MSEC_FS191 | Setsoto Municipal Secretary | holders: MALEFU MOKOAKOE
+  MADD02_FS191 | Setsoto Municipal Additional Member 2 | holders: SEIPATI MOKHESENG
+  MADD03_FS191 | Setsoto Municipal Additional Member 3 | holders: Lihlabi Mapulane
+  MADD04_FS191 | Setsoto Municipal Additional Member 4 | holders: MODIEHI NTSALA

@@ -79,6 +79,12 @@ export class MembershipStatusService {
      * @param expiryDate - The member's expiry date (null = Inactive)
      * @returns Correct membership status ID
      */
+    // Cut-off for the "→ Expired" suspension (inclusive). Until and including
+    // this date, members that would normally be classified as Expired are kept
+    // in Grace Period instead. Matches the DB trigger in
+    // migrations/046_suspend_expired_status_until_2026_11_30.sql
+    private static readonly EXPIRED_SUSPEND_UNTIL = new Date('2026-11-30T00:00:00');
+
     static determineStatus(expiryDate: Date | null): MembershipStatusId {
         if (!expiryDate) {
             return MembershipStatusId.INACTIVE;
@@ -105,6 +111,10 @@ export class MembershipStatusService {
         }
 
         // Expired: expiry < (today - 90 days)
+        // Suspended until EXPIRED_SUSPEND_UNTIL (inclusive) — keep in Grace Period.
+        if (today <= MembershipStatusService.EXPIRED_SUSPEND_UNTIL) {
+            return MembershipStatusId.GRACE_PERIOD;
+        }
         return MembershipStatusId.EXPIRED;
     }
 

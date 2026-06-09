@@ -1,0 +1,6 @@
+
+> geomaps-backend@1.0.0 copy-assets
+> node -e "const fs = require('fs'); const path = require('path'); const src = path.join(__dirname, 'src', 'assets'); const dest = path.join(__dirname, 'dist', 'assets'); if (fs.existsSync(src)) { fs.cpSync(src, dest, { recursive: true }); console.log('Γ£à Assets copied to dist/assets'); } else { console.log('ΓÜá∩╕Å  No assets directory found'); }"
+
+Γ£à Assets copied to dist/assets
+EXIT: 0

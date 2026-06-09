@@ -164,8 +164,8 @@ export class AttendanceRegisterEmailService {
                   <td>${wardNumber}</td>
                 </tr>
                 <tr>
-                  <td>Ward Name:</td>
-                  <td>${wardInfo.ward_name}</td>
+                  <td>Ward Code:</td>
+                  <td>${wardInfo.ward_code}</td>
                 </tr>
                 <tr>
                   <td>Municipality:</td>
@@ -220,7 +220,7 @@ Please find attached the Ward Attendance Register for Ward ${wardNumber} in ${wa
 
 Ward Information:
 - Ward Number: ${wardNumber}
-- Ward Name: ${wardInfo.ward_name}
+- Ward Code: ${wardInfo.ward_code}
 - Municipality: ${wardInfo.municipality_name}
 - District: ${wardInfo.district_name}
 - Province: ${wardInfo.province_name}

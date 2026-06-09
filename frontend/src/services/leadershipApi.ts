@@ -55,6 +55,7 @@ export interface LeadershipAppointmentDetails extends LeadershipAppointment {
   appointed_by_name: string;
   terminated_by_name?: string;
   entity_name?: string;
+  entity_location?: string;
 }
 
 export interface CreateAppointmentData {
@@ -118,10 +119,11 @@ export interface PositionFilters {
 
 export interface AppointmentFilters {
   hierarchy_level?: string;
-  entity_id?: number;
+  entity_id?: number | null;
   position_id?: number;
   member_id?: number;
   appointment_type?: string;
+  province_id?: number;
   appointment_status?: string;
 }
 
@@ -190,7 +192,7 @@ export interface WarCouncilValidation {
 
 export class LeadershipAPI {
   // ==================== POSITIONS ====================
-  
+
   /**
    * Get leadership positions with optional filtering
    */
@@ -210,7 +212,7 @@ export class LeadershipAPI {
     try {
       const params: any = { hierarchy_level: hierarchyLevel };
       if (entityId) params.entity_id = entityId;
-      
+
       const response = await api.get('/leadership/positions', { params });
       return response.data.data.positions;
     } catch (error: any) {
@@ -231,7 +233,7 @@ export class LeadershipAPI {
   }
 
   // ==================== APPOINTMENTS ====================
-  
+
   /**
    * Create new leadership appointment
    */
@@ -314,7 +316,7 @@ export class LeadershipAPI {
   }
 
   // ==================== MEMBERS ====================
-  
+
   /**
    * Get members with filtering for leadership assignment
    */
@@ -395,7 +397,7 @@ export class LeadershipAPI {
   }
 
   // ==================== STRUCTURES ====================
-  
+
   /**
    * Get organizational structures
    */
@@ -420,14 +422,26 @@ export class LeadershipAPI {
     }
   }
 
+  /**
+   * Get provincial leadership overview - all municipal SRCT structures in a province
+   */
+  static async getProvincialLeadershipOverview(provinceId: number): Promise<any> {
+    try {
+      const response = await api.get(`/leadership/structure/provincial-overview/${provinceId}`);
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch provincial leadership overview: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
   // ==================== VALIDATION ====================
-  
+
   /**
    * Check if position is vacant
    */
   static async isPositionVacant(
-    positionId: number, 
-    hierarchyLevel: string, 
+    positionId: number,
+    hierarchyLevel: string,
     entityId: number
   ): Promise<boolean> {
     try {

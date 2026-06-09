@@ -1,0 +1,12 @@
+src/pages/sms/MembershipRenewalSMSPage.tsx(224,25): error TS2322: Type 'Element' is not assignable to type 'OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }'.
+  Type 'ReactElement<any, any>' is not assignable to type 'OverridableComponent<SvgIconTypeMap<{}, "svg">>'.
+    Type 'ReactElement<any, any>' provides no match for the signature '<RootComponent extends React.ElementType>(props: { component: RootComponent; } & SvgIconOwnProps & CommonProps & DistributiveOmit<ComponentPropsWithRef<RootComponent>, "fontSize" | ... 10 more ... | "titleAccess">): Element'.
+src/pages/sms/MembershipRenewalSMSPage.tsx(225,25): error TS2322: Type '"#1976d2"' is not assignable to type '"success" | "error" | "warning" | "info" | "primary" | "secondary"'.
+src/pages/sms/MembershipRenewalSMSPage.tsx(232,25): error TS2322: Type 'Element' is not assignable to type 'OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }'.
+  Type 'ReactElement<any, any>' is not assignable to type 'OverridableComponent<SvgIconTypeMap<{}, "svg">>'.
+    Type 'ReactElement<any, any>' provides no match for the signature '<RootComponent extends React.ElementType>(props: { component: RootComponent; } & SvgIconOwnProps & CommonProps & DistributiveOmit<ComponentPropsWithRef<RootComponent>, "fontSize" | ... 10 more ... | "titleAccess">): Element'.
+src/pages/sms/MembershipRenewalSMSPage.tsx(233,25): error TS2322: Type '"#ed6c02"' is not assignable to type '"success" | "error" | "warning" | "info" | "primary" | "secondary"'.
+src/pages/sms/MembershipRenewalSMSPage.tsx(240,25): error TS2322: Type 'Element' is not assignable to type 'OverridableComponent<SvgIconTypeMap<{}, "svg">> & { muiName: string; }'.
+  Type 'ReactElement<any, any>' is not assignable to type 'OverridableComponent<SvgIconTypeMap<{}, "svg">>'.
+    Type 'ReactElement<any, any>' provides no match for the signature '<RootComponent extends React.ElementType>(props: { component: RootComponent; } & SvgIconOwnProps & CommonProps & DistributiveOmit<ComponentPropsWithRef<RootComponent>, "fontSize" | ... 10 more ... | "titleAccess">): Element'.
+src/pages/sms/MembershipRenewalSMSPage.tsx(241,25): error TS2322: Type '"#d32f2f"' is not assignable to type '"success" | "error" | "warning" | "info" | "primary" | "secondary"'.

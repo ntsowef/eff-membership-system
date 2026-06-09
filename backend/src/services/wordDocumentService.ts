@@ -69,27 +69,44 @@ export class WordDocumentService {
     try {
       console.log('🔄 Starting Word Attendance Register generation...');
 
+      // Sentinel VD codes used across the data layer. The DB stores 8-digit
+      // variants (e.g. '22222222'); 9-digit forms are accepted defensively for
+      // any legacy/imported rows.
+      const SENTINEL_DIFFERENT_WARD = new Set(['22222222', '222222222']);
+      const SENTINEL_INTERNATIONAL = new Set(['33333333', '333333333']);
+      const SENTINEL_NOT_REGISTERED = new Set(['99999999', '999999999']);
+      const DIFFERENT_WARD_BUCKET_CODE = '22222222';
+      const NOT_REGISTERED_BUCKET_CODE = '99999999';
+
       // Group members by voting district (using voting_district_name as the station name)
       const membersByStation = members.reduce((acc, member) => {
-        // Use voting_district_name as the station name (this is what appears in the reference doc)
-        let stationName = member.voting_district_name || 'Not Registered to vote';
-        let vdCode = member.voting_district_code || '999999999';
+        const rawCode = (member.voting_district_code || '').toString().trim();
+        const rawName = (member.voting_district_name || '').toString().trim();
 
-        // Check if member is registered in a different ward
-        if (member.voting_district_code && member.voting_district_code !== '33333333' && member.voting_district_code !== '999999999') {
-          // Check if this VD belongs to the current ward
-          // If not, it should be in "Registered in different Ward" section
-          // For now, we'll use the actual VD name if available
-          if (!stationName || stationName === 'Not Registered to vote') {
-            stationName = 'Registered in different Ward';
-            vdCode = '222222222';
-          }
-        } else if (member.voting_district_code === '222222222') {
-          stationName = 'Registered in different Ward';
-          vdCode = '222222222';
-        } else if (!member.voting_district_code || member.voting_district_code === '999999999') {
+        let stationName: string;
+        let vdCode: string;
+
+        if (!rawCode || SENTINEL_NOT_REGISTERED.has(rawCode)) {
+          // Empty or "not registered" sentinel
           stationName = 'Not Registered to vote';
-          vdCode = '999999999';
+          vdCode = NOT_REGISTERED_BUCKET_CODE;
+        } else if (SENTINEL_DIFFERENT_WARD.has(rawCode)) {
+          // "Registered in different ward" sentinel
+          stationName = 'Registered in different Ward';
+          vdCode = DIFFERENT_WARD_BUCKET_CODE;
+        } else if (SENTINEL_INTERNATIONAL.has(rawCode)) {
+          // International voter sentinel - keep its own bucket
+          stationName = rawName || 'International Voter';
+          vdCode = rawCode;
+        } else if (!rawName) {
+          // Real-looking VD code but the SQL join returned no name. After the
+          // ward-scoped join fix, this indicates the VD belongs to a different
+          // ward, so bucket the member as "Registered in different Ward".
+          stationName = 'Registered in different Ward';
+          vdCode = DIFFERENT_WARD_BUCKET_CODE;
+        } else {
+          stationName = rawName;
+          vdCode = rawCode;
         }
 
         const key = `${stationName}|||${vdCode}`; // Use delimiter to store both
@@ -100,22 +117,18 @@ export class WordDocumentService {
         return acc;
       }, {} as Record<string, MemberData[]>);
 
-      // Sort stations with custom order: proper VDs first (alphabetically), then "Registered in different Ward", then "Not Registered to vote"
-      const sortedStations = Object.keys(membersByStation).sort((a, b) => {
-        const [nameA, codeA] = a.split('|||');
-        const [nameB, codeB] = b.split('|||');
-
-        // "Not Registered to vote" always goes last
-        if (codeA === '999999999') return 1;
-        if (codeB === '999999999') return -1;
-
-        // "Registered in different Ward" goes second to last
-        if (codeA === '222222222') return 1;
-        if (codeB === '222222222') return -1;
-
-        // All other VDs sorted alphabetically by name
-        return nameA.localeCompare(nameB);
-      });
+      // In-ward voting stations AND "Registered in different Ward" are rendered.
+      // Only "Not Registered to vote" is excluded from the register entirely.
+      const sortedStations = Object.keys(membersByStation)
+        .filter((key) => {
+          const code = key.split('|||')[1];
+          return !SENTINEL_NOT_REGISTERED.has(code);
+        })
+        .sort((a, b) => {
+          const [nameA] = a.split('|||');
+          const [nameB] = b.split('|||');
+          return nameA.localeCompare(nameB);
+        });
 
       // Load EFF logo from backend assets directory
       // __dirname in compiled code points to: backend/dist/services/
@@ -142,10 +155,22 @@ export class WordDocumentService {
         console.warn(`   Tried path: ${logoPath}`);
       }
 
-      // Calculate statistics
-      const totalMembers = members.length;
+      // Quorum rule: members registered IN THIS WARD plus members registered
+      // in OTHER WARDS all count toward the official "total membership in good
+      // standing" and quorum. Only "Not Registered to vote" is excluded.
+      let totalMembers = 0;
+      let countedStations = 0;
+      for (const key of Object.keys(membersByStation)) {
+        const code = key.split('|||')[1];
+        if (SENTINEL_NOT_REGISTERED.has(code)) {
+          continue; // not-registered: excluded from total and quorum
+        }
+        totalMembers += membersByStation[key].length;
+        countedStations++;
+      }
       const quorum = Math.floor(totalMembers / 2) + 1;
-      const totalVotingStations = sortedStations.length;
+      const totalVotingStations = countedStations;
+      console.log(`📊 Word register stats - Counted (in-ward + other-ward): ${totalMembers}, Stations: ${totalVotingStations}, Total rows received: ${members.length}`);
 
       // Create document sections
       const sections = [];
@@ -419,7 +444,7 @@ export class WordDocumentService {
             children: [
               this.createHeaderCell('NUM', 600),
               this.createHeaderCell('NAME', 2500),
-              this.createHeaderCell('WARD NUMBER', 1200),
+              this.createHeaderCell('WARD CODE', 1200),
               this.createHeaderCell('ID NUMBER', 1800),
               this.createHeaderCell('CELL NUMBER', 1500),
               this.createHeaderCell('REGISTERED VD', 2000),

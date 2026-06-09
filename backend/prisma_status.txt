@@ -1,0 +1,9 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "eff_membership_database", schema "public" at "69.164.245.173:5432"
+
+No migration found in prisma/migrations
+The current database is not managed by Prisma Migrate.
+        
+Read more about how to baseline an existing production database:
+https://pris.ly/d/migrate-baseline

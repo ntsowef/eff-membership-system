@@ -204,11 +204,11 @@ export class GeographicModel {
           pm.municipality_name as parent_municipality_name
         FROM municipalities m
         LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
-        WHERE m.district_code = ?
+        WHERE m.district_code = ? OR pm.district_code = ?
         ORDER BY m.municipality_name
       `;
 
-      return await executeQuery<Municipality>(query, [districtCode]);
+      return await executeQuery<Municipality>(query, [districtCode, districtCode]);
     } catch (error) {
       throw createDatabaseError('Failed to fetch municipalities by district', error);
     }

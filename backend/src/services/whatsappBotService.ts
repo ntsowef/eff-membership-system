@@ -329,7 +329,7 @@ export class WhatsAppBotService {
           buttons: [
             { id: 'benefits', title: ' See Benefits' },
             { id: 'branch', title: ' Find a Branch' },
-            { id: 'learn', title: ' Learn About EFF' },
+            { id: 'help', title: 'Help' },
           ]
         };
 
@@ -341,7 +341,7 @@ export class WhatsAppBotService {
           buttons: [
             { id: 'join', title: ' Join Now' },
             { id: 'labour_desk', title: ' Labour Desk' },
-            { id: 'gbv_desk', title: '🛡️ GBV Support' },
+            { id: 'help', title: 'Help' },
           ]
         };
 
@@ -352,7 +352,7 @@ export class WhatsAppBotService {
           buttons: [
             { id: 'appointment', title: ' Book Consult' },
             { id: 'join', title: ' Join EFF' },
-            { id: 'help', title: ' Main Menu' },
+            { id: 'help', title: 'Help' },
           ]
         };
 
@@ -363,7 +363,7 @@ export class WhatsAppBotService {
           buttons: [
             { id: 'appointment', title: '📅 Book Consult' },
             { id: 'sos', title: ' Emergency #s' },
-            { id: 'help', title: ' Main Menu' },
+            { id: 'help', title: 'Help' },
           ]
         };
 
@@ -372,16 +372,24 @@ export class WhatsAppBotService {
           type: 'buttons',
           header: 'Book a Consultation',
           buttons: [
-            { id: 'labour_desk', title: '⚖️ Labour Issues' },
-            { id: 'gbv_desk', title: '🛡️ GBV Support' },
-            { id: 'branch', title: '📍 Find Branch' },
+            { id: 'labour_desk', title: 'Labour Issues' },
+            { id: 'gbv_desk', title: 'GBV Support' },
+            { id: 'help', title: 'Help' },
           ]
         };
 
       case 'update_email':
       case 'update_phone':
       case 'update_address':
-        return null;
+      case 'email_value_provided':
+      case 'phone_value_provided':
+      case 'address_value_provided':
+        return {
+          type: 'buttons',
+          buttons: [
+            { id: 'help', title: 'Help' },
+          ]
+        };
 
       case 'id_provided_for_update':
         return {
@@ -394,9 +402,24 @@ export class WhatsAppBotService {
         };
 
       case 'voting':
+      case 'branch':
+      case 'events':
+      case 'news':
+      case 'refer':
+      case 'poll':
+      case 'sos':
+      case 'member_lookup':
+      case 'id_provided':
+      case 'id_provided_for_card':
+      case 'payment':
+      case 'cancel':
+      case 'card_request':
+      case 'update_info':
+      case 'invalid_selection':
+      case 'invalid_confirmation':
+      case 'report_submitted':
         return {
           type: 'buttons',
-          header: 'Voting Information',
           buttons: [
             { id: 'help', title: 'Help' },
           ]
@@ -404,6 +427,13 @@ export class WhatsAppBotService {
 
       case 'confirm_yes':
       case 'confirm_no':
+        return {
+          type: 'buttons',
+          buttons: [
+            { id: 'help', title: 'Help' },
+          ]
+        };
+
       case 'link_yes':
       case 'link_no':
       case 'unlink_yes':
@@ -412,7 +442,12 @@ export class WhatsAppBotService {
       case 'invalid_id':
       case 'update_link_phone':
       case 'update_unlink_phone':
-        return null;
+        return {
+          type: 'buttons',
+          buttons: [
+            { id: 'help', title: 'Help' },
+          ]
+        };
 
       case 'id_provided_for_greeting':
         return {
@@ -421,6 +456,7 @@ export class WhatsAppBotService {
           buttons: [
             { id: 'link_yes', title: ' Yes, Link It' },
             { id: 'link_no', title: ' No Thanks' },
+            { id: 'help', title: 'Help' },
           ]
         };
 
@@ -431,7 +467,17 @@ export class WhatsAppBotService {
           buttons: [
             { id: 'report_community', title: 'Community Issue' },
             { id: 'report_party', title: 'Party/Branch Issue' },
-            { id: 'report_feedback', title: 'Feedback/Suggestion' },
+            { id: 'help', title: 'Help' },
+          ]
+        };
+
+      case 'report_community':
+      case 'report_party':
+      case 'report_feedback':
+        return {
+          type: 'buttons',
+          buttons: [
+            { id: 'help', title: 'Help' },
           ]
         };
 
@@ -448,12 +494,18 @@ export class WhatsAppBotService {
               { id: 'learn_2', title: '7 Non-Negotiables', description: 'Core pillars of the EFF' },
               { id: 'learn_3', title: 'Cardinal Pillars', description: 'Guiding principles' },
               { id: 'learn_4', title: 'Key Policies', description: 'Land, nationalization, education' },
+              { id: 'help', title: 'Help', description: 'Back to main menu' },
             ]
           }]
         };
 
       default:
-        return null;
+        return {
+          type: 'buttons',
+          buttons: [
+            { id: 'help', title: 'Help' },
+          ]
+        };
     }
   }
 
@@ -587,7 +639,7 @@ export class WhatsAppBotService {
         return await this.handleGreetingIdProvided(message, session);
 
       case 'invalid_id':
-        return `❌ That doesn't look like a valid 13-digit SA ID number.\n\nPlease enter your *13-digit ID number* (e.g. 8501015800085)\n\nReply *CANCEL* or *0* to go back.`;
+        return `That doesn't look like a valid 13-digit SA ID number.\n\nPlease enter your *13-digit ID number* (e.g. 8501015800085)\n\nReply *CANCEL* or *0* to go back.`;
 
       case 'link_yes':
         return await this.handleLinkConfirmation(true, session);
@@ -621,7 +673,7 @@ export class WhatsAppBotService {
       case 'join':
         await this.updateSessionState(session.phone_number, 'idle', {});
         if (session.linked_member) {
-          return `You're already an EFF member, ${session.linked_member.firstname}! ✊\n\nReply *STATUS* to view your membership.\nReply *REFER* to invite friends to join.\n\n_Economic Freedom In Our Lifetime!_`;
+          return `You're already an EFF member, ${session.linked_member.firstname}! \n\nReply *STATUS* to view your membership.\nReply *REFER* to invite friends to join.\n\n_Economic Freedom In Our Lifetime!_`;
         }
         return MessageTemplates.JOIN_INFO;
 
@@ -953,7 +1005,7 @@ _Economic Freedom In Our Lifetime!_`;
       return MessageTemplates.LINK_PHONE_SUCCESS;
     }
     await this.updateSessionState(session.phone_number, 'idle', {});
-    return `❌ No member found to link. Please try *STATUS* first to verify your membership.`;
+    return ` No member found to link. Please try *STATUS* first to verify your membership.`;
   }
 
   /**
@@ -961,7 +1013,7 @@ _Economic Freedom In Our Lifetime!_`;
    */
   private static async handleUpdateUnlinkPhone(session: BotSession): Promise<string> {
     if (!session.linked_member) {
-      return `❌ Your phone is not currently linked to any membership.\n\nReply *HELP* for more options.`;
+      return ` Your phone is not currently linked to any membership.\n\nReply *HELP* for more options.`;
     }
     await this.updateSessionState(session.phone_number, 'awaiting_unlink_confirmation', {});
     return MessageTemplates.UNLINK_PHONE_CONFIRM;

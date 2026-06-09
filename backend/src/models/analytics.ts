@@ -214,6 +214,84 @@ export interface ReportFilters {
   district_code?: string;
   municipal_code?: string;
   ward_code?: string;
+  timeRange?: string;
+}
+
+// Enterprise BI Additional Interfaces
+export interface CohortAnalysisResult {
+  cohort: string;
+  size: number;
+  retention_3m: number;
+  retention_6m: number;
+  retention_12m: number;
+  lifetime_value: number;
+}
+
+export interface FunnelAnalyticsResult {
+  stage: string;
+  count: number;
+  conversion_rate: number;
+  drop_off: number;
+}
+
+export interface TrendAnalysisResult {
+  metric: string;
+  yoy_change: number;
+  mom_change: number;
+  qoq_change: number;
+  p_value?: number;
+  significant: boolean;
+}
+
+export interface AnomalyDetectionResult {
+  metric: string;
+  date: string;
+  value: number;
+  expected: number;
+  z_score: number;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface WhatIfScenarioResult {
+  scenario_name: string;
+  projected_members: number;
+  projected_revenue: number;
+  confidence_interval_lower: number;
+  confidence_interval_upper: number;
+}
+
+export interface ROIAnalysisResult {
+  campaign: string;
+  cost: number;
+  acquired_members: number;
+  cost_per_acquisition: number;
+  roi_percentage: number;
+}
+
+export interface ResourceOptimizationResult {
+  resource_type: string;
+  current_allocation: number;
+  recommended_allocation: number;
+  impact_estimate: string;
+}
+
+export interface DataQualityMetricsResult {
+  completeness_score: number;
+  missing_phone_pct: number;
+  missing_email_pct: number;
+  missing_id_pct: number;
+  duplicate_records: number;
+  overall_confidence: 'low' | 'medium' | 'high';
+}
+
+export interface ExecutiveSummaryInsight {
+  title: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  detail: string;
+  action_item?: string;
+  owner?: string;
+  deadline?: string;
+  impact_estimate?: string;
 }
 
 export interface CustomReport {
@@ -258,22 +336,22 @@ export class AnalyticsModel {
              JOIN wards w ON ma.ward_code = w.ward_code
              WHERE w.municipality_code = ? AND ma.status = 'Submitted'`
           : filters.province_code
-          ? `SELECT COUNT(*) as count FROM membership_applications ma
+            ? `SELECT COUNT(*) as count FROM membership_applications ma
              JOIN wards w ON ma.ward_code = w.ward_code
              JOIN municipalities mu ON w.municipality_code = mu.municipality_code
              JOIN districts d ON mu.district_code = d.district_code
              WHERE d.province_code = ? AND ma.status = 'Submitted'`
-          : `SELECT COUNT(*) as count FROM membership_applications WHERE status = 'Submitted'`,
+            : `SELECT COUNT(*) as count FROM membership_applications WHERE status = 'Submitted'`,
         // Total meetings with province/municipality filtering - Fixed: meetings doesn't have ward_code
         filters.municipal_code
           ? `SELECT COUNT(*) as count FROM meetings me
              WHERE (me.hierarchy_level = 'Municipality' AND me.entity_id = (SELECT municipality_id FROM municipalities WHERE municipality_code = ?))
              OR me.hierarchy_level IN ('Province', 'National')`
           : filters.province_code
-          ? `SELECT COUNT(*) as count FROM meetings me
+            ? `SELECT COUNT(*) as count FROM meetings me
              WHERE (me.hierarchy_level = 'Province' AND me.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR me.hierarchy_level = 'National'`
-          : `SELECT COUNT(*) as count FROM meetings`,
+            : `SELECT COUNT(*) as count FROM meetings`,
         // Upcoming meetings with province/municipality filtering - Fixed: meetings uses meeting_date instead of start_datetime
         filters.municipal_code
           ? `SELECT COUNT(*) as count FROM meetings me
@@ -281,11 +359,11 @@ export class AnalyticsModel {
              OR me.hierarchy_level IN ('Province', 'National'))
              AND me.meeting_status = 'Scheduled' AND me.meeting_date >= CURRENT_DATE`
           : filters.province_code
-          ? `SELECT COUNT(*) as count FROM meetings me
+            ? `SELECT COUNT(*) as count FROM meetings me
              WHERE ((me.hierarchy_level = 'Province' AND me.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR me.hierarchy_level = 'National')
              AND me.meeting_status = 'Scheduled' AND me.meeting_date >= CURRENT_DATE`
-          : `SELECT COUNT(*) as count FROM meetings
+            : `SELECT COUNT(*) as count FROM meetings
              WHERE meeting_status = 'Scheduled' AND meeting_date >= CURRENT_DATE`,
         // Total elections with province/municipality filtering - Fixed schema
         filters.municipal_code
@@ -293,10 +371,10 @@ export class AnalyticsModel {
              WHERE (le.hierarchy_level = 'Municipality' AND le.entity_id = (SELECT municipality_id FROM municipalities WHERE municipality_code = ?))
              OR le.hierarchy_level IN ('Province', 'National')`
           : filters.province_code
-          ? `SELECT COUNT(*) as count FROM leadership_elections le
+            ? `SELECT COUNT(*) as count FROM leadership_elections le
              WHERE (le.hierarchy_level = 'Province' AND le.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR le.hierarchy_level = 'National'`
-          : `SELECT COUNT(*) as count FROM leadership_elections`,
+            : `SELECT COUNT(*) as count FROM leadership_elections`,
         // Active elections with province/municipality filtering - Fixed schema
         filters.municipal_code
           ? `SELECT COUNT(*) as count FROM leadership_elections le
@@ -304,11 +382,11 @@ export class AnalyticsModel {
              OR le.hierarchy_level IN ('Province', 'National'))
              AND le.election_status IN ('Nominations Open', 'Voting Open')`
           : filters.province_code
-          ? `SELECT COUNT(*) as count FROM leadership_elections le
+            ? `SELECT COUNT(*) as count FROM leadership_elections le
              WHERE ((le.hierarchy_level = 'Province' AND le.entity_id = (SELECT province_id FROM provinces WHERE province_code = ?))
              OR le.hierarchy_level = 'National')
              AND le.election_status IN ('Nominations Open', 'Voting Open')`
-          : `SELECT COUNT(*) as count FROM leadership_elections
+            : `SELECT COUNT(*) as count FROM leadership_elections
              WHERE election_status IN ('Nominations Open', 'Voting Open')`,
         // Leadership positions filled with province/municipality filtering - Fixed schema
         filters.municipal_code
@@ -316,10 +394,10 @@ export class AnalyticsModel {
              JOIN vw_member_details m ON la.member_id = m.member_id
              WHERE m.municipality_code = ? AND la.appointment_status = 'Active'`
           : filters.province_code
-          ? `SELECT COUNT(*) as count FROM leadership_appointments la
+            ? `SELECT COUNT(*) as count FROM leadership_appointments la
              JOIN vw_member_details m ON la.member_id = m.member_id
              WHERE m.province_code = ? AND la.appointment_status = 'Active'`
-          : `SELECT COUNT(*) as count FROM leadership_appointments WHERE appointment_status = 'Active'`,
+            : `SELECT COUNT(*) as count FROM leadership_appointments WHERE appointment_status = 'Active'`,
         // Leadership positions vacant with province/municipality filtering - Fixed schema
         filters.municipal_code
           ? `SELECT (
@@ -331,7 +409,7 @@ export class AnalyticsModel {
                WHERE m.municipality_code = ? AND la.appointment_status = 'Active'
              ) as count`
           : filters.province_code
-          ? `SELECT (
+            ? `SELECT (
                SELECT COUNT(*) FROM leadership_positions
                WHERE hierarchy_level IN ('Province', 'National') AND is_active = TRUE
              ) - (
@@ -339,7 +417,7 @@ export class AnalyticsModel {
                JOIN vw_member_details m ON la.member_id = m.member_id
                WHERE m.province_code = ? AND la.appointment_status = 'Active'
              ) as count`
-          : `SELECT (
+            : `SELECT (
                SELECT COUNT(*) FROM leadership_positions WHERE is_active = TRUE
              ) - (
                SELECT COUNT(*) FROM leadership_appointments WHERE appointment_status = 'Active'
@@ -1393,12 +1471,12 @@ export class AnalyticsModel {
       // Filter worst performing municipalities by province if specified
       const filteredWorstMunicipalities = filters.municipal_code ? [] : filters.province_code
         ? allWorstMunicipalities.filter(m => {
-            if (filters.province_code === 'GP') return m.province_name === 'Gauteng';
-            if (filters.province_code === 'WC') return m.province_name === 'Western Cape';
-            if (filters.province_code === 'KZN') return m.province_name === 'KwaZulu-Natal';
-            // Add other province mappings as needed
-            return true;
-          }).slice(0, 5)
+          if (filters.province_code === 'GP') return m.province_name === 'Gauteng';
+          if (filters.province_code === 'WC') return m.province_name === 'Western Cape';
+          if (filters.province_code === 'KZN') return m.province_name === 'KwaZulu-Natal';
+          // Add other province mappings as needed
+          return true;
+        }).slice(0, 5)
         : allWorstMunicipalities.slice(0, 5);
 
       // Add recommendations for worst performing municipalities (exclude for Municipality Admin)

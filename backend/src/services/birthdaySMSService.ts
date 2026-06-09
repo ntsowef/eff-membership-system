@@ -2,6 +2,7 @@ import { executeQuery } from '../config/database';
 import { SMSManagementService } from './smsManagementService';
 import { renderTemplateString } from '../utils/templateRenderer';
 import { SMSLogService } from './smsLogService';
+import { SMSService } from './smsService';
 
 // Create a simple logger if it doesn't exist
 const logger = {
@@ -156,7 +157,7 @@ export class BirthdaySMSService {
     }
   }
 
-  // Queue birthday messages for today
+  // Send birthday messages for today (individual sending, no bulk queue)
   static async queueTodaysBirthdayMessages(): Promise<{ queued: number; skipped: number; errors: number }> {
     try {
       const config = await this.getBirthdayConfig();
@@ -169,8 +170,29 @@ export class BirthdaySMSService {
       let queued = 0;
       let skipped = 0;
       let errors = 0;
+      const currentYear = new Date().getFullYear();
 
+      // Deduplicate by phone number — if multiple members share the same cell_number,
+      // only send to the first one to avoid duplicate SMS to the same phone.
+      const seenPhones = new Set<string>();
+      const deduped: BirthdayMember[] = [];
       for (const member of todaysBirthdays) {
+        const normalized = member.cell_number?.replace(/\s+/g, '').replace(/^0/, '27');
+        if (!normalized || seenPhones.has(normalized)) {
+          continue;
+        }
+        seenPhones.add(normalized);
+        deduped.push(member);
+      }
+
+      const duplicateCount = todaysBirthdays.length - deduped.length;
+      if (duplicateCount > 0) {
+        logger.info(`Deduplicated ${duplicateCount} duplicate phone number(s) from ${todaysBirthdays.length} birthday members`);
+      }
+
+      logger.info(`Processing ${deduped.length} birthday messages individually (${todaysBirthdays.length} total, ${duplicateCount} duplicate phones removed)`);
+
+      for (const member of deduped) {
         try {
           // Check if already sent today
           const existingResult = await executeQuery(`
@@ -187,28 +209,75 @@ export class BirthdaySMSService {
           // Generate personalized message
           const personalizedMessage = await this.generateBirthdayMessage(member, config);
 
-          // Send the message directly (no queue needed for birthday messages)
-          const result = await this.sendBirthdayMessage(member.member_id, personalizedMessage);
+          // Send the SMS individually (normal flow, not bulk)
+          const smsResult = await SMSService.sendSMS(
+            member.cell_number,
+            personalizedMessage,
+            'EFF',
+            undefined, // trackingId handled by SMSService
+            'birthday',
+            member.member_id.toString()
+          );
 
-          if (result.success) {
-            queued++;
-            logger.info('Sent birthday message to ' + member.full_name + '');
-          } else {
-            errors++;
-            logger.error('Failed to send birthday message to ' + member.full_name + '', { error: result.error });
+          const trackingMessageId = smsResult.messageId || `birthday_${Date.now()}`;
+
+          // Record in birthday_messages_sent table
+          await executeQuery(`
+            INSERT INTO birthday_messages_sent (
+              member_id, membership_number, member_name, phone_number, message_text,
+              sms_message_id, delivery_status, birthday_year, member_age
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `, [
+            member.member_id,
+            '',
+            member.full_name,
+            member.cell_number,
+            personalizedMessage,
+            trackingMessageId,
+            smsResult.success ? 'delivered' : 'failed',
+            currentYear,
+            member.current_age
+          ]);
+
+          // Log to sms_messages for reports
+          try {
+            await executeQuery(`
+              INSERT INTO sms_messages (
+                message_text, recipient_number, recipient_name, member_id,
+                status, cost_per_message, provider_message_id, error_message, sent_at, category
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)
+            `, [
+              personalizedMessage,
+              member.cell_number,
+              member.full_name,
+              member.member_id,
+              smsResult.success ? 'Sent' : 'Failed',
+              0.05,
+              smsResult.messageId || trackingMessageId,
+              smsResult.error || null,
+              'Birthday'
+            ]);
+          } catch (logErr) {
+            logger.error('Failed to log birthday SMS to sms_messages', { error: logErr });
+          }
+
+          queued++;
+
+          if (queued % 50 === 0) {
+            logger.info(`Birthday progress: ${queued} sent, ${skipped} skipped, ${errors} errors`);
           }
 
         } catch (error: any) {
-          logger.error('Failed to queue birthday message for member ' + member.member_id + '', { error: error.message });
+          logger.error('Failed to send birthday message for member ' + member.member_id, { error: error.message });
           errors++;
         }
       }
 
-      logger.info(`Birthday message queueing complete`, { queued, skipped, errors });
+      logger.info(`Birthday message sending complete`, { sent: queued, skipped, errors });
       return { queued, skipped, errors };
 
     } catch (error: any) {
-      logger.error('Failed to queue birthday messages', { error: error.message });
+      logger.error('Failed to send birthday messages', { error: error.message });
       throw error;
     }
   }
@@ -348,39 +417,17 @@ export class BirthdaySMSService {
       // Generate personalized message or use custom message
       const personalizedMessage = customMessage || await this.generateBirthdayMessage(member, config);
 
-      // Generate unique message ID for tracking
-      const trackingMessageId = SMSLogService.generateMessageId('birthday');
-
-      // Log the SMS send attempt
-      await SMSLogService.logSMSSend({
-        message_id: trackingMessageId,
-        source_type: 'birthday',
-        source_reference_id: memberId.toString(),
-        recipient_phone: member.cell_number,
-        recipient_name: member.full_name,
-        recipient_member_id: member.member_id?.toString(),
-        message_content: personalizedMessage,
-        status: 'sending'
-      });
-
       // Send the SMS
-      const smsResult = await SMSManagementService.sendSMSMessage({
-        recipient_phone: member.cell_number,
-        recipient_name: member.full_name,
-        recipient_member_id: member.member_id,
-        message_content: personalizedMessage,
-        status: 'pending',
-        retry_count: 0,
-        cost_per_sms: 0.05,
-        total_cost: 0.05
-      });
+      const smsResult = await SMSService.sendSMS(
+        member.cell_number,
+        personalizedMessage,
+        'EFF',
+        undefined,
+        'birthday',
+        memberId.toString()
+      );
 
-      // Update SMS log with result
-      await SMSLogService.updateSMSLog(trackingMessageId, {
-        status: smsResult.success ? 'sent' : 'failed',
-        provider_message_id: smsResult.messageId,
-        error_message: smsResult.error
-      });
+      const trackingMessageId = smsResult.messageId || `birthday_${Date.now()}`;
 
       if (smsResult.success) {
         // Record in birthday_messages_sent table

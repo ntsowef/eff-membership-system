@@ -1233,7 +1233,7 @@ router.get('/export',
           return res.send(excelBuffer);
         } else if (format === 'csv') {
           // Generate CSV
-          const headers = ['Ward Code', 'Ward Name', 'Municipality', 'District', 'Province',
+          const headers = ['Ward Code', 'Municipality', 'District', 'Province',
                           'Active Members', 'Expired Members', 'Inactive Members', 'Total Members',
                           'Standing', 'Active %', 'Target %', 'Members Needed'];
 
@@ -1242,7 +1242,6 @@ router.get('/export',
           wards.forEach((ward: any) => {
             const row = [
               `"${ward.ward_code || ''}"`,
-              `"${(ward.ward_name || '').replace(/"/g, '""')}"`,
               `"${(ward.municipality_name || '').replace(/"/g, '""')}"`,
               `"${(ward.district_name || '').replace(/"/g, '""')}"`,
               `"${(ward.province_name || '').replace(/"/g, '""')}"`,

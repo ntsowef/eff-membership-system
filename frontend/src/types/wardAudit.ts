@@ -111,10 +111,15 @@ export interface WardComplianceSummary {
   compliance_approved_by?: number;
   last_audit_date?: string;
   
-  srpa_delegates: number;
-  ppa_delegates: number;
-  npa_delegates: number;
-  
+  // Legacy delegate counts (kept for backward compatibility; not populated
+  // by the materialized view — present only on historical responses).
+  srpa_delegates?: number;
+  ppa_delegates?: number;
+  npa_delegates?: number;
+
+  // LGE2026 Criterion 5 — single Ward Councillor Candidate per ward.
+  has_active_candidate?: boolean;
+
   created_at: string;
   updated_at: string;
 }

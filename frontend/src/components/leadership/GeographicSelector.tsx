@@ -35,8 +35,9 @@ type GeographicEntity = LeadershipService.GeographicEntity;
 // =====================================================
 
 export interface GeographicSelection {
-  hierarchyLevel: 'National' | 'Province' | 'Municipality' | 'Ward';
-  entityId: number;
+  hierarchyLevel: 'National' | 'Province' | 'Municipality' | 'Ward' | 'District' | 'Region' | 'Sub-Region' | 'Branch';
+  entityId: number | null;
+  provinceId?: number;
   province?: GeographicEntity;
   municipality?: GeographicEntity;
   ward?: GeographicEntity;
@@ -58,13 +59,13 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   disabled = false
 }) => {
   // ==================== State Management ====================
-  
+
   const [selectedProvince, setSelectedProvince] = useState<GeographicEntity | null>(null);
   const [selectedMunicipality, setSelectedMunicipality] = useState<GeographicEntity | null>(null);
   const [selectedWard, setSelectedWard] = useState<GeographicEntity | null>(null);
 
   // ==================== API Queries ====================
-  
+
   // Fetch provinces
   const { data: provinces = [], isLoading: provincesLoading, error: provincesError } = useQuery({
     queryKey: ['provinces'],
@@ -93,16 +94,26 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   });
 
   // ==================== Event Handlers ====================
-  
+
   const handleProvinceChange = useCallback((province: GeographicEntity | null) => {
     setSelectedProvince(province);
     setSelectedMunicipality(null);
     setSelectedWard(null);
-    
+
     if (hierarchyLevel === 'Province' && province) {
       onSelectionChange({
         hierarchyLevel: 'Province',
         entityId: province.id,
+        provinceId: province.id,
+        province
+      });
+    } else if (hierarchyLevel !== 'National' && province) {
+      // If a deeper level is requested but only province is selected,
+      // pass null entity but include the provinceId for filtering
+      onSelectionChange({
+        hierarchyLevel,
+        entityId: null,
+        provinceId: province.id,
         province
       });
     } else {
@@ -113,13 +124,29 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   const handleMunicipalityChange = useCallback((municipality: GeographicEntity | null) => {
     setSelectedMunicipality(municipality);
     setSelectedWard(null);
-    
+
     if (hierarchyLevel === 'Municipality' && municipality && selectedProvince) {
       onSelectionChange({
         hierarchyLevel: 'Municipality',
         entityId: municipality.id,
+        provinceId: selectedProvince.id,
         province: selectedProvince,
         municipality
+      });
+    } else if (hierarchyLevel === 'Ward' && selectedProvince) {
+      onSelectionChange({
+        hierarchyLevel: 'Ward',
+        entityId: null,
+        provinceId: selectedProvince.id,
+        province: selectedProvince,
+        municipality: municipality || undefined
+      });
+    } else if (selectedProvince) {
+      onSelectionChange({
+        hierarchyLevel,
+        entityId: null,
+        provinceId: selectedProvince.id,
+        province: selectedProvince,
       });
     } else {
       onSelectionChange(null);
@@ -128,22 +155,29 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
 
   const handleWardChange = useCallback((ward: GeographicEntity | null) => {
     setSelectedWard(ward);
-    
-    if (hierarchyLevel === 'Ward' && ward && selectedProvince && selectedMunicipality) {
+
+    if (hierarchyLevel === 'Ward' && ward && selectedMunicipality && selectedProvince) {
       onSelectionChange({
         hierarchyLevel: 'Ward',
         entityId: ward.id,
+        provinceId: selectedProvince.id,
         province: selectedProvince,
         municipality: selectedMunicipality,
         ward
       });
-    } else {
-      onSelectionChange(null);
+    } else if (selectedProvince) {
+      onSelectionChange({
+        hierarchyLevel,
+        entityId: null,
+        provinceId: selectedProvince.id,
+        province: selectedProvince,
+        municipality: selectedMunicipality || undefined,
+      });
     }
-  }, [hierarchyLevel, onSelectionChange, selectedProvince, selectedMunicipality]);
+  }, [hierarchyLevel, onSelectionChange, selectedMunicipality, selectedProvince]);
 
   // ==================== Effects ====================
-  
+
   // Handle National level
   useEffect(() => {
     if (hierarchyLevel === 'National') {
@@ -163,7 +197,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   }, [hierarchyLevel, onSelectionChange]);
 
   // ==================== Helper Functions ====================
-  
+
   const getHierarchyIcon = (level: string) => {
     switch (level) {
       case 'National': return <Public />;
@@ -185,7 +219,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   };
 
   // ==================== Render ====================
-  
+
   if (hierarchyLevel === 'National') {
     return (
       <Card variant="outlined" sx={{ mb: 2 }}>
@@ -193,11 +227,11 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
           <Box display="flex" alignItems="center" gap={1}>
             {getHierarchyIcon('National')}
             <Typography variant="h6">National Leadership</Typography>
-            <Chip 
-              label="All Provinces" 
-              size="small" 
-              color="primary" 
-              variant="outlined" 
+            <Chip
+              label="All Provinces"
+              size="small"
+              color="primary"
+              variant="outlined"
             />
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -214,23 +248,23 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <LocationOn color="primary" />
           <Typography variant="h6">Geographic Selection</Typography>
-          <Chip 
-            label={hierarchyLevel} 
-            size="small" 
+          <Chip
+            label={hierarchyLevel}
+            size="small"
             color={getHierarchyColor(hierarchyLevel) as any}
           />
         </Box>
 
         {/* Breadcrumb Navigation */}
         {(selectedProvince || selectedMunicipality || selectedWard) && (
-          <Breadcrumbs 
-            separator={<NavigateNext fontSize="small" />} 
+          <Breadcrumbs
+            separator={<NavigateNext fontSize="small" />}
             sx={{ mb: 2 }}
           >
             {selectedProvince && (
-              <Link 
-                component="button" 
-                variant="body2" 
+              <Link
+                component="button"
+                variant="body2"
                 onClick={() => handleProvinceChange(selectedProvince)}
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
@@ -250,8 +284,8 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               </Link>
             )}
             {selectedWard && (
-              <Typography 
-                variant="body2" 
+              <Typography
+                variant="body2"
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 {getHierarchyIcon('Ward')}
@@ -294,16 +328,16 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Box display="flex" justifyContent="space-between" width="100%">
                   <span>{province.province_name}</span>
                   <Box display="flex" gap={1}>
-                    <Chip 
-                      label={`${province.member_count} members`} 
-                      size="small" 
-                      variant="outlined" 
+                    <Chip
+                      label={`${province.member_count} members`}
+                      size="small"
+                      variant="outlined"
                     />
-                    <Chip 
-                      label={`${province.leadership_appointments} leaders`} 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined" 
+                    <Chip
+                      label={`${province.leadership_appointments} leaders`}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
                     />
                   </Box>
                 </Box>
@@ -340,7 +374,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               </MenuItem>
               {municipalities.map((municipality) => (
                 <MenuItem key={municipality.id ?? municipality.municipality_code ?? municipality.municipality_name}
-                          value={municipality.id ?? municipality.municipality_code}>
+                  value={municipality.id ?? municipality.municipality_code}>
                   {municipality.municipality_name}
                 </MenuItem>
               ))}
@@ -372,7 +406,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               </MenuItem>
               {wards.map((ward) => (
                 <MenuItem key={ward.id ?? ward.ward_code ?? `${ward.municipality_code}-${ward.ward_number}`}
-                          value={ward.id ?? ward.ward_code}>
+                  value={ward.id ?? ward.ward_code}>
                   {ward.ward_name} (Ward {ward.ward_number})
                 </MenuItem>
               ))}

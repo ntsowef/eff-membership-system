@@ -1,0 +1,700 @@
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  Limpopo SRCT Leadership Appointments ΓÇô Bulk Upload
+  Mode: ≡ƒöì DRY RUN (no database changes)
+  Date: 2026-02-07
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+
+≡ƒôä Loaded workbook: C:\Development\NewProj\Membership-newV2\Limpopo SRCT.xlsx
+   Sheets: Molemole-1, Musina, Mogalakwena, Greater Giyani, Thulamela, Makhado, Bela-bela, Blouberg, Collins Chabane, Polokwane, Fetakgomo, Modimolle-Mokgophong, Thabazimbi, Ellias Motswaledi, Greater Tzaneen, Ephraim Mogale, Maruleng, Ba-Phalaborwa, Makhuthamanga -1, Lepellenkumpi-1, Greater Letaba
+
+≡ƒæñ Using appointed_by user ID: 1
+
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Molemole-1 ΓåÆ Molemole (LIM353)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Molemole Local Municipality Municipal Chairperson ΓåÆ "Oscar Motolla" (member_id: 13125260)
+   Γ£à Row 3: [DRY RUN] Would create: Molemole Local Municipality Municipal Secretary ΓåÆ "Reginald Mobe" (member_id: 13114773)
+   ΓÜá∩╕Å  Row 4: Member not found for ID 7507080360881 ("Joyce Poopedi")
+   ΓÜá∩╕Å  Row 6: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 7: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 2 ΓåÆ "Martha Selabe" (member_id: 13126735)
+   Γ£à Row 8: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 3 ΓåÆ "Rasel Lekoloane" (member_id: 13126021)
+   Γ£à Row 9: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 4 ΓåÆ "ynonne Senamolela" (member_id: 13119940)
+   Γ£à Row 10: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 5 ΓåÆ "Irene Phukubye" (member_id: 13120571)
+   Γ£à Row 11: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 6 ΓåÆ "Winny Mogale" (member_id: 13132920)
+   Γ£à Row 12: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 7 ΓåÆ "Ntata Segota" (member_id: 13126754)
+   Γ£à Row 13: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 8 ΓåÆ "Kgolofelo Rammetse" (member_id: 13132486)
+   Γ£à Row 14: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 9 ΓåÆ "Julitha Makgoka" (member_id: 13212659)
+   Γ£à Row 15: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 10 ΓåÆ "matome Mnelo" (member_id: 13126485)
+   Γ£à Row 16: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 11 ΓåÆ "Pretty Mapokane" (member_id: 13116670)
+   Γ£à Row 17: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 12 ΓåÆ "Ramothale Pheeha" (member_id: 13116674)
+   Γ£à Row 18: [DRY RUN] Would create: Molemole Local Municipality SRCT Member 13 ΓåÆ "Sonti Ramalole" (member_id: 13132906)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 21: Could not determine position code for "" (SRCT index: 16)
+   Summary: 14 created, 2 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Musina ΓåÆ Musina (LIM341)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Musina Local Municipality Municipal Chairperson ΓåÆ "N.D Nemalale" (member_id: 13168615)
+   Γ£à Row 3: [DRY RUN] Would create: Musina Local Municipality Municipal Secretary ΓåÆ "Nicolas Mulaudzi" (member_id: 13169921)
+   Γ£à Row 4: [DRY RUN] Would create: Musina Local Municipality Municipal Treasurer ΓåÆ "Samuel Mukwevho" (member_id: 13171599)
+   ΓÜá∩╕Å  Row 6: No valid ID number for "Additional Members" ΓÇô skipping member lookup
+   ΓÜá∩╕Å  Row 7: No valid ID number for "NAME&SURNAME" ΓÇô skipping member lookup
+   ΓÜá∩╕Å  Row 8: Member not found for ID 9607275368085 ("Phathutshedzo Kwinda")
+   Γ£à Row 9: [DRY RUN] Would create: Musina Local Municipality SRCT Member 4 ΓåÆ "Takalani Mualusi" (member_id: 13104546)
+   Γ£à Row 10: [DRY RUN] Would create: Musina Local Municipality SRCT Member 5 ΓåÆ "Maria Mathebula" (member_id: 13168966)
+   Γ£à Row 11: [DRY RUN] Would create: Musina Local Municipality SRCT Member 6 ΓåÆ "Saluwani Chale" (member_id: 13171381)
+   Γ£à Row 12: [DRY RUN] Would create: Musina Local Municipality SRCT Member 7 ΓåÆ "Isiah Mabolabola" (member_id: 13168737)
+   Γ£à Row 13: [DRY RUN] Would create: Musina Local Municipality SRCT Member 8 ΓåÆ "Esnath Dimo" (member_id: 13171267)
+   Γ£à Row 14: [DRY RUN] Would create: Musina Local Municipality SRCT Member 9 ΓåÆ "Olga Sithole" (member_id: 13241064)
+   Γ£à Row 15: [DRY RUN] Would create: Musina Local Municipality SRCT Member 10 ΓåÆ "Lucy Kwinda" (member_id: 13102775)
+   Γ£à Row 16: [DRY RUN] Would create: Musina Local Municipality SRCT Member 11 ΓåÆ "Livhu Ramphabana" (member_id: 13104466)
+   Γ£à Row 17: [DRY RUN] Would create: Musina Local Municipality SRCT Member 12 ΓåÆ "Shertina Matodzi" (member_id: 13169296)
+   Γ£à Row 18: [DRY RUN] Would create: Musina Local Municipality SRCT Member 13 ΓåÆ "Jousaya Masete" (member_id: 13102643)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 21: Could not determine position code for "" (SRCT index: 16)
+   Γ¥î Row 22: Could not determine position code for "" (SRCT index: 17)
+   Summary: 13 created, 3 not found, 0 duplicates, 4 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Mogalakwena ΓåÆ Mogalakwena (LIM367)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Mogalakwena Local Municipality Municipal Chairperson ΓåÆ "Malesela Lelaka" (member_id: 13146248)
+   Γ£à Row 3: [DRY RUN] Would create: Mogalakwena Local Municipality Municipal Secretary ΓåÆ "Shela Majoko" (member_id: 13136179)
+   Γ£à Row 4: [DRY RUN] Would create: Mogalakwena Local Municipality Municipal Treasurer ΓåÆ "Sam Thobane" (member_id: 13138405)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "ADDITIONAL MEMBERS" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 2 ΓåÆ "Lesiba Kgonyane" (member_id: 13137825)
+   ΓÜá∩╕Å  Row 7: Member not found for ID 0740606543508 ("Clive Mamabolo")
+   Γ£à Row 8: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 4 ΓåÆ "Tebatso Motlala" (member_id: 13141703)
+   Γ£à Row 9: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 5 ΓåÆ "Matjie Joseph" (member_id: 13144303)
+   Γ£à Row 10: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 6 ΓåÆ "Cate Mashashs" (member_id: 13137382)
+   Γ£à Row 11: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 7 ΓåÆ "Machuna Lethe" (member_id: 13136140)
+   Γ£à Row 12: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 8 ΓåÆ "Evah Maselela" (member_id: 13136747)
+   Γ£à Row 13: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 9 ΓåÆ "Grace Mdekwa" (member_id: 13138377)
+   Γ£à Row 14: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 10 ΓåÆ "Vista Mashishi" (member_id: 13139718)
+   ΓÜá∩╕Å  Row 15: Member not found for ID 9504230391080 ("Mokgaetji Chaba")
+   Γ£à Row 16: [DRY RUN] Would create: Mogalakwena Local Municipality SRCT Member 12 ΓåÆ "Lerato Molefe" (member_id: 13141263)
+   ΓÜá∩╕Å  Row 17: Member not found for ID 6303235269080 ("Lawrence Kganyago")
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 12 created, 4 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Greater Giyani ΓåÆ Greater Giyani (LIM331)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   ΓÜá∩╕Å  Row 2: Member not found for ID 0920523597087 ("Vukosi Chomela")
+   Γ£à Row 3: [DRY RUN] Would create: Greater Giyani Local Municipality Municipal Secretary ΓåÆ "Sindisa Ngobeni" (member_id: 13158020)
+   Γ£à Row 4: [DRY RUN] Would create: Greater Giyani Local Municipality Municipal Treasurer ΓåÆ "Tiyiselani Mashaba" (member_id: 13159791)
+   Γ£à Row 6: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 1 ΓåÆ "Ngobeni Lawrence" (member_id: 13165842)
+   Γ£à Row 7: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 2 ΓåÆ "Ntuli Kalani" (member_id: 13150108)
+   Γ£à Row 8: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 3 ΓåÆ "Nikobeni Tintswalo" (member_id: 13158988)
+   ΓÜá∩╕Å  Row 9: Member not found for ID 9106205914084 ("Baloyi Hitekani")
+   Γ£à Row 10: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 5 ΓåÆ "Johah Makhuleni" (member_id: 13227093)
+   Γ£à Row 11: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 6 ΓåÆ "Shivuri Thakhulela" (member_id: 13228888)
+   Γ£à Row 12: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 7 ΓåÆ "Chauke Tinyiko" (member_id: 13107487)
+   Γ£à Row 13: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 8 ΓåÆ "Mixo Carol Nkuna" (member_id: 13111004)
+   Γ£à Row 14: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 9 ΓåÆ "Mavis Madzunye" (member_id: 13105721)
+   Γ£à Row 15: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 10 ΓåÆ "Lavetta Hlungwane" (member_id: 13155152)
+   Γ£à Row 16: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 11 ΓåÆ "Ordney Mathebula" (member_id: 13233418)
+   Γ£à Row 17: [DRY RUN] Would create: Greater Giyani Local Municipality SRCT Member 12 ΓåÆ "Peter Hlungwane" (member_id: 13104653)
+   ΓÜá∩╕Å  Row 18: Member not found for ID 8311140728083 ("Sindile Mahesu")
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Summary: 13 created, 3 not found, 0 duplicates, 2 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Thulamela ΓåÆ Thulamela (LIM343)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Thulamela Local Municipality Municipal Chairperson ΓåÆ "Shadrack Hlungwani" (member_id: 13169544)
+   Γ£à Row 3: [DRY RUN] Would create: Thulamela Local Municipality Municipal Secretary ΓåÆ "MadzimbalalaE.H" (member_id: 13174290)
+   Γ£à Row 4: [DRY RUN] Would create: Thulamela Local Municipality Municipal Treasurer ΓåÆ "Rememberance" (member_id: 13168635)
+   Γ£à Row 6: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 1 ΓåÆ "Mammba Mashudu" (member_id: 13171518)
+   Γ£à Row 7: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 2 ΓåÆ "Ndivhuwo Ligugela" (member_id: 13109744)
+   ΓÜá∩╕Å  Row 8: Member not found for ID 0723170306081 ("Thithelimbilu Nemumane")
+   Γ£à Row 9: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 4 ΓåÆ "Singo Rofhiwa" (member_id: 13171207)
+   Γ£à Row 10: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 5 ΓåÆ "Matodzi TP" (member_id: 13169500)
+   Γ£à Row 11: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 6 ΓåÆ "Tshiteleke R. Nesane" (member_id: 13171336)
+   Γ£à Row 12: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 7 ΓåÆ "Mashawana NE" (member_id: 13167393)
+   Γ£à Row 13: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 8 ΓåÆ "Mahamba RK" (member_id: 12763436)
+   Γ£à Row 14: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 9 ΓåÆ "Peley Netshidonkoki" (member_id: 13173704)
+   ΓÜá∩╕Å  Row 15: Member not found for ID 9308126047081 ("Mukwevho Khuthando")
+   Γ£à Row 16: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 11 ΓåÆ "Mukwavho Sheldah" (member_id: 13168999)
+   Γ£à Row 17: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 12 ΓåÆ "Netshuhuni AS" (member_id: 13168947)
+   Γ£à Row 18: [DRY RUN] Would create: Thulamela Local Municipality SRCT Member 13 ΓåÆ "Dawa Vhonani" (member_id: 13166529)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Summary: 14 created, 2 not found, 0 duplicates, 2 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Makhado ΓåÆ Makhado (LIM344)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   ΓÜá∩╕Å  Row 2: Member not found for ID 0760406608080 ("David Mubhafhi")
+   ΓÜá∩╕Å  Row 3: Member not found for ID 5108315755085 ("Arthur Maedza")
+   Γ£à Row 4: [DRY RUN] Would create: Makhado Local Municipality Municipal Treasurer ΓåÆ "Tsepo Manda" (member_id: 13247648)
+   Γ£à Row 6: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 1 ΓåÆ "Nyeleti Kwinika" (member_id: 13236758)
+   Γ£à Row 7: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 2 ΓåÆ "Negovha Rendani" (member_id: 13171235)
+   Γ£à Row 8: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 3 ΓåÆ "Matumba.Brenda" (member_id: 13108276)
+   Γ£à Row 9: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 4 ΓåÆ "Ligidima Precious" (member_id: 13108160)
+   Γ£à Row 10: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 5 ΓåÆ "Mokoena Josco" (member_id: 13240719)
+   Γ£à Row 11: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 6 ΓåÆ "Masipa Patricia" (member_id: 13174365)
+   Γ£à Row 12: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 7 ΓåÆ "Tsharana Mantio" (member_id: 13270557)
+   Γ£à Row 13: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 8 ΓåÆ "Livhuwani Ramaru" (member_id: 13104010)
+   Γ£à Row 14: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 9 ΓåÆ "Rabelani Mufara" (member_id: 13108138)
+   Γ£à Row 15: [DRY RUN] Would create: Makhado Local Municipality SRCT Member 10 ΓåÆ "Jondani Nevhungoni" (member_id: 13108227)
+   ΓÜá∩╕Å  Row 16: Member not found for ID 8608170765082 ("Hulisani Matamela")
+   ΓÜá∩╕Å  Row 17: Member not found for ID 0850735431087 ("Maligana Mathoma")
+   ΓÜá∩╕Å  Row 18: Member not found for ID 8608170765082 ("Stanlry Thovhakale")
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Summary: 11 created, 5 not found, 0 duplicates, 2 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Bela-bela ΓåÆ Bela-Bela (LIM366)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Bela-Bela Local Municipality Municipal Chairperson ΓåÆ "Sontaga Modike" (member_id: 13145502)
+   ΓÜá∩╕Å  Row 3: Member not found for ID 0106245651082 ("Mpho Manala")
+   Γ£à Row 4: [DRY RUN] Would create: Bela-Bela Local Municipality Municipal Treasurer ΓåÆ "Constance Steven" (member_id: 13146056)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "ADDITIONAL MEMBERS" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 2 ΓåÆ "Joyce Baloyi" (member_id: 13145771)
+   Γ£à Row 7: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 3 ΓåÆ "Julia Papo" (member_id: 13139975)
+   Γ£à Row 8: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 4 ΓåÆ "Dimakatso Chauke" (member_id: 13143491)
+   Γ£à Row 9: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 5 ΓåÆ "Kedibone Mpete" (member_id: 13144348)
+   Γ£à Row 10: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 6 ΓåÆ "Oletta M. Tlaka" (member_id: 13137264)
+   Γ£à Row 11: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 7 ΓåÆ "Sinaki D. Seale" (member_id: 13144466)
+   Γ£à Row 12: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 8 ΓåÆ "Julia Malete" (member_id: 13144283)
+   Γ£à Row 13: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 9 ΓåÆ "Freddie Chaka" (member_id: 13216159)
+   ΓÜá∩╕Å  Row 14: Member not found for ID 9304150438080 ("Dineo Mathe")
+   Γ£à Row 15: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 11 ΓåÆ "Gift Motshopi" (member_id: 13196318)
+   Γ£à Row 16: [DRY RUN] Would create: Bela-Bela Local Municipality SRCT Member 12 ΓåÆ "Mathega Kagiso" (member_id: 13144494)
+   ΓÜá∩╕Å  Row 17: Member not found for ID 7509295468080 ("Gabriel Kutumete")
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 12 created, 4 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Blouberg ΓåÆ Blouberg (LIM351)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   ΓÜá∩╕Å  Row 2: Member not found for ID 7302245567086 ("Moremi Solly")
+   Γ£à Row 3: [DRY RUN] Would create: Blouberg Local Municipality Municipal Secretary ΓåÆ "Lehonye Tsebe" (member_id: 13123939)
+   Γ£à Row 4: [DRY RUN] Would create: Blouberg Local Municipality Municipal Treasurer ΓåÆ "Dau Portia" (member_id: 13116676)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 2 ΓåÆ "Ntjana Isaiah" (member_id: 13120901)
+   ΓÜá∩╕Å  Row 7: Member not found for ID 9108280720087 ("Mailula Mapula")
+   Γ£à Row 8: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 4 ΓåÆ "Sebola Olga" (member_id: 13106924)
+   Γ£à Row 9: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 5 ΓåÆ "Mosena Flora" (member_id: 13119564)
+   Γ£à Row 10: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 6 ΓåÆ "Lamola Mokgadi" (member_id: 13128797)
+   Γ£à Row 11: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 7 ΓåÆ "Sepirwa Girly" (member_id: 13132749)
+   Γ£à Row 12: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 8 ΓåÆ "Mabolola Julia" (member_id: 13120550)
+   Γ£à Row 13: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 9 ΓåÆ "Seakamela Sherlly" (member_id: 13125722)
+   Γ£à Row 14: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 10 ΓåÆ "Mauwe Jacob" (member_id: 13119687)
+   ΓÜá∩╕Å  Row 15: Member not found for ID 7107046695085 ("Morudu Sunday")
+   Γ£à Row 16: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 12 ΓåÆ "Setlelele Anna" (member_id: 13131158)
+   Γ£à Row 17: [DRY RUN] Would create: Blouberg Local Municipality SRCT Member 13 ΓåÆ "Kgowa Matome" (member_id: 13110258)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 12 created, 4 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Collins Chabane ΓåÆ Collins Chabane (LIM345)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Collins Chabane Local Municipality Municipal Chairperson ΓåÆ "Lucia Hlabangwane" (member_id: 13168705)
+   Γ£à Row 3: [DRY RUN] Would create: Collins Chabane Local Municipality Municipal Secretary ΓåÆ "Listers Mahlaule" (member_id: 13174133)
+   Γ£à Row 4: [DRY RUN] Would create: Collins Chabane Local Municipality Municipal Treasurer ΓåÆ "Vukosi Ndlopfu" (member_id: 12839106)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "Additional Members" ΓÇô skipping member lookup
+   ΓÜá∩╕Å  Row 6: Member not found for ID 0309260113084 ("Mpho Pico")
+   Γ£à Row 7: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 3 ΓåÆ "Julia Mukhatsani" (member_id: 13169098)
+   ΓÜá∩╕Å  Row 8: Member not found for ID 6507270043083 ("Elisa Mulaudzi")
+   Γ£à Row 9: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 5 ΓåÆ "Takalani Mashavhele" (member_id: 13248028)
+   Γ£à Row 10: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 6 ΓåÆ "Judas Mabunda" (member_id: 13174597)
+   Γ£à Row 11: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 7 ΓåÆ "Aluwani Khorommbi" (member_id: 13172375)
+   Γ£à Row 12: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 8 ΓåÆ "Steven Maloleka" (member_id: 13174488)
+   Γ£à Row 13: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 9 ΓåÆ "Ngwaila Matumba" (member_id: 13167759)
+   Γ£à Row 14: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 10 ΓåÆ "Rabella Mafanela" (member_id: 13169148)
+   Γ£à Row 15: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 11 ΓåÆ "Tsakani Hlatswayo" (member_id: 13168380)
+   Γ£à Row 16: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 12 ΓåÆ "Martha Maluleke" (member_id: 13167212)
+   Γ£à Row 17: [DRY RUN] Would create: Collins Chabane Local Municipality SRCT Member 13 ΓåÆ "Esther Singo" (member_id: 13173910)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 13 created, 3 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Polokwane ΓåÆ Polokwane (LIM354)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Polokwane Local Municipality Municipal Chairperson ΓåÆ "Molatelo Mahladisa" (member_id: 13121275)
+   Γ£à Row 3: [DRY RUN] Would create: Polokwane Local Municipality Municipal Secretary ΓåÆ "Angela Mashabela" (member_id: 13127191)
+   Γ£à Row 4: [DRY RUN] Would create: Polokwane Local Municipality Municipal Treasurer ΓåÆ "Koena Matlala" (member_id: 13130580)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   ΓÜá∩╕Å  Row 6: Member not found for ID 9302170810082 ("Mapula Malapane")
+   Γ£à Row 7: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 3 ΓåÆ "Phillia Mokaba" (member_id: 13119986)
+   Γ£à Row 8: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 4 ΓåÆ "Alex Ngwasheng" (member_id: 13123978)
+   Γ£à Row 9: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 5 ΓåÆ "Kgabo Gloria Kubayi" (member_id: 13123072)
+   Γ£à Row 10: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 6 ΓåÆ "Frengelina Lekota" (member_id: 13117986)
+   Γ£à Row 11: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 7 ΓåÆ "Chantel Madia" (member_id: 13112114)
+   Γ£à Row 12: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 8 ΓåÆ "Donald Louw" (member_id: 13126679)
+   Γ£à Row 13: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 9 ΓåÆ "Joseph Letsoalo" (member_id: 13120130)
+   Γ£à Row 14: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 10 ΓåÆ "Julenda Pula" (member_id: 13129682)
+   Γ£à Row 15: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 11 ΓåÆ "Theo Sathekge" (member_id: 13130511)
+   Γ£à Row 16: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 12 ΓåÆ "Phata Thema" (member_id: 13126384)
+   Γ£à Row 17: [DRY RUN] Would create: Polokwane Local Municipality SRCT Member 13 ΓåÆ "Mosima Mailula" (member_id: 13121436)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 14 created, 2 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Fetakgomo ΓåÆ Fetakgomo Tubatse (LIM476)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality Municipal Chairperson ΓåÆ "Tsheko Malepe" (member_id: 13189687)
+   Γ£à Row 3: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality Municipal Secretary ΓåÆ "Esmy Thobejane" (member_id: 13184657)
+   Γ£à Row 4: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality Municipal Treasurer ΓåÆ "Lucky Shai" (member_id: 13190054)
+   ΓÜá∩╕Å  Row 6: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 7: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 2 ΓåÆ "Delta Madise" (member_id: 13182402)
+   Γ£à Row 8: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 3 ΓåÆ "Tshephang Phahlamadika" (member_id: 13193049)
+   Γ£à Row 9: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 4 ΓåÆ "Vally Khulwane" (member_id: 13185766)
+   Γ£à Row 10: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 5 ΓåÆ "Precious Maesela" (member_id: 13187147)
+   Γ£à Row 11: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 6 ΓåÆ "Longridge Thobejane" (member_id: 13185573)
+   Γ£à Row 12: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 7 ΓåÆ "Alice Kgaphola" (member_id: 13185889)
+   ΓÜá∩╕Å  Row 13: Member not found for ID 7612055551086 ("Enock Moredi")
+   Γ£à Row 14: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 9 ΓåÆ "Lucia Mogashoa" (member_id: 13187970)
+   Γ£à Row 15: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 10 ΓåÆ "Glenda Makofane" (member_id: 13181939)
+   Γ£à Row 16: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 11 ΓåÆ "Thomas Mokwale" (member_id: 13268473)
+   Γ£à Row 17: [DRY RUN] Would create: Fetakgomo Tubatse Local Municipality SRCT Member 12 ΓåÆ "Pulane Mashaba" (member_id: 13184129)
+   ΓÜá∩╕Å  Row 18: Member not found for ID 7905055475089 ("Thabo Moropana")
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 21: Could not determine position code for "" (SRCT index: 16)
+   Summary: 13 created, 3 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Modimolle-Mokgophong ΓåÆ Modimolle-Mookgophong (LIM368)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality Municipal Chairperson ΓåÆ "William Monyela" (member_id: 13146253)
+   Γ£à Row 3: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality Municipal Secretary ΓåÆ "Malome Maswanganye" (member_id: 13144939)
+   Γ£à Row 4: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality Municipal Treasurer ΓåÆ "Elizabeth Machisi" (member_id: 13139040)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality SRCT Member 2 ΓåÆ "Girly Moloto" (member_id: 13216897)
+   Γ£à Row 7: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality SRCT Member 3 ΓåÆ "Magraget Moatshe" (member_id: 13134044)
+   Γ£à Row 8: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality SRCT Member 4 ΓåÆ "Jimmy Kekane" (member_id: 13144333)
+   ΓÜá∩╕Å  Row 9: Member not found for ID 0631020039086 ("Kgabo Mothabela")
+   Γ£à Row 10: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality SRCT Member 6 ΓåÆ "Morongwe Mashishi" (member_id: 13138192)
+   Γ£à Row 11: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality SRCT Member 7 ΓåÆ "Solly Malatje" (member_id: 13144737)
+   Γ£à Row 12: [DRY RUN] Would create: Modimolle-Mookgophong Local Municipality SRCT Member 8 ΓåÆ "Jim Morpfene" (member_id: 13145137)
+   ΓÜá∩╕Å  Row 13: Member not found for ID 8306130660080 ("Kehomotso Tshoane")
+   ΓÜá∩╕Å  Row 14: No valid ID number for "Sithole Nomsa" ΓÇô skipping member lookup
+   Summary: 9 created, 4 not found, 0 duplicates, 0 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Thabazimbi ΓåÆ Thabazimbi (LIM361)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Thabazimbi Local Municipality Municipal Chairperson ΓåÆ "Sello Gabriel Mohutshe" (member_id: 13140429)
+   Γ£à Row 3: [DRY RUN] Would create: Thabazimbi Local Municipality Municipal Secretary ΓåÆ "Patricia Fina Ditsi" (member_id: 13145857)
+   ΓÜá∩╕Å  Row 4: Member not found for ID 8905285786985 ("Ernest Mphehlele")
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   ΓÜá∩╕Å  Row 6: Member not found for ID 76080404337082 ("Martha Matjila")
+   Γ£à Row 7: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 3 ΓåÆ "Mamello Mofokeng" (member_id: 13143074)
+   ΓÜá∩╕Å  Row 8: Member not found for ID 9904285554083 ("Steve Medupe")
+   ΓÜá∩╕Å  Row 9: Member not found for ID 9911190955084 ("Virginia Malwetse")
+   ΓÜá∩╕Å  Row 10: Member not found for ID 9207065128086 ("Patrick Mampho")
+   Γ£à Row 11: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 7 ΓåÆ "Molegogeng Mokakabu" (member_id: 13142392)
+   Γ£à Row 12: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 8 ΓåÆ "Motlhoki Cathine" (member_id: 13144006)
+   Γ£à Row 13: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 9 ΓåÆ "Cedric Kgahla" (member_id: 13140201)
+   Γ£à Row 14: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 10 ΓåÆ "Connie Maleka" (member_id: 13133890)
+   Γ£à Row 15: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 11 ΓåÆ "Nome Mphamo" (member_id: 13146434)
+   Γ£à Row 16: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 12 ΓåÆ "Boy Seutshe" (member_id: 13145243)
+   Γ£à Row 17: [DRY RUN] Would create: Thabazimbi Local Municipality SRCT Member 13 ΓåÆ "Mashitisho" (member_id: 13135750)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 10 created, 6 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Ellias Motswaledi ΓåÆ Elias Motsoaledi (LIM472)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Elias Motsoaledi Local Municipality Municipal Chairperson ΓåÆ "Tanana Mosotho" (member_id: 13176346)
+   Γ£à Row 3: [DRY RUN] Would create: Elias Motsoaledi Local Municipality Municipal Secretary ΓåÆ "Mahlatse Maredi" (member_id: 13188956)
+   Γ£à Row 4: [DRY RUN] Would create: Elias Motsoaledi Local Municipality Municipal Treasurer ΓåÆ "Irene Mamushi" (member_id: 13185146)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   ΓÜá∩╕Å  Row 6: Member not found for ID 7210190386984 ("Alice Tshwane")
+   Γ£à Row 7: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 3 ΓåÆ "Mokoena Heten" (member_id: 13185241)
+   Γ£à Row 8: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 4 ΓåÆ "Sandy Maubeloe" (member_id: 13183308)
+   Γ£à Row 9: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 5 ΓåÆ "Glory Mokgoashoa" (member_id: 13194052)
+   Γ£à Row 10: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 6 ΓåÆ "Sanah Mathonyoane" (member_id: 13180369)
+   Γ£à Row 11: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 7 ΓåÆ "Sikhosane Linah" (member_id: 13179266)
+   ΓÜá∩╕Å  Row 12: Member not found for ID 8102045570084 ("Obbey Mashobane")
+   ΓÜá∩╕Å  Row 13: Member not found for ID 0011103554083 ("Selope Boroko")
+   Γ£à Row 14: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 10 ΓåÆ "Lucus Mokabane" (member_id: 13183409)
+   Γ£à Row 15: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 11 ΓåÆ "Josiah Mohlamonyane" (member_id: 13180090)
+   Γ£à Row 16: [DRY RUN] Would create: Elias Motsoaledi Local Municipality SRCT Member 12 ΓåÆ "Archie Mahangu" (member_id: 13180492)
+   ΓÜá∩╕Å  Row 17: Member not found for ID 0008075648083 ("Isaac Mahlangu")
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Summary: 11 created, 5 not found, 0 duplicates, 2 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Greater Tzaneen ΓåÆ Greater Tzaneen (LIM333)
+   Column format: Separate NAME + Surname
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Greater Tzaneen Local Municipality Municipal Chairperson ΓåÆ "RAYMOND LEFUPHANA" (member_id: 13157967)
+   Γ£à Row 3: [DRY RUN] Would create: Greater Tzaneen Local Municipality Municipal Secretary ΓåÆ "THERESA MATHYE" (member_id: 13157090)
+   Γ£à Row 4: [DRY RUN] Would create: Greater Tzaneen Local Municipality Municipal Treasurer ΓåÆ "ELIA CHARLES MKHARI" (member_id: 13157486)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 2 ΓåÆ "OFENTSE MOHALE" (member_id: 13160159)
+   Γ£à Row 7: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 3 ΓåÆ "ELVIS MABUNDA" (member_id: 13153922)
+   Γ£à Row 8: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 4 ΓåÆ "MANDY SHOKANE" (member_id: 13153112)
+   Γ£à Row 9: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 5 ΓåÆ "LAWRENCE MONGWE" (member_id: 13155068)
+   Γ£à Row 10: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 6 ΓåÆ "PATIENCE MAKGOPA" (member_id: 13154545)
+   Γ£à Row 11: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 7 ΓåÆ "BALDWIN NDLOVU" (member_id: 13155996)
+   Γ£à Row 12: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 8 ΓåÆ "BONGI MBHALATI" (member_id: 13162591)
+   Γ£à Row 13: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 9 ΓåÆ "NTHABISENG MAAKE" (member_id: 13158061)
+   Γ£à Row 14: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 10 ΓåÆ "DORIS NDLOVU" (member_id: 13156531)
+   Γ£à Row 15: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 11 ΓåÆ "FANISA MANGENA" (member_id: 13149141)
+   Γ£à Row 16: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 12 ΓåÆ "DINEO RAMALEPE" (member_id: 13164858)
+   Γ£à Row 17: [DRY RUN] Would create: Greater Tzaneen Local Municipality SRCT Member 13 ΓåÆ "MOKGADI MOAGI" (member_id: 13152245)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 15 created, 1 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Ephraim Mogale ΓåÆ Ephraim Mogale (LIM471)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Ephraim Mogale Local Municipality Municipal Chairperson ΓåÆ "Sdney Tshehla" (member_id: 13186323)
+   Γ£à Row 3: [DRY RUN] Would create: Ephraim Mogale Local Municipality Municipal Secretary ΓåÆ "Mpho Maake" (member_id: 13191621)
+   ΓÜá∩╕Å  Row 4: Member not found for ID 5705020573087 ("Mmanoko Mahloko")
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 2 ΓåÆ "Thabitha Manasae" (member_id: 13183182)
+   Γ£à Row 7: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 3 ΓåÆ "Olivia Mashifane" (member_id: 13188342)
+   ΓÜá∩╕Å  Row 8: Member not found for ID 9808035737082 ("Rabatho Makaleng")
+   Γ£à Row 9: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 5 ΓåÆ "Elsie Sepogoane" (member_id: 13195045)
+   Γ£à Row 10: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 6 ΓåÆ "Martin Maepa" (member_id: 13183593)
+   Γ£à Row 11: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 7 ΓåÆ "Karabo Ngoasheng" (member_id: 13192864)
+   Γ£à Row 12: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 8 ΓåÆ "Alicia Moela" (member_id: 13185408)
+   Γ£à Row 13: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 9 ΓåÆ "Moses Koma" (member_id: 13186697)
+   Γ£à Row 14: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 10 ΓåÆ "Mercy Phahlamohlaka" (member_id: 13184673)
+   Γ£à Row 15: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 11 ΓåÆ "Poppy Ramoshu" (member_id: 13190797)
+   Γ£à Row 16: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 12 ΓåÆ "Diphofa Elisa" (member_id: 13189414)
+   Γ£à Row 17: [DRY RUN] Would create: Ephraim Mogale Local Municipality SRCT Member 13 ΓåÆ "Winnie Makona" (member_id: 13186966)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 13 created, 3 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Maruleng ΓåÆ Maruleng (LIM335)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Maruleng Local Municipality Municipal Chairperson ΓåÆ "Sabath Malepe" (member_id: 13165443)
+   Γ£à Row 3: [DRY RUN] Would create: Maruleng Local Municipality Municipal Secretary ΓåÆ "Davis Matlou" (member_id: 13157190)
+   Γ£à Row 4: [DRY RUN] Would create: Maruleng Local Municipality Municipal Treasurer ΓåÆ "Margret Shai" (member_id: 13152897)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 2 ΓåÆ "Katlego Komane" (member_id: 13196544)
+   Γ£à Row 7: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 3 ΓåÆ "Lisbeth Raganya" (member_id: 13155561)
+   Γ£à Row 8: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 4 ΓåÆ "Maletu Daniel" (member_id: 13151891)
+   Γ£à Row 9: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 5 ΓåÆ "Motloitsi Joyce" (member_id: 13153123)
+   Γ£à Row 10: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 6 ΓåÆ "Maleto Mahlatse" (member_id: 13165535)
+   ΓÜá∩╕Å  Row 11: Member not found for ID 8703210765088 ("Malale Moore")
+   ΓÜá∩╕Å  Row 12: Member not found for ID 9807051371084 ("Komana Rakgolokane")
+   Γ£à Row 13: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 9 ΓåÆ "Lewele Refiloe" (member_id: 13155543)
+   Γ£à Row 14: [DRY RUN] Would create: Maruleng Local Municipality SRCT Member 10 ΓåÆ "Mpho Sentshe" (member_id: 13154683)
+   ΓÜá∩╕Å  Row 15: Member not found for ID 0741105507082 ("Kekene Motupa")
+   ΓÜá∩╕Å  Row 16: Member not found for ID 7401160432081 ("Finkie Mogofe")
+   ΓÜá∩╕Å  Row 17: Member not found for ID 7407140527505 ("Bekgobefa Solomon")
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 10 created, 6 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Ba-Phalaborwa ΓåÆ Ba-Phalaborwa (LIM334)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality Municipal Chairperson ΓåÆ "Pontsho Mashumu" (member_id: 13155906)
+   Γ£à Row 3: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality Municipal Secretary ΓåÆ "Adam Ngobeni" (member_id: 13161132)
+   Γ£à Row 4: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality Municipal Treasurer ΓåÆ "Giona Semosa" (member_id: 13155515)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 2 ΓåÆ "Mathebula Aaron" (member_id: 13160099)
+   Γ£à Row 7: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 3 ΓåÆ "Leona Matome" (member_id: 13152123)
+   Γ£à Row 8: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 4 ΓåÆ "Abedaig Mohate" (member_id: 13230386)
+   Γ£à Row 9: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 5 ΓåÆ "Deshi Shayi" (member_id: 13159496)
+   ΓÜá∩╕Å  Row 10: Member not found for ID 0780115058708 ("Nelly Mkansi")
+   Γ£à Row 11: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 7 ΓåÆ "Nathasha Manabe" (member_id: 13163039)
+   Γ£à Row 12: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 8 ΓåÆ "Keneude Semelane" (member_id: 13156945)
+   Γ£à Row 13: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 9 ΓåÆ "Tsholofelo Molewa" (member_id: 13164236)
+   Γ£à Row 14: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 10 ΓåÆ "Malobane Martha" (member_id: 13164147)
+   Γ£à Row 15: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 11 ΓåÆ "Malatji Obdiang" (member_id: 13158617)
+   ΓÜá∩╕Å  Row 16: Member not found for ID 8003030046086 ("Rose Raolane")
+   Γ£à Row 17: [DRY RUN] Would create: Ba-Phalaborwa Local Municipality SRCT Member 13 ΓåÆ "Stephina Sekwakwa" (member_id: 13150794)
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 13 created, 3 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Makhuthamanga -1 ΓåÆ Makhuduthamaga (LIM473)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   ΓÜá∩╕Å  Row 2: Member not found for ID 8308305808080 ("Machaba Gift")
+   Γ£à Row 3: [DRY RUN] Would create: Makhuduthamaga Local Municipality Municipal Secretary ΓåÆ "Mokwena Emmah" (member_id: 13185224)
+   Γ£à Row 4: [DRY RUN] Would create: Makhuduthamaga Local Municipality Municipal Treasurer ΓåÆ "Mahlatse Elizabeth" (member_id: 13180095)
+   ΓÜá∩╕Å  Row 6: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 7: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 2 ΓåÆ "Klass Rantho" (member_id: 13182091)
+   Γ£à Row 8: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 3 ΓåÆ "Lundy Mnape" (member_id: 13191662)
+   Γ£à Row 9: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 4 ΓåÆ "Sandra Mamogobo" (member_id: 13177987)
+   Γ£à Row 10: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 5 ΓåÆ "Hazel Sebawane" (member_id: 13187403)
+   Γ£à Row 11: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 6 ΓåÆ "Tsomati Tala" (member_id: 13185347)
+   Γ£à Row 12: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 7 ΓåÆ "Kubane Makola" (member_id: 13190576)
+   Γ£à Row 13: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 8 ΓåÆ "Linah Mmotong" (member_id: 13190576)
+   Γ£à Row 14: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 9 ΓåÆ "Tshepiso Mamaidi" (member_id: 13180829)
+   Γ£à Row 15: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 10 ΓåÆ "Funi Elinah Dolamo" (member_id: 13187302)
+   Γ£à Row 16: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 11 ΓåÆ "Jimmy Mamoshe" (member_id: 13187051)
+   Γ£à Row 17: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 12 ΓåÆ "Lekobane Moretsete" (member_id: 13187014)
+   Γ£à Row 18: [DRY RUN] Would create: Makhuduthamaga Local Municipality SRCT Member 13 ΓåÆ "Bitso Phahlamohlaka" (member_id: 13190827)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 21: Could not determine position code for "" (SRCT index: 16)
+   Summary: 14 created, 2 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Lepellenkumpi-1 ΓåÆ Lepele-Nkumpi (LIM355)
+   Column format: Combined NAME&SURNAME
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality Municipal Chairperson ΓåÆ "Maputle Mphahle" (member_id: 13118971)
+   Γ£à Row 3: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality Municipal Secretary ΓåÆ "sello Morulane" (member_id: 13115294)
+   Γ£à Row 4: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality Municipal Treasurer ΓåÆ "Andrica Modula" (member_id: 13119388)
+   ΓÜá∩╕Å  Row 6: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 8: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 2 ΓåÆ "Thabo Maanets" (member_id: 13133449)
+   ΓÜá∩╕Å  Row 9: Member not found for ID 8808085443084 ("Aubrey Maja")
+   Γ£à Row 10: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 4 ΓåÆ "Jay Kekane" (member_id: 13130215)
+   Γ£à Row 11: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 5 ΓåÆ "Pheladi Mafefe" (member_id: 13128180)
+   Γ£à Row 12: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 6 ΓåÆ "Frans Manye" (member_id: 13132811)
+   Γ£à Row 13: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 7 ΓåÆ "Shantel Makola" (member_id: 13129964)
+   Γ£à Row 14: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 8 ΓåÆ "Simon Selemela" (member_id: 13129448)
+   Γ£à Row 15: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 9 ΓåÆ "Lesedi Latakgoma" (member_id: 13133111)
+   ΓÜá∩╕Å  Row 16: Member not found for ID 7807081321085 ("Makhafola Tebogo")
+   Γ£à Row 17: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 11 ΓåÆ "Malatje Kgomotjo" (member_id: 13121866)
+   Γ£à Row 18: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 12 ΓåÆ "Dereen Mamabolo" (member_id: 13120368)
+   Γ£à Row 19: [DRY RUN] Would create: Lepele-Nkumpi Local Municipality SRCT Member 13 ΓåÆ "Amanda Sebolee" (member_id: 13124555)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 21: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 22: Could not determine position code for "" (SRCT index: 16)
+   Summary: 13 created, 3 not found, 0 duplicates, 3 errors
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+≡ƒôï Processing: Greater Letaba ΓåÆ Greater Letaba (LIM332)
+   Column format: Separate NAME + Surname
+   Loaded 18 positions from DB
+   Γ£à Row 2: [DRY RUN] Would create: Greater Letaba Local Municipality Municipal Chairperson ΓåÆ "Patrick Lebepe" (member_id: 13156291)
+   Γ£à Row 3: [DRY RUN] Would create: Greater Letaba Local Municipality Municipal Secretary ΓåÆ "Dolly Rabothata" (member_id: 13160535)
+   Γ£à Row 4: [DRY RUN] Would create: Greater Letaba Local Municipality Municipal Treasurer ΓåÆ "Lebogang Makhobanama" (member_id: 13158787)
+   ΓÜá∩╕Å  Row 5: No valid ID number for "" ΓÇô skipping member lookup
+   Γ£à Row 6: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 2 ΓåÆ "Azwindini Mukhufhi" (member_id: 13153039)
+   Γ£à Row 7: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 3 ΓåÆ "Shebby Modiba" (member_id: 13162051)
+   Γ£à Row 8: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 4 ΓåÆ "Ndaene Lephale" (member_id: 13160405)
+   Γ£à Row 9: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 5 ΓåÆ "Phistos Mashao" (member_id: 13162962)
+   Γ£à Row 10: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 6 ΓåÆ "Antonette Mokgawa" (member_id: 13122225)
+   Γ£à Row 11: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 7 ΓåÆ "Conny Mawila" (member_id: 13153355)
+   Γ£à Row 12: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 8 ΓåÆ "Pontsho Mokhabukhi" (member_id: 13160517)
+   Γ£à Row 13: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 9 ΓåÆ "Elsy Malatji" (member_id: 13151858)
+   Γ£à Row 14: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 10 ΓåÆ "Dikeledi Pheeha" (member_id: 13160183)
+   Γ£à Row 15: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 11 ΓåÆ "Valencia Ramollo" (member_id: 13159994)
+   Γ£à Row 16: [DRY RUN] Would create: Greater Letaba Local Municipality SRCT Member 12 ΓåÆ "Hlompho Lebepe" (member_id: 13165113)
+   ΓÜá∩╕Å  Row 17: Member not found for ID 6105280668080 ("Modjadji Kgatla")
+   Γ¥î Row 18: Could not determine position code for "" (SRCT index: 14)
+   Γ¥î Row 19: Could not determine position code for "" (SRCT index: 15)
+   Γ¥î Row 20: Could not determine position code for "" (SRCT index: 16)
+   Summary: 14 created, 2 not found, 0 duplicates, 3 errors
+
+
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  SUMMARY REPORT
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  Mode:                 DRY RUN
+  Sheets processed:     21
+  Total data rows:      390
+  Appointments created: 263
+  Members not found:    70
+  Duplicate appointments: 0
+  Positions not found:  0
+  Skipped label rows:   3
+  Errors:               57
+
+ΓöÇΓöÇ Per-Municipality Breakdown ΓöÇΓöÇ
+  Sheet                     | Municipality               | Rows | Created | Not Found | Dupes | Errors
+  --------------------------+----------------------------+------+---------+-----------+-------+-------
+  Molemole-1                | Molemole                   |   19 |      14 |         2 |     0 |     3
+  Musina                    | Musina                     |   20 |      13 |         3 |     0 |     4
+  Mogalakwena               | Mogalakwena                |   19 |      12 |         4 |     0 |     3
+  Greater Giyani            | Greater Giyani             |   18 |      13 |         3 |     0 |     2
+  Thulamela                 | Thulamela                  |   18 |      14 |         2 |     0 |     2
+  Makhado                   | Makhado                    |   18 |      11 |         5 |     0 |     2
+  Bela-bela                 | Bela-Bela                  |   19 |      12 |         4 |     0 |     3
+  Blouberg                  | Blouberg                   |   19 |      12 |         4 |     0 |     3
+  Collins Chabane           | Collins Chabane            |   19 |      13 |         3 |     0 |     3
+  Polokwane                 | Polokwane                  |   19 |      14 |         2 |     0 |     3
+  Fetakgomo                 | Fetakgomo Tubatse          |   19 |      13 |         3 |     0 |     3
+  Modimolle-Mokgophong      | Modimolle-Mookgophong      |   13 |       9 |         4 |     0 |     0
+  Thabazimbi                | Thabazimbi                 |   19 |      10 |         6 |     0 |     3
+  Ellias Motswaledi         | Elias Motsoaledi           |   18 |      11 |         5 |     0 |     2
+  Greater Tzaneen           | Greater Tzaneen            |   19 |      15 |         1 |     0 |     3
+  Ephraim Mogale            | Ephraim Mogale             |   19 |      13 |         3 |     0 |     3
+  Maruleng                  | Maruleng                   |   19 |      10 |         6 |     0 |     3
+  Ba-Phalaborwa             | Ba-Phalaborwa              |   19 |      13 |         3 |     0 |     3
+  Makhuthamanga -1          | Makhuduthamaga             |   19 |      14 |         2 |     0 |     3
+  Lepellenkumpi-1           | Lepele-Nkumpi              |   19 |      13 |         3 |     0 |     3
+  Greater Letaba            | Greater Letaba             |   19 |      14 |         2 |     0 |     3
+
+ΓöÇΓöÇ Members Not Found (for manual review) ΓöÇΓöÇ
+  Sheet: Molemole-1, Row: 4, Name: "Joyce Poopedi", ID: 7507080360881, Reason: Not in members_consolidated
+  Sheet: Molemole-1, Row: 6, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Musina, Row: 6, Name: "Additional Members", ID: null, Reason: Invalid/missing ID
+  Sheet: Musina, Row: 7, Name: "NAME&SURNAME", ID: ID NUMBER, Reason: Invalid/missing ID
+  Sheet: Musina, Row: 8, Name: "Phathutshedzo Kwinda", ID: 9607275368085, Reason: Not in members_consolidated
+  Sheet: Mogalakwena, Row: 5, Name: "ADDITIONAL MEMBERS", ID: ADDITIONAL MEMBERS, Reason: Invalid/missing ID
+  Sheet: Mogalakwena, Row: 7, Name: "Clive Mamabolo", ID: 0740606543508, Reason: Not in members_consolidated
+  Sheet: Mogalakwena, Row: 15, Name: "Mokgaetji Chaba", ID: 9504230391080, Reason: Not in members_consolidated
+  Sheet: Mogalakwena, Row: 17, Name: "Lawrence Kganyago", ID: 6303235269080, Reason: Not in members_consolidated
+  Sheet: Greater Giyani, Row: 2, Name: "Vukosi Chomela", ID: 0920523597087, Reason: Not in members_consolidated
+  Sheet: Greater Giyani, Row: 9, Name: "Baloyi Hitekani", ID: 9106205914084, Reason: Not in members_consolidated
+  Sheet: Greater Giyani, Row: 18, Name: "Sindile Mahesu", ID: 8311140728083, Reason: Not in members_consolidated
+  Sheet: Thulamela, Row: 8, Name: "Thithelimbilu Nemumane", ID: 0723170306081, Reason: Not in members_consolidated
+  Sheet: Thulamela, Row: 15, Name: "Mukwevho Khuthando", ID: 9308126047081, Reason: Not in members_consolidated
+  Sheet: Makhado, Row: 2, Name: "David Mubhafhi", ID: 0760406608080, Reason: Not in members_consolidated
+  Sheet: Makhado, Row: 3, Name: "Arthur Maedza", ID: 5108315755085, Reason: Not in members_consolidated
+  Sheet: Makhado, Row: 16, Name: "Hulisani Matamela", ID: 8608170765082, Reason: Not in members_consolidated
+  Sheet: Makhado, Row: 17, Name: "Maligana Mathoma", ID: 0850735431087, Reason: Not in members_consolidated
+  Sheet: Makhado, Row: 18, Name: "Stanlry Thovhakale", ID: 8608170765082, Reason: Not in members_consolidated
+  Sheet: Bela-bela, Row: 3, Name: "Mpho Manala", ID: 0106245651082, Reason: Not in members_consolidated
+  Sheet: Bela-bela, Row: 5, Name: "ADDITIONAL MEMBERS", ID: ADDITIONAL MEMBERS, Reason: Invalid/missing ID
+  Sheet: Bela-bela, Row: 14, Name: "Dineo Mathe", ID: 9304150438080, Reason: Not in members_consolidated
+  Sheet: Bela-bela, Row: 17, Name: "Gabriel Kutumete", ID: 7509295468080, Reason: Not in members_consolidated
+  Sheet: Blouberg, Row: 2, Name: "Moremi Solly", ID: 7302245567086, Reason: Not in members_consolidated
+  Sheet: Blouberg, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Blouberg, Row: 7, Name: "Mailula Mapula", ID: 9108280720087, Reason: Not in members_consolidated
+  Sheet: Blouberg, Row: 15, Name: "Morudu Sunday", ID: 7107046695085, Reason: Not in members_consolidated
+  Sheet: Collins Chabane, Row: 5, Name: "Additional Members", ID: null, Reason: Invalid/missing ID
+  Sheet: Collins Chabane, Row: 6, Name: "Mpho Pico", ID: 0309260113084, Reason: Not in members_consolidated
+  Sheet: Collins Chabane, Row: 8, Name: "Elisa Mulaudzi", ID: 6507270043083, Reason: Not in members_consolidated
+  Sheet: Polokwane, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Polokwane, Row: 6, Name: "Mapula Malapane", ID: 9302170810082, Reason: Not in members_consolidated
+  Sheet: Fetakgomo, Row: 6, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Fetakgomo, Row: 13, Name: "Enock Moredi", ID: 7612055551086, Reason: Not in members_consolidated
+  Sheet: Fetakgomo, Row: 18, Name: "Thabo Moropana", ID: 7905055475089, Reason: Not in members_consolidated
+  Sheet: Modimolle-Mokgophong, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Modimolle-Mokgophong, Row: 9, Name: "Kgabo Mothabela", ID: 0631020039086, Reason: Not in members_consolidated
+  Sheet: Modimolle-Mokgophong, Row: 13, Name: "Kehomotso Tshoane", ID: 8306130660080, Reason: Not in members_consolidated
+  Sheet: Modimolle-Mokgophong, Row: 14, Name: "Sithole Nomsa", ID: n/a, Reason: Invalid/missing ID
+  Sheet: Thabazimbi, Row: 4, Name: "Ernest Mphehlele", ID: 8905285786985, Reason: Not in members_consolidated
+  Sheet: Thabazimbi, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Thabazimbi, Row: 6, Name: "Martha Matjila", ID: 76080404337082, Reason: Not in members_consolidated
+  Sheet: Thabazimbi, Row: 8, Name: "Steve Medupe", ID: 9904285554083, Reason: Not in members_consolidated
+  Sheet: Thabazimbi, Row: 9, Name: "Virginia Malwetse", ID: 9911190955084, Reason: Not in members_consolidated
+  Sheet: Thabazimbi, Row: 10, Name: "Patrick Mampho", ID: 9207065128086, Reason: Not in members_consolidated
+  Sheet: Ellias Motswaledi, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Ellias Motswaledi, Row: 6, Name: "Alice Tshwane", ID: 7210190386984, Reason: Not in members_consolidated
+  Sheet: Ellias Motswaledi, Row: 12, Name: "Obbey Mashobane", ID: 8102045570084, Reason: Not in members_consolidated
+  Sheet: Ellias Motswaledi, Row: 13, Name: "Selope Boroko", ID: 0011103554083, Reason: Not in members_consolidated
+  Sheet: Ellias Motswaledi, Row: 17, Name: "Isaac Mahlangu", ID: 0008075648083, Reason: Not in members_consolidated
+  Sheet: Greater Tzaneen, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Ephraim Mogale, Row: 4, Name: "Mmanoko Mahloko", ID: 5705020573087, Reason: Not in members_consolidated
+  Sheet: Ephraim Mogale, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Ephraim Mogale, Row: 8, Name: "Rabatho Makaleng", ID: 9808035737082, Reason: Not in members_consolidated
+  Sheet: Maruleng, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Maruleng, Row: 11, Name: "Malale Moore", ID: 8703210765088, Reason: Not in members_consolidated
+  Sheet: Maruleng, Row: 12, Name: "Komana Rakgolokane", ID: 9807051371084, Reason: Not in members_consolidated
+  Sheet: Maruleng, Row: 15, Name: "Kekene Motupa", ID: 0741105507082, Reason: Not in members_consolidated
+  Sheet: Maruleng, Row: 16, Name: "Finkie Mogofe", ID: 7401160432081, Reason: Not in members_consolidated
+  Sheet: Maruleng, Row: 17, Name: "Bekgobefa Solomon", ID: 7407140527505, Reason: Not in members_consolidated
+  Sheet: Ba-Phalaborwa, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Ba-Phalaborwa, Row: 10, Name: "Nelly Mkansi", ID: 0780115058708, Reason: Not in members_consolidated
+  Sheet: Ba-Phalaborwa, Row: 16, Name: "Rose Raolane", ID: 8003030046086, Reason: Not in members_consolidated
+  Sheet: Makhuthamanga -1, Row: 2, Name: "Machaba Gift", ID: 8308305808080, Reason: Not in members_consolidated
+  Sheet: Makhuthamanga -1, Row: 6, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Lepellenkumpi-1, Row: 6, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Lepellenkumpi-1, Row: 9, Name: "Aubrey Maja", ID: 8808085443084, Reason: Not in members_consolidated
+  Sheet: Lepellenkumpi-1, Row: 16, Name: "Makhafola Tebogo", ID: 7807081321085, Reason: Not in members_consolidated
+  Sheet: Greater Letaba, Row: 5, Name: "", ID: Additional Members, Reason: Invalid/missing ID
+  Sheet: Greater Letaba, Row: 17, Name: "Modjadji Kgatla", ID: 6105280668080, Reason: Not in members_consolidated
+
+ΓöÇΓöÇ Errors ΓöÇΓöÇ
+  Sheet: Molemole-1, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Molemole-1, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Molemole-1, Row: 21, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Musina, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Musina, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Musina, Row: 21, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Musina, Row: 22, Name: "N/A", Error: Cannot determine position (srctIndex=17)
+  Sheet: Mogalakwena, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Mogalakwena, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Mogalakwena, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Greater Giyani, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Greater Giyani, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Thulamela, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Thulamela, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Makhado, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Makhado, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Bela-bela, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Bela-bela, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Bela-bela, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Blouberg, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Blouberg, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Blouberg, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Collins Chabane, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Collins Chabane, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Collins Chabane, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Polokwane, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Polokwane, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Polokwane, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Fetakgomo, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Fetakgomo, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Fetakgomo, Row: 21, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Thabazimbi, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Thabazimbi, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Thabazimbi, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Ellias Motswaledi, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Ellias Motswaledi, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Greater Tzaneen, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Greater Tzaneen, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Greater Tzaneen, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Ephraim Mogale, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Ephraim Mogale, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Ephraim Mogale, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Maruleng, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Maruleng, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Maruleng, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Ba-Phalaborwa, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Ba-Phalaborwa, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Ba-Phalaborwa, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Makhuthamanga -1, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Makhuthamanga -1, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Makhuthamanga -1, Row: 21, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Lepellenkumpi-1, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Lepellenkumpi-1, Row: 21, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Lepellenkumpi-1, Row: 22, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+  Sheet: Greater Letaba, Row: 18, Name: "N/A", Error: Cannot determine position (srctIndex=14)
+  Sheet: Greater Letaba, Row: 19, Name: "N/A", Error: Cannot determine position (srctIndex=15)
+  Sheet: Greater Letaba, Row: 20, Name: "N/A", Error: Cannot determine position (srctIndex=16)
+
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+

@@ -42,7 +42,8 @@ router.post('/test-integration', authenticate, requireSMSPermission(), async (re
 
     // Test 1: Basic SMS sending
     try {
-      const sendResult = await SMSService.sendSMS(test_phone_number, testMessage, getDefaultFromNumber());
+      const trackingId = `test_basic_${Date.now()}`;
+      const sendResult = await SMSService.sendSMS(test_phone_number, testMessage, getDefaultFromNumber(), trackingId);
       testResults.push({
         test: 'Basic SMS Sending',
         success: sendResult.success,
@@ -123,7 +124,8 @@ router.post('/test-integration', authenticate, requireSMSPermission(), async (re
     try {
       const rateLimitResults: Array<{attempt: number; success: boolean; error?: string}> = [];
       for (let i = 0; i < 3; i++) {
-        const result = await SMSService.sendSMS(test_phone_number, `Rate limit test ${i + 1}`, getDefaultFromNumber());
+        const trackingId = `test_ratelimit_${i}_${Date.now()}`;
+        const result = await SMSService.sendSMS(test_phone_number, `Rate limit test ${i + 1}`, getDefaultFromNumber(), trackingId);
         rateLimitResults.push({
           attempt: i + 1,
           success: result.success,

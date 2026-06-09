@@ -1,6 +1,7 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { SMSDeliveryTrackingService } from './smsDeliveryTrackingService';
 import { SMSLogService } from './smsLogService';
+import { SMSMORenewalService } from './smsMORenewalService';
 import { logger } from '../utils/logger';
 import crypto from 'crypto';
 
@@ -81,10 +82,10 @@ const PROVIDER_CONFIGS: Record<string, ProviderCallbackConfig> = {
     signatureAlgorithm: 'sha256',
     whitelistedIPs: (process.env.JSON_APPLINK_WEBHOOK_IPS || '').split(',').filter(Boolean),
     statusFieldMappings: {
-      delivered: ['delivered', 'DELIVRD', 'delivery_success', 'dlr_success', '1'],
-      failed: ['failed', 'UNDELIV', 'delivery_failed', 'dlr_failed', '5'],
-      expired: ['expired', 'EXPIRED', 'timeout', '3'],
-      rejected: ['rejected', 'REJECTD', 'blocked', '6'],
+      delivered: ['delivered', 'DELIVRD', 'delivery_success', 'dlr_success', '1', 'stat:DELIVRD'],
+      failed: ['failed', 'UNDELIV', 'UNDELVR', 'delivery_failed', 'dlr_failed', '5', 'stat:UNDELVR'],
+      expired: ['expired', 'EXPIRED', 'timeout', '3', 'stat:EXPIRED'],
+      rejected: ['rejected', 'REJECTD', 'BLACKLISTED', 'blocked', '6', 'stat:BLACKLISTED'],
       sent: ['sent', 'submitted', 'accepted', 'ACCEPTD', '0'],
       pending: ['pending', 'buffered', 'ENROUTE', '2'],
       queued: ['queued', 'scheduled'],
@@ -269,11 +270,34 @@ export class SMSCallbackService {
     requestIP: string
   ): CallbackRecord {
     const data = body.data || body;
+    
+    // Handle the new status nested object
+    let statusSource = data.status?.reason || data.status || data.delivery_status || data.state;
+    
+    // If it's a reason string, try to extract the stat:XXXX code
+    if (typeof statusSource === 'string' && statusSource.includes('stat:')) {
+      const match = statusSource.match(/stat:([A-Z]+)/);
+      if (match) statusSource = 'stat:' + match[1];
+    }
+
     const record = this.parseCallbackData('json-applink', data, headers, requestIP);
 
+    // Override or refine based on specific Applink fields
+    if (statusSource) {
+      record.raw_status = String(statusSource);
+      record.delivery_status = this.mapDeliveryStatus(record.raw_status, this.getProviderConfig('json-applink'));
+    }
+
+    if (data.status?.code !== undefined) record.error_code = String(data.status.code);
+    if (data.status?.reason) record.error_message = data.status.reason;
     if (data.creditCost) record.cost = parseFloat(data.creditCost);
     if (data.apiMsgId) record.provider_message_id = data.apiMsgId;
     if (data.clientRef || data.correlator) record.message_id = data.clientRef || data.correlator;
+    
+    // MSISDN extraction from recipient object if top level is missing
+    if (!record.request_body?.msisdn && data.recipient?.msisdn) {
+      record.request_body = { ...record.request_body, msisdn: data.recipient.msisdn };
+    }
 
     return record;
   }
@@ -408,6 +432,58 @@ export class SMSCallbackService {
         deliveryStatus: 'unknown',
         error: error.message,
       };
+    }
+  }
+
+  /**
+   * Processes an incoming MO (Mobile Originated) SMS callback.
+   * Typically used for keywords like "RENEW".
+   */
+  static async processMOCallback(
+    providerName: string,
+    body: Record<string, any>,
+    headers: Record<string, any>,
+    requestIP: string,
+    requestMethod: string = 'POST'
+  ): Promise<any> {
+    try {
+      logger.info(`Received MO callback from ${providerName}`, { requestIP });
+
+      // 1. Data extraction
+      // JSON Applink usually sends 'msisdn', 'destination', 'content'
+      // New format: { "recipient": { "msisdn": "..." }, "response": "..." }
+      const data = (body.data || body) as any;
+      const msisdn = data.recipient?.msisdn || data.msisdn || data.from || data.mobile || '';
+      const content = data.response || data.content || data.message || data.text || '';
+      const destination = data.destination || data.shortcode || data.to || '';
+
+      if (!msisdn) {
+        throw new Error('MSISDN not found in MO callback');
+      }
+
+      // 2. Delegate to business logic service
+      const result = await SMSMORenewalService.processRenewalRequest(msisdn, content, providerName);
+
+      // 3. Log MO interaction
+      await SMSMORenewalService.logMOCallback({
+        msisdn,
+        destination,
+        content,
+        provider: providerName,
+        idNumber: result.idNumber,
+        memberId: result.memberId,
+        success: result.success,
+        error: result.error
+      });
+
+      // 4. Log to webhook entry log for general auditing
+      await this.logWebhookEntry(providerName, headers, body, requestIP, requestMethod, 200, true);
+
+      return result;
+    } catch (error: any) {
+      logger.error('Failed to process MO callback', { error: error.message, providerName });
+      await this.logWebhookEntry(providerName, headers, body, requestIP, requestMethod, 500, false, error.message);
+      throw error;
     }
   }
 
@@ -563,11 +639,21 @@ export class SMSCallbackService {
   private static mapDeliveryStatus(rawStatus: string | null, config: ProviderCallbackConfig): CallbackDeliveryStatus {
     if (!rawStatus) return 'unknown';
     const statusLower = rawStatus.toLowerCase();
+    
+    // 1. Direct match
     for (const [mapped, values] of Object.entries(config.statusFieldMappings)) {
       if (values.some(v => v.toLowerCase() === statusLower)) {
         return mapped as CallbackDeliveryStatus;
       }
     }
+    
+    // 2. Partial match for stat:XXXX pattern if not matched yet
+    for (const [mapped, values] of Object.entries(config.statusFieldMappings)) {
+      if (values.some(v => v.startsWith('stat:') && statusLower.includes(v.toLowerCase()))) {
+        return mapped as CallbackDeliveryStatus;
+      }
+    }
+    
     return 'unknown';
   }
 

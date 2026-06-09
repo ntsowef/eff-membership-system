@@ -45,6 +45,7 @@ import { apiGet } from '../../lib/api';
 import LeadershipAssignment from './LeadershipAssignment';
 import LeadershipRoster from './LeadershipRoster';
 import WarCouncilDashboard from './WarCouncilDashboard';
+import ProvincialLeadershipOverview from './ProvincialLeadershipOverview';
 import { WarCouncilPermissions } from '../../utils/warCouncilPermissions';
 import { useAuth } from '../../store';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
@@ -120,7 +121,7 @@ const LeadershipManagement: React.FC = () => {
   const warCouncilUIConfig = WarCouncilPermissions.getUIConfig(user as any);
 
   // ==================== API Queries ====================
-  
+
   // Fetch leadership statistics
   const { data: statsData, isLoading: statsLoading } = useQuery<{ analytics: LeadershipStats }>({
     queryKey: ['leadership-stats'],
@@ -147,7 +148,7 @@ const LeadershipManagement: React.FC = () => {
   const recentAppointments = appointmentsData?.appointments || [];
 
   // ==================== Event Handlers ====================
-  
+
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
@@ -163,18 +164,18 @@ const LeadershipManagement: React.FC = () => {
   };
 
   // ==================== Quick Actions ====================
-  
+
   // Calculate tab indices based on War Council visibility
   const getTabIndex = (tabName: string): number => {
-    const baseTabs = ['overview', 'assignment', 'leaders'];
+    const baseTabs = ['overview', 'assignment', 'leaders', 'srct-overview'];
     let index = baseTabs.indexOf(tabName);
 
     if (index !== -1) return index;
 
-    // For tabs after War Council, adjust index based on visibility
-    const warCouncilIndex = warCouncilUIConfig.showWarCouncilTab ? 3 : -1;
-    const structureIndex = warCouncilUIConfig.showWarCouncilTab ? 4 : 3;
-    const reportsIndex = warCouncilUIConfig.showWarCouncilTab ? 5 : 4;
+    // For tabs after SRCT Overview, adjust index based on War Council visibility
+    const warCouncilIndex = warCouncilUIConfig.showWarCouncilTab ? 4 : -1;
+    const structureIndex = warCouncilUIConfig.showWarCouncilTab ? 5 : 4;
+    const reportsIndex = warCouncilUIConfig.showWarCouncilTab ? 6 : 5;
 
     switch (tabName) {
       case 'war-council': return warCouncilIndex;
@@ -223,7 +224,7 @@ const LeadershipManagement: React.FC = () => {
   ];
 
   // ==================== Helper Functions ====================
-  
+
   const getHierarchyColor = (level: string) => {
     switch (level) {
       case 'National': return 'error';
@@ -239,7 +240,7 @@ const LeadershipManagement: React.FC = () => {
   };
 
   // ==================== Render ====================
-  
+
   return (
     <Box>
       {/* Province Context Banner for Provincial Admins */}
@@ -262,6 +263,7 @@ const LeadershipManagement: React.FC = () => {
           <Tab icon={<Dashboard />} label="Overview" />
           <Tab icon={<Assignment />} label="Assignment" />
           <Tab icon={<People />} label="Leaders" />
+          <Tab icon={<AccountTree />} label="SRCT Overview" />
           {warCouncilUIConfig.showWarCouncilTab && (
             <Tab icon={<Gavel />} label="War Council" />
           )}
@@ -271,7 +273,7 @@ const LeadershipManagement: React.FC = () => {
       </Paper>
 
       {/* Tab Panels */}
-      
+
       {/* Overview Tab */}
       <TabPanel value={tabValue} index={0}>
         {/* Statistics Cards */}
@@ -366,8 +368,8 @@ const LeadershipManagement: React.FC = () => {
                         color={action.color}
                         startIcon={action.icon}
                         onClick={action.action}
-                        sx={{ 
-                          height: 80, 
+                        sx={{
+                          height: 80,
                           flexDirection: 'column',
                           gap: 1,
                           textTransform: 'none'
@@ -445,7 +447,7 @@ const LeadershipManagement: React.FC = () => {
                 <Typography variant="h6" gutterBottom>
                   Leadership Fill Rates by Hierarchy
                 </Typography>
-                
+
                 {statsLoading && (
                   <Box display="flex" justifyContent="center" py={4}>
                     <CircularProgress />
@@ -496,6 +498,11 @@ const LeadershipManagement: React.FC = () => {
         <LeadershipRoster />
       </TabPanel>
 
+      {/* SRCT Overview Tab */}
+      <TabPanel value={tabValue} index={getTabIndex('srct-overview')}>
+        <ProvincialLeadershipOverview />
+      </TabPanel>
+
       {/* War Council Tab */}
       {warCouncilUIConfig.showWarCouncilTab && (
         <TabPanel value={tabValue} index={getTabIndex('war-council')}>
@@ -510,7 +517,7 @@ const LeadershipManagement: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Organizational Structure
             </Typography>
-            
+
             {structuresLoading && (
               <Box display="flex" justifyContent="center" py={4}>
                 <CircularProgress />

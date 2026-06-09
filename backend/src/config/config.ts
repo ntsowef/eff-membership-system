@@ -99,6 +99,7 @@ interface Config {
   };
   iec: {
     apiUrl: string;
+    proxyUrl: string;
     username: string;
     password: string;
     timeout: number;
@@ -124,6 +125,17 @@ interface Config {
   whatsappProvider: 'wasender' | 'meta';
   bulkUpload: {
     generateAttendanceRegisters: boolean;
+  };
+  peachPayments: {
+    entityId: string;
+    accessToken: string;
+    clientId: string;
+    clientSecret: string;
+    merchantId: string;
+    baseUrl: string;
+    authUrl: string;
+    testMode: boolean;
+    checkoutJsUrl: string;
   };
 }
 
@@ -212,6 +224,7 @@ export const config: Config = {
   // IEC API Configuration
   iec: {
     apiUrl: process.env.IEC_API_URL || 'https://api.iec.org.za',
+    proxyUrl: process.env.IEC_PROXY_URL || 'http://197.85.7.202:5000',
     username: process.env.IEC_API_USERNAME || '',
     password: process.env.IEC_API_PASSWORD || '',
     timeout: parseInt(process.env.IEC_API_TIMEOUT || '30000', 10),
@@ -245,6 +258,21 @@ export const config: Config = {
   // Bulk Upload Configuration
   bulkUpload: {
     generateAttendanceRegisters: process.env.GENERATE_ATTENDANCE_REGISTERS !== 'false'  // Default: true
+  },
+
+  // Peach Payments V2 Configuration
+  peachPayments: {
+    entityId: process.env.PEACH_ENTITY_ID || '',
+    accessToken: process.env.PEACH_ACCESS_TOKEN || '',
+    clientId: process.env.PEACH_CLIENT_ID || '',
+    clientSecret: process.env.PEACH_CLIENT_SECRET || '',
+    merchantId: process.env.PEACH_MERCHANT_ID || '',
+    baseUrl: process.env.PEACH_BASE_URL || 'https://testsecure.peachpayments.com',
+    authUrl: process.env.PEACH_AUTH_URL || 'https://sandbox-dashboard.peachpayments.com',
+    testMode: process.env.PEACH_TEST_MODE === 'true',
+    checkoutJsUrl: process.env.PEACH_TEST_MODE === 'true'
+      ? 'https://sandbox-checkout.peachpayments.com/js/checkout.js'
+      : 'https://checkout.peachpayments.com/js/checkout.js'
   }
 };
 

@@ -1,9 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
+import crypto from 'crypto';
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { ValidationError, NotFoundError, DatabaseError } from '../middleware/errorHandler';
 import { sendSuccess } from '../utils/responseHelpers';
 import { CacheInvalidationHooks } from '../services/cacheInvalidationService';
+import { PaymentService } from '../services/paymentService';
 
 const router = Router();
 
@@ -82,7 +84,7 @@ const renewalProcessSchema = Joi.object({
       'any.only': 'Payment method must be one of: Card, Cash, EFT, Mobile, Other',
       'any.required': 'Payment method is required'
     }),
-  payment_reference: Joi.string().max(100).optional(),
+  payment_reference: Joi.string().max(100).allow('').optional(),
   amount_paid: Joi.number().min(0).required()
     .messages({
       'number.min': 'Amount paid must be a positive number',
@@ -222,46 +224,156 @@ router.post('/process', async (req: Request, res: Response, next: NextFunction) 
       updated_member_data
     } = value as RenewalPaymentData;
 
-    // Step 1: Get member information from members_consolidated (single source of truth)
+    // Step 1: Get member information
     const memberQuery = `
-      SELECT
-        member_id,
-        id_number,
-        firstname,
-        surname,
-        membership_number,
-        expiry_date,
-        membership_status_id
+      SELECT member_id, id_number, firstname, surname, membership_number, expiry_date, membership_status_id
       FROM members_consolidated
       WHERE id_number = $1
     `;
-
     const member = await executeQuerySingle<any>(memberQuery, [id_number]);
 
     if (!member) {
       throw new NotFoundError(`Member with ID number ${id_number} not found`);
     }
 
-    // Step 2: Calculate new dates
-    const currentDate = new Date();
-    const lastPaymentDate = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // =========================================================================
+    // Card Payment → Process via Peach Payments S2S or Checkout
+    // =========================================================================
+    if (payment_method === 'Card') {
+      console.log(`💳 Processing card payment for member ${member.member_id}`);
 
-    // Calculate expiry date as 24 months (730 days) from payment date
+      // Check if card details are provided (S2S flow)
+      const { cardNumber, cardHolder, expiryMonth, expiryYear, cvv } = req.body;
+
+      if (cardNumber && cardHolder && expiryMonth && expiryYear && cvv) {
+        // S2S Direct Card Payment
+        const merchantTransactionId = `REN-${Date.now()}-${member.member_id}`;
+
+        const cardResult = await PaymentService.processCardPayment(
+          member.member_id,
+          amount_paid,
+          'Renewal',
+          { cardNumber, cardHolder, expiryMonth, expiryYear, cvv },
+          merchantTransactionId
+        );
+
+        // Store pending member data update in payment description
+        if (updated_member_data && cardResult.paymentId) {
+          await executeQuery(
+            `UPDATE payments SET description = $1 WHERE payment_id = $2`,
+            [JSON.stringify({ updated_member_data, id_number }), cardResult.paymentId]
+          );
+        }
+
+        // Handle 3DS redirect
+        if (cardResult.redirectUrl) {
+          sendSuccess(res, {
+            requires_payment: true,
+            redirectUrl: cardResult.redirectUrl,
+            paymentId: cardResult.paymentId,
+            transactionId: cardResult.transactionId,
+          }, '3D Secure authentication required');
+          return;
+        }
+
+        if (cardResult.success) {
+          // Apply member data updates immediately
+          if (updated_member_data) {
+            const updateFields: string[] = [];
+            const updateValues: any[] = [];
+            let idx = 1;
+            if (updated_member_data.email) { updateFields.push(`email = $${idx++}`); updateValues.push(updated_member_data.email); }
+            if (updated_member_data.cell_number) { updateFields.push(`cell_number = $${idx++}`); updateValues.push(updated_member_data.cell_number); }
+            if (updated_member_data.residential_address) { updateFields.push(`residential_address = $${idx++}`); updateValues.push(updated_member_data.residential_address); }
+            if (updated_member_data.postal_address) { updateFields.push(`postal_address = $${idx++}`); updateValues.push(updated_member_data.postal_address); }
+            if (updateFields.length > 0) {
+              updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+              updateValues.push(member.member_id);
+              await executeQuery(
+                `UPDATE members_consolidated SET ${updateFields.join(', ')} WHERE member_id = $${idx}`,
+                updateValues
+              );
+            }
+          }
+
+          sendSuccess(res, {
+            success: true,
+            payment: cardResult,
+            member: { member_id: member.member_id, firstname: member.firstname, surname: member.surname },
+          }, 'Card payment processed successfully');
+        } else {
+          sendSuccess(res, {
+            success: false,
+            message: cardResult.message
+          }, cardResult.message, 400);
+        }
+        return;
+      }
+
+      // Fallback: Checkout V2 widget flow (legacy)
+      const nonce = crypto.randomBytes(16).toString('hex');
+      const shopperResultUrl = req.body.shopperResultUrl || `${req.protocol}://${req.get('host')}/api/v1/renewals/payment-result`;
+      const merchantTransactionId = `REN-${Date.now()}-${member.member_id}`;
+
+      const checkoutResult = await PaymentService.initiateCheckout(
+        member.member_id,
+        amount_paid,
+        'Renewal',
+        nonce,
+        shopperResultUrl,
+        merchantTransactionId
+      );
+
+      if (!checkoutResult.success) {
+        return sendSuccess(res, {
+          success: false,
+          requires_payment: true,
+          message: checkoutResult.message
+        }, 'Payment initiation failed', 400);
+      }
+
+      // Store pending renewal data in description for later processing
+      if (updated_member_data && checkoutResult.paymentId) {
+        await executeQuery(
+          `UPDATE payments SET description = $1 WHERE payment_id = $2`,
+          [JSON.stringify({ updated_member_data, id_number }), checkoutResult.paymentId]
+        );
+      }
+
+      // Return checkout details for the frontend widget
+      sendSuccess(res, {
+        requires_payment: true,
+        checkout: {
+          checkoutId: checkoutResult.checkoutId,
+          checkoutJsUrl: checkoutResult.checkoutJsUrl,
+          paymentId: checkoutResult.paymentId,
+        },
+        member: {
+          member_id: member.member_id,
+          firstname: member.firstname,
+          surname: member.surname,
+          membership_number: member.membership_number,
+        }
+      }, 'Checkout session created. Complete payment using the checkout widget.');
+      return;
+    }
+
+    // =========================================================================
+    // Non-Card Payments (Cash, EFT, Mobile) → Direct renewal processing
+    // =========================================================================
+    const currentDate = new Date();
+    const lastPaymentDate = currentDate.toISOString().split('T')[0];
     const expiryDate = new Date(currentDate);
-    expiryDate.setDate(expiryDate.getDate() + 730); // 24 months = 730 days
+    expiryDate.setDate(expiryDate.getDate() + 730);
     const newExpiryDate = expiryDate.toISOString().split('T')[0];
 
-    console.log(`📅 Renewal dates calculated:`);
-    console.log(`   Payment date: ${lastPaymentDate}`);
-    console.log(`   New expiry date: ${newExpiryDate} (24 months from payment)`);
+    console.log(`📅 Renewal dates: payment=${lastPaymentDate}, expiry=${newExpiryDate}`);
 
-    // Step 3: Update members_consolidated with contact info AND membership dates
-    // This is the single source of truth - no separate memberships table update needed
+    // Update member contact info and membership dates
     const updateFields: string[] = [];
     const updateValues: any[] = [];
     let paramIndex = 1;
 
-    // Only update contact fields that have non-empty values
     if (updated_member_data) {
       if (updated_member_data.email !== undefined && updated_member_data.email !== '') {
         updateFields.push(`email = $${paramIndex++}`);
@@ -289,16 +401,12 @@ router.post('/process', async (req: Request, res: Response, next: NextFunction) 
       }
     }
 
-    // Always update membership dates and status
     updateFields.push(`last_payment_date = $${paramIndex++}`);
     updateValues.push(lastPaymentDate);
-
     updateFields.push(`expiry_date = $${paramIndex++}`);
     updateValues.push(newExpiryDate);
-
     updateFields.push(`membership_status_id = $${paramIndex++}`);
-    updateValues.push(1); // 1 = "Good Standing"
-
+    updateValues.push(1);
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
     updateValues.push(member.member_id);
 
@@ -309,39 +417,25 @@ router.post('/process', async (req: Request, res: Response, next: NextFunction) 
     `;
 
     await executeQuery(updateConsolidatedQuery, updateValues);
-    console.log(`✅ Updated members_consolidated for member ${member.member_id}:`);
-    console.log(`   - Contact fields updated: ${updateFields.length - 4}`);
-    console.log(`   - Membership dates updated: last_payment_date, expiry_date`);
-    console.log(`   - Status updated: membership_status_id = 1 (Good Standing)`);
+    console.log(`✅ Updated members_consolidated for member ${member.member_id}`);
 
-    // Step 4: Create payment record for self-service renewal
+    // Create payment record
     const paymentReferenceValue = payment_reference || `REN-${Date.now()}-${member.member_id}`;
 
     const insertPaymentQuery = `
       INSERT INTO payments (
-        member_id,
-        membership_id,
-        payment_reference,
-        payment_method,
-        payment_type,
-        amount,
-        currency,
-        payment_status,
-        payment_date,
-        verification_notes,
-        created_at,
-        updated_at
+        member_id, membership_id, payment_reference, payment_method,
+        payment_type, amount, currency, payment_status,
+        payment_date, verification_notes, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING payment_id
     `;
-
-    const verificationNote = `Self-service renewal via member portal`;
 
     const paymentResult = await executeQuerySingle<{ payment_id: number }>(
       insertPaymentQuery,
       [
         member.member_id,
-        null, // membership_id - can be null since members_consolidated is the source of truth
+        null,
         paymentReferenceValue,
         payment_method,
         'Renewal',
@@ -349,57 +443,32 @@ router.post('/process', async (req: Request, res: Response, next: NextFunction) 
         'ZAR',
         'Completed',
         currentDate,
-        verificationNote
+        `Self-service renewal via member portal`
       ]
     );
 
     console.log(`✅ Payment record created: payment_id = ${paymentResult?.payment_id}`);
 
-    // Step 5: Get updated member data from members_consolidated
+    // Get updated member data
     const updatedMemberQuery = `
-      SELECT
-        m.member_id,
-        m.id_number,
-        m.firstname,
-        m.surname,
-        m.email,
-        m.cell_number,
-        m.membership_number,
-        m.date_joined,
-        m.last_payment_date,
-        m.expiry_date,
-        m.membership_status_id,
-        mst.status_name
+      SELECT m.member_id, m.id_number, m.firstname, m.surname, m.email, m.cell_number,
+             m.membership_number, m.date_joined, m.last_payment_date, m.expiry_date,
+             m.membership_status_id, mst.status_name
       FROM members_consolidated m
       LEFT JOIN membership_statuses mst ON m.membership_status_id = mst.status_id
       WHERE m.member_id = $1
     `;
-
     const updatedMember = await executeQuerySingle<any>(updatedMemberQuery, [member.member_id]);
 
-    console.log(`✅ Retrieved updated member data:`);
-    console.log(`   - Membership number: ${updatedMember?.membership_number}`);
-    console.log(`   - Last payment date: ${updatedMember?.last_payment_date}`);
-    console.log(`   - Expiry date: ${updatedMember?.expiry_date}`);
-    console.log(`   - Status: ${updatedMember?.status_name}`);
-
-    // Step 6: Invalidate all relevant caches after successful renewal
-    console.log(`🔄 Invalidating caches for member ${member.member_id} after renewal...`);
+    // Invalidate caches
     try {
       await CacheInvalidationHooks.onMemberChange('update', member.member_id);
-      console.log(`✅ Cache invalidation completed for member ${member.member_id}`);
     } catch (cacheError) {
-      // Log cache invalidation errors but don't fail the renewal
       console.error('⚠️ Cache invalidation error (non-critical):', cacheError);
     }
 
-    console.log(`\n🎉 Renewal completed successfully for member ${member.member_id}`);
-    console.log(`   Member: ${updatedMember?.firstname} ${updatedMember?.surname}`);
-    console.log(`   Membership: ${updatedMember?.membership_number}`);
-    console.log(`   New expiry: ${newExpiryDate} (24 months from ${lastPaymentDate})`);
-    console.log(`   Status: ${updatedMember?.status_name}\n`);
+    console.log(`🎉 Renewal completed for member ${member.member_id} → ${newExpiryDate}`);
 
-    // Return success response
     sendSuccess(res, {
       member: updatedMember,
       payment: {
@@ -416,6 +485,80 @@ router.post('/process', async (req: Request, res: Response, next: NextFunction) 
         days_added: 730
       }
     }, 'Membership renewed successfully for 24 months');
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/renewals/verify-renewal-payment/:checkoutId
+ * Verify and complete a card-based renewal payment after Peach Payments checkout.
+ */
+router.get('/verify-renewal-payment/:checkoutId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { checkoutId } = req.params;
+
+    console.log(`🔍 Verifying renewal payment: checkoutId = ${checkoutId}`);
+
+    const verifyResult = await PaymentService.verifyPayment(checkoutId);
+
+    if (verifyResult.success) {
+      // Payment succeeded — get the payment record and apply member updates
+      const payment = await executeQuerySingle<any>(
+        `SELECT payment_id, member_id, description FROM payments WHERE gateway_reference = $1`,
+        [checkoutId]
+      );
+
+      if (payment && payment.description) {
+        try {
+          const pendingData = JSON.parse(payment.description);
+          if (pendingData.updated_member_data) {
+            const updateFields: string[] = [];
+            const updateValues: any[] = [];
+            let paramIndex = 1;
+            const data = pendingData.updated_member_data;
+
+            if (data.email) { updateFields.push(`email = $${paramIndex++}`); updateValues.push(data.email); }
+            if (data.cell_number) { updateFields.push(`cell_number = $${paramIndex++}`); updateValues.push(data.cell_number); }
+            if (data.landline_number) { updateFields.push(`landline_number = $${paramIndex++}`); updateValues.push(data.landline_number); }
+            if (data.residential_address) { updateFields.push(`residential_address = $${paramIndex++}`); updateValues.push(data.residential_address); }
+            if (data.postal_address) { updateFields.push(`postal_address = $${paramIndex++}`); updateValues.push(data.postal_address); }
+
+            if (updateFields.length > 0) {
+              updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+              updateValues.push(payment.member_id);
+              await executeQuery(
+                `UPDATE members_consolidated SET ${updateFields.join(', ')} WHERE member_id = $${paramIndex}`,
+                updateValues
+              );
+              console.log(`✅ Applied pending member updates for member ${payment.member_id}`);
+            }
+          }
+        } catch (parseError) {
+          console.error('⚠️ Failed to parse pending member data:', parseError);
+        }
+      }
+
+      // Invalidate caches
+      if (payment) {
+        try {
+          await CacheInvalidationHooks.onMemberChange('update', payment.member_id);
+        } catch (cacheError) {
+          console.error('⚠️ Cache invalidation error:', cacheError);
+        }
+      }
+    }
+
+    sendSuccess(res, {
+      payment_verified: verifyResult.success,
+      transaction_id: verifyResult.transactionId,
+      result_code: verifyResult.resultCode,
+      result_description: verifyResult.resultDescription,
+      payment_brand: verifyResult.paymentBrand,
+      amount: verifyResult.amount,
+      message: verifyResult.message
+    }, verifyResult.message);
 
   } catch (error) {
     next(error);

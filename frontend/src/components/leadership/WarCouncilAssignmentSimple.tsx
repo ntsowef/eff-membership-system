@@ -32,10 +32,10 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { LeadershipAPI } from '../../services/leadershipApi';
-import type { 
-  WarCouncilStructureView, 
-  CreateAppointmentData, 
-  WarCouncilValidation 
+import type {
+  WarCouncilStructureView,
+  CreateAppointmentData,
+  WarCouncilValidation
 } from '../../services/leadershipApi';
 import { useUI } from '../../store';
 
@@ -43,9 +43,15 @@ interface Member {
   member_id: number;
   firstname: string;
   surname: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  id_number?: string;
   membership_number: string;
   province_code: string;
   province_name: string;
+  municipality_name?: string;
+  municipality_code?: string;
   current_position?: string;
   is_eligible: boolean;
 }
@@ -91,10 +97,10 @@ const WarCouncilAssignmentSimple: React.FC = () => {
   const openAssignmentDialog = async (position: WarCouncilStructureView) => {
     try {
       setLoading(true);
-      
+
       // Get eligible members for this position
       const members = await LeadershipAPI.getEligibleMembersForWarCouncilPosition(position.position_id);
-      
+
       setAssignmentDialog({
         position,
         members: members.filter((member: Member) => {
@@ -123,7 +129,7 @@ const WarCouncilAssignmentSimple: React.FC = () => {
 
     try {
       setValidating(true);
-      
+
       // Validate the appointment
       const validation = await LeadershipAPI.validateWarCouncilAppointment(
         assignmentDialog.position.position_id,
@@ -152,7 +158,7 @@ const WarCouncilAssignmentSimple: React.FC = () => {
 
     try {
       setAssigning(true);
-      
+
       const appointmentData: CreateAppointmentData = {
         position_id: assignmentDialog.position.position_id,
         member_id: assignmentDialog.selectedMember.member_id,
@@ -225,8 +231,8 @@ const WarCouncilAssignmentSimple: React.FC = () => {
                 <Grid container spacing={2}>
                   {corePositions.map((position) => (
                     <Grid item xs={12} sm={6} md={4} key={position.position_id}>
-                      <PositionCard 
-                        position={position} 
+                      <PositionCard
+                        position={position}
                         onAssign={() => openAssignmentDialog(position)}
                       />
                     </Grid>
@@ -249,8 +255,8 @@ const WarCouncilAssignmentSimple: React.FC = () => {
                 <Grid container spacing={2}>
                   {cctPositions.map((position) => (
                     <Grid item xs={12} sm={6} md={4} key={position.position_id}>
-                      <PositionCard 
-                        position={position} 
+                      <PositionCard
+                        position={position}
                         onAssign={() => openAssignmentDialog(position)}
                       />
                     </Grid>
@@ -296,7 +302,7 @@ const PositionCard: React.FC<PositionCardProps> = ({ position, onAssign }) => {
         <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
           {position.position_name}
         </Typography>
-        
+
         {position.province_name && (
           <Chip
             icon={<LocationIcon />}
@@ -391,21 +397,36 @@ const AssignmentDialog: React.FC<AssignmentDialogProps> = ({
               >
                 <ListItemAvatar>
                   <Avatar>
-                    {member.firstname[0]}{member.surname[0]}
+                    {(member.firstname || member.first_name || '?')[0]}{(member.surname || member.last_name || '?')[0]}
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={`${member.firstname} ${member.surname}`}
-                  secondary={
+                  primary={
                     <Box>
+                      <Typography variant="body1" fontWeight="bold">
+                        {member.full_name || `${member.firstname || member.first_name || ''} ${member.surname || member.last_name || ''}`.trim()}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" component="span">
+                        ID: {member.member_id} &bull; {member.id_number || 'No ID'}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
                       <Typography variant="caption" display="block">
                         {member.membership_number}
                       </Typography>
                       <Chip
-                        label={member.province_name}
+                        label={member.province_name || 'Unknown Province'}
                         size="small"
-                        sx={{ mt: 0.5 }}
                       />
+                      {member.municipality_name && (
+                        <Chip
+                          label={member.municipality_name}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
                     </Box>
                   }
                 />

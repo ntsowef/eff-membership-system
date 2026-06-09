@@ -658,19 +658,22 @@ export class LeadershipService {
   static async getProvinces(): Promise<any[]> {
     try {
       const query = `
-        SELECT DISTINCT
-          p.province_id as id,
+        SELECT p.province_id as id,
           p.province_code,
           p.province_name,
-          COUNT(DISTINCT m.member_id) as member_count,
+          COALESCE(mv.member_count, 0) as member_count,
           COUNT(DISTINCT la.id) as leadership_appointments
         FROM provinces p
-        LEFT JOIN vw_member_details m ON p.province_code = m.province_code
+        LEFT JOIN (
+          SELECT province_code, SUM(active_members) as member_count
+          FROM mv_hierarchical_dashboard_stats
+          GROUP BY province_code
+        ) mv ON p.province_code = mv.province_code
         LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Province'
           AND la.entity_id = p.province_id
           AND la.appointment_status = 'Active'
         WHERE p.province_name IS NOT NULL
-        GROUP BY p.province_id, p.province_code, p.province_name
+        GROUP BY p.province_id, p.province_code, p.province_name, mv.member_count
         ORDER BY p.province_name
       `;
 
@@ -693,41 +696,26 @@ export class LeadershipService {
         return [];
       }
 
-      // Get all districts for this province
-      const districts = await prisma.districts.findMany({
-        where: {
-          province_code: province.province_code,
-          is_active: true
-        },
-        select: {
-          district_code: true
-        }
-      });
+      // Use raw SQL to include both regular municipalities (via district_code)
+      // and metro sub-regions (via parent_municipality_id -> parent metro -> district -> province)
+      const query = `
+        SELECT
+          m.municipality_id,
+          m.municipality_code,
+          m.municipality_name,
+          m.municipality_type,
+          m.district_code,
+          m.parent_municipality_id
+        FROM municipalities m
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
+        LEFT JOIN districts pd ON pm.district_code = pd.district_code
+        WHERE COALESCE(d.province_code, pd.province_code) = ?
+          AND m.is_active = TRUE
+        ORDER BY m.municipality_name
+      `;
 
-      const districtCodes = districts.map(d => d.district_code);
-
-      // Get municipalities by district codes
-      const municipalities = await prisma.municipalities.findMany({
-        where: {
-          district_code: {
-            in: districtCodes
-          },
-          is_active: true
-        },
-        select: {
-          municipality_id: true,
-          municipality_code: true,
-          municipality_name: true,
-          municipality_type: true,
-          district_code: true,
-          parent_municipality_id: true
-        },
-        orderBy: {
-          municipality_name: 'asc'
-        }
-      });
-
-      return municipalities;
+      return await executeQuery(query, [province.province_code]);
     } catch (error) {
       throw error;
     }
@@ -736,41 +724,26 @@ export class LeadershipService {
   // Get municipalities by province CODE
   static async getMunicipalitiesByProvinceCode(provinceCode : string): Promise<any[]> {
     try {
-      // Get all districts for this province
-      const districts = await prisma.districts.findMany({
-        where: {
-          province_code: provinceCode,
-          is_active: true
-        },
-        select: {
-          district_code: true
-        }
-      });
+      // Use raw SQL to include both regular municipalities (via district_code)
+      // and metro sub-regions (via parent_municipality_id -> parent metro -> district -> province)
+      const query = `
+        SELECT
+          m.municipality_id,
+          m.municipality_code,
+          m.municipality_name,
+          m.municipality_type,
+          m.district_code,
+          m.parent_municipality_id
+        FROM municipalities m
+        LEFT JOIN districts d ON m.district_code = d.district_code
+        LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
+        LEFT JOIN districts pd ON pm.district_code = pd.district_code
+        WHERE COALESCE(d.province_code, pd.province_code) = ?
+          AND m.is_active = TRUE
+        ORDER BY m.municipality_name
+      `;
 
-      const districtCodes = districts.map(d => d.district_code);
-
-      // Get municipalities by district codes
-      const municipalities = await prisma.municipalities.findMany({
-        where: {
-          district_code: {
-            in: districtCodes
-          },
-          is_active: true
-        },
-        select: {
-          municipality_id: true,
-          municipality_code: true,
-          municipality_name: true,
-          municipality_type: true,
-          district_code: true,
-          parent_municipality_id: true
-        },
-        orderBy: {
-          municipality_name: 'asc'
-        }
-      });
-
-      return municipalities;
+      return await executeQuery(query, [provinceCode]);
     } catch (error) {
       throw error;
     }
@@ -789,19 +762,22 @@ export class LeadershipService {
           mu.municipality_name,
           d.province_code,
           p.province_name,
-          COUNT(DISTINCT m.member_id) as member_count,
+          COALESCE(mc.member_count, 0) as member_count,
           COUNT(DISTINCT la.id) as leadership_appointments
         FROM wards w
         JOIN municipalities mu ON w.municipality_code = mu.municipality_code
         JOIN districts d ON mu.district_code = d.district_code
         JOIN provinces p ON d.province_code = p.province_code
-        LEFT JOIN vw_member_details m ON w.ward_code = m.ward_code
+        LEFT JOIN (
+          SELECT ward_code, active_members as member_count
+          FROM mv_hierarchical_dashboard_stats
+        ) mc ON w.ward_code = mc.ward_code
         LEFT JOIN leadership_appointments la ON la.hierarchy_level = 'Ward'
           AND la.entity_id = w.ward_id
           AND la.appointment_status = 'Active'
         WHERE mu.municipality_id = ? AND w.ward_name IS NOT NULL
         GROUP BY w.ward_id, w.ward_code, w.ward_name, w.ward_number, w.municipality_code,
-                 mu.municipality_name, d.province_code, p.province_name
+                 mu.municipality_name, d.province_code, p.province_name, mc.member_count
         ORDER BY w.ward_number, w.ward_name
       `;
 

@@ -40,6 +40,7 @@ import {
   PictureAsPdf,
   Timeline,
   ShowChart,
+  Leaderboard,
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -67,6 +68,7 @@ import ProvinceContextBanner from '../../components/common/ProvinceContextBanner
 import MunicipalityContextBanner from '../../components/common/MunicipalityContextBanner';
 import { useSecureApi } from '../../hooks/useSecureApi';
 import { devLog } from '../../utils/logger';
+import AdminPerformanceLeaderboard from '../../components/dashboard/AdminPerformanceLeaderboard';
 
 // Interface definitions (currently unused but kept for future use)
 // interface MembershipApplication {
@@ -206,6 +208,45 @@ const DashboardPage: React.FC = () => {
     refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
   });
 
+  // Fetch accurate renewal growth metrics from renewal log (national admin only)
+  const isNationalAdmin = provinceContext.isNationalAdmin;
+  const { data: renewalGrowthData, isLoading: renewalGrowthLoading, refetch: refetchRenewalGrowth } = useQuery({
+    queryKey: ['renewal-growth-metrics', refreshTimestamp, timePeriod, customDateFrom, customDateTo],
+    queryFn: () => {
+      const params: any = { group_by: 'day' };
+      if (timePeriod === 'custom' && customDateFrom && customDateTo) {
+        params.date_from = customDateFrom;
+        params.date_to = customDateTo;
+      } else {
+        // Convert time period to date range
+        const now = new Date();
+        params.date_to = now.toISOString().split('T')[0];
+        if (timePeriod === 'today') {
+          params.date_from = now.toISOString().split('T')[0];
+        } else if (timePeriod === '7d') {
+          params.date_from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        } else if (timePeriod === '30d') {
+          params.date_from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        } else if (timePeriod === '90d') {
+          params.date_from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        }
+      }
+      return secureGet('/renewal-logs/growth-metrics', params);
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
+    enabled: isNationalAdmin,
+  });
+
+  // Fetch renewal trends summary (national admin only)
+  const { data: renewalTrendsData, refetch: refetchRenewalTrends } = useQuery({
+    queryKey: ['renewal-trends', refreshTimestamp],
+    queryFn: () => secureGet('/renewal-logs/trends'),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
+    enabled: isNationalAdmin,
+  });
+
   // Manual refresh function
   const handleRefresh = () => {
     setRefreshTimestamp(Date.now());
@@ -214,6 +255,10 @@ const DashboardPage: React.FC = () => {
     refetchBreakdown();
     refetchVoterRegistration();
     refetchTimeSeries();
+    if (isNationalAdmin) {
+      refetchRenewalGrowth();
+      refetchRenewalTrends();
+    }
   };
 
   // PDF export handler
@@ -542,20 +587,29 @@ const DashboardPage: React.FC = () => {
                   />
                 </>
               )}
-              {(timeSeriesData as any)?.summary && (
+              {((timeSeriesData as any)?.summary || renewalTrendsData) && (
                 <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
                   <Chip
                     icon={<PersonAdd />}
-                    label={`New Members: ${((timeSeriesData as any).summary.total_new_members || 0).toLocaleString()}`}
+                    label={`New Members: ${((timeSeriesData as any)?.summary?.total_new_members || 0).toLocaleString()}`}
                     color="primary"
                     variant="outlined"
                   />
-                  <Chip
-                    icon={<ShowChart />}
-                    label={`Renewals: ${((timeSeriesData as any).summary.total_renewals || 0).toLocaleString()}`}
-                    color="success"
-                    variant="outlined"
-                  />
+                  {isNationalAdmin && renewalTrendsData ? (
+                    <Chip
+                      icon={<ShowChart />}
+                      label={`Renewals (This Month): ${Number((renewalTrendsData as any).this_month?.renewals || 0).toLocaleString()}`}
+                      color="success"
+                      variant="outlined"
+                    />
+                  ) : (
+                    <Chip
+                      icon={<ShowChart />}
+                      label={`Renewals: ${((timeSeriesData as any)?.summary?.total_renewals || 0).toLocaleString()}`}
+                      color="success"
+                      variant="outlined"
+                    />
+                  )}
                 </Box>
               )}
             </Box>
@@ -613,49 +667,104 @@ const DashboardPage: React.FC = () => {
                   </Card>
                 </Grid>
 
-                {/* Renewals Line Chart */}
+                {/* Renewals Line Chart - Uses accurate renewal log data for national admins */}
                 <Grid item xs={12} md={6}>
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                         Membership Renewals
+                        {isNationalAdmin && (
+                          <Chip label="Accurate" size="small" color="success" sx={{ ml: 1, fontSize: '0.65rem', height: 20 }} />
+                        )}
                       </Typography>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={(timeSeriesData as any).time_series}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="date"
-                            tickFormatter={(val) => {
-                              const d = new Date(val);
-                              if ((timeSeriesData as any)?.granularity === 'hourly') {
-                                return d.toLocaleTimeString([], { hour: 'numeric', hour12: true });
-                              }
-                              return `${d.getMonth() + 1}/${d.getDate()}`;
-                            }}
-                            fontSize={12}
-                          />
-                          <YAxis fontSize={12} />
-                          <RechartsTooltip
-                            labelFormatter={(label) => {
-                              const d = new Date(label);
-                              if ((timeSeriesData as any)?.granularity === 'hourly') {
-                                return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' - ' + d.toLocaleDateString();
-                              }
-                              return d.toLocaleDateString();
-                            }}
-                          />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="renewals"
-                            stroke={theme.palette.success.main}
-                            strokeWidth={2}
-                            name="Renewals"
-                            dot={(timeSeriesData as any)?.granularity === 'hourly'}
-                            activeDot={{ r: 5 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      {isNationalAdmin && !renewalGrowthLoading && (Array.isArray(renewalGrowthData) ? renewalGrowthData.length > 0 : (renewalGrowthData as any)?.data?.length > 0) ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={(Array.isArray(renewalGrowthData) ? renewalGrowthData : (renewalGrowthData as any)?.data || []).slice().reverse()}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="period"
+                              tickFormatter={(val) => {
+                                const d = new Date(val);
+                                return `${d.getMonth() + 1}/${d.getDate()}`;
+                              }}
+                              fontSize={12}
+                            />
+                            <YAxis fontSize={12} />
+                            <RechartsTooltip
+                              labelFormatter={(label) => {
+                                const d = new Date(label);
+                                return d.toLocaleDateString();
+                              }}
+                              formatter={(value: any, name: string) => {
+                                if (name === 'Total Renewals') return [Number(value).toLocaleString(), name];
+                                if (name === 'Revenue') return [`R ${Number(value).toLocaleString()}`, name];
+                                return [Number(value).toLocaleString(), name];
+                              }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="total_renewals"
+                              stroke={theme.palette.success.main}
+                              strokeWidth={2}
+                              name="Total Renewals"
+                              dot={false}
+                              activeDot={{ r: 5 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="unique_members_renewed"
+                              stroke={theme.palette.info.main}
+                              strokeWidth={2}
+                              name="Unique Members"
+                              dot={false}
+                              activeDot={{ r: 5 }}
+                              strokeDasharray="5 5"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : isNationalAdmin && renewalGrowthLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+                          <CircularProgress />
+                        </Box>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={(timeSeriesData as any).time_series}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="date"
+                              tickFormatter={(val) => {
+                                const d = new Date(val);
+                                if ((timeSeriesData as any)?.granularity === 'hourly') {
+                                  return d.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+                                }
+                                return `${d.getMonth() + 1}/${d.getDate()}`;
+                              }}
+                              fontSize={12}
+                            />
+                            <YAxis fontSize={12} />
+                            <RechartsTooltip
+                              labelFormatter={(label) => {
+                                const d = new Date(label);
+                                if ((timeSeriesData as any)?.granularity === 'hourly') {
+                                  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' - ' + d.toLocaleDateString();
+                                }
+                                return d.toLocaleDateString();
+                              }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="renewals"
+                              stroke={theme.palette.success.main}
+                              strokeWidth={2}
+                              name="Renewals"
+                              dot={(timeSeriesData as any)?.granularity === 'hourly'}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
                     </CardContent>
                   </Card>
                 </Grid>
@@ -729,6 +838,22 @@ const DashboardPage: React.FC = () => {
               />
           </AccordionDetails>
         </Accordion>
+
+        {/* Provincial Admin Performance Leaderboard - National Admin Only */}
+        {isNationalAdmin && (
+        <Accordion defaultExpanded sx={{ mb: 3 }}>
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Leaderboard color="primary" />
+              <Typography variant="h6">Provincial Admin Performance Leaderboard</Typography>
+              <Chip label="National Admin" size="small" color="error" sx={{ ml: 1, fontSize: '0.65rem', height: 20 }} />
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <AdminPerformanceLeaderboard />
+          </AccordionDetails>
+        </Accordion>
+        )}
 
         {/* Recent Activity Section */}
         <Accordion defaultExpanded sx={{ mb: 3 }}>

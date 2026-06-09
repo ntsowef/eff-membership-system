@@ -445,8 +445,15 @@ router.post('/scheduler/run-now', async (req: Request, res: Response): Promise<v
 router.get('/monthly-stats', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('[Monthly Stats API] Request received');
-    // Query the view for monthly statistics
-    // Note: executeQuery returns an array directly, not { rows: [] }
+
+    // If ?refresh=true, refresh the materialized view first
+    const shouldRefresh = req.query.refresh === 'true';
+    if (shouldRefresh) {
+      console.log('[Monthly Stats API] Refreshing materialized view...');
+      await executeQuery(`REFRESH MATERIALIZED VIEW CONCURRENTLY vw_birthday_monthly_stats`);
+      console.log('[Monthly Stats API] Materialized view refreshed');
+    }
+
     const rows = await executeQuery(`
       SELECT
         birth_month,
@@ -503,6 +510,21 @@ router.get('/monthly-stats', authenticate, requireSMSPermission(), async (req: R
         message: 'Failed to retrieve monthly birthday statistics',
         details: error.message
       }
+    });
+  }
+});
+
+// Refresh the materialized view on demand
+router.post('/monthly-stats/refresh', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('[Monthly Stats API] Manual refresh triggered');
+    await executeQuery(`REFRESH MATERIALIZED VIEW CONCURRENTLY vw_birthday_monthly_stats`);
+    res.json({ success: true, message: 'Monthly statistics materialized view refreshed successfully' });
+  } catch (error: any) {
+    console.error('Failed to refresh monthly stats view:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to refresh materialized view', details: error.message }
     });
   }
 });
@@ -1201,7 +1223,7 @@ router.get('/monthly-report/export', authenticate, requireSMSPermission(), async
 
     // Get current month name for filename
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                        'July', 'August', 'September', 'October', 'November', 'December'];
+      'July', 'August', 'September', 'October', 'November', 'December'];
     const currentDate = new Date();
     const monthName = monthNames[currentDate.getMonth()];
     const year = currentDate.getFullYear();

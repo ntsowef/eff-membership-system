@@ -1,4 +1,4 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { executeQuery, executeQuerySingle, executeUpdate } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 
 // Leadership interfaces
@@ -241,6 +241,7 @@ export interface LeadershipFilters {
   is_active?: boolean;
   start_date_from?: string;
   start_date_to?: string;
+  province_id?: number;
 }
 
 export interface ElectionFilters {
@@ -404,11 +405,25 @@ export class LeadershipModel {
         params.push(filters.appointment_type);
       }
 
+      if (filters.province_id) {
+        // For 'District': join d → provinces via province_code to get province_id
+        // For 'Municipality': already joined via d_from_mun → p_from_mun
+        // For 'Ward': already joined via d_from_ward → p_from_ward
+        whereClause += ` AND (
+          (la.hierarchy_level = 'Province' AND la.entity_id = ?) OR
+          (la.hierarchy_level = 'District' AND p_from_district.province_id = ?) OR
+          (la.hierarchy_level = 'Municipality' AND p_from_mun.province_id = ?) OR
+          (la.hierarchy_level = 'Ward' AND p_from_ward.province_id = ?)
+        )`;
+        params.push(filters.province_id, filters.province_id, filters.province_id, filters.province_id);
+      }
+
       const query = `
         SELECT
           la.*,
           lp.position_name,
           lp.position_code,
+          m.id_number,
           TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
           'MEM' || LPAD(m.member_id::TEXT, 6, '0') as member_number,
           COALESCE(appointer.name, 'System') as appointed_by_name,
@@ -427,6 +442,12 @@ export class LeadershipModel {
             WHEN la.hierarchy_level = 'Ward' THEN CONCAT(p_from_ward.province_name, ' - ', mun_from_ward.municipality_name, ' - Ward ', w.ward_number)
             ELSE 'National Level'
           END as entity_location,
+          -- Member's own province and municipality from their record
+          m.province_name as province_name,
+          m.municipality_name as municipality_name,
+          COALESCE((SELECT wm.ward_name FROM wards wm WHERE wm.ward_code = m.ward_code LIMIT 1), 'N/A') as ward_name,
+          -- Total members in good standing in the same ward
+          (SELECT COUNT(*) FROM members_consolidated mc2 WHERE mc2.ward_code = m.ward_code AND mc2.expiry_date >= CURRENT_DATE) as branch_member_count,
           -- Optional granular fields for UI
           p.province_name AS province_name_province,
           p_from_mun.province_name AS province_name_municipality,
@@ -440,15 +461,17 @@ export class LeadershipModel {
         LEFT JOIN users appointer ON la.appointed_by = appointer.user_id
         LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
         LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN provinces p_from_district ON d.province_code = p_from_district.province_code
         LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
         LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
-        -- Additional joins to build formatted location for Municipality and Ward
-        -- For municipalities: join through districts to get province
-        LEFT JOIN districts d_from_mun ON mun.district_code = d_from_mun.district_code
+        -- For municipalities: join through districts to get province (handles both direct and parent metro linkage)
+        LEFT JOIN municipalities parent_mun ON mun.parent_municipality_id = parent_mun.municipality_id
+        LEFT JOIN districts d_from_mun ON COALESCE(mun.district_code, parent_mun.district_code) = d_from_mun.district_code
         LEFT JOIN provinces p_from_mun ON d_from_mun.province_code = p_from_mun.province_code
         -- For wards: join through municipalities and districts to get province
         LEFT JOIN municipalities mun_from_ward ON w.municipality_code = mun_from_ward.municipality_code
-        LEFT JOIN districts d_from_ward ON mun_from_ward.district_code = d_from_ward.district_code
+        LEFT JOIN municipalities parent_mun_from_ward ON mun_from_ward.parent_municipality_id = parent_mun_from_ward.municipality_id
+        LEFT JOIN districts d_from_ward ON COALESCE(mun_from_ward.district_code, parent_mun_from_ward.district_code) = d_from_ward.district_code
         LEFT JOIN provinces p_from_ward ON d_from_ward.province_code = p_from_ward.province_code
         ${whereClause}
         ORDER BY la.hierarchy_level, lp.position_order, la.start_date DESC
@@ -512,6 +535,16 @@ export class LeadershipModel {
         params.push(filters.start_date_to);
       }
 
+      if (filters.province_id) {
+        whereClause += ` AND (
+          (la.hierarchy_level = 'Province' AND la.entity_id = ?) OR
+          (la.hierarchy_level = 'District' AND p_from_district.province_id = ?) OR
+          (la.hierarchy_level = 'Municipality' AND p_from_mun.province_id = ?) OR
+          (la.hierarchy_level = 'Ward' AND p_from_ward.province_id = ?)
+        )`;
+        params.push(filters.province_id, filters.province_id, filters.province_id, filters.province_id);
+      }
+
       const query = `
         SELECT 
           la.*,
@@ -536,8 +569,16 @@ export class LeadershipModel {
         LEFT JOIN users terminator ON la.terminated_by = terminator.user_id
         LEFT JOIN provinces p ON la.entity_id = p.province_id AND la.hierarchy_level = 'Province'
         LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN provinces p_from_district ON d.province_code = p_from_district.province_code
         LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN municipalities parent_mun2 ON mun.parent_municipality_id = parent_mun2.municipality_id
+        LEFT JOIN districts d_from_mun ON COALESCE(mun.district_code, parent_mun2.district_code) = d_from_mun.district_code
+        LEFT JOIN provinces p_from_mun ON d_from_mun.province_code = p_from_mun.province_code
         LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
+        LEFT JOIN municipalities mun_from_ward ON w.municipality_code = mun_from_ward.municipality_code
+        LEFT JOIN municipalities parent_mun_from_ward2 ON mun_from_ward.parent_municipality_id = parent_mun_from_ward2.municipality_id
+        LEFT JOIN districts d_from_ward ON COALESCE(mun_from_ward.district_code, parent_mun_from_ward2.district_code) = d_from_ward.district_code
+        LEFT JOIN provinces p_from_ward ON d_from_ward.province_code = p_from_ward.province_code
         ${whereClause}
         ORDER BY la.start_date DESC, la.created_at DESC
         LIMIT ? OFFSET ?
@@ -623,7 +664,7 @@ export class LeadershipModel {
       params.push(id);
 
       const query = `UPDATE leadership_appointments SET ${fields.join(', ')} WHERE id = ?`;
-      const result = await executeQuery(query, params);
+      const result = await executeUpdate(query, params);
 
       return result.affectedRows > 0;
     } catch (error) {
@@ -635,7 +676,7 @@ export class LeadershipModel {
   static async deleteAppointment(id: number): Promise<boolean> {
     try {
       const query = `DELETE FROM leadership_appointments WHERE id = ?`;
-      const result = await executeQuery(query, [id]);
+      const result = await executeUpdate(query, [id]);
       return result.affectedRows > 0;
     } catch (error) {
       throw createDatabaseError('Failed to delete appointment', error);
@@ -673,33 +714,57 @@ export class LeadershipModel {
     try {
       let whereClause = 'WHERE 1=1';
       const params: any[] = [];
+      let joins = '';
 
       if (filters.hierarchy_level) {
-        whereClause += ' AND hierarchy_level = ?';
+        whereClause += ' AND la.hierarchy_level = ?';
         params.push(filters.hierarchy_level);
       }
 
       if (filters.entity_id) {
-        whereClause += ' AND entity_id = ?';
+        whereClause += ' AND la.entity_id = ?';
         params.push(filters.entity_id);
       }
 
       if (filters.position_id) {
-        whereClause += ' AND position_id = ?';
+        whereClause += ' AND la.position_id = ?';
         params.push(filters.position_id);
       }
 
       if (filters.member_id) {
-        whereClause += ' AND member_id = ?';
+        whereClause += ' AND la.member_id = ?';
         params.push(filters.member_id);
       }
 
       if (filters.appointment_status) {
-        whereClause += ' AND appointment_status = ?';
+        whereClause += ' AND la.appointment_status = ?';
         params.push(filters.appointment_status);
       }
 
-      const query = `SELECT COUNT(*) as count FROM leadership_appointments ${whereClause}`;
+      if (filters.province_id) {
+        joins = `
+        LEFT JOIN districts d ON la.entity_id = d.district_id AND la.hierarchy_level = 'District'
+        LEFT JOIN provinces p_from_district ON d.province_code = p_from_district.province_code
+        LEFT JOIN municipalities mun ON la.entity_id = mun.municipality_id AND la.hierarchy_level = 'Municipality'
+        LEFT JOIN municipalities parent_mun3 ON mun.parent_municipality_id = parent_mun3.municipality_id
+        LEFT JOIN districts d_from_mun ON COALESCE(mun.district_code, parent_mun3.district_code) = d_from_mun.district_code
+        LEFT JOIN provinces p_from_mun ON d_from_mun.province_code = p_from_mun.province_code
+        LEFT JOIN wards w ON la.entity_id = w.ward_id AND la.hierarchy_level = 'Ward'
+        LEFT JOIN municipalities mun_from_ward ON w.municipality_code = mun_from_ward.municipality_code
+        LEFT JOIN municipalities parent_mun_from_ward3 ON mun_from_ward.parent_municipality_id = parent_mun_from_ward3.municipality_id
+        LEFT JOIN districts d_from_ward ON COALESCE(mun_from_ward.district_code, parent_mun_from_ward3.district_code) = d_from_ward.district_code
+        LEFT JOIN provinces p_from_ward ON d_from_ward.province_code = p_from_ward.province_code
+        `;
+        whereClause += ` AND (
+          (la.hierarchy_level = 'Province' AND la.entity_id = ?) OR
+          (la.hierarchy_level = 'District' AND p_from_district.province_id = ?) OR
+          (la.hierarchy_level = 'Municipality' AND p_from_mun.province_id = ?) OR
+          (la.hierarchy_level = 'Ward' AND p_from_ward.province_id = ?)
+        )`;
+        params.push(filters.province_id, filters.province_id, filters.province_id, filters.province_id);
+      }
+
+      const query = `SELECT COUNT(*) as count FROM leadership_appointments la ${joins} ${whereClause}`;
       const result = await executeQuerySingle<{ count: number }>(query, params);
 
       return result?.count || 0;
@@ -794,6 +859,56 @@ export class LeadershipModel {
       return await executeQuery(query, [hierarchyLevel, entityId, hierarchyLevel]);
     } catch (error) {
       throw createDatabaseError('Failed to get leadership structure', error);
+    }
+  }
+
+  // Get provincial leadership overview - all municipal structures in a province
+  // Handles both regular municipalities (linked via district_code) and
+  // metro sub-regions (linked via parent_municipality_id -> parent metro -> district -> province)
+  static async getProvincialLeadershipOverview(provinceId: number): Promise<any[]> {
+    try {
+      const query = `
+        SELECT
+          mun.municipality_id,
+          mun.municipality_name,
+          mun.municipality_code,
+          mun.municipality_type,
+          lp.id as position_id,
+          lp.position_name,
+          lp.position_code,
+          lp.position_order,
+          la.id as appointment_id,
+          la.member_id,
+          TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) as member_name,
+          'MEM' || LPAD(m.member_id::TEXT, 6, '0') as membership_number,
+          la.appointment_type,
+          la.start_date,
+          la.end_date,
+          la.appointment_status,
+          CASE WHEN la.id IS NOT NULL AND la.appointment_status = 'Active' THEN 'Filled' ELSE 'Vacant' END as position_status
+        FROM municipalities mun
+        LEFT JOIN districts d ON mun.district_code = d.district_code
+        LEFT JOIN provinces p ON d.province_code = p.province_code
+        LEFT JOIN municipalities parent_mun ON mun.parent_municipality_id = parent_mun.municipality_id
+        LEFT JOIN districts pd ON parent_mun.district_code = pd.district_code
+        LEFT JOIN provinces pp ON pd.province_code = pp.province_code
+        INNER JOIN leadership_positions lp
+          ON lp.entity_id = mun.municipality_id
+          AND lp.hierarchy_level = 'Municipality'
+          AND lp.is_active = TRUE
+        LEFT JOIN leadership_appointments la ON lp.id = la.position_id
+          AND la.hierarchy_level = 'Municipality'
+          AND la.entity_id = mun.municipality_id
+          AND la.appointment_status = 'Active'
+        LEFT JOIN members_consolidated m ON la.member_id = m.member_id
+        WHERE COALESCE(p.province_id, pp.province_id) = ?
+          AND mun.is_active = TRUE
+        ORDER BY mun.municipality_name, lp.position_order
+      `;
+
+      return await executeQuery(query, [provinceId]);
+    } catch (error) {
+      throw createDatabaseError('Failed to get provincial leadership overview', error);
     }
   }
 

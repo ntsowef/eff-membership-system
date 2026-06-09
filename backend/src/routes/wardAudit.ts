@@ -7,8 +7,56 @@ import { sendSuccess, sendError } from '../utils/responseHelpers';
 import { executeQuery } from '../config/database';
 import Joi from 'joi';
 import { validate } from '../middleware/validation';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
+
+// =====================================================
+// Meeting Package Upload Configuration
+// =====================================================
+const MEETING_PACKAGE_DIR = process.env.UPLOAD_DIR
+  ? path.join(process.env.UPLOAD_DIR, 'meeting-packages')
+  : path.join('uploads', 'meeting-packages');
+
+// Ensure meeting-packages directory exists
+if (!fs.existsSync(MEETING_PACKAGE_DIR)) {
+  fs.mkdirSync(MEETING_PACKAGE_DIR, { recursive: true });
+}
+
+const meetingPackageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, MEETING_PACKAGE_DIR),
+  filename: (_req, file, cb) => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    const ext = path.extname(file.originalname);
+    cb(null, `meeting_pkg_${timestamp}_${random}${ext}`);
+  },
+});
+
+const meetingPackageUpload = multer({
+  storage: meetingPackageStorage,
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/zip',
+      'application/x-zip-compressed',
+    ];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type not allowed: ${file.mimetype}. Accepted: PDF, JPEG, PNG, DOC, DOCX, XLS, XLSX, ZIP`));
+    }
+  },
+});
 
 // =====================================================
 // Validation Schemas
@@ -245,6 +293,30 @@ router.get('/ward/:ward_code/voting-districts',
 );
 
 /**
+ * GET /api/v1/ward-audit/members/province/:province_code/search
+ * Search members by province with autocomplete (for presiding officer selection)
+ * Query params: q (search term), limit (max results, default 50)
+ */
+router.get('/members/province/:province_code/search',
+  authenticate,
+  requirePermission('ward_audit.read'),
+  validate({ params: provinceCodeSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { province_code } = req.params;
+    const searchTerm = (req.query.q as string) || '';
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    if (!searchTerm || searchTerm.length < 2) {
+      return sendSuccess(res, [], 'Search term must be at least 2 characters');
+    }
+
+    const members = await WardAuditModel.searchMembersByProvince(province_code, searchTerm, limit);
+
+    sendSuccess(res, members, `Found ${members.length} members matching "${searchTerm}" in province ${province_code}`);
+  })
+);
+
+/**
  * GET /api/v1/ward-audit/members/province/:province_code
  * Get members filtered by province for presiding officer selection (Criterion 4)
  */
@@ -267,34 +339,117 @@ router.get('/members/province/:province_code',
 
 /**
  * POST /api/v1/ward-audit/ward/:ward_code/meeting
- * Create a new ward meeting record
+ * Create a new ward meeting record (supports optional meeting_package file upload)
  */
 router.post('/ward/:ward_code/meeting',
   authenticate,
   requirePermission('ward_audit.manage_delegates'),
-  validate({
-    params: wardCodeSchema,
-    body: createMeetingSchema
-  }),
+  meetingPackageUpload.single('meeting_package'),
   asyncHandler(async (req: Request, res: Response) => {
     const { ward_code } = req.params;
     const userId = (req as any).user?.user_id;
 
-    // Convert empty strings to null for optional numeric fields
+    // Parse numeric fields that arrive as strings when sent via FormData
+    const body = req.body;
+    const parsedBody = {
+      ...body,
+      quorum_required: parseInt(body.quorum_required) || 0,
+      quorum_achieved: parseInt(body.quorum_achieved) || 0,
+      total_attendees: parseInt(body.total_attendees) || 0,
+      presiding_officer_id: body.presiding_officer_id && body.presiding_officer_id !== '' ? parseInt(body.presiding_officer_id) : null,
+      secretary_id: body.secretary_id && body.secretary_id !== '' ? parseInt(body.secretary_id) : null,
+      quorum_verified_manually: body.quorum_verified_manually === 'true' || body.quorum_verified_manually === true,
+      meeting_took_place_verified: body.meeting_took_place_verified === 'true' || body.meeting_took_place_verified === true,
+    };
+
+    // Build file metadata if a meeting package was uploaded
+    let meetingPackagePath: string | null = null;
+    let meetingPackageOriginalName: string | null = null;
+    if (req.file) {
+      meetingPackagePath = req.file.filename;
+      meetingPackageOriginalName = req.file.originalname;
+    }
+
+    // Convert empty strings to null for optional fields
     const meetingData = {
-      ...req.body,
+      ...parsedBody,
       ward_code,
-      presiding_officer_id: req.body.presiding_officer_id === '' ? null : req.body.presiding_officer_id,
-      secretary_id: req.body.secretary_id === '' ? null : req.body.secretary_id,
-      meeting_outcome: req.body.meeting_outcome === '' ? null : req.body.meeting_outcome,
-      action_items: req.body.action_items === '' ? null : req.body.action_items,
-      quorum_verified_by: req.body.quorum_verified_manually ? userId : null,
-      meeting_verified_by: req.body.meeting_took_place_verified ? userId : null,
+      meeting_outcome: parsedBody.meeting_outcome === '' ? null : parsedBody.meeting_outcome,
+      action_items: parsedBody.action_items === '' ? null : parsedBody.action_items,
+      quorum_verified_by: parsedBody.quorum_verified_manually ? userId : null,
+      meeting_verified_by: parsedBody.meeting_took_place_verified ? userId : null,
+      meeting_package_path: meetingPackagePath,
+      meeting_package_original_name: meetingPackageOriginalName,
     };
 
     const meeting = await WardAuditModel.createMeetingRecord(meetingData);
 
     sendSuccess(res, meeting, 'Meeting record created successfully');
+  })
+);
+
+/**
+ * GET /api/v1/ward-audit/meeting/:record_id/package
+ * Download the meeting package file for a meeting record
+ * Accessible by national admin for dispute review
+ */
+router.get('/meeting/:record_id/package',
+  authenticate,
+  requirePermission('ward_audit.read'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { record_id } = req.params;
+
+    const meeting = await WardAuditModel.getMeetingRecordById(parseInt(record_id));
+    if (!meeting) {
+      return sendError(res, 'Meeting record not found', 404);
+    }
+
+    if (!meeting.meeting_package_path) {
+      return sendError(res, 'No meeting package uploaded for this meeting', 404);
+    }
+
+    const filePath = path.join(MEETING_PACKAGE_DIR, meeting.meeting_package_path);
+    if (!fs.existsSync(filePath)) {
+      return sendError(res, 'Meeting package file not found on server', 404);
+    }
+
+    const downloadName = meeting.meeting_package_original_name || meeting.meeting_package_path;
+    res.download(filePath, downloadName);
+  })
+);
+
+/**
+ * DELETE /api/v1/ward-audit/meeting/:record_id
+ * Delete a meeting record and its associated meeting package file
+ */
+router.delete('/meeting/:record_id',
+  authenticate,
+  requirePermission('ward_audit.manage_delegates'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { record_id } = req.params;
+
+    // Get meeting record to clean up file if exists
+    const meeting = await WardAuditModel.getMeetingRecordById(parseInt(record_id));
+    if (!meeting) {
+      return sendError(res, 'Meeting record not found', 404);
+    }
+
+    // Delete the meeting record from DB
+    await WardAuditModel.deleteMeetingRecord(parseInt(record_id));
+
+    // Clean up uploaded file if one exists
+    if (meeting.meeting_package_path) {
+      const filePath = path.join(MEETING_PACKAGE_DIR, meeting.meeting_package_path);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.warn('Could not delete meeting package file:', err);
+      }
+    }
+
+    sendSuccess(res, null, 'Meeting record deleted successfully');
   })
 );
 
@@ -378,6 +533,30 @@ router.get('/ward/:ward_code/compliance/details',
 // =====================================================
 // Delegate Management Routes
 // =====================================================
+
+/**
+ * GET /api/v1/ward-audit/ward/:ward_code/members/search
+ * Search members by ward with autocomplete (for secretary selection)
+ * Query params: q (search term), limit (max results, default 50)
+ */
+router.get('/ward/:ward_code/members/search',
+  authenticate,
+  requirePermission('ward_audit.read'),
+  validate({ params: wardCodeSchema }),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { ward_code } = req.params;
+    const searchTerm = (req.query.q as string) || '';
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    if (!searchTerm || searchTerm.length < 2) {
+      return sendSuccess(res, [], 'Search term must be at least 2 characters');
+    }
+
+    const members = await WardAuditModel.searchMembersByWard(ward_code, searchTerm, limit);
+
+    sendSuccess(res, members, `Found ${members.length} members matching "${searchTerm}" in ward ${ward_code}`);
+  })
+);
 
 /**
  * GET /api/v1/ward-audit/ward/:ward_code/members

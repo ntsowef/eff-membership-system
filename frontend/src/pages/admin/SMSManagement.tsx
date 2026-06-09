@@ -55,12 +55,17 @@ import {
   Download as DownloadIcon,
   FilterList as FilterIcon,
   Assessment as ReportIcon,
+  UploadFile as UploadFileIcon,
+  Contacts as ContactsIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
+import LinearProgress from '@mui/material/LinearProgress';
 import * as XLSX from 'xlsx';
 import { api } from '../../lib/api';
 import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
+import SMSReports from './sms/SMSReports';
 
 interface SMSTemplate {
   id: number;
@@ -80,7 +85,7 @@ interface SMSCampaign {
   template_id?: number;
   template_name?: string;
   message_content: string;
-  target_type: 'all' | 'province' | 'district' | 'municipality' | 'ward' | 'custom' | 'list';
+  target_type: 'all' | 'province' | 'district' | 'municipality' | 'ward' | 'custom' | 'list' | 'good-standing';
   target_criteria: any;
   status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'paused' | 'cancelled' | 'failed';
   priority: 'low' | 'normal' | 'high' | 'urgent';
@@ -88,6 +93,41 @@ interface SMSCampaign {
   messages_delivered: number;
   messages_failed: number;
   created_at: string;
+}
+
+interface ImportError {
+  row: number;
+  field: string;
+  value: any;
+  error: string;
+}
+
+interface ImportResult {
+  total_records: number;
+  successful_imports: number;
+  failed_imports: number;
+  errors: ImportError[];
+  import_id: string;
+}
+
+interface ContactList {
+  id: number;
+  name: string;
+  description?: string;
+  total_contacts: number;
+  active_contacts: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface CampaignForm {
+  name: string;
+  description: string;
+  template_id: string | number;
+  message_content: string;
+  target_type: SMSCampaign['target_type'];
+  target_criteria: any;
+  priority: SMSCampaign['priority'];
 }
 
 interface DashboardStats {
@@ -130,6 +170,12 @@ const SMSManagement: React.FC = () => {
   const [campaignPage, setCampaignPage] = useState(0);
   const [campaignRowsPerPage, setCampaignRowsPerPage] = useState(10);
   const [totalCampaigns, setTotalCampaigns] = useState(0);
+
+  // Campaign Send State
+  const [sendCampaignDialog, setSendCampaignDialog] = useState(false);
+  const [campaignToSend, setCampaignToSend] = useState<SMSCampaign | null>(null);
+  const [sendProgress, setSendProgress] = useState<any>(null);
+  const [isPollingCampaign, setIsPollingCampaign] = useState(false);
 
   // Birthday SMS state
   const [birthdayStats, setBirthdayStats] = useState<any>(null);
@@ -194,29 +240,70 @@ const SMSManagement: React.FC = () => {
     is_active: true
   });
 
-  const [campaignForm, setCampaignForm] = useState({
+  const [campaignForm, setCampaignForm] = useState<CampaignForm>({
     name: '',
     description: '',
     template_id: '',
     message_content: '',
-    target_type: 'custom' as SMSCampaign['target_type'],
+    target_type: 'custom',
     target_criteria: {},
-    priority: 'normal' as SMSCampaign['priority']
+    priority: 'normal'
   });
 
+  // Contact List state
+  const [contactLists, setContactLists] = useState<ContactList[]>([]);
+  const [contactListFile, setContactListFile] = useState<File | null>(null);
+  const [contactListName, setContactListName] = useState('');
+  const [contactListDescription, setContactListDescription] = useState('');
+  const [contactListUploading, setContactListUploading] = useState(false);
+  const [contactListResult, setContactListResult] = useState<ImportResult | null>(null);
+  const [contactListDragOver, setContactListDragOver] = useState(false);
+  const contactListFileRef = React.useRef<HTMLInputElement>(null);
+
+  // Load only what's necessary based on the active tab
   useEffect(() => {
-    loadDashboardStats();
-    loadTemplates();
-    loadCampaigns();
-    loadBirthdayData();
-    loadProviderHealth();
-    loadWebhookLogs();
-    loadMonthlyStats();
-  }, []);
+    switch (currentTab) {
+      case 0:
+        if (!dashboardStats) loadDashboardStats();
+        break;
+      case 1:
+        if (templates.length === 0) loadTemplates();
+        break;
+      case 2:
+        if (templates.length === 0) loadTemplates();
+        break;
+      case 3:
+        if (!birthdayStats) loadBirthdayData();
+        break;
+      case 4:
+        if (monthlyStats.length === 0) loadMonthlyStats();
+        break;
+      case 5:
+        if (!deliveryStats) loadProviderHealth();
+        if (webhookLogs.length === 0) loadWebhookLogs();
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab]);
 
   useEffect(() => {
-    loadCampaigns();
-  }, [campaignPage, campaignRowsPerPage]);
+    if (currentTab === 2) {
+      loadCampaigns();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignPage, campaignRowsPerPage, currentTab]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPollingCampaign && campaignToSend) {
+      interval = setInterval(() => {
+        pollCampaignProgress(campaignToSend.id);
+      }, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPollingCampaign, campaignToSend]);
 
   useEffect(() => {
     if (selectedMonth !== null) {
@@ -340,7 +427,7 @@ const SMSManagement: React.FC = () => {
 
   const handleDeleteTemplate = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this template?')) return;
-    
+
     try {
       setLoading(true);
       await api.delete(`/sms/templates/${id}`);
@@ -351,6 +438,56 @@ const SMSManagement: React.FC = () => {
       console.error('Delete template error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadContactLists = async () => {
+    try {
+      const response = await api.get('/sms/contact-lists');
+      setContactLists(response.data.data.lists || []);
+    } catch (err) {
+      console.error('Failed to load contact lists:', err);
+    }
+  };
+
+  const handleContactListFileSelect = (file: File | null) => {
+    setContactListFile(file);
+    setContactListResult(null);
+    // Pre-fill list name from filename if not yet set
+    if (file && !contactListName) {
+      const baseName = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+      setContactListName(baseName);
+    }
+  };
+
+  const handleContactListUpload = async () => {
+    if (!contactListFile || !contactListName.trim()) return;
+    setContactListUploading(true);
+    setContactListResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', contactListFile);
+      formData.append('name', contactListName.trim());
+      if (contactListDescription.trim()) formData.append('description', contactListDescription.trim());
+
+      const response = await api.post('/sms/contact-lists/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const result: ImportResult = response.data.data;
+      setContactListResult(result);
+      if (result.successful_imports > 0) {
+        setSuccess(`Contact list uploaded: ${result.successful_imports} contacts imported successfully.`);
+        await loadContactLists();
+        // Auto-select the new list in campaign criteria
+        setCampaignForm(prev => ({
+          ...prev,
+          target_criteria: { ...prev.target_criteria, contact_list_name: contactListName.trim() },
+        }));
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to upload contact list');
+    } finally {
+      setContactListUploading(false);
     }
   };
 
@@ -369,6 +506,84 @@ const SMSManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteCampaign = async (campaign: SMSCampaign) => {
+    if (!window.confirm(`Are you sure you want to delete campaign "${campaign.name}"? This action cannot be undone.`)) return;
+    try {
+      setLoading(true);
+      await api.delete(`/sms/campaigns/${campaign.id}`);
+      setSuccess('SMS campaign deleted successfully');
+      loadCampaigns();
+      loadDashboardStats();
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to delete SMS campaign');
+      console.error('Delete campaign error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenSendCampaign = (campaign: SMSCampaign) => {
+    setCampaignToSend(campaign);
+    setSendProgress(null);
+    setSendCampaignDialog(true);
+
+    // If it's already running, start polling immediately
+    if (campaign.status === 'sending') {
+      setIsPollingCampaign(true);
+      pollCampaignProgress(campaign.id);
+    } else {
+      setIsPollingCampaign(false);
+    }
+  };
+
+  const handleExecuteSendCampaign = async () => {
+    if (!campaignToSend) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.post(`/sms/campaigns/${campaignToSend.id}/send`);
+      setSuccess(response.data.data.message);
+      setIsPollingCampaign(true);
+      pollCampaignProgress(campaignToSend.id);
+      loadCampaigns();
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || 'Failed to start campaign send');
+      console.error('Send campaign error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pollCampaignProgress = async (campaignId: number) => {
+    try {
+      const response = await api.get(`/sms/campaigns/${campaignId}/send-progress`);
+      const data = response.data.data;
+      setSendProgress(data);
+
+      // Stop polling if completed or failed
+      if (data.status === 'Completed' || data.status === 'Failed') {
+        setIsPollingCampaign(false);
+        loadCampaigns();
+      }
+    } catch (err: any) {
+      // If 404, it might be done or not found
+      if (err.response?.status === 404) {
+        setIsPollingCampaign(false);
+        loadCampaigns();
+      }
+      console.error('Poll progress error:', err);
+    }
+  };
+
+  const handleCloseSendDialog = () => {
+    setSendCampaignDialog(false);
+    setIsPollingCampaign(false);
+    setTimeout(() => {
+      setCampaignToSend(null);
+      setSendProgress(null);
+    }, 300);
   };
 
   // Quick Send SMS handlers
@@ -507,11 +722,15 @@ const SMSManagement: React.FC = () => {
       description: '',
       template_id: '',
       message_content: '',
-      target_type: 'custom',
+      target_type: 'good-standing',
       target_criteria: {},
       priority: 'normal'
     });
     setEditingCampaign(null);
+    setContactListFile(null);
+    setContactListName('');
+    setContactListDescription('');
+    setContactListResult(null);
   };
 
   const openTemplateDialog = (template?: SMSTemplate) => {
@@ -555,6 +774,7 @@ const SMSManagement: React.FC = () => {
       resetCampaignForm();
     }
     setCampaignDialog(true);
+    loadContactLists();
   };
 
   // Birthday SMS functions
@@ -783,11 +1003,13 @@ const SMSManagement: React.FC = () => {
 
       const [reportRes, statsRes] = await Promise.all([
         api.get('/birthday-sms/delivery-report', { params }),
-        api.get('/birthday-sms/delivery-stats', { params: {
-          timeframe: 'all',
-          month: deliveryReportFilter.month || undefined,
-          year: deliveryReportFilter.year || undefined
-        }})
+        api.get('/birthday-sms/delivery-stats', {
+          params: {
+            timeframe: 'all',
+            month: deliveryReportFilter.month || undefined,
+            year: deliveryReportFilter.year || undefined
+          }
+        })
       ]);
 
       if (reportRes.data.success) {
@@ -906,7 +1128,7 @@ const SMSManagement: React.FC = () => {
     if (showDeliveryReport) {
       loadDeliveryReport();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryReportPage, deliveryReportRowsPerPage, showDeliveryReport]);
 
   const getStatusColor = (status: string) => {
@@ -1180,11 +1402,24 @@ const SMSManagement: React.FC = () => {
                   <IconButton
                     size="small"
                     onClick={() => openCampaignDialog(campaign)}
+                    disabled={campaign.status === 'sending'}
                   >
                     <EditIcon />
                   </IconButton>
-                  <IconButton size="small">
-                    <SendIcon />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenSendCampaign(campaign)}
+                    color={campaign.status === 'sending' ? 'primary' : 'default'}
+                  >
+                    {campaign.status === 'sending' ? <PendingIcon /> : <SendIcon />}
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleDeleteCampaign(campaign)}
+                    disabled={campaign.status === 'sending'}
+                  >
+                    <DeleteIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
@@ -1499,8 +1734,8 @@ const SMSManagement: React.FC = () => {
                         <MenuItem value="">All Months</MenuItem>
                         {['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
-                          <MenuItem key={i} value={(i + 1).toString()}>{m}</MenuItem>
-                        ))}
+                            <MenuItem key={i} value={(i + 1).toString()}>{m}</MenuItem>
+                          ))}
                       </Select>
                     </FormControl>
                     <TextField
@@ -2051,14 +2286,14 @@ const SMSManagement: React.FC = () => {
                                       label={result.deliveryStatus || 'pending'}
                                       color={
                                         result.deliveryStatus === 'delivered' ? 'success' :
-                                        result.deliveryStatus === 'failed' ? 'error' :
-                                        result.deliveryStatus === 'sent' ? 'info' :
-                                        'default'
+                                          result.deliveryStatus === 'failed' ? 'error' :
+                                            result.deliveryStatus === 'sent' ? 'info' :
+                                              'default'
                                       }
                                       icon={
                                         result.deliveryStatus === 'delivered' ? <CheckCircleIcon /> :
-                                        result.deliveryStatus === 'failed' ? <ErrorIcon /> :
-                                        <PendingIcon />
+                                          result.deliveryStatus === 'failed' ? <ErrorIcon /> :
+                                            <PendingIcon />
                                       }
                                     />
                                   ) : (
@@ -2206,7 +2441,7 @@ const SMSManagement: React.FC = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <Box display="flex" alignItems="center" p={2}
-                       sx={{ backgroundColor: alpha(theme.palette.success.main, 0.1), borderRadius: 2 }}>
+                    sx={{ backgroundColor: alpha(theme.palette.success.main, 0.1), borderRadius: 2 }}>
                     <CheckCircleIcon sx={{ color: theme.palette.success.main, mr: 2 }} />
                     <Box>
                       <Typography variant="subtitle1" fontWeight="bold">
@@ -2221,7 +2456,7 @@ const SMSManagement: React.FC = () => {
 
                 <Grid item xs={12} md={6}>
                   <Box display="flex" alignItems="center" p={2}
-                       sx={{ backgroundColor: alpha(theme.palette.info.main, 0.1), borderRadius: 2 }}>
+                    sx={{ backgroundColor: alpha(theme.palette.info.main, 0.1), borderRadius: 2 }}>
                     <SpeedIcon sx={{ color: theme.palette.info.main, mr: 2 }} />
                     <Box>
                       <Typography variant="subtitle1" fontWeight="bold">
@@ -2336,17 +2571,17 @@ const SMSManagement: React.FC = () => {
 
       <Container maxWidth="xl" sx={{ pb: 4 }}>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
-      )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+            {success}
+          </Alert>
+        )}
 
         <Paper
           sx={{
@@ -2419,6 +2654,12 @@ const SMSManagement: React.FC = () => {
               iconPosition="start"
               sx={{ gap: 1 }}
             />
+            <Tab
+              label="Reports"
+              icon={<ReportIcon />}
+              iconPosition="start"
+              sx={{ gap: 1 }}
+            />
           </Tabs>
 
           <Box sx={{ p: 4 }}>
@@ -2435,6 +2676,7 @@ const SMSManagement: React.FC = () => {
             {!loading && currentTab === 4 && renderMonthlyStats()}
             {!loading && currentTab === 5 && renderProviderStatus()}
             {!loading && currentTab === 6 && renderQuickSend()}
+            {!loading && currentTab === 7 && <SMSReports />}
           </Box>
         </Paper>
       </Container>
@@ -2585,6 +2827,7 @@ const SMSManagement: React.FC = () => {
                     value={campaignForm.target_type}
                     onChange={(e) => setCampaignForm({ ...campaignForm, target_type: e.target.value as SMSCampaign['target_type'] })}
                   >
+                    <MenuItem value="good-standing">Members in Good Standing (Active, Valid Phone)</MenuItem>
                     <MenuItem value="all">All Members</MenuItem>
                     <MenuItem value="province">By Province</MenuItem>
                     <MenuItem value="district">By District</MenuItem>
@@ -2593,8 +2836,375 @@ const SMSManagement: React.FC = () => {
                     <MenuItem value="custom">Custom Criteria</MenuItem>
                     <MenuItem value="list">Contact List</MenuItem>
                   </Select>
+                  {campaignForm.target_type === 'good-standing' && (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      Targets active members in good standing with valid phone numbers (~587,988 members).
+                      Phone numbers will be normalized to 27xx format.
+                    </Alert>
+                  )}
                 </FormControl>
               </Grid>
+
+              {/* Custom Criteria Filter Panel */}
+              {campaignForm.target_type === 'custom' && (
+                <Grid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: alpha(theme.palette.info.main, 0.04) }}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, color: theme.palette.info.main }}>
+                      <FilterIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'text-bottom' }} />
+                      Custom Criteria Filters
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                      Leave fields empty to skip that filter (all-pass). Only members with valid phone numbers are included.
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {/* Province */}
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Province</InputLabel>
+                          <Select
+                            value={campaignForm.target_criteria?.province_name || ''}
+                            onChange={(e) => setCampaignForm({
+                              ...campaignForm,
+                              target_criteria: { ...campaignForm.target_criteria, province_name: e.target.value || undefined }
+                            })}
+                            label="Province"
+                          >
+                            <MenuItem value="">All Provinces</MenuItem>
+                            <MenuItem value="Eastern Cape">Eastern Cape</MenuItem>
+                            <MenuItem value="Free State">Free State</MenuItem>
+                            <MenuItem value="Gauteng">Gauteng</MenuItem>
+                            <MenuItem value="KwaZulu-Natal">KwaZulu-Natal</MenuItem>
+                            <MenuItem value="Limpopo">Limpopo</MenuItem>
+                            <MenuItem value="Mpumalanga">Mpumalanga</MenuItem>
+                            <MenuItem value="North West">North West</MenuItem>
+                            <MenuItem value="Northern Cape">Northern Cape</MenuItem>
+                            <MenuItem value="Western Cape">Western Cape</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {/* Municipality Code */}
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Municipality Code"
+                          placeholder="e.g. EC101"
+                          value={campaignForm.target_criteria?.municipality_code || ''}
+                          onChange={(e) => setCampaignForm({
+                            ...campaignForm,
+                            target_criteria: { ...campaignForm.target_criteria, municipality_code: e.target.value || undefined }
+                          })}
+                        />
+                      </Grid>
+                      {/* Ward Code */}
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Ward Code"
+                          placeholder="e.g. 79800001"
+                          value={campaignForm.target_criteria?.ward_code || ''}
+                          onChange={(e) => setCampaignForm({
+                            ...campaignForm,
+                            target_criteria: { ...campaignForm.target_criteria, ward_code: e.target.value || undefined }
+                          })}
+                        />
+                      </Grid>
+                      {/* Membership Status */}
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Membership Status</InputLabel>
+                          <Select
+                            value={campaignForm.target_criteria?.membership_status_id || ''}
+                            onChange={(e) => setCampaignForm({
+                              ...campaignForm,
+                              target_criteria: { ...campaignForm.target_criteria, membership_status_id: e.target.value || undefined }
+                            })}
+                            label="Membership Status"
+                          >
+                            <MenuItem value="">All Statuses</MenuItem>
+                            <MenuItem value="1">Good Standing (Active)</MenuItem>
+                            <MenuItem value="2">Suspended</MenuItem>
+                            <MenuItem value="6">Lapsed</MenuItem>
+                            <MenuItem value="7">Cancelled</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {/* Gender */}
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Gender</InputLabel>
+                          <Select
+                            value={campaignForm.target_criteria?.gender_id || ''}
+                            onChange={(e) => setCampaignForm({
+                              ...campaignForm,
+                              target_criteria: { ...campaignForm.target_criteria, gender_id: e.target.value || undefined }
+                            })}
+                            label="Gender"
+                          >
+                            <MenuItem value="">All Genders</MenuItem>
+                            <MenuItem value="1">Male</MenuItem>
+                            <MenuItem value="2">Female</MenuItem>
+                            <MenuItem value="3">Other</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {/* Age Range */}
+                      <Grid item xs={6} md={2}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Min Age"
+                          type="number"
+                          InputProps={{ inputProps: { min: 0, max: 120 } }}
+                          value={campaignForm.target_criteria?.min_age || ''}
+                          onChange={(e) => setCampaignForm({
+                            ...campaignForm,
+                            target_criteria: { ...campaignForm.target_criteria, min_age: e.target.value || undefined }
+                          })}
+                        />
+                      </Grid>
+                      <Grid item xs={6} md={2}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Max Age"
+                          type="number"
+                          InputProps={{ inputProps: { min: 0, max: 120 } }}
+                          value={campaignForm.target_criteria?.max_age || ''}
+                          onChange={(e) => setCampaignForm({
+                            ...campaignForm,
+                            target_criteria: { ...campaignForm.target_criteria, max_age: e.target.value || undefined }
+                          })}
+                        />
+                      </Grid>
+                      {/* Leadership Role */}
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Leadership Filter</InputLabel>
+                          <Select
+                            value={campaignForm.target_criteria?.has_leadership_role ? 'yes' : ''}
+                            onChange={(e) => {
+                              const isLeader = e.target.value === 'yes';
+                              setCampaignForm({
+                                ...campaignForm,
+                                target_criteria: {
+                                  ...campaignForm.target_criteria,
+                                  has_leadership_role: isLeader || undefined,
+                                  leadership_level: isLeader ? campaignForm.target_criteria?.leadership_level : undefined,
+                                }
+                              });
+                            }}
+                            label="Leadership Filter"
+                          >
+                            <MenuItem value="">All Members</MenuItem>
+                            <MenuItem value="yes">Leaders Only</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {/* Leadership Level (visible when Leaders Only is selected) */}
+                      {campaignForm.target_criteria?.has_leadership_role && (
+                        <Grid item xs={12} md={4}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Leadership Level</InputLabel>
+                            <Select
+                              value={campaignForm.target_criteria?.leadership_level || ''}
+                              onChange={(e) => setCampaignForm({
+                                ...campaignForm,
+                                target_criteria: { ...campaignForm.target_criteria, leadership_level: e.target.value || undefined }
+                              })}
+                              label="Leadership Level"
+                            >
+                              <MenuItem value="">All Levels</MenuItem>
+                              <MenuItem value="Branch">Branch</MenuItem>
+                              <MenuItem value="Ward">Ward</MenuItem>
+                              <MenuItem value="Sub-Region">Sub-Region</MenuItem>
+                              <MenuItem value="Region">Region</MenuItem>
+                              <MenuItem value="Province">Province</MenuItem>
+                              <MenuItem value="National">National</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                </Grid>
+              )}
+
+              {/* ── Contact List panel ── */}
+              {campaignForm.target_type === 'list' && (
+                <Grid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+                      <ContactsIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'text-bottom' }} />
+                      Contact List
+                    </Typography>
+
+                    {/* Existing lists picker */}
+                    {contactLists.length > 0 && (
+                      <Box mb={2}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Use an existing list</InputLabel>
+                          <Select
+                            value={campaignForm.target_criteria?.contact_list_id || ''}
+                            onChange={(e) => setCampaignForm({
+                              ...campaignForm,
+                              target_criteria: { ...campaignForm.target_criteria, contact_list_id: e.target.value || undefined },
+                            })}
+                            label="Use an existing list"
+                          >
+                            <MenuItem value="">— Upload a new list below —</MenuItem>
+                            {contactLists.map(cl => (
+                              <MenuItem key={cl.id} value={cl.id}>
+                                {cl.name} ({cl.active_contacts.toLocaleString()} contacts)
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Box>
+                    )}
+
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Upload a CSV or Excel file. Required column: <strong>Cell Number</strong> (or Phone / Mobile).
+                      Optional: Name, Province, Region, Municipality, Ward, Voting Station.
+                    </Typography>
+
+                    {/* List name & description */}
+                    <Grid container spacing={1} mb={1.5}>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="New List Name *"
+                          value={contactListName}
+                          onChange={e => setContactListName(e.target.value)}
+                          placeholder="e.g. Gauteng Ward Leaders"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Description"
+                          value={contactListDescription}
+                          onChange={e => setContactListDescription(e.target.value)}
+                          placeholder="Optional"
+                        />
+                      </Grid>
+                    </Grid>
+
+                    {/* Drag-and-drop / file picker */}
+                    <Box
+                      onDragOver={e => { e.preventDefault(); setContactListDragOver(true); }}
+                      onDragLeave={() => setContactListDragOver(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setContactListDragOver(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleContactListFileSelect(file);
+                      }}
+                      onClick={() => contactListFileRef.current?.click()}
+                      sx={{
+                        border: `2px dashed ${contactListDragOver ? theme.palette.primary.main : theme.palette.divider}`,
+                        borderRadius: 1,
+                        p: 2,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        bgcolor: contactListDragOver ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                        transition: 'all 0.2s',
+                        '&:hover': { borderColor: theme.palette.primary.main, bgcolor: alpha(theme.palette.primary.main, 0.04) },
+                      }}
+                    >
+                      <input
+                        ref={contactListFileRef}
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        style={{ display: 'none' }}
+                        onChange={e => handleContactListFileSelect(e.target.files?.[0] ?? null)}
+                      />
+                      <UploadFileIcon color="primary" sx={{ fontSize: 32, mb: 0.5 }} />
+                      {contactListFile ? (
+                        <Typography variant="body2">
+                          <strong>{contactListFile.name}</strong>{' '}
+                          ({(contactListFile.size / 1024).toFixed(1)} KB)
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Drag &amp; drop a CSV / XLSX file here, or click to browse
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* Upload button */}
+                    <Box mt={1.5} display="flex" gap={1} alignItems="center">
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={contactListUploading ? <CircularProgress size={14} color="inherit" /> : <UploadFileIcon />}
+                        onClick={e => { e.stopPropagation(); handleContactListUpload(); }}
+                        disabled={!contactListFile || !contactListName.trim() || contactListUploading}
+                      >
+                        {contactListUploading ? 'Processing…' : 'Upload & Process'}
+                      </Button>
+                      {contactListFile && (
+                        <Button size="small" color="inherit" onClick={() => { setContactListFile(null); setContactListResult(null); }}>
+                          Clear
+                        </Button>
+                      )}
+                    </Box>
+
+                    {/* Upload progress */}
+                    {contactListUploading && <LinearProgress sx={{ mt: 1 }} />}
+
+                    {/* Import result summary */}
+                    {contactListResult && (
+                      <Box mt={2}>
+                        <Alert
+                          severity={contactListResult.failed_imports === 0 ? 'success' : contactListResult.successful_imports === 0 ? 'error' : 'warning'}
+                          icon={contactListResult.failed_imports === 0 ? <CheckCircleIcon /> : <WarningIcon />}
+                        >
+                          <Typography variant="body2" fontWeight={600}>
+                            Import complete — {contactListResult.successful_imports} of {contactListResult.total_records} rows imported successfully
+                            {contactListResult.failed_imports > 0 && `, ${contactListResult.failed_imports} failed`}.
+                          </Typography>
+                        </Alert>
+
+                        {/* Error detail table */}
+                        {contactListResult.errors.length > 0 && (
+                          <Box mt={1} maxHeight={160} overflow="auto">
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Row</TableCell>
+                                  <TableCell>Field</TableCell>
+                                  <TableCell>Value</TableCell>
+                                  <TableCell>Error</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {contactListResult.errors.slice(0, 50).map((e, i) => (
+                                  <TableRow key={i}>
+                                    <TableCell>{e.row === -1 ? '—' : e.row}</TableCell>
+                                    <TableCell>{e.field}</TableCell>
+                                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{String(e.value)}</TableCell>
+                                    <TableCell sx={{ color: 'error.main', fontSize: '0.75rem' }}>{e.error}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                            {contactListResult.errors.length > 50 && (
+                              <Typography variant="caption" color="text.secondary">
+                                … and {contactListResult.errors.length - 50} more errors
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+              )}
+
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Priority</InputLabel>
@@ -2623,7 +3233,65 @@ const SMSManagement: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      {/* Send Campaign Progress Dialog */}
+      <Dialog open={sendCampaignDialog} onClose={handleCloseSendDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Send Campaign: {campaignToSend?.name}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            {!isPollingCampaign && !sendProgress ? (
+              <Typography>
+                Are you sure you want to send this campaign? This action cannot be undone.
+              </Typography>
+            ) : (
+              <Box textAlign="center">
+                <Typography variant="h6" mb={2}>Sending Campaign...</Typography>
+                {sendProgress?.status === 'Running' || sendProgress?.status === 'sending' || !sendProgress ? (
+                  <CircularProgress />
+                ) : sendProgress?.status === 'Failed' ? (
+                  <Alert severity="error">Campaign sending failed</Alert>
+                ) : (
+                  <CheckCircleIcon color="success" sx={{ fontSize: 60 }} />
+                )}
+                <Box mt={3}>
+                  <Typography>Status: <Chip size="small" label={sendProgress?.status || 'Starting...'} color={sendProgress?.status === 'Completed' ? 'success' : 'primary'} /></Typography>
+                  <Typography mt={1}>Total Recipients: <b>{sendProgress?.total_recipients || 0}</b></Typography>
+                  {sendProgress?.total_batches > 0 && (
+                    <Typography>Batches Processed: <b>{sendProgress?.batches_processed || 0} / {sendProgress?.total_batches || 0}</b></Typography>
+                  )}
+                  {(sendProgress?.status === 'Completed' || sendProgress?.status === 'Failed') && (
+                    <Box mt={2}>
+                      <Typography color="success.main">Successfully Sent: <b>{sendProgress?.messages_sent || 0}</b></Typography>
+                      <Typography color="error.main">Failed: <b>{sendProgress?.messages_failed || 0}</b></Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseSendDialog}
+            disabled={isPollingCampaign && sendProgress?.status !== 'Completed' && sendProgress?.status !== 'Failed'}
+          >
+            {sendProgress?.status === 'Completed' || sendProgress?.status === 'Failed' ? 'Close' : 'Cancel'}
+          </Button>
+          {!isPollingCampaign && !sendProgress && (
+            <Button
+              onClick={handleExecuteSendCampaign}
+              variant="contained"
+              color="primary"
+              disabled={loading}
+              startIcon={<SendIcon />}
+            >
+              Confirm Send
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+    </Box >
   );
 };
 

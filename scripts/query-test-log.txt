@@ -1,0 +1,12 @@
+[eval]:1
+const { Pool } = require('pg'); const pool = new Pool({ host: 'localhost', port: 5432, user: 'eff_admin', password: 'Frames!123', database: 'eff_membership_database' }); async function run() { const r = await pool.query(SELECT m.municipality_id, m.municipality_code, m.municipality_name, m.district_code, COALESCE(d.province_code, pd.province_code) as province_code, m.municipality_type, m.parent_municipality_id FROM municipalities m LEFT JOIN districts d ON m.district_code = d.district_code LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id LEFT JOIN districts pd ON pm.district_code = pd.district_code WHERE COALESCE(d.province_code, pd.province_code) = 'FS' ORDER BY m.municipality_name); const subRegions = r.rows.filter(row => row.municipality_type === 'Metro Sub-Region'); const fs = require('fs'); fs.writeFileSync('scripts/query-test-output.txt', 'Total municipalities for FS: ' + r.rows.length + '\nSub-regions found: ' + subRegions.length + '\n\nSub-regions:\n' + JSON.stringify(subRegions, null, 2) + '\n\nAll types:\n' + JSON.stringify(r.rows.reduce((acc, r) => { acc[r.municipality_type] = (acc[r.municipality_type]||0)+1; return acc; }, {}), null, 2)); await pool.end(); } run().catch(e => { console.error(e.message); pool.end(); });
+                                                                                                                                                                                                                            ^^^^^^
+Expected ',', got 'm'
+
+SyntaxError: missing ) after argument list
+    at makeContextifyScript (node:internal/vm:194:14)
+    at compileScript (node:internal/process/execution:388:10)
+    at evalTypeScript (node:internal/process/execution:260:22)
+    at node:internal/main/eval_string:71:3
+
+Node.js v24.11.1

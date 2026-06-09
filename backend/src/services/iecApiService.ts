@@ -1,9 +1,5 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import cloudscraper from 'cloudscraper';
+import axios, { AxiosInstance } from 'axios';
 import { config } from '../config/config';
-
-// Type assertion for cloudscraper to handle defaults method
-const cloudscraperWithDefaults = cloudscraper as any;
 import { createDatabaseError } from '../middleware/errorHandler';
 import { getPrisma } from './prismaService';
 
@@ -96,42 +92,17 @@ export interface IECVotingDistrictInfo {
   voting_station_address?: string;
 }
 
-// OAuth2 Token Response
-interface IECTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
 class IECApiService {
+  // HTTP client pointed at the IECProxy service. The proxy handles all
+  // authentication / Cloudflare bypass and forwards lookups to the IEC Voter
+  // API, returning the raw IEC payload (same shape as IECVoterResponse).
   private client: AxiosInstance;
-  private tokenClient: AxiosInstance;
-  private scraper: any; // CloudScraper instance
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
   private rateLimitCount: number = 0;
   private rateLimitResetTime: number = Date.now() + 60000; // Reset every minute
 
   constructor() {
-    // Create CloudScraper instance with browser configuration (matching Python)
-    this.scraper = cloudscraperWithDefaults.defaults({
-      agentOptions: {
-        ciphers: 'ECDHE-RSA-AES128-GCM-SHA256'
-      }
-    });
-
-    // Client for token requests (kept for fallback)
-    this.tokenClient = axios.create({
-      baseURL: 'https://api.elections.org.za',
-      timeout: config.iec.timeout,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-
-    // Client for API requests (kept for fallback)
     this.client = axios.create({
-      baseURL: 'https://api.elections.org.za',
+      baseURL: config.iec.proxyUrl,
       timeout: config.iec.timeout,
       headers: {
         'Content-Type': 'application/json',
@@ -139,76 +110,19 @@ class IECApiService {
       }
     });
 
-    // Add response interceptor for error handling
-    this.client.interceptors.response.use(
-      (response) => {
-        return response;
-      },
-      (error) => {
-        console.error('IEC API Error:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          url: error.config?.url
-        });
-
-        return Promise.reject(this.handleApiError(error));
-      }
-    );
-
-    console.log(' IEC API Service initialized with CloudScraper (Chrome/Windows profile)');
+    console.log(`✅ IEC API Service initialized (IECProxy at ${config.iec.proxyUrl})`);
   }
 
   /**
-   * Get OAuth2 access token using CloudScraper to bypass Cloudflare
-   * Matches Python implementation: cloudscraper.create_scraper with Chrome/Windows profile
+   * Fetch voter details from the IECProxy service.
+   * Endpoint: GET {proxyUrl}/api/voters/{id_number}
+   * The proxy returns the raw IEC voter payload (IECVoterResponse shape).
    */
-  private async getAccessToken(): Promise<string> {
-    try {
-      // Check if we have a valid token
-      if (this.accessToken && Date.now() < this.tokenExpiry) {
-        return this.accessToken;
-      }
-
-      console.log(' Authenticating with IEC API (CloudScraper - Chrome/Windows)...');
-
-      // Use CloudScraper with same configuration as Python
-      // Python: scraper.post(token_url, data=token_data, timeout=60)
-      const response = await this.scraper.post({
-        uri: 'https://api.elections.org.za/token',
-        form: {
-          grant_type: 'password',
-          username: config.iec.username,
-          password: config.iec.password
-        },
-        json: true, // Automatically parse JSON response
-        timeout: 60000, // 60 seconds (matching Python timeout=60)
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        },
-        // CloudScraper options (matching Python delay=10)
-        cloudflareTimeout: 60000,
-        cloudflareMaxTimeout: 60000
-      }) as IECTokenResponse;
-
-      this.accessToken = response.access_token;
-      // Set expiry to 5 minutes before actual expiry for safety
-      this.tokenExpiry = Date.now() + ((response.expires_in - 300) * 1000);
-
-      console.log(' Token obtained successfully!');
-      console.log(`   Token (first 50 chars): ${this.accessToken.substring(0, 50)}...`);
-      console.log(`   Expires in: ${response.expires_in} seconds`);
-
-      return this.accessToken;
-    } catch (error: any) {
-      console.error(' Failed to get IEC API access token:', error.message);
-      if (error.error) {
-        console.error('   Error details:', error.error);
-      }
-      throw new Error('Failed to authenticate with IEC API: ' + (error.error_description || error.message));
-    }
+  private async fetchVoter(idNumber: string): Promise<IECVoterResponse> {
+    const resp = await this.client.get<IECVoterResponse>(
+      `/api/voters/${idNumber}`
+    );
+    return resp.data;
   }
 
   private checkRateLimit(): void {
@@ -230,62 +144,53 @@ class IECApiService {
 
   private handleApiError(error: any): Error {
     if (error.response) {
-      // Server responded with error status
+      // Proxy responded with an error status
       const status = error.response.status;
-      const message = error.response.data?.message || error.response.statusText;
-      
+      const message = error.response.data?.detail
+        || error.response.data?.message
+        || error.response.statusText;
+
       switch (status) {
         case 401:
-          return new Error('IEC API authentication failed. Please check credentials.');
+          return new Error('IEC proxy authentication failed.');
         case 403:
-          return new Error('IEC API access forbidden. Insufficient permissions.');
+          return new Error('IEC proxy access forbidden. Insufficient permissions.');
         case 404:
-          return new Error('IEC API endpoint not found.');
+          return new Error('IEC proxy endpoint not found.');
+        case 422:
+          return new Error('IEC proxy validation error (invalid ID number).');
         case 429:
-          return new Error('IEC API rate limit exceeded. Please try again later.');
+          return new Error('IEC proxy rate limit exceeded. Please try again later.');
         case 500:
-          return new Error('IEC API server error. Please try again later.');
+        case 502:
+        case 503:
+        case 504:
+          return new Error('IEC proxy/upstream server error. Please try again later.');
         default:
-          return new Error('IEC API error: ' + message + '');
+          return new Error('IEC proxy error: ' + (typeof message === 'string' ? message : JSON.stringify(message)));
       }
     } else if (error.request) {
-      // Network error
-      return new Error('IEC API network error. Please check your connection.');
+      // No response received — proxy unreachable / network failure
+      return new Error(`IEC proxy unreachable at ${config.iec.proxyUrl}. Please check the service.`);
     } else {
       // Other error
-      return new Error('IEC API error: ' + error.message + '');
+      return new Error('IEC proxy error: ' + error.message + '');
     }
   }
 
   /**
-   * Verify voter details by ID number using IEC API
+   * Verify voter details by ID number via the IECProxy service.
    */
   async verifyVoter(idNumber: string): Promise<IECVoterDetails | null> {
     try {
       // Check rate limit
       this.checkRateLimit();
 
-      // Get access token
-      const token = await this.getAccessToken();
+      console.log(`🔍 Checking voter registration for ID: ${idNumber} (via IECProxy)`);
 
-      console.log(`🔍 Checking voter registration for ID: ${idNumber}`);
+      const response = await this.fetchVoter(idNumber);
 
-      // Make API request using CloudScraper (matching Python implementation)
-      // Python: response = scraper.get(voter_url, headers=headers, timeout=60)
-      const response = await this.scraper.get({
-        uri: `https://api.elections.org.za/api/Voters/IDNumber/${idNumber}`,
-        json: true,
-        timeout: 60000, // 60 seconds (matching Python timeout=60)
-        headers: {
-          'Authorization': `Bearer ${token}`, // Note: Capital 'B' in Bearer (matching Python)
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        },
-        cloudflareTimeout: 60000,
-        cloudflareMaxTimeout: 60000
-      }) as IECVoterResponse;
-
-      console.log('IEC API response received:', {
+      console.log('IEC proxy response received:', {
         registered: response.bRegistered,
         status: response.VoterStatus
       });
@@ -374,9 +279,9 @@ class IECApiService {
               if (municipality.district_code) {
                 voterDetails.district_code = municipality.district_code;
               }
-              console.log(`✅ Municipality mapped (by name): ${delimitation.Municipality} → ${municipality.municipality_code}`);
+              console.log(`Municipality mapped (by name): ${delimitation.Municipality} → ${municipality.municipality_code}`);
             } else {
-              console.warn(`⚠️ No municipality found for: ${delimitation.Municipality}`);
+              console.warn(` No municipality found for: ${delimitation.Municipality}`);
             }
           }
 
@@ -420,11 +325,11 @@ class IECApiService {
 
       return voterDetails;
     } catch (error: any) {
-      console.error('Error verifying voter:', error.response?.data || error.message);
+      console.error('Error verifying voter via IECProxy:', error.response?.data || error.message);
 
-      // If voter not found, return null instead of throwing error
+      // If voter not found, treat as "Not Registered" instead of throwing.
       if (error.response?.status === 404) {
-        console.log('ℹ Voter not found in IEC database');
+        console.log('ℹ Voter not found in IEC database (via proxy)');
         return {
           id_number: idNumber,
           is_registered: false,
@@ -432,7 +337,10 @@ class IECApiService {
         };
       }
 
-      throw createDatabaseError('Failed to verify voter with IEC API', error);
+      // For all other failures (proxy unreachable, upstream 5xx, validation, etc.)
+      // throw a descriptive error so the bulk-upload processors can record the
+      // per-record failure without crashing the job.
+      throw this.handleApiError(error);
     }
   }
 

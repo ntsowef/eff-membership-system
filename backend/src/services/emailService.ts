@@ -100,12 +100,11 @@ export class EmailService {
   async sendEmail(emailData: EmailData): Promise<boolean> {
     try {
       if (!this.isConfigured) {
-        console.log('📧 Email would be sent (service not configured):', {
+        console.warn('⚠️ Email NOT sent (service not configured):', {
           to: emailData.to,
-          subject: emailData.subject,
-          content: emailData.text || emailData.html?.substring(0, 100) + '...'
+          subject: emailData.subject
         });
-        return true; // Return true for development/testing
+        return false; // Service not configured — email was NOT delivered
       }
 
       const mailOptions = {
@@ -790,6 +789,106 @@ EFF Membership System
       html: htmlContent,
       text: textContent,
       attachments: attachments.length > 0 ? attachments : undefined
+    });
+  }
+
+  // Send payment transaction notification to admin
+  async sendPaymentNotification(
+    paymentDetails: {
+      transactionId: string;
+      amount: string;
+      paymentBrand: string;
+      paymentType: string;
+      memberName?: string;
+      memberId?: number | null;
+      resultCode: string;
+      status: 'success' | 'failed';
+    }
+  ): Promise<boolean> {
+    const adminEmail = process.env.MAIL_FROM_ADDRESS || 'effmembership@bakkie-connect.co.za';
+    const statusColor = paymentDetails.status === 'success' ? '#4caf50' : '#f44336';
+    const statusIcon = paymentDetails.status === 'success' ? '✅' : '❌';
+    const statusText = paymentDetails.status === 'success' ? 'SUCCESSFUL' : 'FAILED';
+    const now = new Date().toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' });
+
+    return await this.sendEmail({
+      to: adminEmail,
+      subject: `${statusIcon} Card Payment ${statusText} - R${paymentDetails.amount} (${paymentDetails.paymentType})`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #1a1a1a 0%, #DC143C 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background-color: #f9f9f9; padding: 25px; border: 1px solid #ddd; border-radius: 0 0 8px 8px; }
+            .status-badge { display: inline-block; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 16px; color: white; background-color: ${statusColor}; }
+            .details-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            .details-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+            .details-table td:first-child { font-weight: bold; color: #555; width: 40%; }
+            .footer { text-align: center; padding: 15px; color: #999; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">💳 Payment Notification</h1>
+              <p style="margin: 5px 0 0 0;">EFF Membership Portal</p>
+            </div>
+            <div class="content">
+              <div style="text-align: center; margin: 15px 0;">
+                <span class="status-badge">${statusIcon} Payment ${statusText}</span>
+              </div>
+
+              <table class="details-table">
+                <tr>
+                  <td>Transaction ID</td>
+                  <td><strong>${paymentDetails.transactionId}</strong></td>
+                </tr>
+                <tr>
+                  <td>Amount</td>
+                  <td><strong style="font-size: 18px; color: #DC143C;">R${paymentDetails.amount}</strong></td>
+                </tr>
+                <tr>
+                  <td>Payment Type</td>
+                  <td>${paymentDetails.paymentType}</td>
+                </tr>
+                <tr>
+                  <td>Card Brand</td>
+                  <td>${paymentDetails.paymentBrand}</td>
+                </tr>
+                ${paymentDetails.memberName ? `
+                <tr>
+                  <td>Member</td>
+                  <td>${paymentDetails.memberName}</td>
+                </tr>` : ''}
+                ${paymentDetails.memberId ? `
+                <tr>
+                  <td>Member ID</td>
+                  <td>${paymentDetails.memberId}</td>
+                </tr>` : ''}
+                <tr>
+                  <td>Result Code</td>
+                  <td>${paymentDetails.resultCode}</td>
+                </tr>
+                <tr>
+                  <td>Date/Time</td>
+                  <td>${now}</td>
+                </tr>
+              </table>
+
+              <p style="margin-top: 20px; color: #666; font-size: 13px;">
+                This is an automated payment notification from the Peach Payments integration.
+              </p>
+            </div>
+            <div class="footer">
+              <p>&copy; ${new Date().getFullYear()} Economic Freedom Fighters. Membership Portal.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
     });
   }
 }

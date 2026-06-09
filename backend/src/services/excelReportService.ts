@@ -1006,7 +1006,6 @@ export class ExcelReportService {
         { header: 'Municipality', key: 'Municipality', width: 35 },
         { header: 'Ward Code', key: 'Ward Code', width: 15 },
         { header: 'Ward Number', key: 'Ward Number', width: 15 },
-        { header: 'Ward Name', key: 'Ward Name', width: 30 },
         { header: 'Valid Members', key: 'Valid Members', width: 18 },
         { header: '200+ Compliance', key: '200+ Compliance', width: 18 }
       ];
@@ -1021,7 +1020,6 @@ export class ExcelReportService {
           'Municipality': row.municipality_name,
           'Ward Code': row.ward_code,
           'Ward Number': row.ward_number,
-          'Ward Name': row.ward_name,
           'Valid Members': row.valid_members,
           '200+ Compliance': compliance
         });
@@ -1157,100 +1155,54 @@ export class ExcelReportService {
   }
 
   /**
-   * Generate Expired Members Excel Report
-   * Lists members whose membership has expired
+   * Shared helper: build and execute the expiry status query, then render to Excel or CSV.
+   * type='expired'  → expiry_date < CURRENT_DATE (past membership)
+   * type='expiring' → expiry_date >= CURRENT_DATE (future / upcoming)
    */
-  static async generateExpiredMembersReport(filters: {
-    province_code?: string;
-  } = {}): Promise<Buffer> {
+  private static async generateExpiryStatusReport(
+    type: 'expired' | 'expiring',
+    filters: {
+      province_code?: string;
+      municipality_code?: string;
+      expiry_date_from?: string;
+      expiry_date_to?: string;
+    } = {},
+    format: 'excel' | 'csv' = 'excel'
+  ): Promise<Buffer> {
     try {
-      const { province_code } = filters;
+      const { province_code, municipality_code, expiry_date_from, expiry_date_to } = filters;
 
-      // Create workbook with ExcelJS
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'EFF Membership System';
-      workbook.created = new Date();
-
-      // Query for expired members
-      const expiredMembersQuery = `
-        SELECT
-          CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
-          m.id_number AS "ID Number",
-          m.cell_number AS "Phone Number",
-          m.province_name AS "Province",
-          m.municipality_name AS "Municipality",
-          m.ward_code AS "Ward",
-          m.expiry_date AS "Expiry Date",
-          (CURRENT_DATE - m.expiry_date::DATE) AS "Days Expired"
-        FROM members_consolidated m
-        WHERE m.expiry_date::DATE < CURRENT_DATE
-          AND m.expiry_date IS NOT NULL
-          ${province_code ? 'AND m.province_code = $1' : ''}
-        ORDER BY m.province_name, m.municipality_name, m.expiry_date DESC
-      `;
-
-      const params = province_code ? [province_code] : [];
-      const expiredMembers = await executeQuery(expiredMembersQuery, params);
-
-      // Create worksheet
-      const worksheet = workbook.addWorksheet('Expired Members');
-
-      // Define columns
-      worksheet.columns = [
-        { header: 'Full Name', key: 'Full Name', width: 35 },
-        { header: 'ID Number', key: 'ID Number', width: 18 },
-        { header: 'Phone Number', key: 'Phone Number', width: 18 },
-        { header: 'Province', key: 'Province', width: 20 },
-        { header: 'Municipality', key: 'Municipality', width: 30 },
-        { header: 'Ward', key: 'Ward', width: 15 },
-        { header: 'Expiry Date', key: 'Expiry Date', width: 15 },
-        { header: 'Days Expired', key: 'Days Expired', width: 15 }
-      ];
-
-      // Add data rows
-      expiredMembers.forEach((row: any) => {
-        worksheet.addRow({
-          'Full Name': row['Full Name'],
-          'ID Number': row['ID Number'],
-          'Phone Number': row['Phone Number'],
-          'Province': row['Province'],
-          'Municipality': row['Municipality'],
-          'Ward': row['Ward'],
-          'Expiry Date': row['Expiry Date'] ? new Date(row['Expiry Date']).toISOString().split('T')[0] : '',
-          'Days Expired': row['Days Expired']
-        });
-      });
-
-      // Apply styling
-      this.styleExcelJSSheet(worksheet, expiredMembers.length, 8);
-
-      // Generate buffer
-      const buffer = await workbook.xlsx.writeBuffer();
-      return Buffer.from(buffer);
-
-    } catch (error: any) {
-      throw new Error(`Failed to generate expired members Excel report: ${error.message}`);
-    }
-  }
-
-  /**
-   * Generate Expiring Members Report (Excel or CSV)
-   * Lists members whose membership expires on or after 1st October 2026
-   */
-  static async generateExpiringMembersReport(filters: {
-    province_code?: string;
-    municipality_code?: string;
-  }, format: 'excel' | 'csv' = 'excel'): Promise<Buffer> {
-    try {
-      const { province_code, municipality_code } = filters;
-
-      // Build dynamic query with parameterized filters
-      const conditions: string[] = [
-        'm.expiry_date IS NOT NULL',
-        `m.expiry_date >= '2026-10-01'`
-      ];
+      const conditions: string[] = ['m.expiry_date IS NOT NULL'];
       const params: any[] = [];
       let paramIndex = 1;
+
+      if (type === 'expired') {
+        // Always restrict to past dates
+        conditions.push('m.expiry_date::DATE < CURRENT_DATE');
+        if (expiry_date_from) {
+          conditions.push(`m.expiry_date::DATE >= $${paramIndex}::DATE`);
+          params.push(expiry_date_from);
+          paramIndex++;
+        }
+        if (expiry_date_to) {
+          conditions.push(`m.expiry_date::DATE <= $${paramIndex}::DATE`);
+          params.push(expiry_date_to);
+          paramIndex++;
+        }
+      } else {
+        // Always restrict to present / future dates
+        conditions.push('m.expiry_date::DATE >= CURRENT_DATE');
+        if (expiry_date_from) {
+          conditions.push(`m.expiry_date::DATE >= $${paramIndex}::DATE`);
+          params.push(expiry_date_from);
+          paramIndex++;
+        }
+        if (expiry_date_to) {
+          conditions.push(`m.expiry_date::DATE <= $${paramIndex}::DATE`);
+          params.push(expiry_date_to);
+          paramIndex++;
+        }
+      }
 
       if (province_code) {
         conditions.push(`m.province_code = $${paramIndex}`);
@@ -1263,10 +1215,11 @@ export class ExcelReportService {
         paramIndex++;
       }
 
-      const expiringMembersQuery = `
+      const query = `
         SELECT
           CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
           m.id_number AS "ID Number",
+          COALESCE(m.cell_number, '') AS "Cell Number",
           m.ward_code AS "Ward Code",
           m.municipality_code AS "Municipality Code",
           m.municipality_name AS "Municipality Name",
@@ -1278,26 +1231,28 @@ export class ExcelReportService {
           m.expiry_date AS "Expiry Date"
         FROM members_consolidated m
         WHERE ${conditions.join(' AND ')}
-        ORDER BY m.province_name, m.municipality_name, m.ward_code, CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname)
+        ORDER BY m.province_name, m.municipality_name, m.ward_code,
+                 CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname)
       `;
 
-      const expiringMembers = await executeQuery(expiringMembersQuery, params);
+      const members = await executeQuery(query, params);
+
+      const sheetName = type === 'expired' ? 'Expired Members' : 'Expiring Members';
+      const columnHeaders = [
+        'Full Name', 'ID Number', 'Cell Number', 'Ward Code',
+        'Municipality Code', 'Municipality Name', 'Voting District Code',
+        'Province Code', 'Province Name', 'District Code', 'District Name', 'Expiry Date'
+      ];
 
       // CSV format
       if (format === 'csv') {
-        const headers = [
-          'Full Name', 'ID Number', 'Ward Code',
-          'Municipality Code', 'Municipality Name', 'Voting District Code',
-          'Province Code', 'Province Name', 'District Code', 'District Name', 'Expiry Date'
-        ];
-        const csvRows = [headers.join(',')];
-        expiringMembers.forEach((row: any) => {
-          const values = headers.map(h => {
+        const csvRows = [columnHeaders.join(',')];
+        members.forEach((row: any) => {
+          const values = columnHeaders.map(h => {
             let val = row[h] ?? '';
             if (h === 'Expiry Date' && val) {
               val = new Date(val).toISOString().split('T')[0];
             }
-            // Escape CSV values
             const strVal = String(val).replace(/"/g, '""');
             return `"${strVal}"`;
           });
@@ -1311,11 +1266,12 @@ export class ExcelReportService {
       workbook.creator = 'EFF Membership System';
       workbook.created = new Date();
 
-      const worksheet = workbook.addWorksheet('Expiring Members');
+      const worksheet = workbook.addWorksheet(sheetName);
 
       worksheet.columns = [
         { header: 'Full Name', key: 'Full Name', width: 35 },
         { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Cell Number', key: 'Cell Number', width: 18 },
         { header: 'Ward Code', key: 'Ward Code', width: 15 },
         { header: 'Municipality Code', key: 'Municipality Code', width: 20 },
         { header: 'Municipality Name', key: 'Municipality Name', width: 30 },
@@ -1324,13 +1280,14 @@ export class ExcelReportService {
         { header: 'Province Name', key: 'Province Name', width: 20 },
         { header: 'District Code', key: 'District Code', width: 16 },
         { header: 'District Name', key: 'District Name', width: 25 },
-        { header: 'Expiry Date', key: 'Expiry Date', width: 15 }
+        { header: 'Expiry Date', key: 'Expiry Date', width: 15 },
       ];
 
-      expiringMembers.forEach((row: any) => {
+      members.forEach((row: any) => {
         worksheet.addRow({
           'Full Name': row['Full Name'],
           'ID Number': row['ID Number'],
+          'Cell Number': row['Cell Number'],
           'Ward Code': row['Ward Code'],
           'Municipality Code': row['Municipality Code'],
           'Municipality Name': row['Municipality Name'],
@@ -1339,19 +1296,46 @@ export class ExcelReportService {
           'Province Name': row['Province Name'],
           'District Code': row['District Code'],
           'District Name': row['District Name'],
-          'Expiry Date': row['Expiry Date'] ? new Date(row['Expiry Date']).toISOString().split('T')[0] : ''
+          'Expiry Date': row['Expiry Date'] ? new Date(row['Expiry Date']).toISOString().split('T')[0] : '',
         });
       });
 
-      // Apply styling
-      this.styleExcelJSSheet(worksheet, expiringMembers.length, 11);
+      this.styleExcelJSSheet(worksheet, members.length, 12);
 
       const buffer = await workbook.xlsx.writeBuffer();
       return Buffer.from(buffer);
 
     } catch (error: any) {
-      throw new Error(`Failed to generate expiring members report: ${error.message}`);
+      throw new Error(`Failed to generate ${type} members report: ${error.message}`);
     }
+  }
+
+  /**
+   * Generate Expired Members Excel Report
+   * Lists members whose expiry_date < CURRENT_DATE.
+   * Optional date range narrows the window to specific past dates.
+   */
+  static async generateExpiredMembersReport(filters: {
+    province_code?: string;
+    municipality_code?: string;
+    expiry_date_from?: string;
+    expiry_date_to?: string;
+  } = {}): Promise<Buffer> {
+    return this.generateExpiryStatusReport('expired', filters, 'excel');
+  }
+
+  /**
+   * Generate Expiring Members Report (Excel or CSV)
+   * Lists members whose expiry_date >= CURRENT_DATE.
+   * Optional date range defines the look-ahead window.
+   */
+  static async generateExpiringMembersReport(filters: {
+    province_code?: string;
+    municipality_code?: string;
+    expiry_date_from?: string;
+    expiry_date_to?: string;
+  }, format: 'excel' | 'csv' = 'excel'): Promise<Buffer> {
+    return this.generateExpiryStatusReport('expiring', filters, format);
   }
 
   /**
@@ -1374,6 +1358,7 @@ export class ExcelReportService {
         SELECT
           CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
           m.id_number AS "ID Number",
+          COALESCE(m.cell_number, '') AS "Cell Number",
           m.province_name AS "Province",
           m.municipality_name AS "Municipality",
           m.ward_code AS "Ward",
@@ -1403,6 +1388,7 @@ export class ExcelReportService {
       worksheet.columns = [
         { header: 'Full Name', key: 'Full Name', width: 35 },
         { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Cell Number', key: 'Cell Number', width: 18 },
         { header: 'Province', key: 'Province', width: 20 },
         { header: 'Municipality', key: 'Municipality', width: 30 },
         { header: 'Ward', key: 'Ward', width: 15 },
@@ -1413,7 +1399,7 @@ export class ExcelReportService {
       notRegisteredMembers.forEach((row: any) => worksheet.addRow(row));
 
       // Apply styling
-      this.styleExcelJSSheet(worksheet, notRegisteredMembers.length, 6);
+      this.styleExcelJSSheet(worksheet, notRegisteredMembers.length, 7);
 
       // Generate buffer
       const buffer = await workbook.xlsx.writeBuffer();
@@ -1444,6 +1430,7 @@ export class ExcelReportService {
         SELECT
           CONCAT(m.firstname, ' ', COALESCE(m.middle_name, ''), ' ', m.surname) AS "Full Name",
           m.id_number AS "ID Number",
+          COALESCE(m.cell_number, '') AS "Cell Number",
           m.ward_code AS "Membership Ward",
           m.voter_district_code AS "Registered Ward",
           m.province_name AS "Province",
@@ -1464,6 +1451,7 @@ export class ExcelReportService {
       worksheet.columns = [
         { header: 'Full Name', key: 'Full Name', width: 35 },
         { header: 'ID Number', key: 'ID Number', width: 18 },
+        { header: 'Cell Number', key: 'Cell Number', width: 18 },
         { header: 'Membership Ward', key: 'Membership Ward', width: 20 },
         { header: 'Registered Ward', key: 'Registered Ward', width: 20 },
         { header: 'Province', key: 'Province', width: 20 },
@@ -1474,7 +1462,7 @@ export class ExcelReportService {
       differentWardMembers.forEach((row: any) => worksheet.addRow(row));
 
       // Apply styling
-      this.styleExcelJSSheet(worksheet, differentWardMembers.length, 6);
+      this.styleExcelJSSheet(worksheet, differentWardMembers.length, 7);
 
       // Generate buffer
       const buffer = await workbook.xlsx.writeBuffer();
@@ -1488,6 +1476,168 @@ export class ExcelReportService {
   /**
    * Save Excel report to file
    */
+  /**
+   * Generate Deceased Member Purge Report (Excel)
+   * Sheet 1: Summary — one row per purge run with totals
+   * Sheet 2: Province Breakdown — deceased counts per province across all runs
+   * Sheet 3: Individual Records — full archive of all deceased members detected
+   */
+  static async generateDeceasedPurgeReport(filters: {
+    province_code?: string;
+    run_id?: number;
+  } = {}): Promise<Buffer> {
+    const { province_code, run_id } = filters;
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'EFF Membership System';
+    workbook.created = new Date();
+
+    // ── Sheet 1: Run Summary ───────────────────────────────────────────────
+    const summarySheet = workbook.addWorksheet('Run Summary');
+    summarySheet.columns = [
+      { header: 'Run #',           key: 'run_id',          width: 10 },
+      { header: 'Run Date',        key: 'run_date',         width: 15 },
+      { header: 'Status',          key: 'status',           width: 14 },
+      { header: 'Total Scanned',   key: 'total_scanned',    width: 16 },
+      { header: 'Deceased Found',  key: 'deceased_found',   width: 16 },
+      { header: 'Records Deleted', key: 'records_deleted',  width: 17 },
+      { header: 'Errors',          key: 'errors_count',     width: 10 },
+      { header: 'Started At',      key: 'started_at',       width: 22 },
+      { header: 'Completed At',    key: 'completed_at',     width: 22 },
+    ];
+
+    const runsConditions: string[] = [];
+    const runsParams: unknown[] = [];
+    if (run_id) { runsConditions.push(`run_id = $${runsParams.length + 1}`); runsParams.push(run_id); }
+    const runsWhere = runsConditions.length ? `WHERE ${runsConditions.join(' AND ')}` : '';
+
+    const runs = await executeQuery(
+      `SELECT run_id, run_date, status, total_scanned, deceased_found,
+              records_deleted, errors_count, started_at, completed_at
+       FROM deceased_purge_runs ${runsWhere}
+       ORDER BY run_id DESC`,
+      runsParams as any[]
+    );
+
+    runs.forEach((r: any) => {
+      summarySheet.addRow({
+        run_id:          r.run_id,
+        run_date:        r.run_date ? new Date(r.run_date).toISOString().split('T')[0] : '',
+        status:          r.status,
+        total_scanned:   r.total_scanned,
+        deceased_found:  r.deceased_found,
+        records_deleted: r.records_deleted,
+        errors_count:    r.errors_count,
+        started_at:      r.started_at ? new Date(r.started_at).toLocaleString('en-ZA') : '',
+        completed_at:    r.completed_at ? new Date(r.completed_at).toLocaleString('en-ZA') : '',
+      });
+    });
+    this.styleExcelJSSheet(summarySheet, runs.length, 9);
+
+    // ── Sheet 2: Province Breakdown ────────────────────────────────────────
+    const provinceSheet = workbook.addWorksheet('Province Breakdown');
+    provinceSheet.columns = [
+      { header: 'Province Code', key: 'province_code', width: 16 },
+      { header: 'Province',      key: 'province_name', width: 22 },
+      { header: 'Total Deceased', key: 'total_deceased', width: 17 },
+      { header: 'Total Deleted',  key: 'total_deleted',  width: 16 },
+      { header: 'Last Detected',  key: 'last_detected',  width: 22 },
+    ];
+
+    const provinceConditions: string[] = [];
+    const provinceParams: unknown[] = [];
+    if (province_code) { provinceConditions.push(`province_code = $${provinceParams.length + 1}`); provinceParams.push(province_code); }
+    if (run_id)        { provinceConditions.push(`purge_run_id = $${provinceParams.length + 1}`);  provinceParams.push(run_id); }
+    const provinceWhere = provinceConditions.length ? `WHERE ${provinceConditions.join(' AND ')}` : '';
+
+    const provinceSummary = await executeQuery(
+      `SELECT
+         province_code,
+         COUNT(*) AS total_deceased,
+         COUNT(*) AS total_deleted,
+         MAX(detected_date) AS last_detected
+       FROM deceased_members_archive
+       ${provinceWhere}
+       GROUP BY province_code
+       ORDER BY total_deceased DESC`,
+      provinceParams as any[]
+    );
+
+    const PROVINCE_NAMES: Record<string, string> = {
+      GP: 'Gauteng', KZN: 'KwaZulu-Natal', EC: 'Eastern Cape',
+      LP: 'Limpopo', MP: 'Mpumalanga', NW: 'North West',
+      WC: 'Western Cape', FS: 'Free State', NC: 'Northern Cape',
+    };
+
+    provinceSummary.forEach((r: any) => {
+      provinceSheet.addRow({
+        province_code:   r.province_code,
+        province_name:   PROVINCE_NAMES[r.province_code] ?? r.province_code,
+        total_deceased:  parseInt(r.total_deceased, 10),
+        total_deleted:   parseInt(r.total_deleted, 10),
+        last_detected:   r.last_detected ? new Date(r.last_detected).toLocaleString('en-ZA') : '',
+      });
+    });
+    this.styleExcelJSSheet(provinceSheet, provinceSummary.length, 5);
+
+    // ── Sheet 3: Individual Records ────────────────────────────────────────
+    const recordsSheet = workbook.addWorksheet('Individual Records');
+    recordsSheet.columns = [
+      { header: 'Archive ID',      key: 'archive_id',       width: 12 },
+      { header: 'Run #',           key: 'purge_run_id',     width: 8 },
+      { header: 'ID Number',       key: 'id_number',        width: 16 },
+      { header: 'First Name',      key: 'firstname',        width: 20 },
+      { header: 'Surname',         key: 'surname',          width: 20 },
+      { header: 'Province',        key: 'province_name',    width: 20 },
+      { header: 'Municipality',    key: 'municipality_code', width: 18 },
+      { header: 'Ward',            key: 'ward_code',        width: 12 },
+      { header: 'Membership #',    key: 'membership_number', width: 16 },
+      { header: 'Cell Number',     key: 'cell_number',      width: 16 },
+      { header: 'Date Joined',     key: 'date_joined',      width: 14 },
+      { header: 'IEC Voter Status', key: 'iec_voter_status', width: 20 },
+      { header: 'Detected Date',   key: 'detected_date',    width: 22 },
+    ];
+
+    const recordConditions: string[] = [];
+    const recordParams: unknown[] = [];
+    if (province_code) { recordConditions.push(`province_code = $${recordParams.length + 1}`); recordParams.push(province_code); }
+    if (run_id)        { recordConditions.push(`purge_run_id = $${recordParams.length + 1}`);  recordParams.push(run_id); }
+    const recordWhere = recordConditions.length ? `WHERE ${recordConditions.join(' AND ')}` : '';
+
+    const records = await executeQuery(
+      `SELECT archive_id, purge_run_id, id_number, firstname, surname,
+              province_code, municipality_code, ward_code,
+              membership_number, cell_number, date_joined,
+              iec_voter_status, detected_date
+       FROM deceased_members_archive
+       ${recordWhere}
+       ORDER BY detected_date DESC`,
+      recordParams as any[]
+    );
+
+    records.forEach((r: any) => {
+      recordsSheet.addRow({
+        archive_id:        r.archive_id,
+        purge_run_id:      r.purge_run_id,
+        id_number:         r.id_number,
+        firstname:         r.firstname,
+        surname:           r.surname,
+        province_name:     PROVINCE_NAMES[r.province_code] ?? r.province_code,
+        municipality_code: r.municipality_code,
+        ward_code:         r.ward_code,
+        membership_number: r.membership_number,
+        cell_number:       r.cell_number,
+        date_joined:       r.date_joined ? new Date(r.date_joined).toISOString().split('T')[0] : '',
+        iec_voter_status:  r.iec_voter_status,
+        detected_date:     r.detected_date ? new Date(r.detected_date).toLocaleString('en-ZA') : '',
+      });
+    });
+    this.styleExcelJSSheet(recordsSheet, records.length, 13);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
   static async saveReportToFile(buffer: Buffer, fileName: string): Promise<string> {
     try {
       const reportsDir = path.join(process.cwd(), 'reports');

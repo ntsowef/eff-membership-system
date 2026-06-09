@@ -1,0 +1,301 @@
+{
+  "tables": [
+    {
+      "table_name": "audit_logs"
+    },
+    {
+      "table_name": "deceased_members_archive"
+    },
+    {
+      "table_name": "members"
+    },
+    {
+      "table_name": "members_consolidated"
+    }
+  ],
+  "constraints_on_members": [],
+  "constraints_on_members_consolidated": [
+    {
+      "name": "application_approval_history_member_id_fkey",
+      "from_table": "application_approval_history",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "birthday_messages_sent_member_id_fkey",
+      "from_table": "birthday_messages_sent",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "bulk_notification_recipients_member_id_fkey",
+      "from_table": "bulk_notification_recipients",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "documents_member_id_fkey",
+      "from_table": "documents",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "election_candidates_member_id_fkey",
+      "from_table": "election_candidates",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "election_votes_voter_member_id_fkey",
+      "from_table": "election_votes",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (voter_member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "financial_operations_audit_member_id_fkey",
+      "from_table": "financial_operations_audit",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "fk_ward_audit_presiding_officer",
+      "from_table": "ward_compliance_audit_log",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (presiding_officer_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "fk_ward_delegates_member",
+      "from_table": "ward_delegates",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "fk_ward_meeting_presiding_officer",
+      "from_table": "ward_meeting_records",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (presiding_officer_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "fk_ward_meeting_secretary",
+      "from_table": "ward_meeting_records",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (secretary_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "leadership_appointments_member_id_fkey",
+      "from_table": "leadership_appointments",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "leadership_election_candidates_member_id_fkey",
+      "from_table": "leadership_election_candidates",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "leadership_election_candidates_nominated_by_fkey",
+      "from_table": "leadership_election_candidates",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (nominated_by) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "leadership_election_candidates_seconded_by_fkey",
+      "from_table": "leadership_election_candidates",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (seconded_by) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "leadership_election_votes_voter_id_fkey",
+      "from_table": "leadership_election_votes",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (voter_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "leadership_meeting_attendees_member_id_fkey",
+      "from_table": "leadership_meeting_attendees",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "leadership_succession_plans_successor_member_id_fkey",
+      "from_table": "leadership_succession_plans",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (successor_member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "leadership_terms_member_id_fkey",
+      "from_table": "leadership_terms",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "meeting_action_items_assigned_to_fkey",
+      "from_table": "meeting_action_items",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (assigned_to) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "meeting_agenda_items_presenter_id_fkey",
+      "from_table": "meeting_agenda_items",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (presenter_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "meeting_attendance_member_id_fkey",
+      "from_table": "meeting_attendance",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "meeting_decisions_proposed_by_fkey",
+      "from_table": "meeting_decisions",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (proposed_by) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "meeting_decisions_seconded_by_fkey",
+      "from_table": "meeting_decisions",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (seconded_by) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "meetings_meeting_chair_id_fkey",
+      "from_table": "meetings",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (meeting_chair_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "meetings_meeting_secretary_id_fkey",
+      "from_table": "meetings",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (meeting_secretary_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "member_cache_summary_member_id_fkey",
+      "from_table": "member_cache_summary",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "member_notes_member_id_fkey",
+      "from_table": "member_notes",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "member_transfers_member_id_fkey",
+      "from_table": "member_transfers",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "membership_renewals_member_id_fkey",
+      "from_table": "membership_renewals",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "memberships_member_id_fkey",
+      "from_table": "membership_history",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "notifications_member_id_fkey",
+      "from_table": "notifications",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "payments_member_id_fkey",
+      "from_table": "payments",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "renewal_approvals_member_id_fkey",
+      "from_table": "renewal_approvals",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "renewal_audit_trail_member_id_fkey",
+      "from_table": "renewal_audit_trail",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "renewal_bulk_operation_items_member_id_fkey",
+      "from_table": "renewal_bulk_operation_items",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "renewal_financial_audit_trail_member_id_fkey",
+      "from_table": "renewal_financial_audit_trail",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "renewal_manual_notes_member_id_fkey",
+      "from_table": "renewal_manual_notes",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "renewal_pricing_overrides_member_id_fkey",
+      "from_table": "renewal_pricing_overrides",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "sms_contact_list_members_member_id_fkey",
+      "from_table": "sms_contact_list_members",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "sms_messages_member_id_fkey",
+      "from_table": "sms_messages",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "users_member_id_fkey",
+      "from_table": "users",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE SET NULL"
+    },
+    {
+      "name": "whatsapp_bot_logs_member_id_fkey",
+      "from_table": "whatsapp_bot_logs",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id)"
+    },
+    {
+      "name": "whatsapp_bot_sessions_member_id_fkey",
+      "from_table": "whatsapp_bot_sessions",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id)"
+    },
+    {
+      "name": "whatsapp_notification_queue_member_id_fkey",
+      "from_table": "whatsapp_notification_queue",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id)"
+    },
+    {
+      "name": "communication_group_members_member_id_fkey",
+      "from_table": "communication_group_members",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    },
+    {
+      "name": "member_renewal_log_member_id_fkey",
+      "from_table": "member_renewal_log",
+      "to_table": "members_consolidated",
+      "def": "FOREIGN KEY (member_id) REFERENCES members_consolidated(member_id) ON DELETE CASCADE"
+    }
+  ]
+}

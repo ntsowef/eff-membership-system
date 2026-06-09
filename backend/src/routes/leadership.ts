@@ -108,12 +108,13 @@ router.get('/positions', async (req: Request, res: Response, next: NextFunction)
 router.get('/appointments', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 10000);
     const offset = (page - 1) * limit;
 
     const filters: any = {};
     if (req.query.hierarchy_level) filters.hierarchy_level = req.query.hierarchy_level as string;
     if (req.query.entity_id) filters.entity_id = parseInt(req.query.entity_id as string);
+    if (req.query.province_id) filters.province_id = parseInt(req.query.province_id as string);
     if (req.query.position_id) filters.position_id = parseInt(req.query.position_id as string);
     if (req.query.member_id) filters.member_id = parseInt(req.query.member_id as string);
     if (req.query.appointment_type) filters.appointment_type = req.query.appointment_type as string;
@@ -150,12 +151,13 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
 router.get('/appointments/history', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 10000);
     const offset = (page - 1) * limit;
 
     const filters: any = {};
     if (req.query.hierarchy_level) filters.hierarchy_level = req.query.hierarchy_level as string;
     if (req.query.entity_id) filters.entity_id = parseInt(req.query.entity_id as string);
+    if (req.query.province_id) filters.province_id = parseInt(req.query.province_id as string);
     if (req.query.position_id) filters.position_id = parseInt(req.query.position_id as string);
     if (req.query.member_id) filters.member_id = parseInt(req.query.member_id as string);
     if (req.query.appointment_status) filters.appointment_status = req.query.appointment_status as string;
@@ -194,33 +196,33 @@ router.post('/appointments',
   authenticate,
   requireLeadershipManagementPermission(),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { error, value } = createAppointmentSchema.validate(req.body);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
+    try {
+      const { error, value } = createAppointmentSchema.validate(req.body);
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
+
+      const appointmentData = {
+        ...value,
+        appointed_by: (req as any).user?.id || (req as any).user?.user_id
+      };
+
+      const appointmentId = await LeadershipService.createAppointment(appointmentData);
+
+      // Audit logging removed for development
+
+      res.status(201).json({
+        success: true,
+        message: 'Leadership appointment created successfully',
+        data: {
+          appointment_id: appointmentId
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const appointmentData = {
-      ...value,
-      appointed_by: (req as any).user?.id || (req as any).user?.user_id
-    };
-
-    const appointmentId = await LeadershipService.createAppointment(appointmentData);
-
-    // Audit logging removed for development
-
-    res.status(201).json({
-      success: true,
-      message: 'Leadership appointment created successfully',
-      data: {
-        appointment_id: appointmentId
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Get appointment by ID
 router.get('/appointments/:id', async (req: Request, res: Response, next: NextFunction) => {
@@ -253,78 +255,80 @@ router.post('/appointments/:id/terminate',
   authenticate,
   requireLeadershipManagementPermission(),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const appointmentId = parseInt(req.params.id);
-    if (isNaN(appointmentId)) {
-      throw new ValidationError('Invalid appointment ID');
+    try {
+      const appointmentId = parseInt(req.params.id);
+      if (isNaN(appointmentId)) {
+        throw new ValidationError('Invalid appointment ID');
+      }
+
+      const { error, value } = terminateAppointmentSchema.validate(req.body);
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
+
+      const terminatedBy = (req as any).user?.id || (req as any).user?.user_id;
+      const success = await LeadershipService.terminateAppointment(
+        appointmentId,
+        terminatedBy,
+        value.termination_reason,
+        value.end_date
+      );
+
+      if (!success) {
+        throw new NotFoundError('Appointment not found or could not be terminated');
+      }
+
+      // Audit logging removed for development
+
+      res.json({
+        success: true,
+        message: 'Leadership appointment terminated successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const { error, value } = terminateAppointmentSchema.validate(req.body);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
-    }
-
-    const success = await LeadershipService.terminateAppointment(
-      appointmentId,
-      1, // Default system user for development
-      value.termination_reason,
-      value.end_date
-    );
-
-    if (!success) {
-      throw new NotFoundError('Appointment not found or could not be terminated');
-    }
-
-    // Audit logging removed for development
-
-    res.json({
-      success: true,
-      message: 'Leadership appointment terminated successfully',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Remove member from leadership position (makes position vacant)
 router.post('/appointments/:id/remove',
   authenticate,
   requireLeadershipManagementPermission(),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const appointmentId = parseInt(req.params.id);
-    if (isNaN(appointmentId)) {
-      throw new ValidationError('Invalid appointment ID');
+    try {
+      const appointmentId = parseInt(req.params.id);
+      if (isNaN(appointmentId)) {
+        throw new ValidationError('Invalid appointment ID');
+      }
+
+      const { error, value } = Joi.object({
+        removal_reason: Joi.string().min(5).max(500).required()
+      }).validate(req.body);
+
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
+
+      const removedBy = (req as any).user?.id || (req as any).user?.user_id;
+      const success = await LeadershipService.removeFromPosition(
+        appointmentId,
+        removedBy,
+        value.removal_reason
+      );
+
+      if (!success) {
+        throw new NotFoundError('Appointment not found or could not be removed');
+      }
+
+      res.json({
+        success: true,
+        message: 'Member removed from leadership position successfully. Position is now vacant.',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const { error, value } = Joi.object({
-      removal_reason: Joi.string().min(5).max(500).required()
-    }).validate(req.body);
-
-    if (error) {
-      throw new ValidationError(error.details[0].message);
-    }
-
-    const success = await LeadershipService.removeFromPosition(
-      appointmentId,
-      1, // Default system user for development
-      value.removal_reason
-    );
-
-    if (!success) {
-      throw new NotFoundError('Appointment not found or could not be removed');
-    }
-
-    res.json({
-      success: true,
-      message: 'Member removed from leadership position successfully. Position is now vacant.',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Get leadership structure for an entity
 router.get('/structure/:hierarchyLevel/:entityId', async (req: Request, res: Response, next: NextFunction) => {
@@ -350,6 +354,83 @@ router.get('/structure/:hierarchyLevel/:entityId', async (req: Request, res: Res
         hierarchy_level: hierarchyLevel,
         entity_id: entityId,
         leadership_structure: structure
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get provincial leadership overview - all municipal SRCT structures in a province
+router.get('/structure/provincial-overview/:provinceId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const provinceId = parseInt(req.params.provinceId);
+    if (isNaN(provinceId)) {
+      throw new ValidationError('Invalid province ID');
+    }
+
+    const rawData = await LeadershipModel.getProvincialLeadershipOverview(provinceId);
+
+    // Group by municipality
+    const municipalityMap = new Map<number, any>();
+
+    for (const row of rawData) {
+      if (!municipalityMap.has(row.municipality_id)) {
+        municipalityMap.set(row.municipality_id, {
+          municipality_id: row.municipality_id,
+          municipality_name: row.municipality_name,
+          municipality_code: row.municipality_code,
+          municipality_type: row.municipality_type,
+          positions: [],
+          stats: { total: 0, filled: 0, vacant: 0 }
+        });
+      }
+
+      const mun = municipalityMap.get(row.municipality_id)!;
+      mun.positions.push({
+        position_id: row.position_id,
+        position_name: row.position_name,
+        position_code: row.position_code,
+        position_order: row.position_order,
+        appointment_id: row.appointment_id,
+        member_id: row.member_id,
+        member_name: row.member_name,
+        membership_number: row.membership_number,
+        appointment_type: row.appointment_type,
+        start_date: row.start_date,
+        position_status: row.position_status
+      });
+
+      mun.stats.total++;
+      if (row.position_status === 'Filled') {
+        mun.stats.filled++;
+      } else {
+        mun.stats.vacant++;
+      }
+    }
+
+    const municipalities = Array.from(municipalityMap.values());
+
+    // Global stats
+    const totalMunicipalities = municipalities.length;
+    const totalPositions = municipalities.reduce((s, m) => s + m.stats.total, 0);
+    const totalFilled = municipalities.reduce((s, m) => s + m.stats.filled, 0);
+    const totalVacant = municipalities.reduce((s, m) => s + m.stats.vacant, 0);
+
+    res.json({
+      success: true,
+      message: 'Provincial leadership overview retrieved successfully',
+      data: {
+        province_id: provinceId,
+        summary: {
+          total_municipalities: totalMunicipalities,
+          total_positions: totalPositions,
+          total_filled: totalFilled,
+          total_vacant: totalVacant,
+          fill_rate: totalPositions > 0 ? Math.round((totalFilled / totalPositions) * 100) : 0
+        },
+        municipalities
       },
       timestamp: new Date().toISOString()
     });

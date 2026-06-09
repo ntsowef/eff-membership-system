@@ -1,0 +1,8 @@
+Active sessions: 0
+Total sessions: 678
+Recent sessions:
+{"session_id":"887170e8103fa2e775e37d861004c2681701bbae01044e2468d6a07d921c2f01","user_id":8571,"is_active":true,"expires_at":"2026-02-21T20:07:50.016Z","last_activity":"2026-02-21T19:57:49.944Z","created_at":"2026-02-21T19:57:49.944Z"}
+{"session_id":"151fd7e24e6fae0938bad16c891385200db0e702a45b54c7de328cadf3d38ab9","user_id":8571,"is_active":true,"expires_at":"2026-02-21T19:39:09.169Z","last_activity":"2026-02-21T19:29:08.667Z","created_at":"2026-02-21T19:29:08.667Z"}
+{"session_id":"f6f9744191a7fd967262a60c12d1abe6b4b527a2c397b5c4201a7d920970a8c1","user_id":8571,"is_active":true,"expires_at":"2026-02-21T17:42:48.662Z","last_activity":"2026-02-21T17:32:48.672Z","created_at":"2026-02-21T17:32:48.672Z"}
+{"session_id":"db89a88ab42ff2537faf1a74e136418b7e358be4d10ae512f0bc1f5e0daa3778","user_id":8571,"is_active":true,"expires_at":"2026-02-21T17:24:59.025Z","last_activity":"2026-02-21T17:14:59.159Z","created_at":"2026-02-21T17:14:59.159Z"}
+{"session_id":"6e904e4e7575d4e4304b3f4fe4d2c1ebf0c3bfcf2fc5f22cf0ff4b43467dfe42","user_id":8571,"is_active":true,"expires_at":"2026-02-21T17:03:39.308Z","last_activity":"2026-02-21T16:53:39.677Z","created_at":"2026-02-21T16:53:39.677Z"}

@@ -178,7 +178,7 @@ const LeadershipAssignment: React.FC<LeadershipAssignmentProps> = ({
   const { data: positions = [], isLoading: positionsLoading, error: positionsError } = useQuery({
     queryKey: ['leadership-positions', selectedHierarchyLevel, geographicSelection?.entityId, showVacantOnly],
     queryFn: () => LeadershipAPI.getPositions(buildPositionFilters()),
-    enabled: !!selectedHierarchyLevel && (selectedHierarchyLevel === 'National' || !!geographicSelection),
+    enabled: !!selectedHierarchyLevel && (selectedHierarchyLevel === 'National' || !!geographicSelection?.entityId),
   });
 
   // Filter positions by search term and vacancy status
@@ -422,7 +422,7 @@ const LeadershipAssignment: React.FC<LeadershipAssignmentProps> = ({
               </Alert>
             )}
 
-            {selectedHierarchyLevel && selectedHierarchyLevel !== 'National' && !geographicSelection && (
+            {selectedHierarchyLevel && selectedHierarchyLevel !== 'National' && !geographicSelection?.entityId && (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 Please complete the geographic selection to view positions for {selectedHierarchyLevel.toLowerCase()} level.
               </Alert>

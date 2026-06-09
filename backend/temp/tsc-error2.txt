@@ -1,0 +1,3 @@
+Generating Voting District Report (1 member per VD, 1 sheet, relaxed phone rules)...
+Successfully generated report: test_voting_district_report_single.xlsx
+File size: 14552 bytes

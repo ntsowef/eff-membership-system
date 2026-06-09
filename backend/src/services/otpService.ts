@@ -59,7 +59,7 @@ export interface OTPValidationResult {
 
 export class OTPService {
   private static readonly OTP_LENGTH = 6;
-  private static readonly OTP_VALIDITY_HOURS = 24;
+  private static readonly OTP_VALIDITY_MINUTES = 10;
   private static readonly SESSION_VALIDITY_HOURS = 24;
   private static readonly MAX_ATTEMPTS = 5;
   private static readonly SALT_ROUNDS = 10;
@@ -99,36 +99,19 @@ export class OTPService {
    * National and Super Admin users do NOT require MFA
    */
   static requiresMFA(adminLevel: string, roleName?: string): boolean {
-    // Super admin and national admin do NOT require MFA
-    // Check for SUPER_ADMIN role_code (uppercase)
-    if (roleName === 'SUPER_ADMIN' || adminLevel.toLowerCase() === 'national') {
-      return false;
-    }
-
-    // Only province, municipality, and ward admins require MFA
-    const mfaRequiredLevels = ['province', 'municipality', 'ward'];
-    return mfaRequiredLevels.includes(adminLevel.toLowerCase());
+    // OTP/MFA globally disabled — no user requires MFA
+    return false;
   }
 
   /**
    * Check if user requires MFA, considering bypass permissions
    * Returns false if user has active bypass permission
+   * 
+   * NOTE: OTP/MFA has been globally disabled. All users bypass OTP verification.
    */
   static async requiresMFAWithBypassCheck(userId: number, adminLevel: string, roleName?: string): Promise<boolean> {
-    // First check if MFA is required based on role
-    if (!this.requiresMFA(adminLevel, roleName)) {
-      return false;
-    }
-
-    // Check if user has an active bypass permission
-    const hasActiveBypass = await EmergencyAccessService.hasActiveBypass(userId);
-
-    if (hasActiveBypass) {
-      console.log(`🔓 User ${userId} has active MFA bypass permission`);
-      return false;
-    }
-
-    return true;
+    // OTP/MFA globally disabled — all users skip OTP verification
+    return false;
   }
 
   /**
@@ -145,9 +128,9 @@ export class OTPService {
       const otpCode = this.generateOTPCode();
       const otpHash = await this.hashOTP(otpCode);
 
-      // Calculate expiry time (24 hours from now)
+      // Calculate expiry time (10 minutes from now)
       const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + this.OTP_VALIDITY_HOURS);
+      expiresAt.setMinutes(expiresAt.getMinutes() + this.OTP_VALIDITY_MINUTES);
 
       // Insert OTP record into database
       const query = `
@@ -243,6 +226,9 @@ export class OTPService {
   ): Promise<OTPValidationResult> {
     try {
       // Get active OTP for user
+      // Note: We intentionally do NOT check is_expired here because the DB trigger
+      // or mark_expired_otps() can set it prematurely. Instead we rely solely on
+      // expires_at > CURRENT_TIMESTAMP to determine if the OTP is still valid.
       const query = `
         SELECT
           otp_id,
@@ -255,16 +241,28 @@ export class OTPService {
         FROM user_otp_codes
         WHERE user_id = $1
           AND is_validated = FALSE
-          AND is_expired = FALSE
           AND expires_at > CURRENT_TIMESTAMP
           AND invalidated_at IS NULL
         ORDER BY generated_at DESC
         LIMIT 1
       `;
 
+      console.log(`🔍 Looking up active OTP for user ${userId}`);
       const result = await executeQuery(query, [userId]);
 
       if (result.length === 0) {
+        // Debug: check if there are ANY recent OTPs for this user
+        const debugQuery = `
+          SELECT otp_id, is_validated, is_expired, expires_at, invalidated_at, invalidation_reason,
+                 generated_at, attempts_count
+          FROM user_otp_codes
+          WHERE user_id = $1
+          ORDER BY generated_at DESC
+          LIMIT 3
+        `;
+        const debugResult = await executeQuery(debugQuery, [userId]);
+        console.log(`❌ No active OTP found for user ${userId}. Recent OTP records:`, JSON.stringify(debugResult, null, 2));
+
         // Audit log: OTP validation failed - no active OTP
         await logOTPValidationFailed(userId, undefined, 'No active OTP found', 0);
 
@@ -360,6 +358,7 @@ export class OTPService {
           AND session_token = $2
           AND is_validated = TRUE
           AND session_expires_at > CURRENT_TIMESTAMP
+          AND invalidated_at IS NULL
         LIMIT 1
       `;
 
@@ -395,12 +394,12 @@ export class OTPService {
    */
   static async getActiveOTP(userId: number): Promise<OTPRecord | null> {
     try {
+      // Note: Do NOT check is_expired here — rely on expires_at > CURRENT_TIMESTAMP
       const query = `
         SELECT *
         FROM user_otp_codes
         WHERE user_id = $1
           AND is_validated = FALSE
-          AND is_expired = FALSE
           AND expires_at > CURRENT_TIMESTAMP
           AND invalidated_at IS NULL
         ORDER BY generated_at DESC
@@ -426,6 +425,7 @@ export class OTPService {
         WHERE user_id = $1
           AND is_validated = TRUE
           AND session_expires_at > CURRENT_TIMESTAMP
+          AND invalidated_at IS NULL
         ORDER BY validated_at DESC
         LIMIT 1
       `;
@@ -470,11 +470,11 @@ export class OTPService {
     try {
       const query = `
         DELETE FROM user_otp_codes
-        WHERE generated_at < CURRENT_TIMESTAMP - INTERVAL '${daysOld} days'
+        WHERE generated_at < CURRENT_TIMESTAMP - make_interval(days => $1)
           AND (is_validated = TRUE OR is_expired = TRUE)
       `;
 
-      const result = await executeQuery(query);
+      const result = await executeQuery(query, [daysOld]);
       console.log(`🧹 Cleaned up expired OTPs older than ${daysOld} days`);
       return Array.isArray(result) ? result.length : 0;
     } catch (error) {
@@ -503,7 +503,7 @@ export class OTPService {
       }
 
       // Create SMS message
-      const message = `Your EFF Membership System OTP code is: ${otpCode}. This code is valid for 24 hours. Do not share this code with anyone.`;
+      const message = `Your EFF Membership System OTP code is: ${otpCode}. This code expires in 10 minutes. Do not share this code with anyone.`;
 
       console.log(`📱 Sending OTP to ${formattedNumber}...`);
 
@@ -597,8 +597,8 @@ export class OTPService {
               <p>You have requested to log in to the EFF Membership Management System.</p>
               <p>Your One-Time Password (OTP) is:</p>
               <div class="otp-code">${otpCode}</div>
-              <p><strong>This code is valid for 24 hours.</strong></p>
-              <p>You can use this code for multiple logins within the next 24 hours.</p>
+              <p><strong>This code expires in 10 minutes.</strong></p>
+              <p>Please enter this code promptly before it expires.</p>
               <p class="warning">⚠️ Do not share this code with anyone. EFF staff will never ask for your OTP.</p>
               <p>If you did not request this code, please ignore this email or contact our support team immediately.</p>
             </div>
@@ -618,7 +618,7 @@ You have requested to log in to the EFF Membership Management System.
 
 Your One-Time Password (OTP) is: ${otpCode}
 
-This code is valid for 24 hours. You can use this code for multiple logins within the next 24 hours.
+This code expires in 10 minutes. Please enter it promptly.
 
 ⚠️ Do not share this code with anyone. EFF staff will never ask for your OTP.
 
@@ -709,7 +709,7 @@ This is an automated message from the EFF Membership Management System.
       }
 
       // Create WhatsApp message
-      const message = `Your EFF Membership System OTP code is: ${otpCode}. This code is valid for 24 hours. Do not share this code with anyone.`;
+      const message = `Your EFF Membership System OTP code is: ${otpCode}. This code expires in 10 minutes. Do not share this code with anyone.`;
 
       console.log(`📱 Sending OTP via WhatsApp to ${formattedNumber}...`);
 
@@ -757,26 +757,12 @@ This is an automated message from the EFF Membership Management System.
     userAgent?: string
   ): Promise<{ success: boolean; message: string; expires_at?: Date; otp_id?: number; is_existing?: boolean }> {
     try {
-      // Check if user already has a valid OTP (not expired, within 24 hours)
+      // Invalidate any existing active OTPs before generating a new one
+      // (The DB trigger also does this, but we do it explicitly for clarity)
       const activeOTP = await this.getActiveOTP(userId);
-
       if (activeOTP) {
-        const now = new Date();
-        const expiresAt = new Date(activeOTP.expires_at);
-        const timeUntilExpiry = expiresAt.getTime() - now.getTime();
-
-        // If OTP is still valid (not expired), reuse it
-        if (timeUntilExpiry > 0) {
-          console.log(`♻️ Reusing existing valid OTP for user ${userId}. Expires at ${expiresAt}`);
-
-          return {
-            success: true,
-            message: 'You have an active OTP. Please check your SMS, Email, and WhatsApp for the code sent earlier.',
-            expires_at: activeOTP.expires_at,
-            otp_id: activeOTP.otp_id,
-            is_existing: true
-          };
-        }
+        await this.invalidateOTP(activeOTP.otp_id, 'new_otp_requested');
+        console.log(`🔄 Invalidated previous OTP ${activeOTP.otp_id} for user ${userId}`);
       }
 
       // No valid OTP exists, generate new one
@@ -849,7 +835,7 @@ This is an automated message from the EFF Membership Management System.
 
       return {
         success: true,
-        message: `${deliveryMessage}. The code is valid for 24 hours and can be used for multiple logins.`,
+        message: `${deliveryMessage}. The code expires in 10 minutes.`,
         expires_at: otpResult.expires_at,
         otp_id: otpResult.otp_id,
         is_existing: false

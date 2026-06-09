@@ -99,7 +99,7 @@ const SRPADelegateSetter: React.FC = () => {
 
   // Fetch provinces
   const { data: provinces = [], isLoading: provincesLoading, error: provincesError } = useQuery({
-    queryKey: ['provinces'],
+    queryKey: ['srpa-provinces'],
     queryFn: fetchProvinces,
   });
 

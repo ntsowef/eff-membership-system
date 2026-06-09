@@ -2285,7 +2285,7 @@ export class PDFExportService {
     // Table headers
     const headers = [
       { text: 'Ward Code', x: 40, width: 80 },
-      { text: 'Ward Name', x: 125, width: 120 },
+      { text: 'Ward Code', x: 125, width: 120 },
       { text: 'Municipality', x: 250, width: 100 },
       { text: 'Province', x: 355, width: 80 },
       { text: 'Active', x: 440, width: 60 },
@@ -2337,7 +2337,7 @@ export class PDFExportService {
         (ward.active_members / ward.total_members * 100).toFixed(1) : '0.0';
 
       doc.text(ward.ward_code || '', 40, currentY)
-         .text(this.truncateText(ward.ward_name || '', 15), 125, currentY)
+         .text(ward.ward_code || '', 125, currentY)
          .text(this.truncateText(ward.municipality_name || '', 12), 250, currentY)
          .text(this.truncateText(ward.province_name || '', 8), 355, currentY)
          .text((ward.active_members || 0).toString(), 440, currentY)
@@ -3281,7 +3281,7 @@ export class PDFExportService {
 
       // Right column
       doc.text(`SUB REGION: ${wardInfo.municipality_code} - ${wardInfo.municipality_name}`, rightX, infoY);
-      doc.text(`WARD NAME: ${wardInfo.ward_name}`, rightX, infoY + 15);
+      doc.text(`WARD CODE: ${wardInfo.ward_code}`, rightX, infoY + 15);
       doc.text(`QUORUM: ${quorum}`, rightX, infoY + 30);
       doc.text(`TOTAL VDs: ${totalVotingStations}`, rightX, infoY + 45);
 

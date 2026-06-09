@@ -50,7 +50,7 @@ const createApplicationSchema = Joi.object({
   skills_experience: Joi.string().max(1000).optional(),
   referred_by: Joi.string().max(200).optional(),
   // Payment Information fields
-  payment_method: Joi.string().valid('Cash', 'Bank Transfer', 'EFT', 'Credit Card', 'Debit Card', 'Mobile Payment').optional(),
+  payment_method: Joi.string().valid('Cash', 'Bank Transfer', 'EFT', 'Credit Card', 'Debit Card', 'Mobile Payment', 'Card Payment').optional(),
   payment_reference: Joi.string().max(100).optional(),
   last_payment_date: Joi.date().max('now').optional(),
   payment_amount: Joi.number().positive().precision(2).optional(),

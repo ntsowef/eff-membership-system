@@ -17,15 +17,15 @@
 -- =====================================================================================
 
 -- Standard leadership positions for each metro sub-region:
--- 1. Sub-Region Chairperson
--- 2. Sub-Region Secretary
--- 3. Sub-Region Treasurer
--- 4. Sub-Region Deputy Chairperson
--- 5. Sub-Region Deputy Secretary
--- 6. Sub-Region Youth Leader
--- 7. Sub-Region Women Leader
--- 8. Sub-Region Organizer
--- 9-18. Sub-Region Committee Members (10 members)
+-- 1. Municipal Chairperson
+-- 2. Municipal Secretary
+-- 3. Municipal Treasurer
+-- 4. Municipal Deputy Chairperson
+-- 5. Municipal Deputy Secretary
+-- 6. Municipal Youth Leader
+-- 7. Municipal Women Leader
+-- 8. Municipal Organizer
+-- 9-18. Municipal Committee Members (10 members)
 
 BEGIN;
 
@@ -74,9 +74,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Chairperson',
+            municipality_record.municipality_name || ' Municipal Chairperson',
             'SRCHAIR_' || municipality_record.municipality_code,
-            'Sub-Region Chairperson for ' || municipality_record.municipality_name,
+            'Municipal Chairperson for ' || municipality_record.municipality_name,
             'Municipality',
             'Executive',
             TRUE,
@@ -108,9 +108,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Secretary',
+            municipality_record.municipality_name || ' Municipal Secretary',
             'SRSEC_' || municipality_record.municipality_code,
-            'Sub-Region Secretary for ' || municipality_record.municipality_name,
+            'Municipal Secretary for ' || municipality_record.municipality_name,
             'Municipality',
             'Executive',
             TRUE,
@@ -142,9 +142,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Treasurer',
+            municipality_record.municipality_name || ' Municipal Treasurer',
             'SRTREAS_' || municipality_record.municipality_code,
-            'Sub-Region Treasurer for ' || municipality_record.municipality_name,
+            'Municipal Treasurer for ' || municipality_record.municipality_name,
             'Municipality',
             'Executive',
             TRUE,
@@ -176,9 +176,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Deputy Chairperson',
+            municipality_record.municipality_name || ' Municipal Deputy Chairperson',
             'SRDCHAIR_' || municipality_record.municipality_code,
-            'Sub-Region Deputy Chairperson for ' || municipality_record.municipality_name,
+            'Municipal Deputy Chairperson for ' || municipality_record.municipality_name,
             'Municipality',
             'Executive',
             TRUE,
@@ -210,9 +210,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Deputy Secretary',
+            municipality_record.municipality_name || ' Municipal Deputy Secretary',
             'SRDSEC_' || municipality_record.municipality_code,
-            'Sub-Region Deputy Secretary for ' || municipality_record.municipality_name,
+            'Municipal Deputy Secretary for ' || municipality_record.municipality_name,
             'Municipality',
             'Executive',
             TRUE,
@@ -244,9 +244,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Youth Leader',
+            municipality_record.municipality_name || ' Municipal Youth Leader',
             'SRYOUTH_' || municipality_record.municipality_code,
-            'Sub-Region Youth Leader for ' || municipality_record.municipality_name,
+            'Municipal Youth Leader for ' || municipality_record.municipality_name,
             'Municipality',
             'Sectoral',
             TRUE,
@@ -278,9 +278,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Women Leader',
+            municipality_record.municipality_name || ' Municipal Women Leader',
             'SRWOMEN_' || municipality_record.municipality_code,
-            'Sub-Region Women Leader for ' || municipality_record.municipality_name,
+            'Municipal Women Leader for ' || municipality_record.municipality_name,
             'Municipality',
             'Sectoral',
             TRUE,
@@ -312,9 +312,9 @@ BEGIN
             entity_type
         ) VALUES (
             base_position_id + position_counter,
-            municipality_record.municipality_name || ' Sub-Region Organizer',
+            municipality_record.municipality_name || ' Municipal Organizer',
             'SRORG_' || municipality_record.municipality_code,
-            'Sub-Region Organizer for ' || municipality_record.municipality_name,
+            'Municipal Organizer for ' || municipality_record.municipality_name,
             'Municipality',
             'Operational',
             FALSE,
@@ -347,9 +347,9 @@ BEGIN
                 entity_type
             ) VALUES (
                 base_position_id + position_counter,
-                municipality_record.municipality_name || ' Sub-Region Committee Member ' || i,
+                municipality_record.municipality_name || ' Municipal Committee Member ' || i,
                 'SRCOM' || LPAD(i::TEXT, 2, '0') || '_' || municipality_record.municipality_code,
-                'Sub-Region Committee Member ' || i || ' for ' || municipality_record.municipality_name,
+                'Municipal Committee Member ' || i || ' for ' || municipality_record.municipality_name,
                 'Municipality',
                 'Committee',
                 FALSE,

@@ -1,6 +1,7 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import { RenewalPricingService } from './renewalPricingService';
+import { MemberRenewalLogService } from './memberRenewalLogService';
 export interface RenewalProcessingOptions {
   member_id: number;
   renewal_type: 'standard' | 'discounted' | 'complimentary' | 'upgrade';
@@ -128,6 +129,33 @@ export class RenewalProcessingService {
           newExpiryDate.toISOString().split('T')[0],
           options.member_id
         ]);
+
+        // Log renewal to the dedicated member_renewal_log table for accurate tracking
+        try {
+          await MemberRenewalLogService.logRenewal({
+            member_id: options.member_id,
+            renewal_year: new Date().getFullYear(),
+            renewal_type: options.renewal_type === 'standard' ? 'Annual' :
+                          options.renewal_type === 'complimentary' ? 'Complimentary' :
+                          options.renewal_type === 'upgrade' ? 'Upgrade' : 'Annual',
+            previous_expiry_date: currentExpiryDate.toISOString().split('T')[0],
+            new_expiry_date: newExpiryDate.toISOString().split('T')[0],
+            amount_paid: options.amount_paid,
+            payment_method: options.payment_method,
+            payment_reference: options.payment_reference,
+            payment_status: 'Completed',
+            processed_by: options.processed_by,
+            province_code: (memberData as any).province_code || undefined,
+            province_name: memberData.province_name || undefined,
+            source: 'manual',
+            source_reference: renewalId,
+            notes: options.notes,
+            metadata: { transaction_id: transactionId, renewal_period_months: options.renewal_period_months }
+          });
+        } catch (logError) {
+          // Don't fail the renewal if logging fails - just warn
+          console.warn('Failed to log renewal to member_renewal_log:', logError);
+        }
 
       } catch (error) {
         isSuccess = false;

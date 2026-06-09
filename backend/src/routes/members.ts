@@ -179,6 +179,23 @@ router.get('/export',
       let whereClause = 'WHERE 1=1';
       const params: any[] = [];
 
+      // Align membership_status default with the listing endpoint:
+      // - undefined/empty: default behavior (90-day grace period filter)
+      // - 'all': show all members regardless of expiry
+      // - 'active': show Active/Good Standing
+      // - 'expired': show Expired only
+      if (!membership_status || membership_status === '') {
+        // Default: filter by members whose membership hasn't been expired for more than 90 days
+        whereClause += ` AND expiry_date >= CURRENT_DATE - INTERVAL '90 days'`;
+      } else if (membership_status !== 'all') {
+        if (membership_status === 'active') {
+          whereClause += ` AND (membership_status = 'Active' OR membership_status = 'Good Standing')`;
+        } else if (membership_status === 'expired') {
+          whereClause += ` AND membership_status = 'Expired'`;
+        }
+      }
+      // 'all' - no additional filter needed
+
       if (province_code) {
         whereClause += ` AND province_code = $${params.length + 1}`;
         params.push(province_code);
@@ -187,10 +204,34 @@ router.get('/export',
         whereClause += ` AND district_code = $${params.length + 1}`;
         params.push(district_code);
       }
+
+      // Municipality filter with metro subregion expansion
+      // (same logic as MemberModel.getAllMembers to ensure consistent results)
       if (municipality_code) {
-        whereClause += ` AND municipality_code = $${params.length + 1}`;
-        params.push(municipality_code);
+        const subregionsQuery = `
+          SELECT municipality_code
+          FROM municipalities
+          WHERE parent_municipality_id = (
+            SELECT municipality_id
+            FROM municipalities
+            WHERE municipality_code = $1
+          )
+        `;
+        const subregions = await executeQuery<{ municipality_code: string }>(subregionsQuery, [municipality_code]);
+
+        if (subregions.length > 0) {
+          // This is a metro with subregions - include both the metro and all its subregions
+          const municipalityCodes = [municipality_code, ...subregions.map((s: any) => s.municipality_code)];
+          const placeholders = municipalityCodes.map((_: any, i: number) => `$${params.length + i + 1}`).join(',');
+          whereClause += ` AND municipality_code IN (${placeholders})`;
+          params.push(...municipalityCodes);
+        } else {
+          // Regular municipality or subregion - filter directly
+          whereClause += ` AND municipality_code = $${params.length + 1}`;
+          params.push(municipality_code);
+        }
       }
+
       if (ward_code) {
         whereClause += ` AND ward_code = $${params.length + 1}`;
         params.push(ward_code);
@@ -198,13 +239,6 @@ router.get('/export',
       if (voting_district_code) {
         whereClause += ` AND voting_district_code = $${params.length + 1}`;
         params.push(voting_district_code);
-      }
-      if (membership_status && membership_status !== 'all') {
-        if (membership_status === 'active') {
-          whereClause += ` AND (membership_status = 'Active' OR membership_status = 'Good Standing')`;
-        } else if (membership_status === 'expired') {
-          whereClause += ` AND membership_status = 'Expired'`;
-        }
       }
       if (gender_id) {
         whereClause += ` AND gender_id = $${params.length + 1}`;
@@ -236,7 +270,7 @@ router.get('/export',
       }
 
       members = await executeQuery(
-        `SELECT * FROM vw_member_details ${whereClause} ORDER BY firstname, surname LIMIT 10000`,
+        `SELECT * FROM vw_member_details ${whereClause} ORDER BY province_name, district_name, municipality_name, ward_name, surname, firstname`,
         params
       );
     }
@@ -248,36 +282,48 @@ router.get('/export',
       return 'Active';
     };
 
-    // Helper to compute voter registration status
-    const getVoterRegistrationStatus = (member: any): string => {
-      if (member.voter_status && member.voter_status !== 'Unknown') return member.voter_status;
-      if (member.voter_status_name && member.voter_status_name !== 'Unknown') return member.voter_status_name;
-      if (member.voter_registration_number) return 'Registered';
-      return 'Not Registered';
+    // Helper to format date for export
+    const formatDate = (dateValue: any): string => {
+      if (!dateValue) return '';
+      const d = new Date(dateValue);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().split('T')[0]; // YYYY-MM-DD
     };
 
-    // Column order: First Name, Last Name, ID Number, Email, Cell Number, Age, Gender,
-    // Voting District Name, Voter Registration Status, Ward, Municipality, District, Province, Membership Status
+    // 24 required export columns in exact order
     const exportHeaders = [
-      'First Name', 'Last Name', 'ID Number', 'Email', 'Cell Number',
-      'Age', 'Gender', 'Voting District Name', 'Voter Registration Status',
-      'Ward', 'Municipality', 'District', 'Province', 'Membership Status'
+      'Province', 'Region', 'Municipality', 'Voting Station', 'Ward Code',
+      'Firstname', 'Surname', 'ID Number', 'Age', 'Gender',
+      'Race', 'Citizenship', 'Language', 'Residential Address',
+      'Cell Number', 'Landline Number', 'Email', 'Occupation',
+      'Qualification', 'Date Joined', 'Last Payment', 'Subscription',
+      'Membership Amount', 'Status'
     ];
 
     const exportRows = members.map((member: any) => [
+      member.province_name || '',
+      member.district_name || '',
+      member.municipality_name || '',
+      member.voting_district_name || '',
+      member.ward_code || '',
       member.firstname || '',
       member.surname || '',
       member.id_number || '',
-      member.email || '',
-      member.cell_number || '',
-      member.age || '',
+      member.age != null ? member.age : '',
       member.gender_name || '',
-      member.voting_district_name || '',
-      getVoterRegistrationStatus(member),
-      member.ward_name || '',
-      member.municipality_name || '',
-      member.district_name || '',
-      member.province_name || '',
+      member.race_name || '',
+      member.citizenship_name || '',
+      member.language_name || '',
+      member.residential_address || '',
+      member.cell_number || '',
+      member.landline_number || '',
+      member.email || '',
+      member.occupation_name || '',
+      member.qualification_name || '',
+      formatDate(member.date_joined),
+      formatDate(member.last_payment_date),
+      member.subscription_type || '',
+      member.membership_amount != null ? member.membership_amount : '',
       getMembershipStatus(member)
     ]);
 
@@ -289,7 +335,7 @@ router.get('/export',
 
       // Add title row
       const colCount = exportHeaders.length;
-      const lastCol = String.fromCharCode(64 + colCount); // e.g., 'N' for 14 columns
+      const lastCol = String.fromCharCode(64 + colCount); // e.g., 'X' for 24 columns
       worksheet.mergeCells(`A1:${lastCol}1`);
       const titleCell = worksheet.getCell('A1');
       titleCell.value = 'Members Export';
@@ -853,7 +899,7 @@ router.get('/:id/activities',
         CONCAT('Member joined in ', COALESCE(vd.voting_district_name, w.ward_name, m.ward_code)) as description,
         m.created_at as date
       FROM members_consolidated m
-      LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS INTEGER) = vd.voting_district_code
+      LEFT JOIN voting_districts vd ON REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') = CAST(vd.voting_district_code AS TEXT)
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       WHERE m.member_id = ?
       ORDER BY m.created_at DESC
@@ -896,7 +942,7 @@ router.get('/:id/activities',
         CONCAT('Registered to vote in ', COALESCE(vd.voting_district_name, w.ward_name, m.ward_code)) as description,
         COALESCE(m.voter_registration_date, m.created_at) as date
       FROM members_consolidated m
-      LEFT JOIN voting_districts vd ON CAST(REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') AS INTEGER) = vd.voting_district_code
+      LEFT JOIN voting_districts vd ON REPLACE(COALESCE(m.voting_district_code, '0'), '.0', '') = CAST(vd.voting_district_code AS TEXT)
       LEFT JOIN wards w ON m.ward_code = w.ward_code
       WHERE m.member_id = ? AND m.voter_registration_date IS NOT NULL
       LIMIT 1
@@ -1628,15 +1674,14 @@ router.put('/:id',
     }
 
     const updated = await MemberModel.updateMember(memberId, updateData);
-    if (!updated) {
-      throw new ValidationError('No changes were made to the member');
+
+    if (updated) {
+      // Trigger cache invalidation only if changes were made
+      await CacheInvalidationHooks.onMemberChange('update', memberId);
     }
 
-    // Trigger cache invalidation
-    await CacheInvalidationHooks.onMemberChange('update', memberId);
-
     const updatedMember = await MemberModel.getMemberById(memberId);
-    sendSuccess(res, updatedMember, 'Member updated successfully');
+    sendSuccess(res, updatedMember, updated ? 'Member updated successfully' : 'No changes detected');
   })
 );
 
@@ -2753,7 +2798,16 @@ router.get('/ward/:wardCode/audit-export',
           COALESCE(md.payment_reference, 'N/A') as payment_reference
         FROM members_consolidated m
         LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
-        LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
+        -- Restrict VD join to the member's own ward so members tagged with stale/foreign
+        -- VD codes (belonging to a different ward) don't inherit that ward's VD name and
+        -- balloon into separate "stations" in the attendance register. Sentinel VDs are
+        -- preserved by the IN-list carve-out.
+        LEFT JOIN voting_districts vd
+          ON m.voting_district_code = vd.voting_district_code
+         AND (
+              vd.ward_code = m.ward_code
+              OR vd.voting_district_code IN ('22222222','33333333','99999999','222222222','333333333','999999999')
+         )
         LEFT JOIN voter_statuses voter_s ON m.voter_status_id = voter_s.status_id
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code

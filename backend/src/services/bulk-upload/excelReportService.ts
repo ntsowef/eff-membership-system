@@ -461,7 +461,13 @@ export class ExcelReportService {
             const isDeceased = (iecResult?.voter_status?.toUpperCase() || '').includes('DECEASED') ||
               iecResult?.voting_district_code === '11111111';
 
-            if (iecResult?.is_registered && !isDeceased) {
+            // Quorum rule: only members whose IEC-verified ward matches the target
+            // ward count toward that ward's quorum/compliance. Members registered
+            // in a different ward (out-of-ward) are excluded from the count.
+            const iecWardCode = iecResult?.ward_code ? String(iecResult.ward_code).trim() : null;
+            const isInWard = iecWardCode !== null && iecWardCode === wardCode;
+
+            if (iecResult?.is_registered && !isDeceased && isInWard) {
               newRegisteredCount++;
             }
           }

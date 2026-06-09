@@ -1,0 +1,34 @@
+=== getMunicipalitiesByProvince("FS") results ===
+Total rows: 23
+By type: {"Local":18,"Metro Sub-Region":4,"Metropolitan":1}
+
+Sub-regions found: 4
+  - MAN - Bloemfontein (id=581, code=MAN001, parent=Mangaung Metropolitan Municipality)
+  - MAN - Botshabelo (id=582, code=MAN002, parent=Mangaung Metropolitan Municipality)
+  - MAN - Naledi (id=583, code=MAN003, parent=Mangaung Metropolitan Municipality)
+  - MAN - Thaba Nchu (id=584, code=MAN004, parent=Mangaung Metropolitan Municipality)
+
+All municipalities:
+  495 | FS192 | Dihlabeng | Local
+  487 | FS162 | Kopanong | Local
+  486 | FS161 | Letsemeng | Local
+  581 | MAN001 | MAN - Bloemfontein | Metro Sub-Region
+  582 | MAN002 | MAN - Botshabelo | Metro Sub-Region
+  583 | MAN003 | MAN - Naledi | Metro Sub-Region
+  584 | MAN004 | MAN - Thaba Nchu | Metro Sub-Region
+  503 | FS205 | Mafube | Local
+  497 | FS194 | Maluti a Phofung | Local
+  504 | MAN | Mangaung Metropolitan Municipality | Metropolitan
+  499 | FS196 | Mantsopa | Local
+  489 | FS181 | Masilonyana | Local
+  492 | FS184 | Matjhabeng | Local
+  502 | FS204 | Metsimaholo | Local
+  488 | FS163 | Mohokare | Local
+  500 | FS201 | Moqhaka | Local
+  493 | FS185 | Nala | Local
+  501 | FS203 | Ngwathe | Local
+  496 | FS193 | Nketoana | Local
+  498 | FS195 | Phumelela | Local
+  494 | FS191 | Setsoto | Local
+  490 | FS182 | Tokologo | Local
+  491 | FS183 | Tswelopele | Local

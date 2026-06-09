@@ -1,0 +1,269 @@
+=== MUNICIPALITIES TABLE SCHEMA ===
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé column_name                 Γöé data_type                     Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 'municipality_id'           Γöé 'integer'                     Γöé
+Γöé 1       Γöé 'municipality_code'         Γöé 'character varying'           Γöé
+Γöé 2       Γöé 'municipality_name'         Γöé 'character varying'           Γöé
+Γöé 3       Γöé 'district_code'             Γöé 'character varying'           Γöé
+Γöé 4       Γöé 'municipality_type'         Γöé 'character varying'           Γöé
+Γöé 5       Γöé 'population'                Γöé 'integer'                     Γöé
+Γöé 6       Γöé 'area_km2'                  Γöé 'numeric'                     Γöé
+Γöé 7       Γöé 'total_wards'               Γöé 'integer'                     Γöé
+Γöé 8       Γöé 'represented_wards'         Γöé 'integer'                     Γöé
+Γöé 9       Γöé 'is_adequately_represented' Γöé 'boolean'                     Γöé
+Γöé 10      Γöé 'is_active'                 Γöé 'boolean'                     Γöé
+Γöé 11      Γöé 'created_at'                Γöé 'timestamp without time zone' Γöé
+Γöé 12      Γöé 'updated_at'                Γöé 'timestamp without time zone' Γöé
+Γöé 13      Γöé 'population_density'        Γöé 'numeric'                     Γöé
+Γöé 14      Γöé 'number_of_wards'           Γöé 'integer'                     Γöé
+Γöé 15      Γöé 'parent_municipality_id'    Γöé 'integer'                     Γöé
+Γöé 16      Γöé 'province_code'             Γöé 'character varying'           Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+=== METRO SUB-REGIONS (Bloemfontein, Botshabelo, Mangaung) ===
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé municipality_id Γöé municipality_code Γöé municipality_name                    Γöé district_code Γöé municipality_type  Γöé population Γöé area_km2 Γöé total_wards Γöé represented_wards Γöé is_adequately_represented Γöé is_active Γöé created_at               Γöé updated_at               Γöé population_density Γöé number_of_wards Γöé parent_municipality_id Γöé province_code Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 581             Γöé 'MAN001'          Γöé 'MAN - Bloemfontein'                 Γöé null          Γöé 'Metro Sub-Region' Γöé null       Γöé null     Γöé 0           Γöé 0                 Γöé false                     Γöé true      Γöé 2025-10-03T07:47:49.425Z Γöé 2025-11-17T18:37:08.666Z Γöé null               Γöé 0               Γöé 504                    Γöé 'FS'          Γöé
+Γöé 1       Γöé 582             Γöé 'MAN002'          Γöé 'MAN - Botshabelo'                   Γöé null          Γöé 'Metro Sub-Region' Γöé null       Γöé null     Γöé 0           Γöé 0                 Γöé false                     Γöé true      Γöé 2025-10-03T07:47:49.425Z Γöé 2025-11-17T18:37:08.666Z Γöé null               Γöé 0               Γöé 504                    Γöé 'FS'          Γöé
+Γöé 2       Γöé 504             Γöé 'MAN'             Γöé 'Mangaung Metropolitan Municipality' Γöé 'MAN'         Γöé 'Metropolitan'     Γöé null       Γöé null     Γöé 0           Γöé 0                 Γöé false                     Γöé true      Γöé 2025-09-25T02:13:40.292Z Γöé 2025-11-17T18:36:36.852Z Γöé null               Γöé 0               Γöé null                   Γöé 'FS'          Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== ALL MUNICIPALITY TYPES ===
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé municipality_type    Γöé cnt   Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 'Local'              Γöé '195' Γöé
+Γöé 1       Γöé 'Local Municipality' Γöé '10'  Γöé
+Γöé 2       Γöé 'Metro Sub-Region'   Γöé '53'  Γöé
+Γöé 3       Γöé 'Metropolitan'       Γöé '8'   Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== Positions for MAN - Bloemfontein (id=581, type=Metro Sub-Region) ===
+Count: 35
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé id    Γöé position_code      Γöé position_name                                        Γöé position_category   Γöé entity_id Γöé entity_type        Γöé hierarchy_level Γöé is_active Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 81903 Γöé 'MCHAIR_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Chairperson'          Γöé 'Executive'         Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 1       Γöé 81904 Γöé 'MSEC_MAN001'      Γöé 'MAN - Bloemfontein Sub-Region Secretary'            Γöé 'Executive'         Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 2       Γöé 81905 Γöé 'MTREAS_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Treasurer'            Γöé 'Executive'         Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 3       Γöé 83004 Γöé 'MADD01_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 1'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 4       Γöé 83005 Γöé 'MADD02_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 2'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 5       Γöé 83006 Γöé 'MADD03_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 3'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 6       Γöé 83007 Γöé 'MADD04_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 4'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 7       Γöé 83008 Γöé 'MADD05_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 5'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 8       Γöé 83009 Γöé 'MADD06_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 6'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 9       Γöé 83010 Γöé 'MADD07_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 7'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 10      Γöé 83011 Γöé 'MADD08_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 8'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 11      Γöé 83012 Γöé 'MADD09_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 9'  Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 12      Γöé 83013 Γöé 'MADD10_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 10' Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 13      Γöé 83014 Γöé 'MADD11_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 11' Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 14      Γöé 83015 Γöé 'MADD12_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 12' Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 15      Γöé 83016 Γöé 'MADD13_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 13' Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 16      Γöé 83017 Γöé 'MADD14_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 14' Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 17      Γöé 83018 Γöé 'MADD15_MAN001'    Γöé 'MAN - Bloemfontein Sub-Region Additional Member 15' Γöé 'Additional Member' Γöé 581       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 18      Γöé 4731  Γöé 'WCHAIR_63801001'  Γöé 'Ward 1 Ward 1 Chairperson'                          Γöé 'Executive'         Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 19      Γöé 9209  Γöé 'WSEC_63801001'    Γöé 'Ward 1 Ward 1 Secretary'                            Γöé 'Executive'         Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 20      Γöé 13687 Γöé 'WTREAS_63801001'  Γöé 'Ward 1 Ward 1 Treasurer'                            Γöé 'Executive'         Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 21      Γöé 18165 Γöé 'WDCHAIR_63801001' Γöé 'Ward 1 Ward 1 Deputy Chairperson'                   Γöé 'Executive'         Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 22      Γöé 22643 Γöé 'WDSEC_63801001'   Γöé 'Ward 1 Ward 1 Deputy Secretary'                     Γöé 'Executive'         Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 23      Γöé 27121 Γöé 'WYOUTH_63801001'  Γöé 'Ward 1 Ward 1 Youth Leader'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 24      Γöé 31599 Γöé 'WWOMEN_63801001'  Γöé 'Ward 1 Ward 1 Women Leader'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 25      Γöé 36077 Γöé 'BCT01_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 1'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 26      Γöé 40555 Γöé 'BCT02_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 2'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 27      Γöé 45033 Γöé 'BCT03_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 3'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 28      Γöé 49511 Γöé 'BCT04_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 4'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 29      Γöé 53989 Γöé 'BCT05_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 5'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 30      Γöé 58467 Γöé 'BCT06_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 6'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 31      Γöé 62945 Γöé 'BCT07_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 7'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 32      Γöé 67423 Γöé 'BCT08_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 8'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 33      Γöé 71901 Γöé 'BCT09_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 9'                         Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 34      Γöé 76379 Γöé 'BCT10_63801001'   Γöé 'Ward 1 Ward 1 BCT Member 10'                        Γöé 'BCT'               Γöé 581       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== Positions for MAN - Botshabelo (id=582, type=Metro Sub-Region) ===
+Count: 35
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé id    Γöé position_code      Γöé position_name                                      Γöé position_category   Γöé entity_id Γöé entity_type        Γöé hierarchy_level Γöé is_active Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 81921 Γöé 'MCHAIR_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Chairperson'          Γöé 'Executive'         Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 1       Γöé 81922 Γöé 'MSEC_MAN002'      Γöé 'MAN - Botshabelo Sub-Region Secretary'            Γöé 'Executive'         Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 2       Γöé 81923 Γöé 'MTREAS_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Treasurer'            Γöé 'Executive'         Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 3       Γöé 83022 Γöé 'MADD01_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 1'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 4       Γöé 83023 Γöé 'MADD02_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 2'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 5       Γöé 83024 Γöé 'MADD03_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 3'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 6       Γöé 83025 Γöé 'MADD04_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 4'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 7       Γöé 83026 Γöé 'MADD05_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 5'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 8       Γöé 83027 Γöé 'MADD06_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 6'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 9       Γöé 83028 Γöé 'MADD07_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 7'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 10      Γöé 83029 Γöé 'MADD08_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 8'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 11      Γöé 83030 Γöé 'MADD09_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 9'  Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 12      Γöé 83031 Γöé 'MADD10_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 10' Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 13      Γöé 83032 Γöé 'MADD11_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 11' Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 14      Γöé 83033 Γöé 'MADD12_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 12' Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 15      Γöé 83034 Γöé 'MADD13_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 13' Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 16      Γöé 83035 Γöé 'MADD14_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 14' Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 17      Γöé 83036 Γöé 'MADD15_MAN002'    Γöé 'MAN - Botshabelo Sub-Region Additional Member 15' Γöé 'Additional Member' Γöé 582       Γöé 'Metro Sub-Region' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 18      Γöé 4732  Γöé 'WCHAIR_63801002'  Γöé 'Ward 2 Ward 2 Chairperson'                        Γöé 'Executive'         Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 19      Γöé 9210  Γöé 'WSEC_63801002'    Γöé 'Ward 2 Ward 2 Secretary'                          Γöé 'Executive'         Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 20      Γöé 13688 Γöé 'WTREAS_63801002'  Γöé 'Ward 2 Ward 2 Treasurer'                          Γöé 'Executive'         Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 21      Γöé 18166 Γöé 'WDCHAIR_63801002' Γöé 'Ward 2 Ward 2 Deputy Chairperson'                 Γöé 'Executive'         Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 22      Γöé 22644 Γöé 'WDSEC_63801002'   Γöé 'Ward 2 Ward 2 Deputy Secretary'                   Γöé 'Executive'         Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 23      Γöé 27122 Γöé 'WYOUTH_63801002'  Γöé 'Ward 2 Ward 2 Youth Leader'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 24      Γöé 31600 Γöé 'WWOMEN_63801002'  Γöé 'Ward 2 Ward 2 Women Leader'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 25      Γöé 36078 Γöé 'BCT01_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 1'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 26      Γöé 40556 Γöé 'BCT02_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 2'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 27      Γöé 45034 Γöé 'BCT03_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 3'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 28      Γöé 49512 Γöé 'BCT04_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 4'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 29      Γöé 53990 Γöé 'BCT05_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 5'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 30      Γöé 58468 Γöé 'BCT06_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 6'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 31      Γöé 62946 Γöé 'BCT07_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 7'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 32      Γöé 67424 Γöé 'BCT08_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 8'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 33      Γöé 71902 Γöé 'BCT09_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 9'                       Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+Γöé 34      Γöé 76380 Γöé 'BCT10_63801002'   Γöé 'Ward 2 Ward 2 BCT Member 10'                      Γöé 'BCT'               Γöé 582       Γöé 'Ward'             Γöé 'Ward'          Γöé true      Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== Positions for Mangaung Metropolitan Municipality (id=504, type=Metropolitan) ===
+Count: 35
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé id    Γöé position_code      Γöé position_name                                                   Γöé position_category   Γöé entity_id Γöé entity_type    Γöé hierarchy_level Γöé is_active Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 492   Γöé 'MCHAIR_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Chairperson'          Γöé 'Executive'         Γöé 504       Γöé 'Municipality' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 1       Γöé 705   Γöé 'MSEC_MAN'         Γöé 'Mangaung Metropolitan Municipality Metro Secretary'            Γöé 'Executive'         Γöé 504       Γöé 'Municipality' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 2       Γöé 918   Γöé 'MTREAS_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Treasurer'            Γöé 'Executive'         Γöé 504       Γöé 'Municipality' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 3       Γöé 82320 Γöé 'MADD01_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 1'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 4       Γöé 82321 Γöé 'MADD02_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 2'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 5       Γöé 82322 Γöé 'MADD03_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 3'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 6       Γöé 82323 Γöé 'MADD04_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 4'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 7       Γöé 82324 Γöé 'MADD05_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 5'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 8       Γöé 82325 Γöé 'MADD06_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 6'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 9       Γöé 82326 Γöé 'MADD07_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 7'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 10      Γöé 82327 Γöé 'MADD08_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 8'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 11      Γöé 82328 Γöé 'MADD09_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 9'  Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 12      Γöé 82329 Γöé 'MADD10_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 10' Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 13      Γöé 82330 Γöé 'MADD11_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 11' Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 14      Γöé 82331 Γöé 'MADD12_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 12' Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 15      Γöé 82332 Γöé 'MADD13_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 13' Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 16      Γöé 82333 Γöé 'MADD14_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 14' Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 17      Γöé 82334 Γöé 'MADD15_MAN'       Γöé 'Mangaung Metropolitan Municipality Metro Additional Member 15' Γöé 'Additional Member' Γöé 504       Γöé 'Metropolitan' Γöé 'Municipality'  Γöé true      Γöé
+Γöé 18      Γöé 4654  Γöé 'WCHAIR_63703011'  Γöé 'Ward 11 Ward 11 Chairperson'                                   Γöé 'Executive'         Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 19      Γöé 9132  Γöé 'WSEC_63703011'    Γöé 'Ward 11 Ward 11 Secretary'                                     Γöé 'Executive'         Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 20      Γöé 13610 Γöé 'WTREAS_63703011'  Γöé 'Ward 11 Ward 11 Treasurer'                                     Γöé 'Executive'         Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 21      Γöé 18088 Γöé 'WDCHAIR_63703011' Γöé 'Ward 11 Ward 11 Deputy Chairperson'                            Γöé 'Executive'         Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 22      Γöé 22566 Γöé 'WDSEC_63703011'   Γöé 'Ward 11 Ward 11 Deputy Secretary'                              Γöé 'Executive'         Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 23      Γöé 27044 Γöé 'WYOUTH_63703011'  Γöé 'Ward 11 Ward 11 Youth Leader'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 24      Γöé 31522 Γöé 'WWOMEN_63703011'  Γöé 'Ward 11 Ward 11 Women Leader'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 25      Γöé 36000 Γöé 'BCT01_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 1'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 26      Γöé 40478 Γöé 'BCT02_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 2'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 27      Γöé 44956 Γöé 'BCT03_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 3'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 28      Γöé 49434 Γöé 'BCT04_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 4'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 29      Γöé 53912 Γöé 'BCT05_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 5'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 30      Γöé 58390 Γöé 'BCT06_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 6'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 31      Γöé 62868 Γöé 'BCT07_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 7'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 32      Γöé 67346 Γöé 'BCT08_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 8'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 33      Γöé 71824 Γöé 'BCT09_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 9'                                  Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+Γöé 34      Γöé 76302 Γöé 'BCT10_63703011'   Γöé 'Ward 11 Ward 11 BCT Member 10'                                 Γöé 'BCT'               Γöé 504       Γöé 'Ward'         Γöé 'Ward'          Γöé true      Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== ACTIVE APPOINTMENTS for Bloemfontein/Botshabelo ===
+Count: 0
+
+=== DISTINCT entity_type values in leadership_positions ===
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé entity_type          Γöé hierarchy_level Γöé cnt     Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 'Local'              Γöé 'Municipality'  Γöé '2925'  Γöé
+Γöé 1       Γöé 'Local Municipality' Γöé 'Municipality'  Γöé '150'   Γöé
+Γöé 2       Γöé 'Metro Sub-Region'   Γöé 'Municipality'  Γöé '954'   Γöé
+Γöé 3       Γöé 'Metropolitan'       Γöé 'Municipality'  Γöé '120'   Γöé
+Γöé 4       Γöé 'Municipality'       Γöé 'Municipality'  Γöé '639'   Γöé
+Γöé 5       Γöé null                 Γöé 'National'      Γöé '71'    Γöé
+Γöé 6       Γöé 'Province'           Γöé 'Province'      Γöé '180'   Γöé
+Γöé 7       Γöé null                 Γöé 'Province'      Γöé '9'     Γöé
+Γöé 8       Γöé 'Ward'               Γöé 'Ward'          Γöé '76126' Γöé
+Γöé 9       Γöé null                 Γöé 'Ward'          Γöé '20'    Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== Sub-regions with parent_municipality_id set ===
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé municipality_id Γöé municipality_name          Γöé municipality_code Γöé municipality_type  Γöé parent_municipality_id Γöé parent_name                                      Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 570             Γöé 'BUF - East London'        Γöé 'BUF001'          Γöé 'Metro Sub-Region' Γöé 507                    Γöé 'Buffalo City Metropolitan Municipality'         Γöé
+Γöé 1       Γöé 571             Γöé 'BUF - King Williams Town' Γöé 'BUF002'          Γöé 'Metro Sub-Region' Γöé 507                    Γöé 'Buffalo City Metropolitan Municipality'         Γöé
+Γöé 2       Γöé 572             Γöé 'BUF - Mdantsane'          Γöé 'BUF003'          Γöé 'Metro Sub-Region' Γöé 507                    Γöé 'Buffalo City Metropolitan Municipality'         Γöé
+Γöé 3       Γöé 573             Γöé 'BUF-Duncan Village'       Γöé 'BUF004'          Γöé 'Metro Sub-Region' Γöé 507                    Γöé 'Buffalo City Metropolitan Municipality'         Γöé
+Γöé 4       Γöé 560             Γöé 'CPT - Zone 1'             Γöé 'CPT001'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 5       Γöé 561             Γöé 'CPT - Zone 10'            Γöé 'CPT002'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 6       Γöé 562             Γöé 'CPT - Zone 2'             Γöé 'CPT003'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 7       Γöé 563             Γöé 'CPT - Zone 3'             Γöé 'CPT004'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 8       Γöé 564             Γöé 'CPT - Zone 4'             Γöé 'CPT005'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 9       Γöé 565             Γöé 'CPT - Zone 5'             Γöé 'CPT006'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 10      Γöé 566             Γöé 'CPT - Zone 6'             Γöé 'CPT007'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 11      Γöé 567             Γöé 'CPT - Zone 7'             Γöé 'CPT008'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 12      Γöé 568             Γöé 'CPT - Zone 8'             Γöé 'CPT009'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 13      Γöé 569             Γöé 'CPT - Zone 9'             Γöé 'CPT010'          Γöé 'Metro Sub-Region' Γöé 332                    Γöé 'City of Cape Town Metropolitan Municipality'    Γöé
+Γöé 14      Γöé 547             Γöé 'JHB - A'                  Γöé 'JHB001'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 15      Γöé 548             Γöé 'JHB - B'                  Γöé 'JHB002'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 16      Γöé 549             Γöé 'JHB - C'                  Γöé 'JHB003'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 17      Γöé 550             Γöé 'JHB - D'                  Γöé 'JHB004'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 18      Γöé 551             Γöé 'JHB - E'                  Γöé 'JHB005'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 19      Γöé 552             Γöé 'JHB - F'                  Γöé 'JHB006'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 20      Γöé 553             Γöé 'JHB - G'                  Γöé 'JHB007'          Γöé 'Metro Sub-Region' Γöé 318                    Γöé 'City of Johannesburg Metropolitan Municipality' Γöé
+Γöé 21      Γöé 554             Γöé 'TSH - 1'                  Γöé 'TSH001'          Γöé 'Metro Sub-Region' Γöé 319                    Γöé 'City of Tshwane Metropolitan Municipality'      Γöé
+Γöé 22      Γöé 555             Γöé 'TSH - 2'                  Γöé 'TSH002'          Γöé 'Metro Sub-Region' Γöé 319                    Γöé 'City of Tshwane Metropolitan Municipality'      Γöé
+Γöé 23      Γöé 556             Γöé 'TSH - 3'                  Γöé 'TSH003'          Γöé 'Metro Sub-Region' Γöé 319                    Γöé 'City of Tshwane Metropolitan Municipality'      Γöé
+Γöé 24      Γöé 557             Γöé 'TSH - 4'                  Γöé 'TSH004'          Γöé 'Metro Sub-Region' Γöé 319                    Γöé 'City of Tshwane Metropolitan Municipality'      Γöé
+Γöé 25      Γöé 558             Γöé 'TSH - 5'                  Γöé 'TSH005'          Γöé 'Metro Sub-Region' Γöé 319                    Γöé 'City of Tshwane Metropolitan Municipality'      Γöé
+Γöé 26      Γöé 559             Γöé 'TSH - 6'                  Γöé 'TSH006'          Γöé 'Metro Sub-Region' Γöé 319                    Γöé 'City of Tshwane Metropolitan Municipality'      Γöé
+Γöé 27      Γöé 542             Γöé 'EKU - Central'            Γöé 'EKU001'          Γöé 'Metro Sub-Region' Γöé 320                    Γöé 'Ekurhuleni Metropolitan Municipality'           Γöé
+Γöé 28      Γöé 543             Γöé 'EKU - East'               Γöé 'EKU002'          Γöé 'Metro Sub-Region' Γöé 320                    Γöé 'Ekurhuleni Metropolitan Municipality'           Γöé
+Γöé 29      Γöé 544             Γöé 'EKU - Far East'           Γöé 'EKU003'          Γöé 'Metro Sub-Region' Γöé 320                    Γöé 'Ekurhuleni Metropolitan Municipality'           Γöé
+Γöé 30      Γöé 545             Γöé 'EKU - North'              Γöé 'EKU004'          Γöé 'Metro Sub-Region' Γöé 320                    Γöé 'Ekurhuleni Metropolitan Municipality'           Γöé
+Γöé 31      Γöé 546             Γöé 'EKU - South'              Γöé 'EKU005'          Γöé 'Metro Sub-Region' Γöé 320                    Γöé 'Ekurhuleni Metropolitan Municipality'           Γöé
+Γöé 32      Γöé 585             Γöé 'ETH - Central'            Γöé 'ETH001'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 33      Γöé 586             Γöé 'ETH - Far North'          Γöé 'ETH002'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 34      Γöé 587             Γöé 'ETH - Far South'          Γöé 'ETH003'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 35      Γöé 588             Γöé 'ETH - Inner West'         Γöé 'ETH004'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 36      Γöé 589             Γöé 'ETH - North Central'      Γöé 'ETH005'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 37      Γöé 590             Γöé 'ETH - North West'         Γöé 'ETH006'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 38      Γöé 591             Γöé 'ETH - Outer West'         Γöé 'ETH007'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 39      Γöé 592             Γöé 'ETH - South'              Γöé 'ETH008'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 40      Γöé 593             Γöé 'ETH - South Central'      Γöé 'ETH009'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 41      Γöé 594             Γöé 'ETH - South West'         Γöé 'ETH010'          Γöé 'Metro Sub-Region' Γöé 441                    Γöé 'Ethekwini Metropolitan Municipality'            Γöé
+Γöé 42      Γöé 581             Γöé 'MAN - Bloemfontein'       Γöé 'MAN001'          Γöé 'Metro Sub-Region' Γöé 504                    Γöé 'Mangaung Metropolitan Municipality'             Γöé
+Γöé 43      Γöé 582             Γöé 'MAN - Botshabelo'         Γöé 'MAN002'          Γöé 'Metro Sub-Region' Γöé 504                    Γöé 'Mangaung Metropolitan Municipality'             Γöé
+Γöé 44      Γöé 583             Γöé 'MAN - Naledi'             Γöé 'MAN003'          Γöé 'Metro Sub-Region' Γöé 504                    Γöé 'Mangaung Metropolitan Municipality'             Γöé
+Γöé 45      Γöé 584             Γöé 'MAN - Thaba Nchu'         Γöé 'MAN004'          Γöé 'Metro Sub-Region' Γöé 504                    Γöé 'Mangaung Metropolitan Municipality'             Γöé
+Γöé 46      Γöé 574             Γöé 'NMA - Champion Galela'    Γöé 'NMA001'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+Γöé 47      Γöé 575             Γöé 'NMA - Govan Mbeki'        Γöé 'NMA002'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+Γöé 48      Γöé 576             Γöé 'NMA - Lillian Diedericks' Γöé 'NMA003'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+Γöé 49      Γöé 577             Γöé 'NMA - Molly Blackburn'    Γöé 'NMA004'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+Γöé 50      Γöé 578             Γöé 'NMA - Zola Nqini'         Γöé 'NMA005'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+Γöé 51      Γöé 579             Γöé 'NMA-Alex Matikama'        Γöé 'NMA006'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+Γöé 52      Γöé 580             Γöé 'NMA-Alex Matikanca'       Γöé 'NMA007'          Γöé 'Metro Sub-Region' Γöé 527                    Γöé 'Nelson Mandela Bay Metropolitan Municipality'   Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+=== getPositions query for sub-region MAN - Bloemfontein (id=581) ===
+Count: 18
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé id    Γöé code            Γöé name                                                 Γöé entity_id Γöé entity_type        Γöé appts Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 81903 Γöé 'MCHAIR_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Chairperson'          Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 1       Γöé 81904 Γöé 'MSEC_MAN001'   Γöé 'MAN - Bloemfontein Sub-Region Secretary'            Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 2       Γöé 81905 Γöé 'MTREAS_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Treasurer'            Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 3       Γöé 83004 Γöé 'MADD01_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 1'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 4       Γöé 83005 Γöé 'MADD02_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 2'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 5       Γöé 83006 Γöé 'MADD03_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 3'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 6       Γöé 83007 Γöé 'MADD04_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 4'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 7       Γöé 83008 Γöé 'MADD05_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 5'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 8       Γöé 83009 Γöé 'MADD06_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 6'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 9       Γöé 83010 Γöé 'MADD07_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 7'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 10      Γöé 83011 Γöé 'MADD08_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 8'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 11      Γöé 83012 Γöé 'MADD09_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 9'  Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 12      Γöé 83013 Γöé 'MADD10_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 10' Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 13      Γöé 83014 Γöé 'MADD11_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 11' Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 14      Γöé 83015 Γöé 'MADD12_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 12' Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 15      Γöé 83016 Γöé 'MADD13_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 13' Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 16      Γöé 83017 Γöé 'MADD14_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 14' Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+Γöé 17      Γöé 83018 Γöé 'MADD15_MAN001' Γöé 'MAN - Bloemfontein Sub-Region Additional Member 15' Γöé 581       Γöé 'Metro Sub-Region' Γöé '0'   Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ

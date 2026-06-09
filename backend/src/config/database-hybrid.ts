@@ -37,10 +37,38 @@ const getDatabaseConfig = (): DatabaseConfig => ({
   connectionTimeoutMillis: parseInt(process.env.DB_TIMEOUT || '30000', 10), // 30 seconds
 });
 
+// Retry helper: waits for PostgreSQL to become ready before proceeding
+const waitForDatabase = async (dbConfig: DatabaseConfig, maxRetries = 10, initialDelayMs = 1000): Promise<void> => {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const testPool = new Pool({ ...dbConfig, max: 1, connectionTimeoutMillis: 5000 });
+      const client = await testPool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      await testPool.end();
+      return; // Database is ready
+    } catch (error: any) {
+      lastError = error;
+      if (error.code === '57P03' || error.message?.includes('starting up')) {
+        const delay = Math.min(initialDelayMs * Math.pow(2, attempt - 1), 10000);
+        console.log(`⏳ PostgreSQL is starting up... retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error; // Not a startup issue, fail immediately
+      }
+    }
+  }
+  throw lastError;
+};
+
 // Initialize hybrid database system
 export const initializeDatabase = async (): Promise<void> => {
   try {
     const dbConfig = getDatabaseConfig();
+
+    // Wait for PostgreSQL to be fully ready before connecting
+    await waitForDatabase(dbConfig);
 
     // Initialize Prisma Client with error handling
     try {
@@ -71,7 +99,7 @@ export const initializeDatabase = async (): Promise<void> => {
 
     if (isVerboseLogging()) console.log('✅ PostgreSQL raw SQL pool initialized successfully');
     if (isVerboseLogging()) console.log(`📊 Connected to PostgreSQL database: ${dbConfig.database}`);
-    
+
   } catch (error) {
     console.error('❌ Failed to initialize hybrid database system:', error);
     throw error;
@@ -107,7 +135,14 @@ export const getConnection = async (): Promise<PoolClient> => {
 
   try {
     return await pool.connect();
-  } catch (error) {
+  } catch (error: any) {
+    // If the pool was ended externally (race with shutdown handler), recreate it so
+    // long-running operations (bulk SMS, etc.) can continue without crashing.
+    if (error.message?.includes('Cannot use a pool after calling end on the pool')) {
+      console.warn('⚠️  Pool was ended unexpectedly — recreating connection pool...');
+      pool = new Pool(getDatabaseConfig());
+      return await pool.connect();
+    }
     console.error('❌ Failed to get database connection:', error);
     throw error;
   }
@@ -299,8 +334,12 @@ export const closeDatabaseConnections = async (): Promise<void> => {
     }
 
     if (pool) {
-      await pool.end();
+      // Null the reference FIRST so concurrent getConnection() calls see null
+      // and throw a clean "not initialized" error instead of the cryptic
+      // "Cannot use a pool after calling end on the pool" pg-pool error.
+      const poolToClose = pool;
       pool = null;
+      await poolToClose.end();
       if (isVerboseLogging()) console.log('🔒 PostgreSQL connection pool closed');
     }
   } catch (error) {

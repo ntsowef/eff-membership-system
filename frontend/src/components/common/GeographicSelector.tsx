@@ -147,7 +147,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   // Fetch municipalities based on selected district (corrected from province)
   const { data: municipalities, isLoading: municipalitiesLoading, error: municipalitiesError } = useQuery({
     queryKey: ['municipalities', selectedDistrict],
-    queryFn: () => geographicApi.getMunicipalities(selectedDistrict),
+    queryFn: () => geographicApi.getMunicipalitiesByDistrict(selectedDistrict),
     enabled: !!selectedDistrict,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });

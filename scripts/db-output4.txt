@@ -1,0 +1,449 @@
+
+=== LIMPOPO MUNICIPALITY TYPES ===
+  ID: 325, Name: Ba-Phalaborwa, Code: LIM334, Type: Local
+  ID: 412, Name: Bela-Bela, Code: LIM366, Type: Local
+  ID: 413, Name: Blouberg, Code: LIM351, Type: Local
+  ID: 414, Name: Collins Chabane, Code: LIM345, Type: Local
+  ID: 415, Name: Elias Motsoaledi, Code: LIM472, Type: Local
+  ID: 416, Name: Ephraim Mogale, Code: LIM471, Type: Local
+  ID: 417, Name: Fetakgomo Tubatse, Code: LIM476, Type: Local
+  ID: 418, Name: Greater Giyani, Code: LIM331, Type: Local
+  ID: 419, Name: Greater Letaba, Code: LIM332, Type: Local
+  ID: 420, Name: Greater Tzaneen, Code: LIM333, Type: Local
+  ID: 421, Name: Lepele-Nkumpi, Code: LIM355, Type: Local
+  ID: 422, Name: Lephalale, Code: LIM362, Type: Local
+  ID: 324, Name: Makhado, Code: LIM344, Type: Local
+  ID: 424, Name: Makhuduthamaga, Code: LIM473, Type: Local
+  ID: 425, Name: Maruleng, Code: LIM335, Type: Local
+  ID: 426, Name: Modimolle-Mookgophong, Code: LIM368, Type: Local
+  ID: 427, Name: Mogalakwena, Code: LIM367, Type: Local
+  ID: 428, Name: Molemole, Code: LIM353, Type: Local
+  ID: 322, Name: Musina, Code: LIM341, Type: Local
+  ID: 321, Name: Polokwane, Code: LIM354, Type: Local
+  ID: 431, Name: Thabazimbi, Code: LIM361, Type: Local
+  ID: 323, Name: Thulamela, Code: LIM343, Type: Local
+
+=== EXISTING POSITIONS FOR LIMPOPO MUNICIPALITIES ===
+  Found 396 existing positions
+  ID: 321, Name: Polokwane Local Municipality Municipal Chairperson, Code: MCHAIR_LIM354, EntityID: 321
+  ID: 534, Name: Polokwane Local Municipality Municipal Secretary, Code: MSEC_LIM354, EntityID: 321
+  ID: 747, Name: Polokwane Local Municipality Municipal Treasurer, Code: MTREAS_LIM354, EntityID: 321
+  ID: 960, Name: Polokwane Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM354, EntityID: 321
+  ID: 1173, Name: Polokwane Local Municipality Municipal Women Leader, Code: MWOMEN_LIM354, EntityID: 321
+  ID: 1386, Name: Polokwane Local Municipality SRCT Member 1, Code: SRCT01_LIM354, EntityID: 321
+  ID: 1599, Name: Polokwane Local Municipality SRCT Member 2, Code: SRCT02_LIM354, EntityID: 321
+  ID: 1812, Name: Polokwane Local Municipality SRCT Member 3, Code: SRCT03_LIM354, EntityID: 321
+  ID: 2025, Name: Polokwane Local Municipality SRCT Member 4, Code: SRCT04_LIM354, EntityID: 321
+  ID: 2238, Name: Polokwane Local Municipality SRCT Member 5, Code: SRCT05_LIM354, EntityID: 321
+  ID: 2451, Name: Polokwane Local Municipality SRCT Member 6, Code: SRCT06_LIM354, EntityID: 321
+  ID: 2664, Name: Polokwane Local Municipality SRCT Member 7, Code: SRCT07_LIM354, EntityID: 321
+  ID: 2877, Name: Polokwane Local Municipality SRCT Member 8, Code: SRCT08_LIM354, EntityID: 321
+  ID: 3090, Name: Polokwane Local Municipality SRCT Member 9, Code: SRCT09_LIM354, EntityID: 321
+  ID: 3303, Name: Polokwane Local Municipality SRCT Member 10, Code: SRCT10_LIM354, EntityID: 321
+  ID: 3516, Name: Polokwane Local Municipality SRCT Member 11, Code: SRCT11_LIM354, EntityID: 321
+  ID: 3729, Name: Polokwane Local Municipality SRCT Member 12, Code: SRCT12_LIM354, EntityID: 321
+  ID: 3942, Name: Polokwane Local Municipality SRCT Member 13, Code: SRCT13_LIM354, EntityID: 321
+  ID: 318, Name: Musina Local Municipality Municipal Chairperson, Code: MCHAIR_LIM341, EntityID: 322
+  ID: 531, Name: Musina Local Municipality Municipal Secretary, Code: MSEC_LIM341, EntityID: 322
+  ID: 744, Name: Musina Local Municipality Municipal Treasurer, Code: MTREAS_LIM341, EntityID: 322
+  ID: 957, Name: Musina Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM341, EntityID: 322
+  ID: 1170, Name: Musina Local Municipality Municipal Women Leader, Code: MWOMEN_LIM341, EntityID: 322
+  ID: 1383, Name: Musina Local Municipality SRCT Member 1, Code: SRCT01_LIM341, EntityID: 322
+  ID: 1596, Name: Musina Local Municipality SRCT Member 2, Code: SRCT02_LIM341, EntityID: 322
+  ID: 1809, Name: Musina Local Municipality SRCT Member 3, Code: SRCT03_LIM341, EntityID: 322
+  ID: 2022, Name: Musina Local Municipality SRCT Member 4, Code: SRCT04_LIM341, EntityID: 322
+  ID: 2235, Name: Musina Local Municipality SRCT Member 5, Code: SRCT05_LIM341, EntityID: 322
+  ID: 2448, Name: Musina Local Municipality SRCT Member 6, Code: SRCT06_LIM341, EntityID: 322
+  ID: 2661, Name: Musina Local Municipality SRCT Member 7, Code: SRCT07_LIM341, EntityID: 322
+  ID: 2874, Name: Musina Local Municipality SRCT Member 8, Code: SRCT08_LIM341, EntityID: 322
+  ID: 3087, Name: Musina Local Municipality SRCT Member 9, Code: SRCT09_LIM341, EntityID: 322
+  ID: 3300, Name: Musina Local Municipality SRCT Member 10, Code: SRCT10_LIM341, EntityID: 322
+  ID: 3513, Name: Musina Local Municipality SRCT Member 11, Code: SRCT11_LIM341, EntityID: 322
+  ID: 3726, Name: Musina Local Municipality SRCT Member 12, Code: SRCT12_LIM341, EntityID: 322
+  ID: 3939, Name: Musina Local Municipality SRCT Member 13, Code: SRCT13_LIM341, EntityID: 322
+  ID: 319, Name: Thulamela Local Municipality Municipal Chairperson, Code: MCHAIR_LIM343, EntityID: 323
+  ID: 532, Name: Thulamela Local Municipality Municipal Secretary, Code: MSEC_LIM343, EntityID: 323
+  ID: 745, Name: Thulamela Local Municipality Municipal Treasurer, Code: MTREAS_LIM343, EntityID: 323
+  ID: 958, Name: Thulamela Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM343, EntityID: 323
+  ID: 1171, Name: Thulamela Local Municipality Municipal Women Leader, Code: MWOMEN_LIM343, EntityID: 323
+  ID: 1384, Name: Thulamela Local Municipality SRCT Member 1, Code: SRCT01_LIM343, EntityID: 323
+  ID: 1597, Name: Thulamela Local Municipality SRCT Member 2, Code: SRCT02_LIM343, EntityID: 323
+  ID: 1810, Name: Thulamela Local Municipality SRCT Member 3, Code: SRCT03_LIM343, EntityID: 323
+  ID: 2023, Name: Thulamela Local Municipality SRCT Member 4, Code: SRCT04_LIM343, EntityID: 323
+  ID: 2236, Name: Thulamela Local Municipality SRCT Member 5, Code: SRCT05_LIM343, EntityID: 323
+  ID: 2449, Name: Thulamela Local Municipality SRCT Member 6, Code: SRCT06_LIM343, EntityID: 323
+  ID: 2662, Name: Thulamela Local Municipality SRCT Member 7, Code: SRCT07_LIM343, EntityID: 323
+  ID: 2875, Name: Thulamela Local Municipality SRCT Member 8, Code: SRCT08_LIM343, EntityID: 323
+  ID: 3088, Name: Thulamela Local Municipality SRCT Member 9, Code: SRCT09_LIM343, EntityID: 323
+  ID: 3301, Name: Thulamela Local Municipality SRCT Member 10, Code: SRCT10_LIM343, EntityID: 323
+  ID: 3514, Name: Thulamela Local Municipality SRCT Member 11, Code: SRCT11_LIM343, EntityID: 323
+  ID: 3727, Name: Thulamela Local Municipality SRCT Member 12, Code: SRCT12_LIM343, EntityID: 323
+  ID: 3940, Name: Thulamela Local Municipality SRCT Member 13, Code: SRCT13_LIM343, EntityID: 323
+  ID: 320, Name: Makhado Local Municipality Municipal Chairperson, Code: MCHAIR_LIM344, EntityID: 324
+  ID: 533, Name: Makhado Local Municipality Municipal Secretary, Code: MSEC_LIM344, EntityID: 324
+  ID: 746, Name: Makhado Local Municipality Municipal Treasurer, Code: MTREAS_LIM344, EntityID: 324
+  ID: 959, Name: Makhado Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM344, EntityID: 324
+  ID: 1172, Name: Makhado Local Municipality Municipal Women Leader, Code: MWOMEN_LIM344, EntityID: 324
+  ID: 1385, Name: Makhado Local Municipality SRCT Member 1, Code: SRCT01_LIM344, EntityID: 324
+  ID: 1598, Name: Makhado Local Municipality SRCT Member 2, Code: SRCT02_LIM344, EntityID: 324
+  ID: 1811, Name: Makhado Local Municipality SRCT Member 3, Code: SRCT03_LIM344, EntityID: 324
+  ID: 2024, Name: Makhado Local Municipality SRCT Member 4, Code: SRCT04_LIM344, EntityID: 324
+  ID: 2237, Name: Makhado Local Municipality SRCT Member 5, Code: SRCT05_LIM344, EntityID: 324
+  ID: 2450, Name: Makhado Local Municipality SRCT Member 6, Code: SRCT06_LIM344, EntityID: 324
+  ID: 2663, Name: Makhado Local Municipality SRCT Member 7, Code: SRCT07_LIM344, EntityID: 324
+  ID: 2876, Name: Makhado Local Municipality SRCT Member 8, Code: SRCT08_LIM344, EntityID: 324
+  ID: 3089, Name: Makhado Local Municipality SRCT Member 9, Code: SRCT09_LIM344, EntityID: 324
+  ID: 3302, Name: Makhado Local Municipality SRCT Member 10, Code: SRCT10_LIM344, EntityID: 324
+  ID: 3515, Name: Makhado Local Municipality SRCT Member 11, Code: SRCT11_LIM344, EntityID: 324
+  ID: 3728, Name: Makhado Local Municipality SRCT Member 12, Code: SRCT12_LIM344, EntityID: 324
+  ID: 3941, Name: Makhado Local Municipality SRCT Member 13, Code: SRCT13_LIM344, EntityID: 324
+  ID: 317, Name: Ba-Phalaborwa Local Municipality Municipal Chairperson, Code: MCHAIR_LIM334, EntityID: 325
+  ID: 530, Name: Ba-Phalaborwa Local Municipality Municipal Secretary, Code: MSEC_LIM334, EntityID: 325
+  ID: 743, Name: Ba-Phalaborwa Local Municipality Municipal Treasurer, Code: MTREAS_LIM334, EntityID: 325
+  ID: 956, Name: Ba-Phalaborwa Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM334, EntityID: 325
+  ID: 1169, Name: Ba-Phalaborwa Local Municipality Municipal Women Leader, Code: MWOMEN_LIM334, EntityID: 325
+  ID: 1382, Name: Ba-Phalaborwa Local Municipality SRCT Member 1, Code: SRCT01_LIM334, EntityID: 325
+  ID: 1595, Name: Ba-Phalaborwa Local Municipality SRCT Member 2, Code: SRCT02_LIM334, EntityID: 325
+  ID: 1808, Name: Ba-Phalaborwa Local Municipality SRCT Member 3, Code: SRCT03_LIM334, EntityID: 325
+  ID: 2021, Name: Ba-Phalaborwa Local Municipality SRCT Member 4, Code: SRCT04_LIM334, EntityID: 325
+  ID: 2234, Name: Ba-Phalaborwa Local Municipality SRCT Member 5, Code: SRCT05_LIM334, EntityID: 325
+  ID: 2447, Name: Ba-Phalaborwa Local Municipality SRCT Member 6, Code: SRCT06_LIM334, EntityID: 325
+  ID: 2660, Name: Ba-Phalaborwa Local Municipality SRCT Member 7, Code: SRCT07_LIM334, EntityID: 325
+  ID: 2873, Name: Ba-Phalaborwa Local Municipality SRCT Member 8, Code: SRCT08_LIM334, EntityID: 325
+  ID: 3086, Name: Ba-Phalaborwa Local Municipality SRCT Member 9, Code: SRCT09_LIM334, EntityID: 325
+  ID: 3299, Name: Ba-Phalaborwa Local Municipality SRCT Member 10, Code: SRCT10_LIM334, EntityID: 325
+  ID: 3512, Name: Ba-Phalaborwa Local Municipality SRCT Member 11, Code: SRCT11_LIM334, EntityID: 325
+  ID: 3725, Name: Ba-Phalaborwa Local Municipality SRCT Member 12, Code: SRCT12_LIM334, EntityID: 325
+  ID: 3938, Name: Ba-Phalaborwa Local Municipality SRCT Member 13, Code: SRCT13_LIM334, EntityID: 325
+  ID: 380, Name: Bela-Bela Local Municipality Municipal Chairperson, Code: MCHAIR_LIM366, EntityID: 412
+  ID: 593, Name: Bela-Bela Local Municipality Municipal Secretary, Code: MSEC_LIM366, EntityID: 412
+  ID: 806, Name: Bela-Bela Local Municipality Municipal Treasurer, Code: MTREAS_LIM366, EntityID: 412
+  ID: 1019, Name: Bela-Bela Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM366, EntityID: 412
+  ID: 1232, Name: Bela-Bela Local Municipality Municipal Women Leader, Code: MWOMEN_LIM366, EntityID: 412
+  ID: 1445, Name: Bela-Bela Local Municipality SRCT Member 1, Code: SRCT01_LIM366, EntityID: 412
+  ID: 1658, Name: Bela-Bela Local Municipality SRCT Member 2, Code: SRCT02_LIM366, EntityID: 412
+  ID: 1871, Name: Bela-Bela Local Municipality SRCT Member 3, Code: SRCT03_LIM366, EntityID: 412
+  ID: 2084, Name: Bela-Bela Local Municipality SRCT Member 4, Code: SRCT04_LIM366, EntityID: 412
+  ID: 2297, Name: Bela-Bela Local Municipality SRCT Member 5, Code: SRCT05_LIM366, EntityID: 412
+  ID: 2510, Name: Bela-Bela Local Municipality SRCT Member 6, Code: SRCT06_LIM366, EntityID: 412
+  ID: 2723, Name: Bela-Bela Local Municipality SRCT Member 7, Code: SRCT07_LIM366, EntityID: 412
+  ID: 2936, Name: Bela-Bela Local Municipality SRCT Member 8, Code: SRCT08_LIM366, EntityID: 412
+  ID: 3149, Name: Bela-Bela Local Municipality SRCT Member 9, Code: SRCT09_LIM366, EntityID: 412
+  ID: 3362, Name: Bela-Bela Local Municipality SRCT Member 10, Code: SRCT10_LIM366, EntityID: 412
+  ID: 3575, Name: Bela-Bela Local Municipality SRCT Member 11, Code: SRCT11_LIM366, EntityID: 412
+  ID: 3788, Name: Bela-Bela Local Municipality SRCT Member 12, Code: SRCT12_LIM366, EntityID: 412
+  ID: 4001, Name: Bela-Bela Local Municipality SRCT Member 13, Code: SRCT13_LIM366, EntityID: 412
+  ID: 375, Name: Blouberg Local Municipality Municipal Chairperson, Code: MCHAIR_LIM351, EntityID: 413
+  ID: 588, Name: Blouberg Local Municipality Municipal Secretary, Code: MSEC_LIM351, EntityID: 413
+  ID: 801, Name: Blouberg Local Municipality Municipal Treasurer, Code: MTREAS_LIM351, EntityID: 413
+  ID: 1014, Name: Blouberg Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM351, EntityID: 413
+  ID: 1227, Name: Blouberg Local Municipality Municipal Women Leader, Code: MWOMEN_LIM351, EntityID: 413
+  ID: 1440, Name: Blouberg Local Municipality SRCT Member 1, Code: SRCT01_LIM351, EntityID: 413
+  ID: 1653, Name: Blouberg Local Municipality SRCT Member 2, Code: SRCT02_LIM351, EntityID: 413
+  ID: 1866, Name: Blouberg Local Municipality SRCT Member 3, Code: SRCT03_LIM351, EntityID: 413
+  ID: 2079, Name: Blouberg Local Municipality SRCT Member 4, Code: SRCT04_LIM351, EntityID: 413
+  ID: 2292, Name: Blouberg Local Municipality SRCT Member 5, Code: SRCT05_LIM351, EntityID: 413
+  ID: 2505, Name: Blouberg Local Municipality SRCT Member 6, Code: SRCT06_LIM351, EntityID: 413
+  ID: 2718, Name: Blouberg Local Municipality SRCT Member 7, Code: SRCT07_LIM351, EntityID: 413
+  ID: 2931, Name: Blouberg Local Municipality SRCT Member 8, Code: SRCT08_LIM351, EntityID: 413
+  ID: 3144, Name: Blouberg Local Municipality SRCT Member 9, Code: SRCT09_LIM351, EntityID: 413
+  ID: 3357, Name: Blouberg Local Municipality SRCT Member 10, Code: SRCT10_LIM351, EntityID: 413
+  ID: 3570, Name: Blouberg Local Municipality SRCT Member 11, Code: SRCT11_LIM351, EntityID: 413
+  ID: 3783, Name: Blouberg Local Municipality SRCT Member 12, Code: SRCT12_LIM351, EntityID: 413
+  ID: 3996, Name: Blouberg Local Municipality SRCT Member 13, Code: SRCT13_LIM351, EntityID: 413
+  ID: 374, Name: Collins Chabane Local Municipality Municipal Chairperson, Code: MCHAIR_LIM345, EntityID: 414
+  ID: 587, Name: Collins Chabane Local Municipality Municipal Secretary, Code: MSEC_LIM345, EntityID: 414
+  ID: 800, Name: Collins Chabane Local Municipality Municipal Treasurer, Code: MTREAS_LIM345, EntityID: 414
+  ID: 1013, Name: Collins Chabane Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM345, EntityID: 414
+  ID: 1226, Name: Collins Chabane Local Municipality Municipal Women Leader, Code: MWOMEN_LIM345, EntityID: 414
+  ID: 1439, Name: Collins Chabane Local Municipality SRCT Member 1, Code: SRCT01_LIM345, EntityID: 414
+  ID: 1652, Name: Collins Chabane Local Municipality SRCT Member 2, Code: SRCT02_LIM345, EntityID: 414
+  ID: 1865, Name: Collins Chabane Local Municipality SRCT Member 3, Code: SRCT03_LIM345, EntityID: 414
+  ID: 2078, Name: Collins Chabane Local Municipality SRCT Member 4, Code: SRCT04_LIM345, EntityID: 414
+  ID: 2291, Name: Collins Chabane Local Municipality SRCT Member 5, Code: SRCT05_LIM345, EntityID: 414
+  ID: 2504, Name: Collins Chabane Local Municipality SRCT Member 6, Code: SRCT06_LIM345, EntityID: 414
+  ID: 2717, Name: Collins Chabane Local Municipality SRCT Member 7, Code: SRCT07_LIM345, EntityID: 414
+  ID: 2930, Name: Collins Chabane Local Municipality SRCT Member 8, Code: SRCT08_LIM345, EntityID: 414
+  ID: 3143, Name: Collins Chabane Local Municipality SRCT Member 9, Code: SRCT09_LIM345, EntityID: 414
+  ID: 3356, Name: Collins Chabane Local Municipality SRCT Member 10, Code: SRCT10_LIM345, EntityID: 414
+  ID: 3569, Name: Collins Chabane Local Municipality SRCT Member 11, Code: SRCT11_LIM345, EntityID: 414
+  ID: 3782, Name: Collins Chabane Local Municipality SRCT Member 12, Code: SRCT12_LIM345, EntityID: 414
+  ID: 3995, Name: Collins Chabane Local Municipality SRCT Member 13, Code: SRCT13_LIM345, EntityID: 414
+  ID: 384, Name: Elias Motsoaledi Local Municipality Municipal Chairperson, Code: MCHAIR_LIM472, EntityID: 415
+  ID: 597, Name: Elias Motsoaledi Local Municipality Municipal Secretary, Code: MSEC_LIM472, EntityID: 415
+  ID: 810, Name: Elias Motsoaledi Local Municipality Municipal Treasurer, Code: MTREAS_LIM472, EntityID: 415
+  ID: 1023, Name: Elias Motsoaledi Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM472, EntityID: 415
+  ID: 1236, Name: Elias Motsoaledi Local Municipality Municipal Women Leader, Code: MWOMEN_LIM472, EntityID: 415
+  ID: 1449, Name: Elias Motsoaledi Local Municipality SRCT Member 1, Code: SRCT01_LIM472, EntityID: 415
+  ID: 1662, Name: Elias Motsoaledi Local Municipality SRCT Member 2, Code: SRCT02_LIM472, EntityID: 415
+  ID: 1875, Name: Elias Motsoaledi Local Municipality SRCT Member 3, Code: SRCT03_LIM472, EntityID: 415
+  ID: 2088, Name: Elias Motsoaledi Local Municipality SRCT Member 4, Code: SRCT04_LIM472, EntityID: 415
+  ID: 2301, Name: Elias Motsoaledi Local Municipality SRCT Member 5, Code: SRCT05_LIM472, EntityID: 415
+  ID: 2514, Name: Elias Motsoaledi Local Municipality SRCT Member 6, Code: SRCT06_LIM472, EntityID: 415
+  ID: 2727, Name: Elias Motsoaledi Local Municipality SRCT Member 7, Code: SRCT07_LIM472, EntityID: 415
+  ID: 2940, Name: Elias Motsoaledi Local Municipality SRCT Member 8, Code: SRCT08_LIM472, EntityID: 415
+  ID: 3153, Name: Elias Motsoaledi Local Municipality SRCT Member 9, Code: SRCT09_LIM472, EntityID: 415
+  ID: 3366, Name: Elias Motsoaledi Local Municipality SRCT Member 10, Code: SRCT10_LIM472, EntityID: 415
+  ID: 3579, Name: Elias Motsoaledi Local Municipality SRCT Member 11, Code: SRCT11_LIM472, EntityID: 415
+  ID: 3792, Name: Elias Motsoaledi Local Municipality SRCT Member 12, Code: SRCT12_LIM472, EntityID: 415
+  ID: 4005, Name: Elias Motsoaledi Local Municipality SRCT Member 13, Code: SRCT13_LIM472, EntityID: 415
+  ID: 383, Name: Ephraim Mogale Local Municipality Municipal Chairperson, Code: MCHAIR_LIM471, EntityID: 416
+  ID: 596, Name: Ephraim Mogale Local Municipality Municipal Secretary, Code: MSEC_LIM471, EntityID: 416
+  ID: 809, Name: Ephraim Mogale Local Municipality Municipal Treasurer, Code: MTREAS_LIM471, EntityID: 416
+  ID: 1022, Name: Ephraim Mogale Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM471, EntityID: 416
+  ID: 1235, Name: Ephraim Mogale Local Municipality Municipal Women Leader, Code: MWOMEN_LIM471, EntityID: 416
+  ID: 1448, Name: Ephraim Mogale Local Municipality SRCT Member 1, Code: SRCT01_LIM471, EntityID: 416
+  ID: 1661, Name: Ephraim Mogale Local Municipality SRCT Member 2, Code: SRCT02_LIM471, EntityID: 416
+  ID: 1874, Name: Ephraim Mogale Local Municipality SRCT Member 3, Code: SRCT03_LIM471, EntityID: 416
+  ID: 2087, Name: Ephraim Mogale Local Municipality SRCT Member 4, Code: SRCT04_LIM471, EntityID: 416
+  ID: 2300, Name: Ephraim Mogale Local Municipality SRCT Member 5, Code: SRCT05_LIM471, EntityID: 416
+  ID: 2513, Name: Ephraim Mogale Local Municipality SRCT Member 6, Code: SRCT06_LIM471, EntityID: 416
+  ID: 2726, Name: Ephraim Mogale Local Municipality SRCT Member 7, Code: SRCT07_LIM471, EntityID: 416
+  ID: 2939, Name: Ephraim Mogale Local Municipality SRCT Member 8, Code: SRCT08_LIM471, EntityID: 416
+  ID: 3152, Name: Ephraim Mogale Local Municipality SRCT Member 9, Code: SRCT09_LIM471, EntityID: 416
+  ID: 3365, Name: Ephraim Mogale Local Municipality SRCT Member 10, Code: SRCT10_LIM471, EntityID: 416
+  ID: 3578, Name: Ephraim Mogale Local Municipality SRCT Member 11, Code: SRCT11_LIM471, EntityID: 416
+  ID: 3791, Name: Ephraim Mogale Local Municipality SRCT Member 12, Code: SRCT12_LIM471, EntityID: 416
+  ID: 4004, Name: Ephraim Mogale Local Municipality SRCT Member 13, Code: SRCT13_LIM471, EntityID: 416
+  ID: 386, Name: Fetakgomo Tubatse Local Municipality Municipal Chairperson, Code: MCHAIR_LIM476, EntityID: 417
+  ID: 599, Name: Fetakgomo Tubatse Local Municipality Municipal Secretary, Code: MSEC_LIM476, EntityID: 417
+  ID: 812, Name: Fetakgomo Tubatse Local Municipality Municipal Treasurer, Code: MTREAS_LIM476, EntityID: 417
+  ID: 1025, Name: Fetakgomo Tubatse Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM476, EntityID: 417
+  ID: 1238, Name: Fetakgomo Tubatse Local Municipality Municipal Women Leader, Code: MWOMEN_LIM476, EntityID: 417
+  ID: 1451, Name: Fetakgomo Tubatse Local Municipality SRCT Member 1, Code: SRCT01_LIM476, EntityID: 417
+  ID: 1664, Name: Fetakgomo Tubatse Local Municipality SRCT Member 2, Code: SRCT02_LIM476, EntityID: 417
+  ID: 1877, Name: Fetakgomo Tubatse Local Municipality SRCT Member 3, Code: SRCT03_LIM476, EntityID: 417
+  ID: 2090, Name: Fetakgomo Tubatse Local Municipality SRCT Member 4, Code: SRCT04_LIM476, EntityID: 417
+  ID: 2303, Name: Fetakgomo Tubatse Local Municipality SRCT Member 5, Code: SRCT05_LIM476, EntityID: 417
+  ID: 2516, Name: Fetakgomo Tubatse Local Municipality SRCT Member 6, Code: SRCT06_LIM476, EntityID: 417
+  ID: 2729, Name: Fetakgomo Tubatse Local Municipality SRCT Member 7, Code: SRCT07_LIM476, EntityID: 417
+  ID: 2942, Name: Fetakgomo Tubatse Local Municipality SRCT Member 8, Code: SRCT08_LIM476, EntityID: 417
+  ID: 3155, Name: Fetakgomo Tubatse Local Municipality SRCT Member 9, Code: SRCT09_LIM476, EntityID: 417
+  ID: 3368, Name: Fetakgomo Tubatse Local Municipality SRCT Member 10, Code: SRCT10_LIM476, EntityID: 417
+  ID: 3581, Name: Fetakgomo Tubatse Local Municipality SRCT Member 11, Code: SRCT11_LIM476, EntityID: 417
+  ID: 3794, Name: Fetakgomo Tubatse Local Municipality SRCT Member 12, Code: SRCT12_LIM476, EntityID: 417
+  ID: 4007, Name: Fetakgomo Tubatse Local Municipality SRCT Member 13, Code: SRCT13_LIM476, EntityID: 417
+  ID: 370, Name: Greater Giyani Local Municipality Municipal Chairperson, Code: MCHAIR_LIM331, EntityID: 418
+  ID: 583, Name: Greater Giyani Local Municipality Municipal Secretary, Code: MSEC_LIM331, EntityID: 418
+  ID: 796, Name: Greater Giyani Local Municipality Municipal Treasurer, Code: MTREAS_LIM331, EntityID: 418
+  ID: 1009, Name: Greater Giyani Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM331, EntityID: 418
+  ID: 1222, Name: Greater Giyani Local Municipality Municipal Women Leader, Code: MWOMEN_LIM331, EntityID: 418
+  ID: 1435, Name: Greater Giyani Local Municipality SRCT Member 1, Code: SRCT01_LIM331, EntityID: 418
+  ID: 1648, Name: Greater Giyani Local Municipality SRCT Member 2, Code: SRCT02_LIM331, EntityID: 418
+  ID: 1861, Name: Greater Giyani Local Municipality SRCT Member 3, Code: SRCT03_LIM331, EntityID: 418
+  ID: 2074, Name: Greater Giyani Local Municipality SRCT Member 4, Code: SRCT04_LIM331, EntityID: 418
+  ID: 2287, Name: Greater Giyani Local Municipality SRCT Member 5, Code: SRCT05_LIM331, EntityID: 418
+  ID: 2500, Name: Greater Giyani Local Municipality SRCT Member 6, Code: SRCT06_LIM331, EntityID: 418
+  ID: 2713, Name: Greater Giyani Local Municipality SRCT Member 7, Code: SRCT07_LIM331, EntityID: 418
+  ID: 2926, Name: Greater Giyani Local Municipality SRCT Member 8, Code: SRCT08_LIM331, EntityID: 418
+  ID: 3139, Name: Greater Giyani Local Municipality SRCT Member 9, Code: SRCT09_LIM331, EntityID: 418
+  ID: 3352, Name: Greater Giyani Local Municipality SRCT Member 10, Code: SRCT10_LIM331, EntityID: 418
+  ID: 3565, Name: Greater Giyani Local Municipality SRCT Member 11, Code: SRCT11_LIM331, EntityID: 418
+  ID: 3778, Name: Greater Giyani Local Municipality SRCT Member 12, Code: SRCT12_LIM331, EntityID: 418
+  ID: 3991, Name: Greater Giyani Local Municipality SRCT Member 13, Code: SRCT13_LIM331, EntityID: 418
+  ID: 371, Name: Greater Letaba Local Municipality Municipal Chairperson, Code: MCHAIR_LIM332, EntityID: 419
+  ID: 584, Name: Greater Letaba Local Municipality Municipal Secretary, Code: MSEC_LIM332, EntityID: 419
+  ID: 797, Name: Greater Letaba Local Municipality Municipal Treasurer, Code: MTREAS_LIM332, EntityID: 419
+  ID: 1010, Name: Greater Letaba Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM332, EntityID: 419
+  ID: 1223, Name: Greater Letaba Local Municipality Municipal Women Leader, Code: MWOMEN_LIM332, EntityID: 419
+  ID: 1436, Name: Greater Letaba Local Municipality SRCT Member 1, Code: SRCT01_LIM332, EntityID: 419
+  ID: 1649, Name: Greater Letaba Local Municipality SRCT Member 2, Code: SRCT02_LIM332, EntityID: 419
+  ID: 1862, Name: Greater Letaba Local Municipality SRCT Member 3, Code: SRCT03_LIM332, EntityID: 419
+  ID: 2075, Name: Greater Letaba Local Municipality SRCT Member 4, Code: SRCT04_LIM332, EntityID: 419
+  ID: 2288, Name: Greater Letaba Local Municipality SRCT Member 5, Code: SRCT05_LIM332, EntityID: 419
+  ID: 2501, Name: Greater Letaba Local Municipality SRCT Member 6, Code: SRCT06_LIM332, EntityID: 419
+  ID: 2714, Name: Greater Letaba Local Municipality SRCT Member 7, Code: SRCT07_LIM332, EntityID: 419
+  ID: 2927, Name: Greater Letaba Local Municipality SRCT Member 8, Code: SRCT08_LIM332, EntityID: 419
+  ID: 3140, Name: Greater Letaba Local Municipality SRCT Member 9, Code: SRCT09_LIM332, EntityID: 419
+  ID: 3353, Name: Greater Letaba Local Municipality SRCT Member 10, Code: SRCT10_LIM332, EntityID: 419
+  ID: 3566, Name: Greater Letaba Local Municipality SRCT Member 11, Code: SRCT11_LIM332, EntityID: 419
+  ID: 3779, Name: Greater Letaba Local Municipality SRCT Member 12, Code: SRCT12_LIM332, EntityID: 419
+  ID: 3992, Name: Greater Letaba Local Municipality SRCT Member 13, Code: SRCT13_LIM332, EntityID: 419
+  ID: 372, Name: Greater Tzaneen Local Municipality Municipal Chairperson, Code: MCHAIR_LIM333, EntityID: 420
+  ID: 585, Name: Greater Tzaneen Local Municipality Municipal Secretary, Code: MSEC_LIM333, EntityID: 420
+  ID: 798, Name: Greater Tzaneen Local Municipality Municipal Treasurer, Code: MTREAS_LIM333, EntityID: 420
+  ID: 1011, Name: Greater Tzaneen Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM333, EntityID: 420
+  ID: 1224, Name: Greater Tzaneen Local Municipality Municipal Women Leader, Code: MWOMEN_LIM333, EntityID: 420
+  ID: 1437, Name: Greater Tzaneen Local Municipality SRCT Member 1, Code: SRCT01_LIM333, EntityID: 420
+  ID: 1650, Name: Greater Tzaneen Local Municipality SRCT Member 2, Code: SRCT02_LIM333, EntityID: 420
+  ID: 1863, Name: Greater Tzaneen Local Municipality SRCT Member 3, Code: SRCT03_LIM333, EntityID: 420
+  ID: 2076, Name: Greater Tzaneen Local Municipality SRCT Member 4, Code: SRCT04_LIM333, EntityID: 420
+  ID: 2289, Name: Greater Tzaneen Local Municipality SRCT Member 5, Code: SRCT05_LIM333, EntityID: 420
+  ID: 2502, Name: Greater Tzaneen Local Municipality SRCT Member 6, Code: SRCT06_LIM333, EntityID: 420
+  ID: 2715, Name: Greater Tzaneen Local Municipality SRCT Member 7, Code: SRCT07_LIM333, EntityID: 420
+  ID: 2928, Name: Greater Tzaneen Local Municipality SRCT Member 8, Code: SRCT08_LIM333, EntityID: 420
+  ID: 3141, Name: Greater Tzaneen Local Municipality SRCT Member 9, Code: SRCT09_LIM333, EntityID: 420
+  ID: 3354, Name: Greater Tzaneen Local Municipality SRCT Member 10, Code: SRCT10_LIM333, EntityID: 420
+  ID: 3567, Name: Greater Tzaneen Local Municipality SRCT Member 11, Code: SRCT11_LIM333, EntityID: 420
+  ID: 3780, Name: Greater Tzaneen Local Municipality SRCT Member 12, Code: SRCT12_LIM333, EntityID: 420
+  ID: 3993, Name: Greater Tzaneen Local Municipality SRCT Member 13, Code: SRCT13_LIM333, EntityID: 420
+  ID: 377, Name: Lepele-Nkumpi Local Municipality Municipal Chairperson, Code: MCHAIR_LIM355, EntityID: 421
+  ID: 590, Name: Lepele-Nkumpi Local Municipality Municipal Secretary, Code: MSEC_LIM355, EntityID: 421
+  ID: 803, Name: Lepele-Nkumpi Local Municipality Municipal Treasurer, Code: MTREAS_LIM355, EntityID: 421
+  ID: 1016, Name: Lepele-Nkumpi Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM355, EntityID: 421
+  ID: 1229, Name: Lepele-Nkumpi Local Municipality Municipal Women Leader, Code: MWOMEN_LIM355, EntityID: 421
+  ID: 1442, Name: Lepele-Nkumpi Local Municipality SRCT Member 1, Code: SRCT01_LIM355, EntityID: 421
+  ID: 1655, Name: Lepele-Nkumpi Local Municipality SRCT Member 2, Code: SRCT02_LIM355, EntityID: 421
+  ID: 1868, Name: Lepele-Nkumpi Local Municipality SRCT Member 3, Code: SRCT03_LIM355, EntityID: 421
+  ID: 2081, Name: Lepele-Nkumpi Local Municipality SRCT Member 4, Code: SRCT04_LIM355, EntityID: 421
+  ID: 2294, Name: Lepele-Nkumpi Local Municipality SRCT Member 5, Code: SRCT05_LIM355, EntityID: 421
+  ID: 2507, Name: Lepele-Nkumpi Local Municipality SRCT Member 6, Code: SRCT06_LIM355, EntityID: 421
+  ID: 2720, Name: Lepele-Nkumpi Local Municipality SRCT Member 7, Code: SRCT07_LIM355, EntityID: 421
+  ID: 2933, Name: Lepele-Nkumpi Local Municipality SRCT Member 8, Code: SRCT08_LIM355, EntityID: 421
+  ID: 3146, Name: Lepele-Nkumpi Local Municipality SRCT Member 9, Code: SRCT09_LIM355, EntityID: 421
+  ID: 3359, Name: Lepele-Nkumpi Local Municipality SRCT Member 10, Code: SRCT10_LIM355, EntityID: 421
+  ID: 3572, Name: Lepele-Nkumpi Local Municipality SRCT Member 11, Code: SRCT11_LIM355, EntityID: 421
+  ID: 3785, Name: Lepele-Nkumpi Local Municipality SRCT Member 12, Code: SRCT12_LIM355, EntityID: 421
+  ID: 3998, Name: Lepele-Nkumpi Local Municipality SRCT Member 13, Code: SRCT13_LIM355, EntityID: 421
+  ID: 379, Name: Lephalale Local Municipality Municipal Chairperson, Code: MCHAIR_LIM362, EntityID: 422
+  ID: 592, Name: Lephalale Local Municipality Municipal Secretary, Code: MSEC_LIM362, EntityID: 422
+  ID: 805, Name: Lephalale Local Municipality Municipal Treasurer, Code: MTREAS_LIM362, EntityID: 422
+  ID: 1018, Name: Lephalale Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM362, EntityID: 422
+  ID: 1231, Name: Lephalale Local Municipality Municipal Women Leader, Code: MWOMEN_LIM362, EntityID: 422
+  ID: 1444, Name: Lephalale Local Municipality SRCT Member 1, Code: SRCT01_LIM362, EntityID: 422
+  ID: 1657, Name: Lephalale Local Municipality SRCT Member 2, Code: SRCT02_LIM362, EntityID: 422
+  ID: 1870, Name: Lephalale Local Municipality SRCT Member 3, Code: SRCT03_LIM362, EntityID: 422
+  ID: 2083, Name: Lephalale Local Municipality SRCT Member 4, Code: SRCT04_LIM362, EntityID: 422
+  ID: 2296, Name: Lephalale Local Municipality SRCT Member 5, Code: SRCT05_LIM362, EntityID: 422
+  ID: 2509, Name: Lephalale Local Municipality SRCT Member 6, Code: SRCT06_LIM362, EntityID: 422
+  ID: 2722, Name: Lephalale Local Municipality SRCT Member 7, Code: SRCT07_LIM362, EntityID: 422
+  ID: 2935, Name: Lephalale Local Municipality SRCT Member 8, Code: SRCT08_LIM362, EntityID: 422
+  ID: 3148, Name: Lephalale Local Municipality SRCT Member 9, Code: SRCT09_LIM362, EntityID: 422
+  ID: 3361, Name: Lephalale Local Municipality SRCT Member 10, Code: SRCT10_LIM362, EntityID: 422
+  ID: 3574, Name: Lephalale Local Municipality SRCT Member 11, Code: SRCT11_LIM362, EntityID: 422
+  ID: 3787, Name: Lephalale Local Municipality SRCT Member 12, Code: SRCT12_LIM362, EntityID: 422
+  ID: 4000, Name: Lephalale Local Municipality SRCT Member 13, Code: SRCT13_LIM362, EntityID: 422
+  ID: 385, Name: Makhuduthamaga Local Municipality Municipal Chairperson, Code: MCHAIR_LIM473, EntityID: 424
+  ID: 598, Name: Makhuduthamaga Local Municipality Municipal Secretary, Code: MSEC_LIM473, EntityID: 424
+  ID: 811, Name: Makhuduthamaga Local Municipality Municipal Treasurer, Code: MTREAS_LIM473, EntityID: 424
+  ID: 1024, Name: Makhuduthamaga Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM473, EntityID: 424
+  ID: 1237, Name: Makhuduthamaga Local Municipality Municipal Women Leader, Code: MWOMEN_LIM473, EntityID: 424
+  ID: 1450, Name: Makhuduthamaga Local Municipality SRCT Member 1, Code: SRCT01_LIM473, EntityID: 424
+  ID: 1663, Name: Makhuduthamaga Local Municipality SRCT Member 2, Code: SRCT02_LIM473, EntityID: 424
+  ID: 1876, Name: Makhuduthamaga Local Municipality SRCT Member 3, Code: SRCT03_LIM473, EntityID: 424
+  ID: 2089, Name: Makhuduthamaga Local Municipality SRCT Member 4, Code: SRCT04_LIM473, EntityID: 424
+  ID: 2302, Name: Makhuduthamaga Local Municipality SRCT Member 5, Code: SRCT05_LIM473, EntityID: 424
+  ID: 2515, Name: Makhuduthamaga Local Municipality SRCT Member 6, Code: SRCT06_LIM473, EntityID: 424
+  ID: 2728, Name: Makhuduthamaga Local Municipality SRCT Member 7, Code: SRCT07_LIM473, EntityID: 424
+  ID: 2941, Name: Makhuduthamaga Local Municipality SRCT Member 8, Code: SRCT08_LIM473, EntityID: 424
+  ID: 3154, Name: Makhuduthamaga Local Municipality SRCT Member 9, Code: SRCT09_LIM473, EntityID: 424
+  ID: 3367, Name: Makhuduthamaga Local Municipality SRCT Member 10, Code: SRCT10_LIM473, EntityID: 424
+  ID: 3580, Name: Makhuduthamaga Local Municipality SRCT Member 11, Code: SRCT11_LIM473, EntityID: 424
+  ID: 3793, Name: Makhuduthamaga Local Municipality SRCT Member 12, Code: SRCT12_LIM473, EntityID: 424
+  ID: 4006, Name: Makhuduthamaga Local Municipality SRCT Member 13, Code: SRCT13_LIM473, EntityID: 424
+  ID: 373, Name: Maruleng Local Municipality Municipal Chairperson, Code: MCHAIR_LIM335, EntityID: 425
+  ID: 586, Name: Maruleng Local Municipality Municipal Secretary, Code: MSEC_LIM335, EntityID: 425
+  ID: 799, Name: Maruleng Local Municipality Municipal Treasurer, Code: MTREAS_LIM335, EntityID: 425
+  ID: 1012, Name: Maruleng Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM335, EntityID: 425
+  ID: 1225, Name: Maruleng Local Municipality Municipal Women Leader, Code: MWOMEN_LIM335, EntityID: 425
+  ID: 1438, Name: Maruleng Local Municipality SRCT Member 1, Code: SRCT01_LIM335, EntityID: 425
+  ID: 1651, Name: Maruleng Local Municipality SRCT Member 2, Code: SRCT02_LIM335, EntityID: 425
+  ID: 1864, Name: Maruleng Local Municipality SRCT Member 3, Code: SRCT03_LIM335, EntityID: 425
+  ID: 2077, Name: Maruleng Local Municipality SRCT Member 4, Code: SRCT04_LIM335, EntityID: 425
+  ID: 2290, Name: Maruleng Local Municipality SRCT Member 5, Code: SRCT05_LIM335, EntityID: 425
+  ID: 2503, Name: Maruleng Local Municipality SRCT Member 6, Code: SRCT06_LIM335, EntityID: 425
+  ID: 2716, Name: Maruleng Local Municipality SRCT Member 7, Code: SRCT07_LIM335, EntityID: 425
+  ID: 2929, Name: Maruleng Local Municipality SRCT Member 8, Code: SRCT08_LIM335, EntityID: 425
+  ID: 3142, Name: Maruleng Local Municipality SRCT Member 9, Code: SRCT09_LIM335, EntityID: 425
+  ID: 3355, Name: Maruleng Local Municipality SRCT Member 10, Code: SRCT10_LIM335, EntityID: 425
+  ID: 3568, Name: Maruleng Local Municipality SRCT Member 11, Code: SRCT11_LIM335, EntityID: 425
+  ID: 3781, Name: Maruleng Local Municipality SRCT Member 12, Code: SRCT12_LIM335, EntityID: 425
+  ID: 3994, Name: Maruleng Local Municipality SRCT Member 13, Code: SRCT13_LIM335, EntityID: 425
+  ID: 382, Name: Modimolle-Mookgophong Local Municipality Municipal Chairperson, Code: MCHAIR_LIM368, EntityID: 426
+  ID: 595, Name: Modimolle-Mookgophong Local Municipality Municipal Secretary, Code: MSEC_LIM368, EntityID: 426
+  ID: 808, Name: Modimolle-Mookgophong Local Municipality Municipal Treasurer, Code: MTREAS_LIM368, EntityID: 426
+  ID: 1021, Name: Modimolle-Mookgophong Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM368, EntityID: 426
+  ID: 1234, Name: Modimolle-Mookgophong Local Municipality Municipal Women Leader, Code: MWOMEN_LIM368, EntityID: 426
+  ID: 1447, Name: Modimolle-Mookgophong Local Municipality SRCT Member 1, Code: SRCT01_LIM368, EntityID: 426
+  ID: 1660, Name: Modimolle-Mookgophong Local Municipality SRCT Member 2, Code: SRCT02_LIM368, EntityID: 426
+  ID: 1873, Name: Modimolle-Mookgophong Local Municipality SRCT Member 3, Code: SRCT03_LIM368, EntityID: 426
+  ID: 2086, Name: Modimolle-Mookgophong Local Municipality SRCT Member 4, Code: SRCT04_LIM368, EntityID: 426
+  ID: 2299, Name: Modimolle-Mookgophong Local Municipality SRCT Member 5, Code: SRCT05_LIM368, EntityID: 426
+  ID: 2512, Name: Modimolle-Mookgophong Local Municipality SRCT Member 6, Code: SRCT06_LIM368, EntityID: 426
+  ID: 2725, Name: Modimolle-Mookgophong Local Municipality SRCT Member 7, Code: SRCT07_LIM368, EntityID: 426
+  ID: 2938, Name: Modimolle-Mookgophong Local Municipality SRCT Member 8, Code: SRCT08_LIM368, EntityID: 426
+  ID: 3151, Name: Modimolle-Mookgophong Local Municipality SRCT Member 9, Code: SRCT09_LIM368, EntityID: 426
+  ID: 3364, Name: Modimolle-Mookgophong Local Municipality SRCT Member 10, Code: SRCT10_LIM368, EntityID: 426
+  ID: 3577, Name: Modimolle-Mookgophong Local Municipality SRCT Member 11, Code: SRCT11_LIM368, EntityID: 426
+  ID: 3790, Name: Modimolle-Mookgophong Local Municipality SRCT Member 12, Code: SRCT12_LIM368, EntityID: 426
+  ID: 4003, Name: Modimolle-Mookgophong Local Municipality SRCT Member 13, Code: SRCT13_LIM368, EntityID: 426
+  ID: 381, Name: Mogalakwena Local Municipality Municipal Chairperson, Code: MCHAIR_LIM367, EntityID: 427
+  ID: 594, Name: Mogalakwena Local Municipality Municipal Secretary, Code: MSEC_LIM367, EntityID: 427
+  ID: 807, Name: Mogalakwena Local Municipality Municipal Treasurer, Code: MTREAS_LIM367, EntityID: 427
+  ID: 1020, Name: Mogalakwena Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM367, EntityID: 427
+  ID: 1233, Name: Mogalakwena Local Municipality Municipal Women Leader, Code: MWOMEN_LIM367, EntityID: 427
+  ID: 1446, Name: Mogalakwena Local Municipality SRCT Member 1, Code: SRCT01_LIM367, EntityID: 427
+  ID: 1659, Name: Mogalakwena Local Municipality SRCT Member 2, Code: SRCT02_LIM367, EntityID: 427
+  ID: 1872, Name: Mogalakwena Local Municipality SRCT Member 3, Code: SRCT03_LIM367, EntityID: 427
+  ID: 2085, Name: Mogalakwena Local Municipality SRCT Member 4, Code: SRCT04_LIM367, EntityID: 427
+  ID: 2298, Name: Mogalakwena Local Municipality SRCT Member 5, Code: SRCT05_LIM367, EntityID: 427
+  ID: 2511, Name: Mogalakwena Local Municipality SRCT Member 6, Code: SRCT06_LIM367, EntityID: 427
+  ID: 2724, Name: Mogalakwena Local Municipality SRCT Member 7, Code: SRCT07_LIM367, EntityID: 427
+  ID: 2937, Name: Mogalakwena Local Municipality SRCT Member 8, Code: SRCT08_LIM367, EntityID: 427
+  ID: 3150, Name: Mogalakwena Local Municipality SRCT Member 9, Code: SRCT09_LIM367, EntityID: 427
+  ID: 3363, Name: Mogalakwena Local Municipality SRCT Member 10, Code: SRCT10_LIM367, EntityID: 427
+  ID: 3576, Name: Mogalakwena Local Municipality SRCT Member 11, Code: SRCT11_LIM367, EntityID: 427
+  ID: 3789, Name: Mogalakwena Local Municipality SRCT Member 12, Code: SRCT12_LIM367, EntityID: 427
+  ID: 4002, Name: Mogalakwena Local Municipality SRCT Member 13, Code: SRCT13_LIM367, EntityID: 427
+  ID: 376, Name: Molemole Local Municipality Municipal Chairperson, Code: MCHAIR_LIM353, EntityID: 428
+  ID: 589, Name: Molemole Local Municipality Municipal Secretary, Code: MSEC_LIM353, EntityID: 428
+  ID: 802, Name: Molemole Local Municipality Municipal Treasurer, Code: MTREAS_LIM353, EntityID: 428
+  ID: 1015, Name: Molemole Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM353, EntityID: 428
+  ID: 1228, Name: Molemole Local Municipality Municipal Women Leader, Code: MWOMEN_LIM353, EntityID: 428
+  ID: 1441, Name: Molemole Local Municipality SRCT Member 1, Code: SRCT01_LIM353, EntityID: 428
+  ID: 1654, Name: Molemole Local Municipality SRCT Member 2, Code: SRCT02_LIM353, EntityID: 428
+  ID: 1867, Name: Molemole Local Municipality SRCT Member 3, Code: SRCT03_LIM353, EntityID: 428
+  ID: 2080, Name: Molemole Local Municipality SRCT Member 4, Code: SRCT04_LIM353, EntityID: 428
+  ID: 2293, Name: Molemole Local Municipality SRCT Member 5, Code: SRCT05_LIM353, EntityID: 428
+  ID: 2506, Name: Molemole Local Municipality SRCT Member 6, Code: SRCT06_LIM353, EntityID: 428
+  ID: 2719, Name: Molemole Local Municipality SRCT Member 7, Code: SRCT07_LIM353, EntityID: 428
+  ID: 2932, Name: Molemole Local Municipality SRCT Member 8, Code: SRCT08_LIM353, EntityID: 428
+  ID: 3145, Name: Molemole Local Municipality SRCT Member 9, Code: SRCT09_LIM353, EntityID: 428
+  ID: 3358, Name: Molemole Local Municipality SRCT Member 10, Code: SRCT10_LIM353, EntityID: 428
+  ID: 3571, Name: Molemole Local Municipality SRCT Member 11, Code: SRCT11_LIM353, EntityID: 428
+  ID: 3784, Name: Molemole Local Municipality SRCT Member 12, Code: SRCT12_LIM353, EntityID: 428
+  ID: 3997, Name: Molemole Local Municipality SRCT Member 13, Code: SRCT13_LIM353, EntityID: 428
+  ID: 378, Name: Thabazimbi Local Municipality Municipal Chairperson, Code: MCHAIR_LIM361, EntityID: 431
+  ID: 591, Name: Thabazimbi Local Municipality Municipal Secretary, Code: MSEC_LIM361, EntityID: 431
+  ID: 804, Name: Thabazimbi Local Municipality Municipal Treasurer, Code: MTREAS_LIM361, EntityID: 431
+  ID: 1017, Name: Thabazimbi Local Municipality Municipal Youth Leader, Code: MYOUTH_LIM361, EntityID: 431
+  ID: 1230, Name: Thabazimbi Local Municipality Municipal Women Leader, Code: MWOMEN_LIM361, EntityID: 431
+  ID: 1443, Name: Thabazimbi Local Municipality SRCT Member 1, Code: SRCT01_LIM361, EntityID: 431
+  ID: 1656, Name: Thabazimbi Local Municipality SRCT Member 2, Code: SRCT02_LIM361, EntityID: 431
+  ID: 1869, Name: Thabazimbi Local Municipality SRCT Member 3, Code: SRCT03_LIM361, EntityID: 431
+  ID: 2082, Name: Thabazimbi Local Municipality SRCT Member 4, Code: SRCT04_LIM361, EntityID: 431
+  ID: 2295, Name: Thabazimbi Local Municipality SRCT Member 5, Code: SRCT05_LIM361, EntityID: 431
+  ID: 2508, Name: Thabazimbi Local Municipality SRCT Member 6, Code: SRCT06_LIM361, EntityID: 431
+  ID: 2721, Name: Thabazimbi Local Municipality SRCT Member 7, Code: SRCT07_LIM361, EntityID: 431
+  ID: 2934, Name: Thabazimbi Local Municipality SRCT Member 8, Code: SRCT08_LIM361, EntityID: 431
+  ID: 3147, Name: Thabazimbi Local Municipality SRCT Member 9, Code: SRCT09_LIM361, EntityID: 431
+  ID: 3360, Name: Thabazimbi Local Municipality SRCT Member 10, Code: SRCT10_LIM361, EntityID: 431
+  ID: 3573, Name: Thabazimbi Local Municipality SRCT Member 11, Code: SRCT11_LIM361, EntityID: 431
+  ID: 3786, Name: Thabazimbi Local Municipality SRCT Member 12, Code: SRCT12_LIM361, EntityID: 431
+  ID: 3999, Name: Thabazimbi Local Municipality SRCT Member 13, Code: SRCT13_LIM361, EntityID: 431
+
+=== RUSTENBURG POSITIONS (example) ===
+  ID: 80276, Name: Rustenburg SRCT Chairperson, Code: RUST-SRCT-1, EntityID: null, Order: 0
+  ID: 80277, Name: Rustenburg SRCT Secretary, Code: RUST-SRCT-2, EntityID: null, Order: 0
+  ID: 80278, Name: Rustenburg SRCT Treasurer, Code: RUST-SRCT-3, EntityID: null, Order: 0
+  ID: 80279, Name: Rustenburg SRCT Member 1, Code: RUST-SRCT-4, EntityID: null, Order: 0
+  ID: 80280, Name: Rustenburg SRCT Member 2, Code: RUST-SRCT-5, EntityID: null, Order: 0
+
+=== POSITIONS WITH MCHAIR_ PREFIX ===
+  Found 10 positions with MCHAIR_ prefix
+  ID: 495, Name: Buffalo City Metropolitan Municipality Municipal Chairperson, Code: MCHAIR_BUF, EntityID: 507
+  ID: 338, Name: City of Cape Town Metropolitan Municipality Municipal Chairperson, Code: MCHAIR_CPT, EntityID: 332
+  ID: 496, Name: Dr Beyers Naude Local Municipality Municipal Chairperson, Code: MCHAIR_EC101, EntityID: 508
+  ID: 494, Name: Blue Crane Route Local Municipality Municipal Chairperson, Code: MCHAIR_EC102, EntityID: 506
+  ID: 508, Name: Makana Local Municipality Municipal Chairperson, Code: MCHAIR_EC104, EntityID: 520
+  ID: 514, Name: Ndlambe Local Municipality Municipal Chairperson, Code: MCHAIR_EC105, EntityID: 526
+  ID: 523, Name: Sundays River Valley Local Municipality Municipal Chairperson, Code: MCHAIR_EC106, EntityID: 535
+  ID: 507, Name: Kouga Local Municipality Municipal Chairperson, Code: MCHAIR_EC108, EntityID: 519
+  ID: 506, Name: Kou-Kamma Local Municipality Municipal Chairperson, Code: MCHAIR_EC109, EntityID: 518
+  ID: 510, Name: Mbhashe Local Municipality Municipal Chairperson, Code: MCHAIR_EC121, EntityID: 522
+
+=== TOTAL POSITIONS COUNT ===
+  Total active positions: 81199
+
+=== MAX POSITION ID ===
+  Max position ID: 81254

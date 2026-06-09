@@ -45,6 +45,8 @@ export class SMSLogService {
   // Log a new SMS send
   static async logSMSSend(entry: SMSSendLogEntry): Promise<string> {
     try {
+      // Implementation note: ON CONFLICT DO NOTHING is used to handle potential race conditions
+      // where the same message might be logged by parallel processes.
       const query = `
         INSERT INTO sms_send_log (
           message_id, provider_message_id, source_type, source_reference_id,
@@ -52,7 +54,7 @@ export class SMSLogService {
           message_content, message_length, sender_id, sender_name,
           status, error_code, error_message, cost, provider_name
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        RETURNING id
+        ON CONFLICT (message_id) DO NOTHING
       `;
 
       await executeQuery(query, [

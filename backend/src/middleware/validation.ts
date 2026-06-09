@@ -148,7 +148,7 @@ export const memberSchemas = {
     citizenship_id: Joi.number().integer().min(1).max(2).default(1),
     language_id: Joi.number().integer().min(1).max(11).optional(),
     ward_code: Joi.string().min(5).max(15).required(),
-    voting_station_id: Joi.number().integer().positive().optional(),
+    voting_station_id: Joi.number().integer().positive().optional().allow(null),
     residential_address: Joi.string().max(500).optional(),
     cell_number: Joi.string().pattern(/^(\+27|27|0)[6-8]\d{8}$/).optional()
       .messages({
@@ -171,7 +171,10 @@ export const memberSchemas = {
     citizenship_id: Joi.number().integer().min(1).max(2).optional(),
     language_id: Joi.number().integer().min(1).max(11).optional(),
     ward_code: Joi.string().min(5).max(15).optional(),
-    voting_station_id: Joi.number().integer().positive().optional(),
+    province_code: Joi.string().min(2).max(3).optional(),
+    district_code: Joi.string().min(3).max(10).optional(),
+    municipality_code: Joi.string().min(3).max(10).optional(),
+    voting_station_id: Joi.number().integer().positive().optional().allow(null),
     residential_address: Joi.string().max(500).optional(),
     cell_number: Joi.string().optional(),
     landline_number: Joi.string().pattern(/^(\+27|0)\d{9}$/).optional().allow(null),

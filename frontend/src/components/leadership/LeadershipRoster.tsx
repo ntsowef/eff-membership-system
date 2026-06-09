@@ -33,6 +33,7 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  TablePagination,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -44,11 +45,15 @@ import {
   LocationOn,
   DeleteForever,
   Pause,
-  MoreVert
+  MoreVert,
+  Download
 } from '@mui/icons-material';
 import { LeadershipAPI, type LeadershipAppointmentDetails } from '../../services/leadershipApi';
 import GeographicSelector, { type GeographicSelection } from './GeographicSelector';
 import { useProvinceContext } from '../../hooks/useProvinceContext';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const levelOptions = ['National', 'Province', 'Municipality', 'Ward'] as const;
 
@@ -60,6 +65,11 @@ const LeadershipRoster: React.FC = () => {
   const [geo, setGeo] = useState<GeographicSelection | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Get province context for provincial admin restrictions
   useProvinceContext();
@@ -82,15 +92,90 @@ const LeadershipRoster: React.FC = () => {
     const f: any = {};
     if (level) f.hierarchy_level = level;
     if (geo?.entityId) f.entity_id = geo.entityId;
+    if (geo?.provinceId) f.province_id = geo.provinceId;
     if (search.trim()) f.q = search.trim();
+
+    // Add pagination to filters
+    f.page = page + 1; // API is 1-indexed
+    f.limit = rowsPerPage;
     return f;
-  }, [level, geo, search]);
+  }, [level, geo, search, page, rowsPerPage]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['leadership-appointments', filters],
     queryFn: () => LeadershipAPI.getCurrentAppointments(filters),
     staleTime: 60_000,
   });
+
+  const appointments = data?.appointments || [];
+  const totalCount = data?.pagination?.total_count || 0;
+
+  // Handle pagination change
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const constructExportData = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch all data for export
+      const exportFilters = { ...filters, page: 1, limit: 10000 };
+      const response = await LeadershipAPI.getCurrentAppointments(exportFilters);
+      const allAppointments = response.appointments || [];
+
+      return allAppointments.map((appt: LeadershipAppointmentDetails) => ({
+        'Member Name': appt.member_name || 'N/A',
+        'ID Number': (appt as any).id_number || 'N/A',
+        'Position': appt.position_name || 'N/A',
+        'Province': (appt as any).province_name || 'N/A',
+        'Municipality': (appt as any).municipality_name || 'N/A',
+        'Ward': (appt as any).ward_name || 'N/A',
+        'Ward Members': Number((appt as any).branch_member_count || 0).toLocaleString(),
+        'Start Date': appt.start_date ? new Date(appt.start_date).toLocaleDateString() : 'N/A',
+        'Type': appt.appointment_type || 'N/A',
+      }));
+    } catch (error) {
+      console.error('Failed to prepare export data', error);
+      return [];
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    const data = await constructExportData();
+    if (!data.length) return;
+
+    const doc = new jsPDF();
+    doc.text('Leadership Roster', 14, 15);
+
+    const columns = Object.keys(data[0]);
+    const rows = data.map(obj => Object.values(obj));
+
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: 20,
+    });
+
+    doc.save('leadership_roster.pdf');
+  };
+
+  const handleExportExcel = async () => {
+    const data = await constructExportData();
+    if (!data.length) return;
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leadership');
+
+    XLSX.writeFile(workbook, 'leadership_roster.xlsx');
+  };
 
   const terminateMutation = useMutation({
     mutationFn: ({ id, reason, endDate }: { id: number; reason: string; endDate?: string }) =>
@@ -121,8 +206,6 @@ const LeadershipRoster: React.FC = () => {
       setRemoveError(error.response?.data?.error?.message || 'Failed to remove from position');
     }
   });
-
-  const appointments = data?.appointments || [];
 
   const handleAskTerminate = (appt: LeadershipAppointmentDetails) => {
     setConfirmData({ appt, reason: '' });
@@ -190,7 +273,25 @@ const LeadershipRoster: React.FC = () => {
             </Grid>
             <Grid item xs={12} md={3}>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Download />}
+                  onClick={handleExportPDF}
+                  disabled={isExporting}
+                >
+                  PDF
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Download />}
+                  onClick={handleExportExcel}
+                  disabled={isExporting}
+                >
+                  Excel
+                </Button>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                   View:
                 </Typography>
                 <ToggleButtonGroup
@@ -326,8 +427,8 @@ const LeadershipRoster: React.FC = () => {
                           size="small"
                           color={
                             appt.hierarchy_level === 'National' ? 'error' :
-                            appt.hierarchy_level === 'Province' ? 'warning' :
-                            appt.hierarchy_level === 'Municipality' ? 'info' : 'success'
+                              appt.hierarchy_level === 'Province' ? 'warning' :
+                                appt.hierarchy_level === 'Municipality' ? 'info' : 'success'
                           }
                         />
                       </TableCell>
@@ -364,6 +465,22 @@ const LeadershipRoster: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+
+          {/* Pagination */}
+          {!isLoading && appointments.length > 0 && (
+            <TablePagination
+              component="div"
+              count={totalCount}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              showFirstButton
+              showLastButton
+              sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+            />
           )}
         </CardContent>
       </Card>

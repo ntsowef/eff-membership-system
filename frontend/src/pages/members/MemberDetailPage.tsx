@@ -28,6 +28,8 @@ import {
   Select,
   MenuItem,
   Alert,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -46,6 +48,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPut, apiPost } from '../../lib/api';
 import type { Member } from '../../store';
+import { LeadershipAPI, type GeographicEntity } from '../../services/leadershipApi';
 
 interface Activity {
   id: number;
@@ -84,6 +87,11 @@ const MemberDetailPage: React.FC = () => {
   const [sendMessageDialog, setSendMessageDialog] = useState(false);
   const [messageType, setMessageType] = useState<'email' | 'sms'>('email');
   const [editedMember, setEditedMember] = useState<Member | null>(null);
+
+  // Cascading location state (Province -> Municipality -> Ward)
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState<string>('');
+  const [selectedMunicipalityCode, setSelectedMunicipalityCode] = useState<string>('');
+  const [selectedWardCode, setSelectedWardCode] = useState<string>('');
 
   // Real API queries
   const { data: member, isLoading, error } = useQuery({
@@ -127,6 +135,39 @@ const MemberDetailPage: React.FC = () => {
     }
   }, [member, editedMember]);
 
+  // Initialize cascading location selectors from the loaded member
+  useEffect(() => {
+    if (member) {
+      setSelectedProvinceCode(member.province_code || '');
+      setSelectedMunicipalityCode(member.municipality_code || '');
+      setSelectedWardCode(member.ward_code || '');
+    }
+  }, [member]);
+
+  // Fetch provinces (always available when editing)
+  const { data: provinces = [] } = useQuery<GeographicEntity[]>({
+    queryKey: ['provinces'],
+    queryFn: () => LeadershipAPI.getProvinces(),
+    enabled: editMode,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch municipalities for the selected province
+  const { data: municipalities = [], isLoading: municipalitiesLoading } = useQuery<GeographicEntity[]>({
+    queryKey: ['municipalities', selectedProvinceCode],
+    queryFn: () => LeadershipAPI.getMunicipalitiesByProvinceCode(selectedProvinceCode),
+    enabled: editMode && !!selectedProvinceCode,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch wards for the selected municipality
+  const { data: wards = [], isLoading: wardsLoading } = useQuery<GeographicEntity[]>({
+    queryKey: ['wards', selectedMunicipalityCode],
+    queryFn: () => LeadershipAPI.getWardsByMunicipalityCode(selectedMunicipalityCode, 500),
+    enabled: editMode && !!selectedMunicipalityCode,
+    staleTime: 10 * 60 * 1000,
+  });
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
@@ -158,13 +199,38 @@ const MemberDetailPage: React.FC = () => {
   };
 
   const handleSave = () => {
-    if (editedMember) {
-      updateMemberMutation.mutate(editedMember);
-    }
+    if (!editedMember) return;
+
+    // Derive ward/municipality/province/district from the cascading selectors,
+    // falling back to the current member values when a level was not changed.
+    const selectedWard = wards.find(w => w.ward_code === selectedWardCode);
+    const selectedMunicipality = municipalities.find(m => m.municipality_code === selectedMunicipalityCode);
+
+    const payload: Partial<Member> & {
+      province_code?: string;
+      municipality_code?: string;
+      district_code?: string;
+      ward_code?: string;
+    } = {
+      ...editedMember,
+      province_code: selectedProvinceCode || editedMember.province_code,
+      municipality_code: selectedMunicipalityCode || editedMember.municipality_code,
+      ward_code: selectedWardCode || editedMember.ward_code,
+      // District comes from the chosen ward (preferred) or municipality
+      district_code:
+        (selectedWard as any)?.district_code ||
+        (selectedMunicipality as any)?.district_code ||
+        editedMember.district_code,
+    };
+
+    updateMemberMutation.mutate(payload);
   };
 
   const handleCancel = () => {
     setEditedMember(member);
+    setSelectedProvinceCode(member?.province_code || '');
+    setSelectedMunicipalityCode(member?.municipality_code || '');
+    setSelectedWardCode(member?.ward_code || '');
     setEditMode(false);
   };
 
@@ -411,6 +477,84 @@ const MemberDetailPage: React.FC = () => {
                   }
                 />
               </Grid>
+
+              {/* Cascading Province / Municipality / Ward */}
+              <Grid item xs={12} sm={4}>
+                <Autocomplete
+                  options={provinces}
+                  getOptionLabel={(o) => o.province_name || ''}
+                  isOptionEqualToValue={(o, v) => o.province_code === v.province_code}
+                  value={provinces.find(p => p.province_code === selectedProvinceCode) || null}
+                  onChange={(_, value) => {
+                    setSelectedProvinceCode(value?.province_code || '');
+                    setSelectedMunicipalityCode('');
+                    setSelectedWardCode('');
+                  }}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Province" placeholder="Select province" />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Autocomplete
+                  options={municipalities}
+                  loading={municipalitiesLoading}
+                  disabled={!selectedProvinceCode}
+                  getOptionLabel={(o) => o.municipality_name || ''}
+                  isOptionEqualToValue={(o, v) => o.municipality_code === v.municipality_code}
+                  value={municipalities.find(m => m.municipality_code === selectedMunicipalityCode) || null}
+                  onChange={(_, value) => {
+                    setSelectedMunicipalityCode(value?.municipality_code || '');
+                    setSelectedWardCode('');
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Municipality"
+                      placeholder={selectedProvinceCode ? 'Select municipality' : 'Select a province first'}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {municipalitiesLoading ? <CircularProgress size={16} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Autocomplete
+                  options={wards}
+                  loading={wardsLoading}
+                  disabled={!selectedMunicipalityCode}
+                  getOptionLabel={(o) =>
+                    o.ward_number ? `Ward ${o.ward_number}${o.ward_name ? ` - ${o.ward_name}` : ''}` : (o.ward_name || o.ward_code || '')
+                  }
+                  isOptionEqualToValue={(o, v) => o.ward_code === v.ward_code}
+                  value={wards.find(w => w.ward_code === selectedWardCode) || null}
+                  onChange={(_, value) => setSelectedWardCode(value?.ward_code || '')}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Ward"
+                      placeholder={selectedMunicipalityCode ? 'Select ward' : 'Select a municipality first'}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {wardsLoading ? <CircularProgress size={16} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              </Grid>
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel>Membership Status</InputLabel>

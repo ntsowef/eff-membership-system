@@ -136,7 +136,7 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Phone Number"
+            label="SMS Number"
             value={applicationData.phone || ''}
             onChange={(e) => handleChange('phone', e.target.value)}
             error={!!errors.phone}
@@ -239,10 +239,10 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
         <Grid item xs={12}>
           <TextField
             fullWidth
-            label="Alternative Contact Number"
+            label="WhatsApp Number"
             value={applicationData.alternative_phone || ''}
             onChange={(e) => handleChange('alternative_phone', e.target.value)}
-            helperText="Optional - Emergency contact number"
+            helperText="Optional - WhatsApp number"
           />
         </Grid>
       </Grid>

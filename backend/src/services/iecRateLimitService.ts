@@ -61,7 +61,7 @@ export class IECRateLimitService {
         percentage_used: Math.round(percentageUsed * 10) / 10
       };
     } catch (error) {
-      console.error('❌ Error checking IEC rate limit:', error);
+      console.error(' Error checking IEC rate limit:', error);
       // If Redis fails, allow the request but log the error
       return {
         current_count: 0,
@@ -104,7 +104,7 @@ export class IECRateLimitService {
         percentage_used: Math.round(percentageUsed * 10) / 10
       };
     } catch (error) {
-      console.error('❌ Error getting IEC rate limit status:', error);
+      console.error('Error getting IEC rate limit status:', error);
       return {
         current_count: 0,
         max_limit: IEC_MAX_REQUESTS_PER_HOUR,
@@ -133,9 +133,9 @@ export class IECRateLimitService {
       const currentHourKey = this.getCurrentHourKey();
       const fullKey = `${IEC_RATE_LIMIT_KEY}:${currentHourKey}`;
       await redisService.del(fullKey);
-      console.log('✅ IEC rate limit counter reset');
+      console.log('IEC rate limit counter reset');
     } catch (error) {
-      console.error('❌ Error resetting IEC rate limit:', error);
+      console.error(' Error resetting IEC rate limit:', error);
     }
   }
 
@@ -157,7 +157,7 @@ export class IECRateLimitService {
   static formatResetTime(resetTime: number): string {
     const now = Date.now();
     const diff = resetTime - now;
-    
+
     if (diff <= 0) {
       return 'now';
     }

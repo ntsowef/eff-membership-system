@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { viewsApi, searchApi, membersApi } from '../../services/api';
+import { reportsApi } from '../../services/reportsApi';
 import type { Member } from '../../types/member';
 import { useNotification } from '../../hooks/useNotification';
 
@@ -181,10 +182,24 @@ const GeographicSearchPage = () => {
     setDownloadAnchorEl(null);
   };
 
-  const handleDownload = async (format: 'excel' | 'word' | 'pdf' | 'both') => {
+  const handleDownload = async (format: 'excel' | 'word' | 'pdf' | 'both' | 'lge2026') => {
     try {
       setIsDownloading(true);
       handleDownloadClose();
+
+      // LGE2026 Package: dedicated route that bundles the Attendance Register (Word)
+      // and the new Membership Spreadsheet (Excel) with conditional column reorder.
+      if (format === 'lge2026') {
+        if (!filters.ward_code) {
+          showError('Please select a ward before downloading the LGE2026 Package.');
+          return;
+        }
+        const result = await reportsApi.downloadLGE2026Package({
+          ward_code: filters.ward_code,
+        });
+        showSuccess(result.message || '✅ LGE2026 Package downloaded successfully!');
+        return;
+      }
 
       let blob: Blob;
       let emailSentTo: string | undefined;
@@ -580,6 +595,17 @@ const GeographicSearchPage = () => {
           <ListItemText
             primary="Download Both (ZIP)"
             secondary={!filters.ward_code ? 'Ward required' : 'Excel (All) + Word (Active)'}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleDownload('lge2026')} disabled={!filters.ward_code}>
+          <ListItemIcon>
+            <ZipIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="LGE2026 Package (ZIP)"
+            secondary={!filters.ward_code
+              ? 'Ward required'
+              : 'Attendance Register (Word + PDF) + Membership Spreadsheet (Excel) with Summary sheet'}
           />
         </MenuItem>
       </Menu>

@@ -214,34 +214,10 @@ router.get('/templates',
 );
 
 // Card Statistics
+
 router.get('/statistics',
   asyncHandler(async (req, res) => {
-    // Mock statistics - in real implementation, would query database
-    const statistics = {
-      total_cards_issued: 145820,
-      active_cards: 142156,
-      expired_cards: 3664,
-      cards_issued_this_month: 1250,
-      verification_requests_today: 89,
-      most_popular_template: 'standard',
-      template_usage: {
-        standard: 89.2,
-        premium: 8.5,
-        executive: 2.3
-      },
-      recent_activity: [
-        {
-          date: new Date().toISOString().split('T')[0],
-          cards_generated: 45,
-          verifications: 123
-        },
-        {
-          date: new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0],
-          cards_generated: 38,
-          verifications: 156
-        }
-      ]
-    };
+    const statistics = await DigitalMembershipCardModel.getCardAccessStatistics();
 
     sendSuccess(res, {
       card_statistics: statistics,
@@ -249,6 +225,7 @@ router.get('/statistics',
     }, 'Card statistics retrieved successfully');
   })
 );
+
 
 // Revoke/Suspend Card
 router.patch('/revoke/:memberId',
@@ -283,5 +260,33 @@ router.patch('/revoke/:memberId',
     }, `Card ${action} completed successfully`);
   })
 );
+
+// Track card view
+router.post('/track-view/:memberId', asyncHandler(async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const { id_number, source } = req.body;
+    
+    if (!id_number) {
+      return res.status(400).json({ error: 'ID number is required' });
+    }
+
+    const ip_address = req.ip || req.socket.remoteAddress;
+    const user_agent = req.headers['user-agent'];
+
+    await DigitalMembershipCardModel.trackCardView(memberId, {
+      id_number,
+      ip_address,
+      user_agent,
+      source: source || 'public'
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error tracking card view:', error);
+    res.status(500).json({ error: 'Failed to track card view' });
+  }
+}));
+
 
 export default router;

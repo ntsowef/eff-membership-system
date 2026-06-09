@@ -213,7 +213,17 @@ export class ViewsService {
           END as membership_status
         FROM members_consolidated m
         LEFT JOIN wards w ON m.ward_code = w.ward_code
-        LEFT JOIN voting_districts vd ON m.voting_district_code = vd.voting_district_code
+        -- Restrict VD join to the member's own ward so members tagged with stale/foreign
+        -- VD codes (belonging to a different ward) don't inherit that ward's VD name and
+        -- balloon into separate "stations" in the attendance register. Keep sentinel VDs
+        -- (Registered in Different Ward / International / Not Registered) joined regardless
+        -- of their ward_code so their canonical names continue to resolve.
+        LEFT JOIN voting_districts vd
+          ON m.voting_district_code = vd.voting_district_code
+         AND (
+              vd.ward_code = m.ward_code
+              OR vd.voting_district_code IN ('22222222','33333333','99999999','222222222','333333333','999999999')
+         )
         LEFT JOIN voting_stations vs ON m.voting_station_id = vs.voting_station_id
         WHERE 1=1
       `;

@@ -5,15 +5,102 @@ const pool = new Pool({
   port: 5432,
   user: 'eff_admin',
   password: 'Frames!123',
-  database: 'eff_membership_db'
+  database: 'eff_membership_database'
 });
+
+// Create the dependency view first
+async function createWardMembershipAuditView() {
+  console.log('📝 Creating vw_ward_membership_audit view...');
+
+  const createViewSQL = `
+    CREATE OR REPLACE VIEW vw_ward_membership_audit AS
+    SELECT
+        w.ward_code,
+        w.ward_name,
+        w.municipality_code,
+        m.municipality_name,
+        m.district_code,
+        d.district_name,
+        d.province_code,
+        p.province_name,
+
+        -- Active member counts (based on expiry date with 90-day grace period)
+        SUM(CASE
+            WHEN mc.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mst.is_active = true THEN 1
+            ELSE 0
+        END) as active_members,
+
+        SUM(CASE
+            WHEN mc.expiry_date < CURRENT_DATE - INTERVAL '90 days' OR mst.is_active = false THEN 1
+            ELSE 0
+        END) as expired_members,
+
+        SUM(CASE
+            WHEN mc.expiry_date IS NULL THEN 1
+            ELSE 0
+        END) as inactive_members,
+
+        COUNT(mc.member_id) as total_members,
+
+        -- Compliance percentage
+        ROUND(
+            (SUM(CASE WHEN mc.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mst.is_active = true THEN 1 ELSE 0 END) * 100.0) /
+            NULLIF(COUNT(mc.member_id), 0), 2
+        ) as compliance_percentage,
+
+        -- Standing based on active members (200 = good, 100-199 = acceptable, <100 = needs improvement)
+        CASE
+            WHEN SUM(CASE WHEN mc.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mst.is_active = true THEN 1 ELSE 0 END) >= 200 THEN 'Good Standing'
+            WHEN SUM(CASE WHEN mc.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mst.is_active = true THEN 1 ELSE 0 END) >= 100 THEN 'Acceptable Standing'
+            ELSE 'Needs Improvement'
+        END as standing_status,
+
+        -- Standing level for sorting
+        CASE
+            WHEN SUM(CASE WHEN mc.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mst.is_active = true THEN 1 ELSE 0 END) >= 200 THEN 1
+            WHEN SUM(CASE WHEN mc.expiry_date >= CURRENT_DATE - INTERVAL '90 days' AND mst.is_active = true THEN 1 ELSE 0 END) >= 100 THEN 2
+            ELSE 3
+        END as standing_level,
+
+        NOW() as last_updated
+
+    FROM wards w
+    LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
+    LEFT JOIN districts d ON m.district_code = d.district_code
+    LEFT JOIN provinces p ON d.province_code = p.province_code
+    LEFT JOIN members_consolidated mc ON w.ward_code = mc.ward_code
+    LEFT JOIN membership_statuses mst ON mc.membership_status_id = mst.status_id
+    GROUP BY w.ward_code, w.ward_name, w.municipality_code, m.municipality_name,
+             m.district_code, d.district_name, d.province_code, p.province_name;
+  `;
+
+  await pool.query(createViewSQL);
+  console.log('✅ vw_ward_membership_audit created successfully');
+}
 
 async function createMunicipalityWardPerformanceView() {
   console.log('🔄 Creating vw_municipality_ward_performance view...\n');
 
   try {
+    // 0. Check if vw_ward_membership_audit exists (dependency)
+    console.log('0. Checking for dependency view vw_ward_membership_audit...');
+    const checkDepView = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.views
+        WHERE table_schema = 'public'
+        AND table_name = 'vw_ward_membership_audit'
+      ) as exists
+    `);
+
+    if (!checkDepView.rows[0].exists) {
+      console.log('❌ vw_ward_membership_audit does not exist! Creating it first...');
+      await createWardMembershipAuditView();
+    } else {
+      console.log('✅ vw_ward_membership_audit exists');
+    }
+
     // 1. Drop the existing view if it exists
-    console.log('1. Dropping existing view if it exists...');
+    console.log('\n1. Dropping existing view if it exists...');
     const dropViewQuery = `DROP VIEW IF EXISTS vw_municipality_ward_performance CASCADE;`;
     await pool.query(dropViewQuery);
     console.log('✅ Existing view dropped (if it existed)');

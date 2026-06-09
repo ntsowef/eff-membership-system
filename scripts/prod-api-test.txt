@@ -1,0 +1,109 @@
+Total municipalities returned: 23
+Sub-regions: 4
+
+Sub-regions:
+[
+  {
+    "municipality_id": 581,
+    "municipality_code": "MAN001",
+    "municipality_name": "MAN - Bloemfontein",
+    "district_code": null,
+    "province_code": "FS",
+    "municipality_type": "Metro Sub-Region",
+    "parent_municipality_id": 504,
+    "parent_municipality_code": "MAN",
+    "parent_municipality_name": "Mangaung Metropolitan Municipality"
+  },
+  {
+    "municipality_id": 582,
+    "municipality_code": "MAN002",
+    "municipality_name": "MAN - Botshabelo",
+    "district_code": null,
+    "province_code": "FS",
+    "municipality_type": "Metro Sub-Region",
+    "parent_municipality_id": 504,
+    "parent_municipality_code": "MAN",
+    "parent_municipality_name": "Mangaung Metropolitan Municipality"
+  },
+  {
+    "municipality_id": 583,
+    "municipality_code": "MAN003",
+    "municipality_name": "MAN - Naledi",
+    "district_code": null,
+    "province_code": "FS",
+    "municipality_type": "Metro Sub-Region",
+    "parent_municipality_id": 504,
+    "parent_municipality_code": "MAN",
+    "parent_municipality_name": "Mangaung Metropolitan Municipality"
+  },
+  {
+    "municipality_id": 584,
+    "municipality_code": "MAN004",
+    "municipality_name": "MAN - Thaba Nchu",
+    "district_code": null,
+    "province_code": "FS",
+    "municipality_type": "Metro Sub-Region",
+    "parent_municipality_id": 504,
+    "parent_municipality_code": "MAN",
+    "parent_municipality_name": "Mangaung Metropolitan Municipality"
+  }
+]
+
+First 5 municipalities:
+[
+  {
+    "municipality_id": 495,
+    "municipality_code": "FS192",
+    "municipality_name": "Dihlabeng",
+    "district_code": "DC19",
+    "province_code": "FS",
+    "municipality_type": "Local",
+    "parent_municipality_id": null,
+    "parent_municipality_code": null,
+    "parent_municipality_name": null
+  },
+  {
+    "municipality_id": 487,
+    "municipality_code": "FS162",
+    "municipality_name": "Kopanong",
+    "district_code": "DC16",
+    "province_code": "FS",
+    "municipality_type": "Local",
+    "parent_municipality_id": null,
+    "parent_municipality_code": null,
+    "parent_municipality_name": null
+  },
+  {
+    "municipality_id": 486,
+    "municipality_code": "FS161",
+    "municipality_name": "Letsemeng",
+    "district_code": "DC16",
+    "province_code": "FS",
+    "municipality_type": "Local",
+    "parent_municipality_id": null,
+    "parent_municipality_code": null,
+    "parent_municipality_name": null
+  },
+  {
+    "municipality_id": 581,
+    "municipality_code": "MAN001",
+    "municipality_name": "MAN - Bloemfontein",
+    "district_code": null,
+    "province_code": "FS",
+    "municipality_type": "Metro Sub-Region",
+    "parent_municipality_id": 504,
+    "parent_municipality_code": "MAN",
+    "parent_municipality_name": "Mangaung Metropolitan Municipality"
+  },
+  {
+    "municipality_id": 582,
+    "municipality_code": "MAN002",
+    "municipality_name": "MAN - Botshabelo",
+    "district_code": null,
+    "province_code": "FS",
+    "municipality_type": "Metro Sub-Region",
+    "parent_municipality_id": 504,
+    "parent_municipality_code": "MAN",
+    "parent_municipality_name": "Mangaung Metropolitan Municipality"
+  }
+]

@@ -101,6 +101,7 @@ export interface RenewalProcessRequest {
   payment_method: 'Card' | 'Cash' | 'EFT' | 'Mobile' | 'Other';
   payment_reference?: string;
   amount_paid: number;
+  shopperResultUrl?: string;
   updated_member_data?: {
     email?: string;
     cell_number?: string;
@@ -109,6 +110,31 @@ export interface RenewalProcessRequest {
     postal_address?: string;
     ward_code?: string;
   };
+}
+
+export interface CheckoutResponse {
+  requires_payment: boolean;
+  checkout?: {
+    checkoutId: string;
+    checkoutJsUrl: string;
+    paymentId: number;
+  };
+  member?: {
+    member_id: number;
+    firstname: string;
+    surname: string;
+    membership_number: string;
+  };
+}
+
+export interface PaymentVerificationResponse {
+  payment_verified: boolean;
+  transaction_id?: string;
+  result_code?: string;
+  result_description?: string;
+  payment_brand?: string;
+  amount?: string;
+  message: string;
 }
 
 export interface RenewalProcessResponse {

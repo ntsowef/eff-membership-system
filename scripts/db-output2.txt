@@ -1,0 +1,82 @@
+
+=== PROVINCES TABLE COLUMNS ===
+  province_id (integer)
+  province_code (character varying)
+  province_name (character varying)
+  capital_city (character varying)
+  population (integer)
+  area_km2 (numeric)
+  is_active (boolean)
+  created_at (timestamp without time zone)
+  updated_at (timestamp without time zone)
+
+=== MUNICIPALITIES TABLE COLUMNS ===
+  municipality_id (integer)
+  municipality_code (character varying)
+  municipality_name (character varying)
+  district_code (character varying)
+  municipality_type (character varying)
+  population (integer)
+  area_km2 (numeric)
+  total_wards (integer)
+  represented_wards (integer)
+  is_adequately_represented (boolean)
+  is_active (boolean)
+  created_at (timestamp without time zone)
+  updated_at (timestamp without time zone)
+  population_density (numeric)
+  number_of_wards (integer)
+  parent_municipality_id (integer)
+  province_code (character varying)
+
+=== DISTRICTS TABLE COLUMNS ===
+  district_id (integer)
+  district_code (character varying)
+  district_name (character varying)
+  province_code (character varying)
+  district_type (character varying)
+  population (integer)
+  area_km2 (numeric)
+  is_active (boolean)
+  created_at (timestamp without time zone)
+  updated_at (timestamp without time zone)
+  population_2022 (integer)
+  population_density (numeric)
+  number_of_municipalities (integer)
+  established_year (integer)
+
+=== LEADERSHIP_POSITIONS TABLE COLUMNS ===
+  id (integer) default: nextval('leadership_positions_id_seq'::regclass)
+  position_name (character varying) default: null
+  position_code (character varying) default: null
+  position_description (text) default: null
+  hierarchy_level (character varying) default: null
+  position_category (character varying) default: 'Executive'::character varying
+  is_core_position (boolean) default: false
+  requires_election (boolean) default: true
+  term_duration_months (integer) default: 60
+  max_concurrent_appointments (integer) default: 1
+  position_order (integer) default: 0
+  is_active (boolean) default: true
+  created_at (timestamp without time zone) default: CURRENT_TIMESTAMP
+  updated_at (timestamp without time zone) default: CURRENT_TIMESTAMP
+  entity_id (integer) default: null
+  entity_type (character varying) default: null
+
+=== LEADERSHIP_APPOINTMENTS TABLE COLUMNS ===
+  id (integer, nullable: NO) default: nextval('leadership_appointments_id_seq'::regclass)
+  position_id (integer, nullable: NO) default: null
+  member_id (integer, nullable: NO) default: null
+  hierarchy_level (character varying, nullable: YES) default: null
+  entity_id (integer, nullable: YES) default: null
+  appointment_type (character varying, nullable: NO) default: null
+  start_date (date, nullable: NO) default: null
+  end_date (date, nullable: YES) default: null
+  appointment_status (character varying, nullable: NO) default: 'Active'::character varying
+  appointed_by (integer, nullable: YES) default: null
+  appointment_notes (text, nullable: YES) default: null
+  termination_reason (text, nullable: YES) default: null
+  terminated_by (integer, nullable: YES) default: null
+  terminated_at (timestamp without time zone, nullable: YES) default: null
+  created_at (timestamp without time zone, nullable: YES) default: CURRENT_TIMESTAMP
+  updated_at (timestamp without time zone, nullable: YES) default: CURRENT_TIMESTAMP

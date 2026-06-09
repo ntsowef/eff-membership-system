@@ -58,7 +58,6 @@ const PaymentInfoStep: React.FC = () => {
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
       case 'Card':
-        return <CreditCard />;
       case 'EFT':
         return <AccountBalance />;
       case 'Mobile':
@@ -79,6 +78,7 @@ const PaymentInfoStep: React.FC = () => {
 
     // Validate terms acceptance
     if (!termsAccepted) {
+      return <CreditCard />;
       newErrors.terms = 'You must accept the terms and conditions';
     }
 
@@ -160,31 +160,9 @@ const PaymentInfoStep: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CreditCard />
                 <Box>
-                  <Typography variant="body1">Credit/Debit Card</Typography>
+                  <Typography variant="body1">Card Payment</Typography>
                   <Typography variant="caption" color="text.secondary">
                     Pay online with card
-                  </Typography>
-                </Box>
-              </Box>
-            </MenuItem>
-            <MenuItem value="EFT">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AccountBalance />
-                <Box>
-                  <Typography variant="body1">EFT/Bank Transfer</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Direct bank transfer
-                  </Typography>
-                </Box>
-              </Box>
-            </MenuItem>
-            <MenuItem value="Mobile">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PhoneAndroid />
-                <Box>
-                  <Typography variant="body1">Mobile Payment</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Pay via mobile money
                   </Typography>
                 </Box>
               </Box>
@@ -192,21 +170,7 @@ const PaymentInfoStep: React.FC = () => {
           </Select>
         </FormControl>
 
-        {/* Payment Method Instructions */}
-        {paymentMethod === 'EFT' && (
-          <Alert severity="info" icon={<Info />} sx={{ mb: 3 }}>
-            <Typography variant="body2" gutterBottom>
-              <strong>Bank Transfer Details:</strong>
-            </Typography>
-            <Typography variant="body2">
-              Bank: Standard Bank<br />
-              Account Name: EFF Membership<br />
-              Account Number: 1234567890<br />
-              Branch Code: 051001<br />
-              Reference: {memberData.membership_number || memberData.id_number}
-            </Typography>
-          </Alert>
-        )}
+
 
         {paymentMethod === 'Cash' && (
           <Alert severity="info" icon={<Info />} sx={{ mb: 3 }}>

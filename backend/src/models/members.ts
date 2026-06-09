@@ -529,6 +529,10 @@ export class MemberModel {
         'email': 'email',
         'residential_address': 'residential_address',
         'ward_code': 'ward_code',
+        'province_code': 'province_code',
+        'district_code': 'district_code',
+        'municipality_code': 'municipality_code',
+        'voting_district_code': 'voting_district_code',
         'id_number': 'id_number',
         'date_of_birth': 'date_of_birth',
         'gender_id': 'gender_id',
@@ -561,7 +565,7 @@ export class MemberModel {
       params.push(id);
 
       const query = `
-        UPDATE members
+        UPDATE members_consolidated
         SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
         WHERE member_id = ?
       `;

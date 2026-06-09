@@ -1,0 +1,22 @@
+{
+  "host": "69.164.245.173",
+  "timestamp": "2026-06-05T09-12-15-203Z",
+  "tables": {
+    "municipalities": {
+      "rows": 267,
+      "file": "municipalities_69.164.245.173_2026-06-05T09-12-15-203Z.json"
+    },
+    "wards": {
+      "rows": 4522,
+      "file": "wards_69.164.245.173_2026-06-05T09-12-15-203Z.json"
+    },
+    "voting_districts": {
+      "rows": 24116,
+      "file": "voting_districts_69.164.245.173_2026-06-05T09-12-15-203Z.json"
+    },
+    "voting_stations": {
+      "rows": 23706,
+      "file": "voting_stations_69.164.245.173_2026-06-05T09-12-15-203Z.json"
+    }
+  }
+}

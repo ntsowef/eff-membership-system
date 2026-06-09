@@ -1,0 +1,4 @@
+src/services/votingDistrictReportService.ts(133,31): error TS1127: Invalid character.
+src/services/votingDistrictReportService.ts(133,32): error TS1134: Variable declaration expected.
+src/services/votingDistrictReportService.ts(183,1): error TS1005: '}' expected.
+src/services/votingDistrictReportService.ts(183,1): error TS1160: Unterminated template literal.

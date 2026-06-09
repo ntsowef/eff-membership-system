@@ -56,19 +56,26 @@ export class HtmlPdfService {
         const vdNameLower = vdName.toLowerCase().trim();
 
         // Check for special voting district codes
-        // '99999999' or '999999999' = Not Registered to vote
+        // '99999999' or '999999999' = Not Registered to vote — excluded from register and quorum
         if (vdCode === '99999999' || vdCode === '999999999' || vdNameLower === 'not registered to vote') {
           console.log(`⏭️ Skipping unregistered voter: ${member.full_name || member.first_name} - VD Code: "${vdCode}"`);
           return;
         }
 
         // '22222222' or '222222222' = Registered in different ward
+        // These members ARE included in the register and counted toward quorum
         if (vdCode === '22222222' || vdCode === '222222222' ||
             vdNameLower === 'registered in different ward' ||
             vdNameLower.includes('different ward') ||
             vdNameLower.includes('other ward')) {
-          console.log(`🔄 Separating member to different ward table: ${member.full_name || member.first_name} - VD Code: "${vdCode}", VD Name: "${vdName}"`);
+          console.log(`🔄 Including other-ward member in register: ${member.full_name || member.first_name} - VD Code: "${vdCode}", VD Name: "${vdName}"`);
           differentWardMembers.push(member);
+          // Also add to grouped map so they render in the attendance table
+          const otherWardKey = 'Registered in Other Ward';
+          if (!grouped[otherWardKey]) {
+            grouped[otherWardKey] = [];
+          }
+          grouped[otherWardKey].push(member);
           return;
         }
 
@@ -79,13 +86,15 @@ export class HtmlPdfService {
         grouped[vdName].push(member);
       });
 
-      // Calculate total from ALL registered voters (this ward + different ward)
+      // Quorum rule: members registered IN THIS WARD plus members registered
+      // in OTHER WARDS all count toward the official "total membership in good
+      // standing" and quorum. Only "Not Registered to vote" members are excluded.
       const thisWardCount = Object.values(grouped).reduce((sum, list) => sum + list.length, 0);
-      const total = thisWardCount + differentWardMembers.length;  // Include different ward members in total
-      const excludedCount = members.length - total;
+      const total = thisWardCount;  // In-ward + other-ward registered voters
+      const excludedCount = members.length - thisWardCount;
       const quorum = Math.floor(total / 2) + 1;
 
-      console.log(`📊 Total members: ${members.length}, Registered in this ward: ${thisWardCount}, Different ward: ${differentWardMembers.length}, Total registered: ${total}, Excluded (not registered): ${excludedCount}`);
+      console.log(`📊 Total members: ${members.length}, Counted (in-ward + other-ward): ${thisWardCount}, Other ward: ${differentWardMembers.length}, Quorum total: ${total}, Excluded (not registered): ${excludedCount}`);
       const province = wardInfo.province_name || 'UNKNOWN';
       const municipality = wardInfo.municipality_name || 'UNKNOWN';
       const municipalityCode = wardInfo.municipality_code || '';
@@ -163,36 +172,6 @@ ${logoHtml}
       });
 
       html += `</tbody></table>`;
-
-      // Add separate table for members registered in different ward
-      if (differentWardMembers.length > 0) {
-        html += `
-<div style="margin-top: 30px; page-break-before: auto;">
-  <h3 style="background: #f0f0f0; padding: 10px; border: 2px solid #333;">
-    MEMBERS REGISTERED IN DIFFERENT WARD (${differentWardMembers.length})
-  </h3>
-  <p style="font-size: 9pt; color: #666; margin: 10px 0;">
-    These members are registered to vote in a different ward but are part of this ward's membership.
-  </p>
-  <table><thead><tr>
-    <th>NUM...</th><th>NAME</th><th>WARD NUMBER</th><th>ID NUMBER</th>
-    <th>CELL NUMBER</th><th>REGISTERED VD</th><th>SIGNATURE</th><th>NEW CELL NUM</th>
-  </tr></thead><tbody>`;
-
-        let diffWardNum = 1;
-        differentWardMembers.forEach(member => {
-          const fullName = member.full_name || `${member.first_name || ''} ${member.surname || ''}`.trim().toUpperCase();
-          const cellNum = (member.cell_number || '').replace(/[^0-9]/g, '').slice(0, 15);
-          const wardCode = member.ward_code || wardNumber;
-          const vdInfo = member.voting_district_name || 'Different Ward';
-
-          html += `<tr><td>${diffWardNum++}</td><td>${fullName}</td><td>${wardCode}</td><td>${member.id_number}</td>
-            <td>${cellNum}</td><td>${vdInfo}</td><td></td><td></td></tr>`;
-        });
-
-        html += `<tr class="total-row"><td colspan="8">Total Members Registered in Different Ward: ${differentWardMembers.length}</td></tr>`;
-        html += `</tbody></table>`;
-      }
 
       html += `</body></html>`;
 

@@ -92,9 +92,9 @@ export class RoleModel {
       }
 
       const permissionsQuery = `
-        SELECT p.id, p.name, p.description, p.resource, p.action, p.created_at, p.updated_at
+        SELECT p.permission_id as id, p.permission_code as name, p.description, p.resource, p.action, p.created_at, p.updated_at
         FROM permissions p
-        INNER JOIN role_permissions rp ON p.id = rp.permission_id
+        INNER JOIN role_permissions rp ON p.permission_id = rp.permission_id
         WHERE rp.role_id = ?
         ORDER BY p.resource, p.action
       `;
@@ -184,7 +184,7 @@ export class RoleModel {
       await executeQuery('DELETE FROM role_permissions WHERE role_id = ?', [id]);
       
       // Then delete the role
-      const query = 'DELETE FROM roles WHERE id = ?';
+      const query = 'DELETE FROM roles WHERE role_id = ?';
       const result = await executeQuery(query, [id]);
       
       return result.affectedRows > 0;
@@ -250,7 +250,7 @@ export class RoleModel {
   static async getAllPermissions(): Promise<Permission[]> {
     try {
       const query = `
-        SELECT id, name, description, resource, action, created_at, updated_at
+        SELECT permission_id as id, permission_code as name, description, resource, action, created_at, updated_at
         FROM permissions
         ORDER BY resource, action
       `;
@@ -265,7 +265,7 @@ export class RoleModel {
   static async getPermissionsByResource(resource: string): Promise<Permission[]> {
     try {
       const query = `
-        SELECT id, name, description, resource, action, created_at, updated_at
+        SELECT permission_id as id, permission_code as name, description, resource, action, created_at, updated_at
         FROM permissions
         WHERE resource = ?
         ORDER BY action
@@ -283,10 +283,10 @@ export class RoleModel {
       const query = `
         SELECT COUNT(*) as count
         FROM users u
-        INNER JOIN roles r ON u.role_id = r.id
-        INNER JOIN role_permissions rp ON r.id = rp.role_id
-        INNER JOIN permissions p ON rp.permission_id = p.id
-        WHERE u.id = ? AND p.name = ? AND u.is_active = TRUE
+        INNER JOIN roles r ON u.role_id = r.role_id
+        INNER JOIN role_permissions rp ON r.role_id = rp.role_id
+        INNER JOIN permissions p ON rp.permission_id = p.permission_id
+        WHERE u.user_id = ? AND p.permission_code = ? AND u.is_active = TRUE
       `;
 
       const result = await executeQuerySingle<{ count: number }>(query, [userId, permissionName]);
@@ -300,12 +300,12 @@ export class RoleModel {
   static async getUserPermissions(userId: number): Promise<Permission[]> {
     try {
       const query = `
-        SELECT DISTINCT p.id, p.name, p.description, p.resource, p.action, p.created_at, p.updated_at
+        SELECT DISTINCT p.permission_id as id, p.permission_code as name, p.description, p.resource, p.action, p.created_at, p.updated_at
         FROM permissions p
-        INNER JOIN role_permissions rp ON p.id = rp.permission_id
-        INNER JOIN roles r ON rp.role_id = r.id
-        INNER JOIN users u ON r.id = u.role_id
-        WHERE u.id = ? AND u.is_active = TRUE
+        INNER JOIN role_permissions rp ON p.permission_id = rp.permission_id
+        INNER JOIN roles r ON rp.role_id = r.role_id
+        INNER JOIN users u ON r.role_id = u.role_id
+        WHERE u.user_id = ? AND u.is_active = TRUE
         ORDER BY p.resource, p.action
       `;
 

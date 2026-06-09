@@ -280,35 +280,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       throw new AuthenticationError('User not found or inactive');
     }
 
-    // Check if user requires MFA and has valid OTP session (with bypass check)
-    const requiresMFA = await OTPService.requiresMFAWithBypassCheck(user.id, user.admin_level || '', user.role_code);
-
-    if (requiresMFA) {
-      // Check for OTP session token in headers
-      const otpSessionToken = req.headers['x-otp-session'] as string;
-
-      if (otpSessionToken) {
-        // Verify OTP session token
-        const isValidSession = await OTPService.verifySession(user.id, otpSessionToken);
-
-        if (!isValidSession) {
-          console.log(`❌ Invalid or expired OTP session for user ${user.id}`);
-          throw new AuthenticationError('OTP session expired. Please login again.');
-        }
-
-        console.log(`✅ Valid OTP session for user ${user.id}`);
-      } else {
-        // Check if user has any valid OTP session
-        const hasValidSession = await OTPService.hasValidSession(user.id);
-
-        if (!hasValidSession) {
-          console.log(`❌ No valid OTP session for user ${user.id}`);
-          throw new AuthenticationError('MFA verification required. Please login again.');
-        }
-
-        console.log(`✅ User ${user.id} has valid OTP session`);
-      }
-    }
+    // OTP/MFA has been globally disabled — no OTP session check needed
 
     // Use role_code from JWT payload for authorization checks
     // The JWT contains role_code in the role_name field for consistency with middleware checks
@@ -316,6 +288,12 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       ...user,
       role_name: payload.role_name // This is actually the role_code from the JWT
     };
+
+    // Fire-and-forget: refresh the user's active DB session so it stays alive
+    // while the user is actively making API calls. Throttled in SQL (only updates
+    // if last_activity is older than 2 minutes) to avoid DB spam.
+    SessionManagementService.refreshSessionByUserId(user.id).catch(() => {});
+
     next();
   } catch (error) {
     next(error);
@@ -478,9 +456,20 @@ export const checkResourcePermission = (resourceType: string, action: 'read' | '
         throw new AuthenticationError('User not authenticated');
       }
 
-      // Use the new permission system
-      const permissionName = `${resourceType}.${action}`;
-      const hasPermission = await RoleModel.userHasPermission(req.user.id, permissionName);
+      // Map action to permission code format used in DB
+      // DB uses: SMS_VIEW, SMS_SEND, SMS_TEMPLATES (uppercase with underscore)
+      const actionMap: Record<string, string> = {
+        'read': 'VIEW', 'write': 'SEND', 'delete': 'DELETE'
+      };
+      const mappedAction = actionMap[action] || action.toUpperCase();
+      const permCodeUppercase = `${resourceType.toUpperCase()}_${mappedAction}`;
+      const permCodeDot = `${resourceType}.${action}`;
+
+      // Try both formats: SMS_VIEW and sms.read
+      let hasPermission = await RoleModel.userHasPermission(req.user.id, permCodeUppercase);
+      if (!hasPermission) {
+        hasPermission = await RoleModel.userHasPermission(req.user.id, permCodeDot);
+      }
 
       if (!hasPermission) {
         throw new AuthorizationError(`Insufficient permissions for ${action} on ${resourceType}`);
@@ -586,90 +575,8 @@ export const createAuthRoutes = () => {
 
         console.log(`✅ Password verified for user: ${user.name}`);
 
-        // User authenticated successfully - now check if MFA is required (with bypass check)
-        const requiresMFA = await OTPService.requiresMFAWithBypassCheck(user.id, user.admin_level || '', user.role_code);
 
-        if (requiresMFA) {
-          console.log(`🔐 MFA required for user: ${user.name} (${user.admin_level})`);
-
-          // Check if user has a valid OTP session
-          const hasValidSession = await OTPService.hasValidSession(user.id);
-
-          if (hasValidSession) {
-            console.log(`✅ User has valid OTP session, proceeding with login`);
-            // User has valid OTP session, proceed with normal login
-          } else {
-            console.log(`📱 No valid OTP session, generating and sending OTP`);
-
-            // Get user's cell number - check both users.cell_number and members_consolidated.cell_number
-            const cellNumberQuery = `
-              SELECT COALESCE(u.cell_number, m.cell_number) as cell_number
-              FROM users u
-              LEFT JOIN members_consolidated m ON u.member_id = m.member_id
-              WHERE u.user_id = $1
-              LIMIT 1
-            `;
-
-            const cellResult = await executeQuery(cellNumberQuery, [user.id]);
-            const cellNumber = cellResult[0]?.cell_number;
-
-            // If no cell number, use a placeholder for email-only OTP
-            if (!cellNumber) {
-              console.log(`⚠️ No cell number found for user ${user.id}, will send OTP via email only`);
-            }
-
-            // Generate and send OTP via SMS, Email, and WhatsApp (or email only if no phone number)
-            const otpResult = await OTPService.generateAndSendOTP(
-              user.id,
-              user.name,
-              cellNumber || 'N/A', // Use placeholder if no phone number
-              user.email,
-              clientIP,
-              req.headers['user-agent'] || 'Unknown'
-            );
-
-            if (!otpResult.success) {
-              console.error(`❌ Failed to send OTP: ${otpResult.message}`);
-              return res.status(500).json({
-                success: false,
-                error: {
-                  code: 'OTP_SEND_FAILED',
-                  message: otpResult.message
-                }
-              });
-            }
-
-            // Record successful password verification (but not full login yet)
-            recordLoginAttempt(clientIP, true);
-
-            // Build response message based on whether OTP is new or existing
-            const responseMessage = otpResult.is_existing
-              ? 'You have an active OTP. Please check your SMS, Email, and WhatsApp for the code sent earlier.'
-              : 'OTP sent to your registered phone number, email address, and WhatsApp';
-
-            // Mask phone number if available
-            const phoneMasked = cellNumber && cellNumber !== 'N/A'
-              ? cellNumber.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')
-              : null;
-
-            // Return response indicating OTP is required
-            return res.json({
-              success: true,
-              message: responseMessage,
-              data: {
-                requires_otp: true,
-                user_id: user.id,
-                email: user.email,
-                phone_number_masked: phoneMasked,
-                email_masked: user.email.replace(/(.{2})(.*)(@.*)/, '$1****$3'),
-                otp_expires_at: otpResult.expires_at,
-                is_existing_otp: otpResult.is_existing || false
-              }
-            });
-          }
-        }
-
-        // No MFA required or user has valid OTP session - proceed with normal login
+        // OTP/MFA globally disabled — proceed directly with login
         console.log(`✅ Proceeding with normal login for user: ${user.name}`);
 
         // Generate JWT token with province context using the generateToken function
@@ -939,13 +846,14 @@ export const createAuthRoutes = () => {
 
       const user = userResults[0];
 
-      // Check if user requires MFA
-      if (!OTPService.requiresMFA(user.admin_level || '', user.role_code)) {
+      // Check if user requires MFA (including bypass check)
+      const requiresMFA = await OTPService.requiresMFAWithBypassCheck(user.user_id, user.admin_level || '', user.role_code);
+      if (!requiresMFA) {
         return res.status(400).json({
           success: false,
           error: {
             code: 'MFA_NOT_REQUIRED',
-            message: 'MFA is not required for this user'
+            message: 'MFA is not required for this user or bypass is active'
           }
         });
       }

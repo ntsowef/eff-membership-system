@@ -78,7 +78,7 @@ class RequestQueue {
       }
 
       this.currentProcessing++;
-      
+
       // Process request
       setImmediate(() => {
         try {
@@ -160,7 +160,7 @@ class RateLimiter {
       // Check if limit exceeded
       if (requestsData.count >= this.config.maxRequests) {
         const retryAfter = Math.ceil((requestsData.resetTime - now) / 1000);
-        
+
         if (!res.headersSent) {
           res.set({
             'X-RateLimit-Limit': this.config.maxRequests.toString(),
@@ -234,7 +234,7 @@ export const rateLimiters = {
 export const requestQueueMiddleware = (req: Request, res: Response, next: NextFunction) => {
   // Check current system load
   const queueStats = globalRequestQueue.getStats();
-  
+
   // If system is under heavy load, queue the request
   if (queueStats.currentProcessing >= queueStats.processingConcurrency * 0.8) {
     globalRequestQueue.add(req, res, next);
@@ -283,7 +283,7 @@ class CircuitBreaker {
   private onFailure(): void {
     this.failures++;
     this.lastFailureTime = Date.now();
-    
+
     if (this.failures >= this.failureThreshold) {
       this.state = 'OPEN';
     }
@@ -304,22 +304,22 @@ export const databaseCircuitBreaker = new CircuitBreaker(10, 60000); // 10 failu
 // Performance monitoring middleware
 export const performanceMonitoringMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
-  
+
   // Monitor response time
   res.on('finish', () => {
     const responseTime = Date.now() - startTime;
-    
+
     // Log slow requests
     if (responseTime > 5000) { // 5 seconds
       console.warn(`Slow request detected: ${req.method} ${req.path} - ${responseTime}ms`);
     }
-    
+
     // Set performance headers only if response hasn't been sent
     if (!res.headersSent) {
       res.set('X-Response-Time', `${responseTime}ms`);
     }
   });
-  
+
   next();
 };
 
@@ -328,7 +328,7 @@ export const healthCheckMiddleware = (req: Request, res: Response, next: NextFun
   if (req.path === '/health' || req.path === '/api/health') {
     const queueStats = globalRequestQueue.getStats();
     const circuitBreakerState = databaseCircuitBreaker.getState();
-    
+
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -340,17 +340,17 @@ export const healthCheckMiddleware = (req: Request, res: Response, next: NextFun
         available: cacheService.isAvailable()
       }
     };
-    
+
     // Determine overall health status
-    if (queueStats.queueLength > queueStats.maxQueueSize * 0.8 || 
-        circuitBreakerState.state === 'OPEN') {
+    if (queueStats.queueLength > queueStats.maxQueueSize * 0.8 ||
+      circuitBreakerState.state === 'OPEN') {
       health.status = 'degraded';
     }
-    
+
     res.json(health);
     return;
   }
-  
+
   next();
 };
 

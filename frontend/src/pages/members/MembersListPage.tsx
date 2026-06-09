@@ -97,8 +97,10 @@ interface GeographicFilters {
   province?: string;
   district?: string;
   municipality?: string;
+  subregion?: string;
   ward?: string;
   voting_district_code?: string;
+  votingDistrict?: string;
 }
 
 const MembersListPage: React.FC = () => {
@@ -213,20 +215,25 @@ const MembersListPage: React.FC = () => {
       // Use geographic filtering with the enhanced main endpoint
       devLog('🔍 Geographic Filters Debug:', geographicFilters);
 
-      if (geographicFilters.voting_district_code) {
+      // Resolve the effective voting district code (GeographicFilter uses votingDistrict, URL uses voting_district_code)
+      const effectiveVotingDistrict = geographicFilters.votingDistrict || geographicFilters.voting_district_code;
+      // Resolve the effective municipality code - subregion codes ARE municipality codes in the DB
+      const effectiveMunicipality = geographicFilters.subregion || geographicFilters.municipality;
+
+      if (effectiveVotingDistrict) {
         // Voting district is the most specific - use main endpoint with voting_district_code filter
-        params.append('voting_district_code', geographicFilters.voting_district_code);
-        devLog('🗳️ Using voting district filter:', geographicFilters.voting_district_code);
+        params.append('voting_district_code', effectiveVotingDistrict);
+        devLog('🗳️ Using voting district filter:', effectiveVotingDistrict);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       } else if (geographicFilters.ward) {
         // Ward is the most specific - use main endpoint with ward_code filter
         params.append('ward_code', geographicFilters.ward);
         devLog('📍 Using ward filter:', geographicFilters.ward);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
-      } else if (geographicFilters.municipality) {
-        // Municipality filtering - use main endpoint with municipality_code filter
-        params.append('municipality_code', geographicFilters.municipality);
-        devLog('📍 Using municipality filter:', geographicFilters.municipality);
+      } else if (effectiveMunicipality) {
+        // Municipality/subregion filtering - use main endpoint with municipality_code filter
+        params.append('municipality_code', effectiveMunicipality);
+        devLog('📍 Using municipality filter:', effectiveMunicipality);
         return apiGet<PaginatedResponse<Member>>(`/members?${params.toString()}`);
       } else if (geographicFilters.district) {
         // District filtering - use main endpoint with district_code filter
@@ -431,14 +438,18 @@ const MembersListPage: React.FC = () => {
       });
 
       // Pass geographic filters as query parameters
-      if (geographicFilters.voting_district_code) {
-        params.append('voting_district_code', geographicFilters.voting_district_code);
+      // Resolve effective voting district (GeographicFilter uses votingDistrict, URL uses voting_district_code)
+      const effectiveVD = geographicFilters.votingDistrict || geographicFilters.voting_district_code;
+      if (effectiveVD) {
+        params.append('voting_district_code', effectiveVD);
       }
       if (geographicFilters.ward) {
         params.append('ward_code', geographicFilters.ward);
       }
-      if (geographicFilters.municipality) {
-        params.append('municipality_code', geographicFilters.municipality);
+      // Subregion codes ARE municipality codes in the DB — use subregion if set, else municipality
+      const effectiveMunic = geographicFilters.subregion || geographicFilters.municipality;
+      if (effectiveMunic) {
+        params.append('municipality_code', effectiveMunic);
       }
       if (geographicFilters.district) {
         params.append('district_code', geographicFilters.district);
@@ -785,13 +796,14 @@ const MembersListPage: React.FC = () => {
                 color="info"
               />
             )}
-            {geographicFilters.voting_district_code && (
+            {(geographicFilters.votingDistrict || geographicFilters.voting_district_code) && (
               <Chip
-                label={`Voting District: ${geographicFilters.voting_district_code}`}
+                label={`Voting District: ${geographicFilters.votingDistrict || geographicFilters.voting_district_code}`}
                 onDelete={() => {
                   setGeographicFilters(prev => {
                     const newFilters = { ...prev };
                     delete newFilters.voting_district_code;
+                    delete newFilters.votingDistrict;
                     return newFilters;
                   });
                   setPage(0);
@@ -823,11 +835,27 @@ const MembersListPage: React.FC = () => {
                   setGeographicFilters(prev => {
                     const newFilters = { ...prev };
                     delete newFilters.municipality;
+                    delete newFilters.subregion;
                     return newFilters;
                   });
                   setPage(0);
                 }}
                 size="small"
+              />
+            )}
+            {geographicFilters.subregion && (
+              <Chip
+                label={`Sub-Region: ${geographicFilters.subregion}`}
+                onDelete={() => {
+                  setGeographicFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters.subregion;
+                    return newFilters;
+                  });
+                  setPage(0);
+                }}
+                size="small"
+                color="info"
               />
             )}
             {geographicFilters.district && (

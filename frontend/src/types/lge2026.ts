@@ -17,6 +17,10 @@ export interface Lge2026Candidate {
   decided_at?: string | null;
   notes?: string | null;
   campaign_statement?: string | null;
+  cv_path?: string | null;
+  cv_original_name?: string | null;
+  iec_form_c2_path?: string | null;
+  iec_form_c2_original_name?: string | null;
   created_at: string;
   updated_at: string;
 

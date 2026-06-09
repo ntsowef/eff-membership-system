@@ -219,14 +219,61 @@ export const wardAuditApi = {
   // =====================================================
 
   /**
-   * Create a new ward meeting record
+   * Create a new ward meeting record (supports optional meeting package upload)
    */
-  createMeetingRecord: async (wardCode: string, data: any): Promise<any> => {
+  createMeetingRecord: async (wardCode: string, data: any, meetingPackageFile?: File): Promise<any> => {
     try {
-      const response = await api.post(`/ward-audit/ward/${wardCode}/meeting`, data);
+      const formData = new FormData();
+
+      // Append all form fields
+      Object.keys(data).forEach(key => {
+        const value = data[key];
+        if (value !== undefined && value !== null) {
+          formData.append(key, String(value));
+        }
+      });
+
+      // Append the meeting package file if provided
+      if (meetingPackageFile) {
+        formData.append('meeting_package', meetingPackageFile);
+      }
+
+      const response = await api.post(`/ward-audit/ward/${wardCode}/meeting`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return response.data.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to create meeting record');
+    }
+  },
+
+  /**
+   * Download the meeting package for a specific meeting record
+   * Used by national admin for dispute review
+   */
+  downloadMeetingPackage: async (recordId: number): Promise<void> => {
+    try {
+      const response = await api.get(`/ward-audit/meeting/${recordId}/package`, {
+        responseType: 'blob',
+      });
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'meeting_package';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match) filename = match[1];
+      }
+      // Trigger download in the browser
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to download meeting package');
     }
   },
 

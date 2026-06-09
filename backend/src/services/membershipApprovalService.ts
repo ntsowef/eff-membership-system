@@ -506,8 +506,11 @@ export class MembershipApprovalService {
         { keepUnmatched: false }
       );
 
+      // Generate tracking ID
+      const trackingId = `welcome_${membershipNumber}_${Date.now()}`;
+
       // Send SMS via the SMS service
-      const result = await SMSService.sendSMS(cellNumber, personalizedMessage, 'EFF');
+      const result = await SMSService.sendSMS(cellNumber, personalizedMessage, 'EFF', trackingId);
 
       if (result.success) {
         console.log(`✅ Welcome SMS sent to ${cellNumber} (ID: ${result.messageId})`);

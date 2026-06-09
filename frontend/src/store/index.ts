@@ -199,11 +199,13 @@ interface AuthState {
   user: User | null;
   token: string | null;
   sessionId: string | null;
+  otpSessionToken: string | null;
   isAuthenticated: boolean;
   provinceContext: ProvinceContext | null;
-  login: (user: User, token: string, sessionId?: string) => void;
+  login: (user: User, token: string, sessionId?: string, otpSessionToken?: string) => void;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
+  setOtpSessionToken: (token: string) => void;
   hasPermission: (permission: string) => boolean;
   hasAdminLevel: (level: 'national' | 'province' | 'district' | 'municipality' | 'ward') => boolean;
   canAccessUserManagement: () => boolean;
@@ -216,13 +218,13 @@ export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
       (set, get) => ({
-        // Initialize with no user (proper authentication required)
         user: null,
         token: null,
         sessionId: null,
+        otpSessionToken: null,
         isAuthenticated: false, // Require proper authentication
         provinceContext: null,
-        login: (user, token, sessionId) => {
+        login: (user, token, sessionId, otpSessionToken) => {
           devLog('🔐 Zustand login called with:', {
             user: user.email,
             role: user.role,
@@ -243,7 +245,7 @@ export const useAuthStore = create<AuthState>()(
             filtered_by_province: user.admin_level === 'province' && !!user.province_code
           };
 
-          set({ user, token, sessionId, isAuthenticated: true, provinceContext });
+          set({ user, token, sessionId, otpSessionToken: otpSessionToken || null, isAuthenticated: true, provinceContext });
 
           // Verify the state was set
           const currentState = get();
@@ -272,7 +274,10 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('tokenExpiration');
           localStorage.removeItem('sessionExpiration');
           localStorage.removeItem('rememberMe');
-          set({ user: null, token: null, sessionId: null, isAuthenticated: false, provinceContext: null });
+          set({ user: null, token: null, sessionId: null, otpSessionToken: null, isAuthenticated: false, provinceContext: null });
+        },
+        setOtpSessionToken: (otpToken) => {
+          set({ otpSessionToken: otpToken });
         },
         updateUser: (userData) => {
           const currentUser = get().user;
@@ -352,6 +357,7 @@ export const useAuthStore = create<AuthState>()(
           user: state.user,
           token: state.token,
           sessionId: state.sessionId,
+          otpSessionToken: state.otpSessionToken,
           isAuthenticated: state.isAuthenticated,
           provinceContext: state.provinceContext
         }),
@@ -364,6 +370,7 @@ export const useAuthStore = create<AuthState>()(
 // UI Store
 interface UIState {
   sidebarOpen: boolean;
+  navMode: 'horizontal' | 'sidebar';
   theme: 'light' | 'dark';
   loading: boolean;
   notifications: Array<{
@@ -381,6 +388,7 @@ interface UIState {
 
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setNavMode: (mode: 'horizontal' | 'sidebar') => void;
   setTheme: (theme: 'light' | 'dark') => void;
   setLoading: (loading: boolean) => void;
   addNotification: (notification: Omit<UIState['notifications'][0], 'id' | 'timestamp'>) => void;
@@ -400,6 +408,7 @@ export const useUIStore = create<UIState>()(
     persist(
       (set, get) => ({
         sidebarOpen: true,
+        navMode: 'horizontal' as 'horizontal' | 'sidebar',
         theme: 'light',
         loading: false,
         notifications: [],
@@ -411,6 +420,7 @@ export const useUIStore = create<UIState>()(
 
         toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
         setSidebarOpen: (open) => set({ sidebarOpen: open }),
+        setNavMode: (mode) => set({ navMode: mode }),
         setTheme: (theme) => set({ theme }),
         setLoading: (loading) => set({ loading }),
         addNotification: (notification) => {
@@ -440,6 +450,7 @@ export const useUIStore = create<UIState>()(
         name: 'ui-storage',
         partialize: (state) => ({
           sidebarOpen: state.sidebarOpen,
+          navMode: state.navMode,
           theme: state.theme
         }),
       }
@@ -479,7 +490,7 @@ export const useApplicationStore = create<ApplicationState>()(
       }),
       {
         name: 'application-storage',
-        partialize: (state) => ({ 
+        partialize: (state) => ({
           applicationStep: state.applicationStep,
           applicationData: state.applicationData
         }),

@@ -1,7 +1,35 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { SMSManagementService, SMSTemplate, SMSCampaign } from '../services/smsManagementService';
 import { executeQuery } from '../config/database';
 import { authenticate, requireSMSPermission } from '../middleware/auth';
+import { SMSCreditService } from '../services/smsCreditService';
+
+// ── Multer config for contact-list uploads ────────────────────────────────────
+const contactListStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(process.cwd(), 'uploads', 'contact-lists');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `contact-list-${suffix}${path.extname(file.originalname)}`);
+  },
+});
+
+const contactListUpload = multer({
+  storage: contactListStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.csv', '.xlsx', '.xls'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) return cb(null, true);
+    cb(new Error('Invalid file type. Allowed: CSV, XLSX, XLS'));
+  },
+});
 
 const router = Router();
 
@@ -259,7 +287,7 @@ router.post('/campaigns', authenticate, requireSMSPermission(), async (req: Requ
       send_rate_limit: req.body.send_rate_limit || 100,
       retry_failed: req.body.retry_failed !== false,
       max_retries: req.body.max_retries || 3,
-      created_by: req.body.created_by || 1 // Default to user 1 for development
+      created_by: (req as any).user?.id || req.body.created_by
     };
 
     const campaignId = await SMSManagementService.createCampaign(campaignData);
@@ -280,6 +308,55 @@ router.post('/campaigns', authenticate, requireSMSPermission(), async (req: Requ
         details: error.message
       }
     });
+  }
+});
+
+// Delete SMS campaign
+router.delete('/campaigns/:id', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    await SMSManagementService.deleteCampaign(id);
+
+    res.json({
+      success: true,
+      message: 'SMS campaign deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('Failed to delete SMS campaign:', error);
+    const status = error.message.includes('not found') ? 404 : error.message.includes('currently sending') ? 409 : 500;
+    res.status(status).json({
+      success: false,
+      error: {
+        message: error.message || 'Failed to delete SMS campaign',
+        details: error.message
+      }
+    });
+  }
+});
+
+// Resolve Good Standing recipients (count or paginated list)
+router.get('/campaigns/recipients/good-standing', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { page, limit, province, count_only } = req.query;
+    const result = await SMSManagementService.resolveGoodStandingRecipients({
+      page: page ? parseInt(page as string) : 1,
+      limit: limit ? parseInt(limit as string) : 1000,
+      province: province as string,
+      countOnly: count_only === 'true',
+    });
+
+    res.json({
+      success: true,
+      data: {
+        recipients: result.recipients,
+        total: result.total,
+        page: page ? parseInt(page as string) : 1,
+        limit: limit ? parseInt(limit as string) : 1000,
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to resolve good standing recipients:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to resolve recipients', details: error.message } });
   }
 });
 
@@ -495,7 +572,7 @@ router.post('/quick-send', authenticate, requireSMSPermission(), async (req: Req
         });
 
         // Send the SMS
-        const result = await SMSService.sendSMS(recipient, message, 'EFF');
+        const result = await SMSService.sendSMS(recipient, message, 'EFF', messageId);
 
         // Update log with result
         await SMSLogService.updateSMSLog(messageId, {
@@ -503,6 +580,27 @@ router.post('/quick-send', authenticate, requireSMSPermission(), async (req: Req
           provider_message_id: result.messageId,
           error_message: result.error
         });
+
+        // Also log to sms_messages for the old Reports tab
+        // Store our correlator (messageId) as provider_message_id so delivery
+        // callbacks from JSON Applink can match it (they echo back the correlator)
+        const statusReport = result.success ? 'Sent' : 'Failed';
+        await executeQuery(`
+          INSERT INTO sms_messages (
+            message_text, recipient_number, recipient_name,
+            status, cost_per_message, provider_message_id, error_message, sent_at, category
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          message,
+          recipient,
+          null,
+          statusReport,
+          0.05,
+          messageId,
+          result.error || null,
+          new Date().toISOString(),
+          'Quick Send'
+        ]);
 
         results.push({
           recipient,
@@ -516,6 +614,24 @@ router.post('/quick-send', authenticate, requireSMSPermission(), async (req: Req
           status: 'failed',
           error_message: err.message || 'Unknown error'
         });
+
+        // Also log to sms_messages for the old Reports tab
+        await executeQuery(`
+          INSERT INTO sms_messages (
+            message_text, recipient_number, recipient_name,
+            status, cost_per_message, provider_message_id, error_message, sent_at, category
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          message,
+          recipient,
+          null,
+          'Failed',
+          0.00,
+          messageId,
+          err.message || 'Unknown error',
+          new Date().toISOString(),
+          'Quick Send'
+        ]);
 
         results.push({
           recipient,
@@ -730,5 +846,256 @@ router.post('/logs/batch', authenticate, requireSMSPermission(), async (req: Req
     });
   }
 });
+
+// Trigger sending a campaign via Bulk SMS
+router.post('/campaigns/:id/send', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const result = await SMSManagementService.sendCampaign(campaignId);
+
+    if (!result.success) {
+      res.status(400).json({
+        success: false,
+        error: { message: result.message }
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        message: result.message,
+        jobId: result.jobId,
+        totalRecipients: result.totalRecipients
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Failed to trigger campaign send:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to send campaign', details: error.message }
+    });
+  }
+});
+
+// Get campaign sending progress
+router.get('/campaigns/:id/send-progress', authenticate, requireSMSPermission(), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const { SMSBulkService } = await import('../services/smsBulkService');
+
+    let progress: any = null;
+    const anyBypass = SMSBulkService as any;
+    if (anyBypass.activeJobs) {
+      for (const [jobId, job] of anyBypass.activeJobs.entries()) {
+        if (job.campaign_id === campaignId) {
+          progress = job;
+          break;
+        }
+      }
+    }
+
+    if (!progress) {
+      const campaign = await SMSManagementService.getCampaignById(campaignId);
+      if (campaign && (campaign.status === 'sent' || campaign.status === 'failed')) {
+        res.json({
+          success: true,
+          data: {
+            job_id: null,
+            status: campaign.status === 'sent' ? 'Completed' : 'Failed',
+            messages_sent: campaign.messages_sent || 0,
+            messages_failed: campaign.messages_failed || 0
+          }
+        });
+        return;
+      }
+
+      res.status(404).json({
+        success: false,
+        error: { message: 'No active sending job found for this campaign' }
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: progress
+    });
+
+  } catch (error: any) {
+    console.error('Failed to get campaign progress:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get campaign progress', details: error.message }
+    });
+  }
+});
+
+// ============================================
+// SMS Credit Management Endpoints
+// ============================================
+
+// Get current credit balance
+router.get('/credits/balance', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const balance = await SMSCreditService.getBalance();
+
+    if (!balance) {
+      res.status(404).json({
+        success: false,
+        error: { message: 'SMS credit balance not initialized. Run migration 042.' }
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: balance
+    });
+  } catch (error: any) {
+    console.error('Failed to get SMS credit balance:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to retrieve SMS credit balance', details: error.message }
+    });
+  }
+});
+
+// Get credit transaction history (paginated)
+router.get('/credits/transactions', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const type = req.query.type as string | undefined;
+
+    const result = await SMSCreditService.getTransactions(page, limit, type);
+
+    res.json({
+      success: true,
+      data: {
+        transactions: result.transactions,
+        total: result.total,
+        page,
+        limit,
+        totalPages: Math.ceil(result.total / limit)
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to get SMS credit transactions:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to retrieve credit transactions', details: error.message }
+    });
+  }
+});
+
+// Add credits (super admin / national admin only)
+router.post('/credits/add', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const { amount, notes } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Amount must be a positive number' }
+      });
+      return;
+    }
+
+    const newBalance = await SMSCreditService.addCredits(amount, notes || '', userId);
+
+    res.json({
+      success: true,
+      data: {
+        message: `${amount} SMS credits added successfully`,
+        credits_remaining: newBalance
+      }
+    });
+  } catch (error: any) {
+    console.error('Failed to add SMS credits:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to add SMS credits', details: error.message }
+    });
+  }
+});
+
+// ============================================
+// Contact List Endpoints
+// ============================================
+
+/**
+ * GET /api/v1/sms/contact-lists
+ * Return all contact lists (active only by default)
+ */
+router.get('/contact-lists', authenticate, requireSMSPermission(), async (req: Request, res: Response) => {
+  try {
+    const is_active = req.query.is_active === 'false' ? false : true;
+    const lists = await SMSManagementService.getContactLists({ is_active });
+    res.json({ success: true, data: { lists, total: lists.length } });
+  } catch (error: any) {
+    console.error('Failed to get contact lists:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to retrieve contact lists', details: error.message } });
+  }
+});
+
+/**
+ * POST /api/v1/sms/contact-lists/upload
+ * Upload a CSV/XLSX contact list and process it into the DB.
+ * Multipart fields:
+ *   file        – the file (required)
+ *   name        – list name (required)
+ *   description – list description (optional)
+ *   allow_duplicates – 'true' | 'false' (optional, default false)
+ */
+router.post(
+  '/contact-lists/upload',
+  authenticate,
+  requireSMSPermission(),
+  contactListUpload.single('file'),
+  async (req: Request, res: Response): Promise<void> => {
+    const filePath = req.file?.path;
+    try {
+      if (!req.file || !filePath) {
+        res.status(400).json({ success: false, error: { message: 'No file uploaded', code: 'NO_FILE' } });
+        return;
+      }
+
+      const name = (req.body.name ?? '').trim();
+      if (!name) {
+        res.status(400).json({ success: false, error: { message: 'List name is required', code: 'MISSING_NAME' } });
+        return;
+      }
+
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: { message: 'Authenticated user required', code: 'UNAUTHENTICATED' } });
+        return;
+      }
+
+      const result = await SMSManagementService.processContactListUpload(
+        filePath,
+        userId,
+        {
+          name,
+          description: (req.body.description ?? '').trim() || undefined,
+          allow_duplicates: req.body.allow_duplicates === 'true',
+        }
+      );
+
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('Contact list upload failed:', error);
+      res.status(500).json({ success: false, error: { message: error.message || 'Failed to process contact list', code: 'UPLOAD_FAILED' } });
+    } finally {
+      // Clean up temp file regardless of outcome
+      if (filePath && fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+      }
+    }
+  }
+);
 
 export default router;

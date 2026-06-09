@@ -69,58 +69,58 @@ router.get('/dashboard',
   applyGeographicFilter,
   cacheMiddleware(AnalyticsCacheConfig),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { error, value } = reportFiltersSchema.validate(req.query);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
+    try {
+      const { error, value } = reportFiltersSchema.validate(req.query);
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
+
+      const filters: ReportFilters = value || {};
+
+      // Normalize municipality_code to municipal_code for consistency
+      if ((filters as any).municipality_code && !filters.municipal_code) {
+        filters.municipal_code = (filters as any).municipality_code;
+        delete (filters as any).municipality_code;
+      }
+
+      // Apply geographic filtering for provincial and municipality admins
+      const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+      if (geographicContext?.province_code) {
+        filters.province_code = geographicContext.province_code;
+      }
+      if (geographicContext?.municipal_code) {
+        filters.municipal_code = geographicContext.municipal_code;
+      }
+
+      // Use optimized model for faster dashboard stats
+      const dashboardStats = await AnalyticsOptimizedModel.getDashboardStats(filters);
+
+      // Skip audit logging for now (no authentication)
+      // await logAudit(
+      //   req.user!.id,
+      //   AuditAction.READ,
+      //   EntityType.SYSTEM,
+      //   undefined,
+      //   undefined,
+      //   {
+      //     action: 'view_dashboard_analytics',
+      //     filters
+      //   },
+      //   req
+      // );
+
+      res.json({
+        success: true,
+        message: 'Dashboard statistics retrieved successfully',
+        data: {
+          statistics: dashboardStats
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const filters: ReportFilters = value || {};
-
-    // Normalize municipality_code to municipal_code for consistency
-    if ((filters as any).municipality_code && !filters.municipal_code) {
-      filters.municipal_code = (filters as any).municipality_code;
-      delete (filters as any).municipality_code;
-    }
-
-    // Apply geographic filtering for provincial and municipality admins
-    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
-    if (geographicContext?.province_code) {
-      filters.province_code = geographicContext.province_code;
-    }
-    if (geographicContext?.municipal_code) {
-      filters.municipal_code = geographicContext.municipal_code;
-    }
-
-    // Use optimized model for faster dashboard stats
-    const dashboardStats = await AnalyticsOptimizedModel.getDashboardStats(filters);
-
-    // Skip audit logging for now (no authentication)
-    // await logAudit(
-    //   req.user!.id,
-    //   AuditAction.READ,
-    //   EntityType.SYSTEM,
-    //   undefined,
-    //   undefined,
-    //   {
-    //     action: 'view_dashboard_analytics',
-    //     filters
-    //   },
-    //   req
-    // );
-
-    res.json({
-      success: true,
-      message: 'Dashboard statistics retrieved successfully',
-      data: {
-        statistics: dashboardStats
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Get membership analytics
 router.get('/membership',
@@ -129,60 +129,60 @@ router.get('/membership',
   applyGeographicFilter,
   cacheMiddleware(AnalyticsCacheConfig),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { error, value } = reportFiltersSchema.validate(req.query);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
-    }
+    try {
+      const { error, value } = reportFiltersSchema.validate(req.query);
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
 
-    const filters: ReportFilters = value || {};
+      const filters: ReportFilters = value || {};
 
-    // Normalize municipality_code to municipal_code for consistency
-    if ((filters as any).municipality_code && !filters.municipal_code) {
-      filters.municipal_code = (filters as any).municipality_code;
-      delete (filters as any).municipality_code;
-    }
+      // Normalize municipality_code to municipal_code for consistency
+      if ((filters as any).municipality_code && !filters.municipal_code) {
+        filters.municipal_code = (filters as any).municipality_code;
+        delete (filters as any).municipality_code;
+      }
 
-    // Apply geographic filtering for provincial and municipality admins
-    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
-    if (geographicContext?.province_code) {
-      filters.province_code = geographicContext.province_code;
-    }
-    if (geographicContext?.municipal_code) {
-      filters.municipal_code = geographicContext.municipal_code;
-    }
+      // Apply geographic filtering for provincial and municipality admins
+      const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+      if (geographicContext?.province_code) {
+        filters.province_code = geographicContext.province_code;
+      }
+      if (geographicContext?.municipal_code) {
+        filters.municipal_code = geographicContext.municipal_code;
+      }
 
-    // Use optimized model with materialized views for faster performance
-    const membershipAnalytics = await AnalyticsOptimizedModel.getMembershipAnalytics(filters);
+      // Use optimized model with materialized views for faster performance
+      const membershipAnalytics = await AnalyticsOptimizedModel.getMembershipAnalytics(filters);
 
-    // Log audit trail (skip if no user - development mode)
-    if (req.user?.id) {
-      await logAudit(
-        req.user.id,
-        AuditAction.READ,
-        EntityType.SYSTEM,
-        undefined,
-        undefined,
-        {
-          action: 'view_membership_analytics',
-          filters
+      // Log audit trail (skip if no user - development mode)
+      if (req.user?.id) {
+        await logAudit(
+          req.user.id,
+          AuditAction.READ,
+          EntityType.SYSTEM,
+          undefined,
+          undefined,
+          {
+            action: 'view_membership_analytics',
+            filters
+          },
+          req
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Membership analytics retrieved successfully',
+        data: {
+          analytics: membershipAnalytics
         },
-        req
-      );
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    res.json({
-      success: true,
-      message: 'Membership analytics retrieved successfully',
-      data: {
-        analytics: membershipAnalytics
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Get business intelligence insights
 router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), async (req: Request, res: Response, next: NextFunction) => {
@@ -200,249 +200,13 @@ router.get('/business-intelligence', cacheMiddleware(AnalyticsCacheConfig), asyn
       delete (filters as any).municipality_code;
     }
 
-    // Get all analytics data using optimized models
-    const [membershipAnalytics, dashboardStats] = await Promise.all([
-      AnalyticsOptimizedModel.getMembershipAnalytics(filters),
-      AnalyticsOptimizedModel.getDashboardStats(filters)
-    ]);
-
-    // Helper functions for BI calculations
-    const calculateGrowthTrend = (growthData: any[]): string => {
-      if (!growthData || growthData.length < 2) return 'stagnant';
-
-      const recent = growthData.slice(-3);
-      const growthRates = recent.map((item, index) => {
-        if (index === 0) return 0;
-        return ((item.new_members - recent[index - 1].new_members) / recent[index - 1].new_members) * 100;
-      }).filter(rate => !isNaN(rate));
-
-      const avgGrowthRate = growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length;
-
-      if (avgGrowthRate > 10) return 'accelerating';
-      if (avgGrowthRate > 0) return 'steady';
-      if (avgGrowthRate > -5) return 'declining';
-      return 'stagnant';
-    };
-
-    const calculateChurnRisk = (analytics: any): number => {
-      const totalMembers = analytics.total_members;
-      const inactiveMembers = analytics.inactive_members;
-
-      if (totalMembers === 0) return 0;
-      return Math.min((inactiveMembers / totalMembers) * 100, 100);
-    };
-
-    const calculateEngagementScore = (stats: any): number => {
-      const activeMembers = stats.active_members || 0;
-      const totalMembers = stats.total_members || 1;
-      return Math.round((activeMembers / totalMembers) * 100);
-    };
-
-    // Generate business intelligence insights
-    const businessIntelligence = {
-      membershipInsights: {
-        growthTrend: calculateGrowthTrend((membershipAnalytics as any).membership_growth || []),
-        churnRisk: calculateChurnRisk(membershipAnalytics),
-        engagementScore: calculateEngagementScore(dashboardStats),
-        demographicShifts: [
-          {
-            type: 'age',
-            trend: 'aging',
-            impact: 'high',
-            description: 'Low youth participation - aging membership base'
-          }
-        ],
-        geographicExpansion: [
-          {
-            area: 'Gauteng',
-            type: 'expansion',
-            potential: 'high',
-            currentMembers: membershipAnalytics.geographic_performance?.top_provinces?.find((p: any) => p.province_name === 'Gauteng')?.member_count || 0,
-            targetMembers: 5000,
-            description: 'High potential for expansion in Gauteng province'
-          }
-        ],
-        seasonalPatterns: [
-          {
-            period: 'Q1',
-            trend: 'steady',
-            averageGrowth: 5.2,
-            description: 'Steady growth in first quarter'
-          }
-        ]
-      },
-      predictiveAnalytics: {
-        membershipForecast: (() => {
-          const forecast: any[] = [];
-          const membershipGrowth = (membershipAnalytics as any).membership_growth || [];
-          const lastMonth = membershipGrowth[membershipGrowth.length - 1];
-          const avgGrowth = 500;
-
-          for (let i = 1; i <= 6; i++) {
-            forecast.push({
-              month: new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 7),
-              predicted_members: (lastMonth?.total_members || 0) + (avgGrowth * i),
-              confidence: Math.max(95 - (i * 5), 70),
-              lower_bound: (lastMonth?.total_members || 0) + (avgGrowth * i * 0.8),
-              upper_bound: (lastMonth?.total_members || 0) + (avgGrowth * i * 1.2)
-            });
-          }
-          return forecast;
-        })(),
-        churnPrediction: [
-          {
-            segment: 'Inactive Members',
-            churnProbability: 75,
-            timeframe: '3 months',
-            affectedMembers: membershipAnalytics.inactive_members || 0
-          }
-        ],
-        growthOpportunities: [
-          {
-            segment: 'Youth (18-24)',
-            potential: 5000,
-            currentSize: membershipAnalytics.age_distribution?.find((group: any) => group.age_group === '18-24')?.member_count || 0,
-            growthRate: 25,
-            strategy: 'Digital engagement and campus outreach'
-          }
-        ],
-        resourceNeeds: [
-          {
-            resource: 'Staff',
-            currentNeed: 10,
-            predictedNeed: 15,
-            timeframe: '6 months',
-            justification: 'Growing membership requires additional support staff'
-          }
-        ]
-      },
-      performanceMetrics: {
-        kpis: [
-          {
-            name: 'Member Growth Rate',
-            value: 12.5,
-            target: 15,
-            unit: '%',
-            trend: 'up',
-            status: 'warning'
-          },
-          {
-            name: 'Engagement Rate',
-            value: calculateEngagementScore(dashboardStats),
-            target: 85,
-            unit: '%',
-            trend: 'up',
-            status: 'success'
-          },
-          {
-            name: 'Geographic Coverage',
-            value: 3,
-            target: 9,
-            unit: 'provinces',
-            trend: 'stable',
-            status: 'error'
-          }
-        ],
-        benchmarks: [
-          {
-            metric: 'Member Growth Rate',
-            industry: 15,
-            peers: 12,
-            current: 12.5
-          }
-        ],
-        targets: [
-          {
-            name: '50K Members',
-            current: membershipAnalytics.total_members,
-            target: 50000,
-            deadline: '2025-12-31',
-            progress: (membershipAnalytics.total_members / 50000) * 100
-          }
-        ],
-        achievements: [
-          {
-            title: 'Gender Balance Achieved',
-            description: 'Maintained near-perfect gender balance',
-            date: new Date().toISOString(),
-            impact: 'high'
-          }
-        ]
-      },
-      riskAnalysis: {
-        riskLevel: (() => {
-          const youthPercentage = membershipAnalytics.age_distribution?.find((group: any) => group.age_group === '18-24')?.percentage || '0';
-          if (parseFloat(youthPercentage.toString()) < 5) return 'high';
-          if (parseFloat(youthPercentage.toString()) < 10) return 'medium';
-          return 'low';
-        })(),
-        riskFactors: [
-          {
-            factor: 'Low Youth Engagement',
-            severity: 'high',
-            probability: 85,
-            impact: 'Future membership sustainability at risk'
-          },
-          {
-            factor: 'Geographic Concentration',
-            severity: 'medium',
-            probability: 70,
-            impact: 'Over-reliance on Free State province'
-          }
-        ],
-        mitigationStrategies: [
-          {
-            risk: 'Low Youth Engagement',
-            strategy: 'Launch digital-first youth recruitment campaign',
-            timeline: '3 months',
-            resources: 'Marketing team, social media budget',
-            expectedImpact: 'Increase youth membership by 500%'
-          }
-        ]
-      },
-      recommendations: [
-        {
-          id: '1',
-          type: 'growth',
-          priority: 'high',
-          title: 'Launch Youth Recruitment Campaign',
-          description: 'Implement targeted digital marketing to attract 18-24 age group',
-          impact: 'Could increase youth membership by 500%',
-          effort: 'Medium - requires marketing budget and social media strategy',
-          timeline: '3-6 months',
-          metrics: ['Youth membership count', 'Digital engagement rate', 'Campus partnerships']
-        },
-        {
-          id: '2',
-          type: 'expansion',
-          priority: 'high',
-          title: 'Expand to Gauteng Province',
-          description: 'Establish presence in Johannesburg and Pretoria metropolitan areas',
-          impact: 'Potential to add 5,000+ members and reduce geographic risk',
-          effort: 'High - requires local partnerships and field operations',
-          timeline: '6-12 months',
-          metrics: ['Gauteng membership', 'Geographic distribution', 'Urban penetration']
-        },
-        {
-          id: '3',
-          type: 'retention',
-          priority: 'medium',
-          title: 'Implement Member Engagement Program',
-          description: 'Create regular touchpoints and value-added services for existing members',
-          impact: 'Reduce churn risk and increase member satisfaction',
-          effort: 'Medium - requires program design and execution',
-          timeline: '2-4 months',
-          metrics: ['Member satisfaction', 'Engagement rate', 'Retention rate']
-        }
-      ],
-      realTimeMetrics: {
-        activeUsers: dashboardStats.active_members || 0,
-        newRegistrations: ((membershipAnalytics as any).membership_growth || [])[(membershipAnalytics as any).membership_growth?.length - 1]?.new_members || 0,
-        engagementRate: calculateEngagementScore(dashboardStats),
-        systemHealth: 98.5,
-        lastUpdated: new Date().toISOString()
-      }
-    };
+    // Use new BusinessIntelligenceService for real data-driven insights
+    const { BusinessIntelligenceService } = await import('../services/businessIntelligenceService');
+    const businessIntelligence = await BusinessIntelligenceService.getFullDashboardData({
+      province_code: filters.province_code,
+      municipal_code: filters.municipal_code,
+      timeRange: filters.timeRange,
+    });
 
     // Log audit trail
     if (req.user?.id) {
@@ -480,57 +244,57 @@ router.get('/meetings',
   applyGeographicFilter,
   cacheMiddleware(AnalyticsCacheConfig),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { error, value } = reportFiltersSchema.validate(req.query);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
+    try {
+      const { error, value } = reportFiltersSchema.validate(req.query);
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
+
+      const filters: ReportFilters = value || {};
+
+      // Normalize municipality_code to municipal_code for consistency
+      if ((filters as any).municipality_code && !filters.municipal_code) {
+        filters.municipal_code = (filters as any).municipality_code;
+        delete (filters as any).municipality_code;
+      }
+
+      // Apply geographic filtering for provincial and municipality admins
+      const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+      if (geographicContext?.province_code) {
+        filters.province_code = geographicContext.province_code;
+      }
+      if (geographicContext?.municipal_code) {
+        filters.municipal_code = geographicContext.municipal_code;
+      }
+
+      const meetingAnalytics = await AnalyticsModel.getMeetingAnalytics(filters);
+
+      // Skip audit logging for now (no authentication)
+      // await logAudit(
+      //   req.user!.id,
+      //   AuditAction.READ,
+      //   EntityType.SYSTEM,
+      //   undefined,
+      //   undefined,
+      //   {
+      //     action: 'view_meeting_analytics',
+      //     filters
+      //   },
+      //   req
+      // );
+
+      res.json({
+        success: true,
+        message: 'Meeting analytics retrieved successfully',
+        data: {
+          analytics: meetingAnalytics
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const filters: ReportFilters = value || {};
-
-    // Normalize municipality_code to municipal_code for consistency
-    if ((filters as any).municipality_code && !filters.municipal_code) {
-      filters.municipal_code = (filters as any).municipality_code;
-      delete (filters as any).municipality_code;
-    }
-
-    // Apply geographic filtering for provincial and municipality admins
-    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
-    if (geographicContext?.province_code) {
-      filters.province_code = geographicContext.province_code;
-    }
-    if (geographicContext?.municipal_code) {
-      filters.municipal_code = geographicContext.municipal_code;
-    }
-
-    const meetingAnalytics = await AnalyticsModel.getMeetingAnalytics(filters);
-
-    // Skip audit logging for now (no authentication)
-    // await logAudit(
-    //   req.user!.id,
-    //   AuditAction.READ,
-    //   EntityType.SYSTEM,
-    //   undefined,
-    //   undefined,
-    //   {
-    //     action: 'view_meeting_analytics',
-    //     filters
-    //   },
-    //   req
-    // );
-
-    res.json({
-      success: true,
-      message: 'Meeting analytics retrieved successfully',
-      data: {
-        analytics: meetingAnalytics
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Get leadership analytics
 router.get('/leadership',
@@ -539,57 +303,57 @@ router.get('/leadership',
   applyGeographicFilter,
   cacheMiddleware(AnalyticsCacheConfig),
   async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { error, value } = reportFiltersSchema.validate(req.query);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
+    try {
+      const { error, value } = reportFiltersSchema.validate(req.query);
+      if (error) {
+        throw new ValidationError(error.details[0].message);
+      }
+
+      const filters: ReportFilters = value || {};
+
+      // Normalize municipality_code to municipal_code for consistency
+      if ((filters as any).municipality_code && !filters.municipal_code) {
+        filters.municipal_code = (filters as any).municipality_code;
+        delete (filters as any).municipality_code;
+      }
+
+      // Apply geographic filtering for provincial and municipality admins
+      const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
+      if (geographicContext?.province_code) {
+        filters.province_code = geographicContext.province_code;
+      }
+      if (geographicContext?.municipal_code) {
+        filters.municipal_code = geographicContext.municipal_code;
+      }
+
+      const leadershipAnalytics = await AnalyticsModel.getLeadershipAnalytics(filters);
+
+      // Skip audit logging for now (no authentication)
+      // await logAudit(
+      //   req.user!.id,
+      //   AuditAction.READ,
+      //   EntityType.SYSTEM,
+      //   undefined,
+      //   undefined,
+      //   {
+      //     action: 'view_leadership_analytics',
+      //     filters
+      //   },
+      //   req
+      // );
+
+      res.json({
+        success: true,
+        message: 'Leadership analytics retrieved successfully',
+        data: {
+          analytics: leadershipAnalytics
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const filters: ReportFilters = value || {};
-
-    // Normalize municipality_code to municipal_code for consistency
-    if ((filters as any).municipality_code && !filters.municipal_code) {
-      filters.municipal_code = (filters as any).municipality_code;
-      delete (filters as any).municipality_code;
-    }
-
-    // Apply geographic filtering for provincial and municipality admins
-    const geographicContext = (req as any).provinceContext || (req as any).municipalityContext;
-    if (geographicContext?.province_code) {
-      filters.province_code = geographicContext.province_code;
-    }
-    if (geographicContext?.municipal_code) {
-      filters.municipal_code = geographicContext.municipal_code;
-    }
-
-    const leadershipAnalytics = await AnalyticsModel.getLeadershipAnalytics(filters);
-
-    // Skip audit logging for now (no authentication)
-    // await logAudit(
-    //   req.user!.id,
-    //   AuditAction.READ,
-    //   EntityType.SYSTEM,
-    //   undefined,
-    //   undefined,
-    //   {
-    //     action: 'view_leadership_analytics',
-    //     filters
-    //   },
-    //   req
-    // );
-
-    res.json({
-      success: true,
-      message: 'Leadership analytics retrieved successfully',
-      data: {
-        analytics: leadershipAnalytics
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
 // Export membership report to Excel
 router.get('/export/membership/excel', authenticate, requirePermission('reports.export'), async (req: Request, res: Response, next: NextFunction) => {

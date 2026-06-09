@@ -81,9 +81,8 @@ const WardAuditDashboard: React.FC = () => {
     compliantWards: wards.filter(w => w.is_compliant).length,
     nonCompliantWards: wards.filter(w => !w.is_compliant).length,
     criterion1Compliant: wards.filter(w => w.criterion_1_compliant).length,
-    totalSrpaDelegates: wards.reduce((sum, w) => sum + (w.srpa_delegates || 0), 0),
-    totalPpaDelegates: wards.reduce((sum, w) => sum + (w.ppa_delegates || 0), 0),
-    totalNpaDelegates: wards.reduce((sum, w) => sum + (w.npa_delegates || 0), 0),
+    // LGE2026 Criterion 5: wards with an active Ward Councillor Candidate
+    wardsWithCandidate: wards.filter(w => w.has_active_candidate).length,
   };
   
   const compliancePercentage = stats.totalWards > 0 
@@ -238,13 +237,13 @@ const WardAuditDashboard: React.FC = () => {
             <Card>
               <CardContent>
                 <Typography color="text.secondary" gutterBottom>
-                  Total Delegates
+                  Ward Candidates (LGE2026)
                 </Typography>
-                <Typography variant="h4">
-                  {stats.totalSrpaDelegates + stats.totalPpaDelegates + stats.totalNpaDelegates}
+                <Typography variant="h4" color="primary.main">
+                  {stats.wardsWithCandidate} / {stats.totalWards}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  SRPA: {stats.totalSrpaDelegates} | PPA: {stats.totalPpaDelegates} | NPA: {stats.totalNpaDelegates}
+                  Wards with nominated/approved Ward Councillor Candidate
                 </Typography>
               </CardContent>
             </Card>
@@ -281,7 +280,7 @@ const WardAuditDashboard: React.FC = () => {
                     <TableCell align="center">VDs</TableCell>
                     <TableCell align="center">Criterion 1</TableCell>
                     <TableCell align="center">Approved</TableCell>
-                    <TableCell align="center">Delegates</TableCell>
+                    <TableCell align="center">Candidate</TableCell>
                     <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -323,17 +322,11 @@ const WardAuditDashboard: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell align="center">
-                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                          <Tooltip title="SRPA">
-                            <Chip label={ward.srpa_delegates} size="small" />
-                          </Tooltip>
-                          <Tooltip title="PPA">
-                            <Chip label={ward.ppa_delegates} size="small" />
-                          </Tooltip>
-                          <Tooltip title="NPA">
-                            <Chip label={ward.npa_delegates} size="small" />
-                          </Tooltip>
-                        </Box>
+                        {ward.has_active_candidate ? (
+                          <Chip label="Nominated" size="small" color="success" icon={<CheckCircleIcon />} />
+                        ) : (
+                          <Chip label="None" size="small" color="default" />
+                        )}
                       </TableCell>
                       <TableCell align="center">
                         <Tooltip title="View Details">

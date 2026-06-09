@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -31,7 +31,8 @@ import {
   Divider,
   IconButton,
   Snackbar,
-  // Tooltip,
+  Radio,
+  InputAdornment,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -39,10 +40,13 @@ import {
   ArrowBack as ArrowBackIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
   HighlightOff as HighlightOffIcon,
-  // Info as InfoIcon,
+  PersonAdd as PersonAddIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import wardAuditApi from '../../services/wardAuditApi';
+import lge2026Api from '../../services/lge2026Api';
 import type { VotingDistrictCompliance } from '../../types/wardAudit';
+import type { Lge2026EligibleMember } from '../../types/lge2026';
 import WardMeetingManagement from './WardMeetingManagement';
 import WardDelegateManagement from './WardDelegateManagement';
 
@@ -57,6 +61,15 @@ const WardComplianceDetail: React.FC = () => {
 
   const [showMeetingManagement, setShowMeetingManagement] = useState(false);
   const [showDelegateManagement, setShowDelegateManagement] = useState(false);
+
+  // Nomination modal state
+  const [nominateDialogOpen, setNominateDialogOpen] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [nomNotes, setNomNotes] = useState('');
+  const [campaignStatement, setCampaignStatement] = useState('');
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [iecFormC2File, setIecFormC2File] = useState<File | null>(null);
 
   // Fetch enhanced ward compliance data with all 5 criteria
   const {
@@ -106,8 +119,65 @@ const WardComplianceDetail: React.FC = () => {
     }
   });
 
+  // Fetch eligible ward members for nomination
+  const { data: eligibleMembers = [], isLoading: membersLoading } = useQuery({
+    queryKey: ['lge2026-eligible-members', wardCode],
+    queryFn: () => lge2026Api.getEligibleWardMembers(wardCode!),
+    enabled: !!wardCode && nominateDialogOpen,
+  });
+
+  // Fetch active candidate for the ward
+  const { data: activeCandidate } = useQuery({
+    queryKey: ['lge2026-active-candidate', wardCode],
+    queryFn: () => lge2026Api.getActiveCandidate(wardCode!),
+    enabled: !!wardCode && nominateDialogOpen,
+  });
+
+  // Filter eligible members by search term
+  const filteredMembers = useMemo(() => {
+    if (!candidateSearch.trim()) return eligibleMembers;
+    const q = candidateSearch.toLowerCase();
+    return eligibleMembers.filter((m: Lge2026EligibleMember) =>
+      m.full_name.toLowerCase().includes(q) ||
+      (m.id_number && m.id_number.includes(q)) ||
+      (m.cell_number && m.cell_number.includes(q))
+    );
+  }, [eligibleMembers, candidateSearch]);
+
+  // Nominate mutation
+  const nominateMutation = useMutation({
+    mutationFn: () => lge2026Api.nominateCandidate(wardCode!, {
+      member_id: selectedMemberId!,
+      notes: nomNotes || undefined,
+      campaign_statement: campaignStatement || undefined,
+    }, cvFile || undefined, iecFormC2File || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lge2026-active-candidate', wardCode] });
+      queryClient.invalidateQueries({ queryKey: ['lge2026-eligible-members', wardCode] });
+      queryClient.invalidateQueries({ queryKey: ['ward-compliance-details', wardCode] });
+      setNominateDialogOpen(false);
+      setSelectedMemberId(null);
+      setNomNotes('');
+      setCampaignStatement('');
+      setCandidateSearch('');
+      setCvFile(null);
+      setIecFormC2File(null);
+      setSuccessSnackbarOpen(true);
+    },
+  });
+
   const handleSubmitCompliance = () => {
     submitComplianceMutation.mutate(approvalNotes);
+  };
+
+  const handleOpenNominateDialog = () => {
+    setSelectedMemberId(null);
+    setNomNotes('');
+    setCampaignStatement('');
+    setCandidateSearch('');
+    setCvFile(null);
+    setIecFormC2File(null);
+    setNominateDialogOpen(true);
   };
   
   if (wardLoading || vdLoading) {
@@ -198,16 +268,14 @@ const WardComplianceDetail: React.FC = () => {
     },
     {
       id: 5,
-      name: 'Delegate Selection',
-      description: 'At least 3 delegates selected across SRPA/PPA/NPA assemblies',
+      name: 'Ward Councillor Candidate (LGE2026)',
+      description: 'Exactly one Ward Councillor Candidate nominated for the 2026 Local Government Elections',
       passed: ward.criterion_5_passed,
-      details: ward.criterion_5_data
-        ? `Total: ${ward.criterion_5_data.total_delegates} (SRPA: ${ward.criterion_5_data.srpa_delegates} | PPA: ${ward.criterion_5_data.ppa_delegates} | NPA: ${ward.criterion_5_data.npa_delegates})`
-        : ward.is_compliant
-          ? 'No delegates assigned yet'
-          : '⚠️ Ward must be submitted as compliant first',
-      action: ward.is_compliant ? () => setShowDelegateManagement(true) : null,
-      actionLabel: ward.is_compliant ? 'Manage Delegates' : 'Locked',
+      details: ward.criterion_5_data?.active_candidate
+        ? `${ward.criterion_5_data.active_candidate.member_name} — ${String(ward.criterion_5_data.active_candidate.status).toUpperCase()}`
+        : 'No Ward Councillor Candidate nominated yet',
+      action: () => handleOpenNominateDialog(),
+      actionLabel: ward.criterion_5_data?.active_candidate ? 'Manage Candidate' : 'Nominate Candidate',
     },
   ];
 
@@ -307,13 +375,15 @@ const WardComplianceDetail: React.FC = () => {
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom variant="body2">
-                Total Delegates
+                Ward Councillor Candidate
               </Typography>
               <Typography variant="h4">
-                {ward.srpa_delegates + ward.ppa_delegates + ward.npa_delegates}
+                {ward.criterion_5_data?.active_candidate ? '1' : '0'}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Across all assemblies
+                {ward.criterion_5_data?.active_candidate
+                  ? String(ward.criterion_5_data.active_candidate.status).toUpperCase()
+                  : 'Not nominated'}
               </Typography>
             </CardContent>
           </Card>
@@ -591,6 +661,327 @@ const WardComplianceDetail: React.FC = () => {
           </Typography>
         </Alert>
       </Snackbar>
+
+      {/* Nominate Candidate Dialog */}
+      <Dialog
+        open={nominateDialogOpen}
+        onClose={() => !nominateMutation.isPending && setNominateDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box>
+            <Typography variant="h6">
+              <PersonAddIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Nominate Ward Councillor Candidate
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {ward.ward_name} ({wardCode})
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {activeCandidate && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Active candidate exists:</strong> {activeCandidate.member_name} ({String(activeCandidate.status).toUpperCase()}).
+                Withdraw the current candidate first before nominating another.
+              </Typography>
+            </Alert>
+          )}
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Only members registered in ward <strong>{ward.ward_name}</strong> are shown below.
+              Members registered in different wards are excluded.
+            </Typography>
+          </Alert>
+
+          {/* Search */}
+          <TextField
+            fullWidth
+            placeholder="Search by name, ID number, or cell number..."
+            value={candidateSearch}
+            onChange={(e) => setCandidateSearch(e.target.value)}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* Members list */}
+          {membersLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : filteredMembers.length === 0 ? (
+            <Alert severity="info">No eligible members found{candidateSearch ? ' matching your search' : ''}.</Alert>
+          ) : (
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell padding="checkbox"></TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>ID Number</TableCell>
+                    <TableCell>Cell</TableCell>
+                    <TableCell>Voting District</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredMembers.map((m: Lge2026EligibleMember) => {
+                    const isCurrentCandidate = m.existing_candidate_status === 'nominated' || m.existing_candidate_status === 'approved';
+                    return (
+                      <TableRow
+                        key={m.member_id}
+                        hover
+                        selected={selectedMemberId === m.member_id}
+                        onClick={() => !activeCandidate && !isCurrentCandidate && setSelectedMemberId(m.member_id)}
+                        sx={{ cursor: activeCandidate || isCurrentCandidate ? 'default' : 'pointer' }}
+                      >
+                        <TableCell padding="checkbox">
+                          <Radio
+                            checked={selectedMemberId === m.member_id}
+                            disabled={!!activeCandidate || isCurrentCandidate}
+                            onChange={() => setSelectedMemberId(m.member_id)}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={isCurrentCandidate ? 'bold' : 'normal'}>
+                            {m.full_name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{m.id_number || '—'}</TableCell>
+                        <TableCell>{m.cell_number || '—'}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{m.voting_district_name || '—'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          {isCurrentCandidate ? (
+                            <Chip size="small" label={(m.existing_candidate_status || '').toUpperCase()} color="success" />
+                          ) : (
+                            <Chip size="small" label={m.membership_status} variant="outlined" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {/* Notes fields shown when a member is selected */}
+          {selectedMemberId && !activeCandidate && (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Only <strong>one</strong> active candidate is permitted per ward. This nomination will be recorded
+                in the LGE2026 candidate register.
+              </Alert>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Notes (optional)"
+                value={nomNotes}
+                onChange={(e) => setNomNotes(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Campaign statement (optional)"
+                value={campaignStatement}
+                onChange={(e) => setCampaignStatement(e.target.value)}
+                sx={{ mb: 3 }}
+              />
+
+              {/* Document Uploads */}
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 1 }}>
+                Supporting Documents
+              </Typography>
+              <Grid container spacing={2}>
+                {/* CV Upload */}
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      border: '2px dashed',
+                      borderColor: cvFile ? 'success.main' : 'grey.400',
+                      borderRadius: 2,
+                      p: 2,
+                      textAlign: 'center',
+                      bgcolor: cvFile ? 'success.50' : 'grey.50',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
+                      minHeight: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={() => document.getElementById('candidate-cv-input')?.click()}
+                  >
+                    <input
+                      id="candidate-cv-input"
+                      type="file"
+                      hidden
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            alert('File size must be less than 10MB');
+                            return;
+                          }
+                          setCvFile(file);
+                        }
+                      }}
+                    />
+                    {cvFile ? (
+                      <Box>
+                        <CheckCircleIcon color="success" sx={{ fontSize: 28, mb: 0.5 }} />
+                        <Typography variant="body2" fontWeight="bold" color="success.main" noWrap>
+                          {cvFile.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {(cvFile.size / (1024 * 1024)).toFixed(2)} MB
+                        </Typography>
+                        <Box sx={{ mt: 0.5 }}>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCvFile(null);
+                              const input = document.getElementById('candidate-cv-input') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold" color="text.secondary">
+                          Candidate CV
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          PDF, JPEG, PNG, DOC — Max 10MB
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+
+                {/* IEC Form C2 Upload */}
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      border: '2px dashed',
+                      borderColor: iecFormC2File ? 'success.main' : 'grey.400',
+                      borderRadius: 2,
+                      p: 2,
+                      textAlign: 'center',
+                      bgcolor: iecFormC2File ? 'success.50' : 'grey.50',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { borderColor: 'primary.main', bgcolor: 'primary.50' },
+                      minHeight: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={() => document.getElementById('iec-form-c2-input')?.click()}
+                  >
+                    <input
+                      id="iec-form-c2-input"
+                      type="file"
+                      hidden
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            alert('File size must be less than 10MB');
+                            return;
+                          }
+                          setIecFormC2File(file);
+                        }
+                      }}
+                    />
+                    {iecFormC2File ? (
+                      <Box>
+                        <CheckCircleIcon color="success" sx={{ fontSize: 28, mb: 0.5 }} />
+                        <Typography variant="body2" fontWeight="bold" color="success.main" noWrap>
+                          {iecFormC2File.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {(iecFormC2File.size / (1024 * 1024)).toFixed(2)} MB
+                        </Typography>
+                        <Box sx={{ mt: 0.5 }}>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIecFormC2File(null);
+                              const input = document.getElementById('iec-form-c2-input') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold" color="text.secondary">
+                          IEC Form C2
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          PDF, JPEG, PNG, DOC — Max 10MB
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {nominateMutation.isError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {(nominateMutation.error as any)?.message || 'Failed to nominate candidate'}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setNominateDialogOpen(false)}
+            disabled={nominateMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={nominateMutation.isPending ? <CircularProgress size={20} /> : <PersonAddIcon />}
+            onClick={() => nominateMutation.mutate()}
+            disabled={!selectedMemberId || !!activeCandidate || nominateMutation.isPending}
+          >
+            {nominateMutation.isPending ? 'Nominating...' : 'Nominate'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

@@ -407,7 +407,7 @@ export class MembershipExpirationModel {
       const activeCountQuery = `
         SELECT COUNT(*) as active_count
         FROM vw_member_details 
-        WHERE membership_expiry_date > CURDATE()
+        WHERE expiry_date > CURDATE()
       `;
       const activeResult = await executeQuerySingle<{ active_count: number }>(activeCountQuery);
       const activeMembers = activeResult?.active_count || 0;
@@ -420,11 +420,11 @@ export class MembershipExpirationModel {
           surname,
           email,
           cell_number as phone_number,
-          membership_expiry_date,
-          DATEDIFF(membership_expiry_date, CURDATE()) as days_until_expiration
+          expiry_date,
+          DATEDIFF(expiry_date, CURDATE()) as days_until_expiration
         FROM vw_member_details
-        WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-        ORDER BY membership_expiry_date ASC
+        WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+        ORDER BY expiry_date ASC
         LIMIT 100
       `;
       const expiring30Days = await executeQuery<{
@@ -433,7 +433,7 @@ export class MembershipExpirationModel {
         surname: string;
         email: string;
         phone_number: string;
-        membership_expiry_date: string;
+        expiry_date: string;
         days_until_expiration: number;
       }>(expiring30Query);
 
@@ -445,11 +445,11 @@ export class MembershipExpirationModel {
           surname,
           email,
           cell_number as phone_number,
-          membership_expiry_date,
-          DATEDIFF(membership_expiry_date, CURDATE()) as days_until_expiration
+          expiry_date,
+          DATEDIFF(expiry_date, CURDATE()) as days_until_expiration
         FROM vw_member_details
-        WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-        ORDER BY membership_expiry_date ASC
+        WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+        ORDER BY expiry_date ASC
         LIMIT 50
       `;
       const expiring7Days = await executeQuery<{
@@ -458,7 +458,7 @@ export class MembershipExpirationModel {
         surname: string;
         email: string;
         phone_number: string;
-        membership_expiry_date: string;
+        expiry_date: string;
         days_until_expiration: number;
       }>(expiring7Query);
 
@@ -470,11 +470,11 @@ export class MembershipExpirationModel {
           surname,
           email,
           cell_number as phone_number,
-          membership_expiry_date,
-          ABS(DATEDIFF(CURDATE(), membership_expiry_date)) as days_since_expiration
+          expiry_date,
+          ABS(DATEDIFF(CURDATE(), expiry_date)) as days_since_expiration
         FROM vw_member_details
-        WHERE membership_expiry_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND CURDATE()
-        ORDER BY membership_expiry_date DESC
+        WHERE expiry_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND CURDATE()
+        ORDER BY expiry_date DESC
         LIMIT 100
       `;
       const recentlyExpired = await executeQuery<{
@@ -483,7 +483,7 @@ export class MembershipExpirationModel {
         surname: string;
         email: string;
         phone_number: string;
-        membership_expiry_date: string;
+        expiry_date: string;
         days_since_expiration: number;
       }>(recentlyExpiredQuery);
 
@@ -495,12 +495,12 @@ export class MembershipExpirationModel {
           surname,
           email,
           cell_number as phone_number,
-          membership_expiry_date,
+          expiry_date,
           created_at as last_activity_date,
           DATEDIFF(CURDATE(), created_at) as days_since_activity
         FROM vw_member_details
         WHERE created_at < DATE_SUB(CURDATE(), INTERVAL 90 DAY)
-          AND membership_expiry_date > CURDATE()
+          AND expiry_date > CURDATE()
         ORDER BY created_at ASC
         LIMIT 100
       `;
@@ -510,7 +510,7 @@ export class MembershipExpirationModel {
         surname: string;
         email: string;
         phone_number: string;
-        membership_expiry_date: string;
+        expiry_date: string;
         last_activity_date: string;
         days_since_activity: number;
       }>(inactiveMembersQuery);
@@ -519,7 +519,7 @@ export class MembershipExpirationModel {
       const renewalStatsQuery = `
         SELECT 
           COUNT(*) as total_renewals_last_30_days,
-          AVG(DATEDIFF(membership_expiry_date, created_at)) as avg_membership_duration_days
+          AVG(DATEDIFF(expiry_date, created_at)) as avg_membership_duration_days
         FROM vw_member_details 
         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
       `;
@@ -568,19 +568,19 @@ export class MembershipExpirationModel {
       
       switch (status) {
         case 'expiring_30':
-          whereClause = 'WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
+          whereClause = 'WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)';
           statusDescription = 'Members expiring within 30 days';
           break;
         case 'expiring_7':
-          whereClause = 'WHERE membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)';
+          whereClause = 'WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)';
           statusDescription = 'Members expiring within 7 days';
           break;
         case 'expired':
-          whereClause = 'WHERE membership_expiry_date < CURDATE()';
+          whereClause = 'WHERE expiry_date < CURDATE()';
           statusDescription = 'Expired members';
           break;
         case 'inactive':
-          whereClause = 'WHERE created_at < DATE_SUB(CURDATE(), INTERVAL 90 DAY) AND membership_expiry_date > CURDATE()';
+          whereClause = 'WHERE created_at < DATE_SUB(CURDATE(), INTERVAL 90 DAY) AND expiry_date > CURDATE()';
           statusDescription = 'Inactive members (90+ days)';
           break;
         default:
@@ -595,10 +595,10 @@ export class MembershipExpirationModel {
           orderByClause = `ORDER BY firstname ${sort_order.toUpperCase()}, surname ${sort_order.toUpperCase()}`;
           break;
         case 'days_until_expiration':
-          orderByClause = `ORDER BY DATEDIFF(membership_expiry_date, CURDATE()) ${sort_order.toUpperCase()}`;
+          orderByClause = `ORDER BY DATEDIFF(expiry_date, CURDATE()) ${sort_order.toUpperCase()}`;
           break;
         default:
-          orderByClause = `ORDER BY membership_expiry_date ${sort_order.toUpperCase()}`;
+          orderByClause = `ORDER BY expiry_date ${sort_order.toUpperCase()}`;
       }
 
       // Get members with expiration details
@@ -609,18 +609,18 @@ export class MembershipExpirationModel {
           surname,
           email,
           cell_number as phone_number,
-          membership_expiry_date,
+          expiry_date,
           created_at,
           province_name,
           CASE
-            WHEN membership_expiry_date < CURDATE() THEN 'Expired'
-            WHEN membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 'Urgent'
-            WHEN membership_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'Expiring Soon'
+            WHEN expiry_date < CURDATE() THEN 'Expired'
+            WHEN expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 'Urgent'
+            WHEN expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'Expiring Soon'
             ELSE 'Active'
           END as status,
           CASE
-            WHEN membership_expiry_date < CURDATE() THEN ABS(DATEDIFF(CURDATE(), membership_expiry_date))
-            ELSE DATEDIFF(membership_expiry_date, CURDATE())
+            WHEN expiry_date < CURDATE() THEN ABS(DATEDIFF(CURDATE(), expiry_date))
+            ELSE DATEDIFF(expiry_date, CURDATE())
           END as days_until_expiration,
           DATEDIFF(CURDATE(), created_at) as days_since_activity
         FROM vw_member_details
@@ -635,7 +635,7 @@ export class MembershipExpirationModel {
         surname: string;
         email: string;
         phone_number: string;
-        membership_expiry_date: string;
+        expiry_date: string;
         created_at: string;
         province_name: string;
         status: string;
@@ -736,11 +736,11 @@ export class MembershipExpirationModel {
       // Get expiration trends
       const trendsQuery = `
         SELECT 
-          DATE(membership_expiry_date) as expiry_date,
+          DATE(expiry_date) as expiry_date,
           COUNT(*) as expiration_count
         FROM vw_member_details 
-        WHERE membership_expiry_date BETWEEN DATE_SUB(CURDATE(), INTERVAL ${daysBack} DAY) AND CURDATE()
-        GROUP BY DATE(membership_expiry_date)
+        WHERE expiry_date BETWEEN DATE_SUB(CURDATE(), INTERVAL ${daysBack} DAY) AND CURDATE()
+        GROUP BY DATE(expiry_date)
         ORDER BY expiry_date DESC
         LIMIT 30
       `;

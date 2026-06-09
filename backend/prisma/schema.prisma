@@ -258,49 +258,45 @@ model citizenships {
 }
 
 model communication_analytics {
-  analytics_id           Int       @id @default(autoincrement())
-  date                   DateTime  @unique @db.Date
-  campaigns_sent         Int?      @default(0)
-  campaigns_completed    Int?      @default(0)
-  campaigns_failed       Int?      @default(0)
-  emails_sent            Int?      @default(0)
-  emails_delivered       Int?      @default(0)
-  emails_opened          Int?      @default(0)
-  emails_clicked         Int?      @default(0)
-  emails_bounced         Int?      @default(0)
-  sms_sent               Int?      @default(0)
-  sms_delivered          Int?      @default(0)
-  sms_failed             Int?      @default(0)
-  in_app_sent            Int?      @default(0)
-  in_app_delivered       Int?      @default(0)
-  in_app_read            Int?      @default(0)
-  province_breakdown     Json?
-  municipality_breakdown Json?
-  created_at             DateTime? @default(now()) @db.Timestamp(6)
-  updated_at             DateTime? @default(now()) @db.Timestamp(6)
+  id                      Int                      @id @default(autoincrement())
+  campaign_id             Int?
+  metric_name             String                   @db.VarChar(100)
+  metric_value            Decimal?                 @default(0) @db.Decimal(12, 2)
+  dimension_name          String?                  @db.VarChar(100)
+  dimension_value         String?                  @db.VarChar(255)
+  recorded_at             DateTime?                @default(now()) @db.Timestamptz(6)
+  communication_campaigns communication_campaigns? @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([date], map: "idx_communication_analytics_date")
+  @@index([campaign_id], map: "idx_analytics_campaign")
 }
 
 model communication_campaigns {
-  id                 Int                  @id @default(autoincrement())
-  name               String               @db.VarChar(255)
-  campaign_type      String?              @default("general") @db.VarChar(50)
-  status             String?              @default("Draft") @db.VarChar(50)
-  total_sent         Int?                 @default(0)
-  total_delivered    Int?                 @default(0)
-  total_opened       Int?                 @default(0)
-  total_clicked      Int?                 @default(0)
-  total_failed       Int?                 @default(0)
-  recipient_count    Int?                 @default(0)
-  created_at         DateTime?            @default(now()) @db.Timestamp(6)
-  completed_at       DateTime?            @db.Timestamp(6)
-  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
-  message_deliveries message_deliveries[]
+  id                      Int                       @id @default(autoincrement())
+  name                    String                    @db.VarChar(255)
+  description             String?
+  campaign_type           String                    @db.VarChar(50)
+  status                  String?                   @default("Draft") @db.VarChar(50)
+  template_id             Int?
+  delivery_channels       Json?
+  target_criteria         Json?
+  recipient_count         Int?                      @default(0)
+  scheduled_at            DateTime?                 @db.Timestamptz(6)
+  started_at              DateTime?                 @db.Timestamptz(6)
+  completed_at            DateTime?                 @db.Timestamptz(6)
+  total_sent              Int?                      @default(0)
+  total_delivered         Int?                      @default(0)
+  total_failed            Int?                      @default(0)
+  total_opened            Int?                      @default(0)
+  total_clicked           Int?                      @default(0)
+  created_by              BigInt?
+  created_at              DateTime?                 @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime?                 @default(now()) @db.Timestamptz(6)
+  communication_analytics communication_analytics[]
+  message_templates       message_templates?        @relation(fields: [template_id], references: [template_id], onUpdate: NoAction)
+  message_deliveries      message_deliveries[]
+  messages                messages[]
 
-  @@index([created_at], map: "idx_communication_campaigns_created_at")
-  @@index([status], map: "idx_communication_campaigns_status")
-  @@index([campaign_type], map: "idx_communication_campaigns_type")
+  @@index([status], map: "idx_campaign_status")
 }
 
 model communication_logs {
@@ -1937,23 +1933,26 @@ model membership_statuses {
 
 model message_deliveries {
   id                      Int                      @id @default(autoincrement())
+  message_id              Int?
   campaign_id             Int?
-  recipient_id            Int?
+  recipient_id            BigInt?
   recipient_type          String?                  @default("Member") @db.VarChar(50)
   delivery_channel        String                   @db.VarChar(50)
-  delivery_status         String?                  @default("Pending") @db.VarChar(50)
-  created_at              DateTime?                @default(now()) @db.Timestamp(6)
-  delivered_at            DateTime?                @db.Timestamp(6)
-  opened_at               DateTime?                @db.Timestamp(6)
-  clicked_at              DateTime?                @db.Timestamp(6)
-  updated_at              DateTime?                @default(now()) @db.Timestamp(6)
+  delivery_status         String                   @db.VarChar(50)
+  external_id             String?                  @db.VarChar(255)
+  error_message           String?
+  delivered_at            DateTime?                @db.Timestamptz(6)
+  read_at                 DateTime?                @db.Timestamptz(6)
+  opened_at               DateTime?                @db.Timestamptz(6)
+  clicked_at              DateTime?                @db.Timestamptz(6)
+  metadata                Json?
+  created_at              DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime?                @default(now()) @db.Timestamptz(6)
   communication_campaigns communication_campaigns? @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages                messages?                @relation(fields: [message_id], references: [message_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([campaign_id], map: "idx_message_deliveries_campaign_id")
-  @@index([delivery_channel], map: "idx_message_deliveries_channel")
-  @@index([created_at], map: "idx_message_deliveries_created_at")
-  @@index([recipient_id, recipient_type], map: "idx_message_deliveries_recipient")
-  @@index([delivery_status], map: "idx_message_deliveries_status")
+  @@index([campaign_id], map: "idx_delivery_campaign_id")
+  @@index([message_id], map: "idx_delivery_msg_id")
 }
 
 model message_queue {
@@ -1984,20 +1983,21 @@ model message_queue {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model message_templates {
-  template_id   Int        @id @default(autoincrement())
-  name          String     @db.VarChar(255)
-  description   String?
-  template_type String     @db.VarChar(20)
-  category      String?    @default("Custom") @db.VarChar(20)
-  subject       String?    @db.VarChar(500)
-  content       String
-  variables     Json?
-  is_active     Boolean?   @default(true)
-  created_by    Int?
-  created_at    DateTime?  @default(now()) @db.Timestamp(6)
-  updated_at    DateTime?  @default(now()) @db.Timestamp(6)
-  users         users?     @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
-  messages      messages[]
+  template_id             Int                       @id @default(autoincrement())
+  name                    String                    @db.VarChar(255)
+  description             String?
+  template_type           String                    @db.VarChar(20)
+  category                String?                   @default("Custom") @db.VarChar(20)
+  subject                 String?                   @db.VarChar(500)
+  content                 String
+  variables               Json?
+  is_active               Boolean?                  @default(true)
+  created_by              Int?
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  communication_campaigns communication_campaigns[]
+  users                   users?                    @relation(fields: [created_by], references: [user_id], onUpdate: NoAction)
+  messages                messages[]
 
   @@index([is_active], map: "idx_message_templates_active")
   @@index([category], map: "idx_message_templates_category")
@@ -2006,31 +2006,33 @@ model message_templates {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model messages {
-  message_id        Int                @id @default(autoincrement())
-  conversation_id   String             @db.VarChar(50)
-  campaign_id       Int?
-  sender_type       String             @db.VarChar(20)
-  sender_id         Int?
-  recipient_type    String             @db.VarChar(20)
-  recipient_id      Int?
-  subject           String?            @db.VarChar(500)
-  content           String
-  message_type      String?            @default("Text") @db.VarChar(20)
-  template_id       Int?
-  template_data     Json?
-  delivery_channel  String             @db.VarChar(20)
-  delivery_status   String?            @default("Pending") @db.VarChar(20)
-  delivery_attempts Int?               @default(0)
-  delivered_at      DateTime?          @db.Timestamp(6)
-  failed_reason     String?
-  is_read           Boolean?           @default(false)
-  read_at           DateTime?          @db.Timestamp(6)
-  clicked_links     Json?
-  priority          String?            @default("normal") @db.VarChar(10)
-  scheduled_for     DateTime?          @db.Timestamp(6)
-  created_at        DateTime?          @default(now()) @db.Timestamp(6)
-  updated_at        DateTime?          @default(now()) @db.Timestamp(6)
-  message_templates message_templates? @relation(fields: [template_id], references: [template_id], onUpdate: NoAction)
+  message_id              Int                      @id @default(autoincrement())
+  conversation_id         String                   @db.VarChar(50)
+  campaign_id             Int?
+  sender_type             String                   @db.VarChar(20)
+  sender_id               Int?
+  recipient_type          String                   @db.VarChar(20)
+  recipient_id            Int?
+  subject                 String?                  @db.VarChar(500)
+  content                 String
+  message_type            String?                  @default("Text") @db.VarChar(20)
+  template_id             Int?
+  template_data           Json?
+  delivery_channel        String                   @db.VarChar(20)
+  delivery_status         String?                  @default("Pending") @db.VarChar(20)
+  delivery_attempts       Int?                     @default(0)
+  delivered_at            DateTime?                @db.Timestamp(6)
+  failed_reason           String?
+  is_read                 Boolean?                 @default(false)
+  read_at                 DateTime?                @db.Timestamp(6)
+  clicked_links           Json?
+  priority                String?                  @default("normal") @db.VarChar(10)
+  scheduled_for           DateTime?                @db.Timestamp(6)
+  created_at              DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?                @default(now()) @db.Timestamp(6)
+  message_deliveries      message_deliveries[]
+  communication_campaigns communication_campaigns? @relation(fields: [campaign_id], references: [id], onUpdate: NoAction, map: "fk_messages_campaign")
+  message_templates       message_templates?       @relation(fields: [template_id], references: [template_id], onUpdate: NoAction)
 
   @@index([campaign_id], map: "idx_messages_campaign")
   @@index([conversation_id], map: "idx_messages_conversation")
@@ -3165,37 +3167,42 @@ model security_policies {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model sms_campaigns {
-  campaign_id         Int            @id @default(autoincrement())
-  campaign_name       String         @db.VarChar(200)
-  campaign_code       String?        @unique @db.VarChar(50)
-  description         String?
-  template_id         Int?
-  target_type         String         @default("Manual") @db.VarChar(20)
-  target_criteria     Json?
-  province_codes      String[]
-  district_codes      String[]
-  municipality_codes  String[]
-  ward_codes          String[]
-  membership_statuses Int[]
-  member_types        String[]
-  age_range_min       Int?
-  age_range_max       Int?
-  scheduled_at        DateTime?      @db.Timestamp(6)
-  started_at          DateTime?      @db.Timestamp(6)
-  completed_at        DateTime?      @db.Timestamp(6)
-  status              String         @default("Draft") @db.VarChar(20)
-  total_recipients    Int?           @default(0)
-  messages_sent       Int?           @default(0)
-  messages_delivered  Int?           @default(0)
-  messages_failed     Int?           @default(0)
-  sender_name         String?        @default("EFF") @db.VarChar(20)
-  priority            String?        @default("Normal") @db.VarChar(10)
-  created_by          Int?
-  created_at          DateTime?      @default(now()) @db.Timestamp(6)
-  updated_at          DateTime?      @default(now()) @db.Timestamp(6)
-  users               users?         @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  sms_templates       sms_templates? @relation(fields: [template_id], references: [template_id], onDelete: NoAction, onUpdate: NoAction)
-  sms_messages        sms_messages[]
+  campaign_id            Int                      @id @default(autoincrement())
+  campaign_name          String                   @db.VarChar(200)
+  campaign_code          String?                  @unique @db.VarChar(50)
+  description            String?
+  template_id            Int?
+  target_type            String                   @default("Manual") @db.VarChar(20)
+  target_criteria        Json?
+  province_codes         String[]
+  district_codes         String[]
+  municipality_codes     String[]
+  ward_codes             String[]
+  membership_statuses    Int[]
+  member_types           String[]
+  age_range_min          Int?
+  age_range_max          Int?
+  scheduled_at           DateTime?                @db.Timestamp(6)
+  started_at             DateTime?                @db.Timestamp(6)
+  completed_at           DateTime?                @db.Timestamp(6)
+  status                 String                   @default("Draft") @db.VarChar(20)
+  total_recipients       Int?                     @default(0)
+  messages_sent          Int?                     @default(0)
+  messages_delivered     Int?                     @default(0)
+  messages_failed        Int?                     @default(0)
+  sender_name            String?                  @default("EFF") @db.VarChar(20)
+  priority               String?                  @default("Normal") @db.VarChar(10)
+  created_by             Int?
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  message_content        String?
+  send_rate_limit        Int?                     @default(100)
+  retry_failed           Boolean?                 @default(true)
+  max_retries            Int?                     @default(3)
+  users                  users?                   @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  sms_templates          sms_templates?           @relation(fields: [template_id], references: [template_id], onDelete: NoAction, onUpdate: NoAction)
+  sms_delivery_callbacks sms_delivery_callbacks[]
+  sms_messages           sms_messages[]
 
   @@index([scheduled_at], map: "idx_sms_campaigns_scheduled")
   @@index([status], map: "idx_sms_campaigns_status")
@@ -3304,6 +3311,7 @@ model sms_messages {
   max_retries          Int?                   @default(3)
   created_at           DateTime?              @default(now()) @db.Timestamp(6)
   updated_at           DateTime?              @default(now()) @db.Timestamp(6)
+  category             String?                @default("General") @db.VarChar(50)
   sms_delivery_reports sms_delivery_reports[]
   sms_campaigns        sms_campaigns?         @relation(fields: [campaign_id], references: [campaign_id], onDelete: Cascade, onUpdate: NoAction)
   members              members_consolidated?  @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
@@ -3314,6 +3322,7 @@ model sms_messages {
   @@index([member_id], map: "idx_sms_messages_member")
   @@index([sent_at], map: "idx_sms_messages_sent")
   @@index([status], map: "idx_sms_messages_status")
+  @@index([category], map: "idx_sms_messages_category")
 }
 
 model sms_provider_config {
@@ -3449,6 +3458,7 @@ model sms_webhook_log {
   @@index([processed_successfully], map: "idx_webhook_log_processed")
   @@index([provider_name], map: "idx_webhook_log_provider")
   @@index([received_at(sort: Desc)], map: "idx_webhook_log_received_at")
+  @@index([received_at], map: "idx_webhook_log_received")
 }
 
 model subscription_types {
@@ -3651,131 +3661,141 @@ model user_sessions {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model users {
-  user_id                                                                         Int                               @id @default(autoincrement())
-  name                                                                            String                            @db.VarChar(255)
-  email                                                                           String                            @unique @db.VarChar(255)
-  password                                                                        String                            @db.VarChar(255)
-  password_changed_at                                                             DateTime?                         @db.Timestamp(6)
-  role_id                                                                         Int?
-  admin_level                                                                     String?                           @db.VarChar(20)
-  province_code                                                                   String?                           @db.VarChar(10)
-  district_code                                                                   String?                           @db.VarChar(20)
-  municipal_code                                                                  String?                           @db.VarChar(20)
-  ward_code                                                                       String?                           @db.VarChar(20)
-  member_id                                                                       Int?
-  email_verified_at                                                               DateTime?                         @db.Timestamp(6)
-  remember_token                                                                  String?                           @db.VarChar(100)
-  password_reset_token                                                            String?                           @db.VarChar(255)
-  password_reset_expires                                                          DateTime?                         @db.Timestamp(6)
-  failed_login_attempts                                                           Int?                              @default(0)
-  locked_until                                                                    DateTime?                         @db.Timestamp(6)
-  locked_at                                                                       DateTime?                         @db.Timestamp(6)
-  mfa_enabled                                                                     Boolean?                          @default(false)
-  mfa_secret                                                                      String?                           @db.VarChar(255)
-  is_active                                                                       Boolean?                          @default(true)
-  account_locked                                                                  Boolean?                          @default(false)
-  last_login_at                                                                   DateTime?                         @db.Timestamp(6)
-  last_login_ip                                                                   String?                           @db.VarChar(45)
-  created_at                                                                      DateTime?                         @default(now()) @db.Timestamp(6)
-  updated_at                                                                      DateTime?                         @default(now()) @db.Timestamp(6)
-  id                                                                              Int                               @default(autoincrement())
-  cell_number                                                                     String?                           @db.VarChar(20)
-  admin_user_creation_log_admin_user_creation_log_approved_byTousers              admin_user_creation_log[]         @relation("admin_user_creation_log_approved_byTousers")
-  admin_user_creation_log_admin_user_creation_log_created_by_user_idTousers       admin_user_creation_log[]         @relation("admin_user_creation_log_created_by_user_idTousers")
-  admin_user_creation_log_admin_user_creation_log_created_user_idTousers          admin_user_creation_log[]         @relation("admin_user_creation_log_created_user_idTousers")
-  application_approval_history                                                    application_approval_history[]
-  approval_audit_trail                                                            approval_audit_trail[]
-  audit_logs                                                                      audit_logs[]
-  bulk_operations                                                                 bulk_operations[]
-  bulk_operations_log                                                             bulk_operations_log[]
-  database_backups                                                                database_backups[]
-  expelled_suspended_members_expelled_suspended_members_created_byTousers         expelled_suspended_members[]      @relation("expelled_suspended_members_created_byTousers")
-  expelled_suspended_members_expelled_suspended_members_removed_by_user_idTousers expelled_suspended_members[]      @relation("expelled_suspended_members_removed_by_user_idTousers")
-  file_processing_jobs                                                            file_processing_jobs[]
-  financial_operations_audit                                                      financial_operations_audit[]
-  iec_electoral_event_sync_logs                                                   iec_electoral_event_sync_logs[]
-  leadership_appointments_leadership_appointments_appointed_byTomembers           leadership_appointments[]         @relation("leadership_appointments_appointed_byTomembers")
-  leadership_appointments_leadership_appointments_terminated_byTomembers          leadership_appointments[]         @relation("leadership_appointments_terminated_byTomembers")
-  leadership_elections                                                            leadership_elections[]
-  leadership_goals                                                                leadership_goals[]
-  leadership_meetings                                                             leadership_meetings[]
-  leadership_performance_reviews                                                  leadership_performance_reviews[]
-  leadership_succession_plans                                                     leadership_succession_plans[]
-  login_attempts                                                                  login_attempts[]
-  maintenance_mode_logs                                                           maintenance_mode_logs[]
-  maintenance_notifications                                                       maintenance_notifications[]
-  meeting_action_items_meeting_action_items_completed_byTousers                   meeting_action_items[]            @relation("meeting_action_items_completed_byTousers")
-  meeting_action_items_meeting_action_items_created_byTousers                     meeting_action_items[]            @relation("meeting_action_items_created_byTousers")
-  meeting_agenda_items                                                            meeting_agenda_items[]
-  meeting_attendance                                                              meeting_attendance[]
-  meeting_decisions                                                               meeting_decisions[]
-  meeting_document_templates                                                      meeting_document_templates[]
-  meeting_documents_meeting_documents_approved_byTousers                          meeting_documents[]               @relation("meeting_documents_approved_byTousers")
-  meeting_documents_meeting_documents_created_byTousers                           meeting_documents[]               @relation("meeting_documents_created_byTousers")
-  meeting_invitations                                                             meeting_invitations[]
-  meeting_minutes_meeting_minutes_approved_byTousers                              meeting_minutes[]                 @relation("meeting_minutes_approved_byTousers")
-  meeting_minutes_meeting_minutes_recorded_byTousers                              meeting_minutes[]                 @relation("meeting_minutes_recorded_byTousers")
-  meetings                                                                        meetings[]
-  member_application_bulk_uploads                                                 member_application_bulk_uploads[]
-  member_notes                                                                    member_notes[]
-  member_transfers_member_transfers_approved_byTousers                            member_transfers[]                @relation("member_transfers_approved_byTousers")
-  member_transfers_member_transfers_transferred_byTousers                         member_transfers[]                @relation("member_transfers_transferred_byTousers")
-  membership_applications_membership_applications_final_reviewed_byTousers        membership_applications[]         @relation("membership_applications_final_reviewed_byTousers")
-  membership_applications_membership_applications_financial_reviewed_byTousers    membership_applications[]         @relation("membership_applications_financial_reviewed_byTousers")
-  membership_renewals_membership_renewals_final_reviewed_byTousers                membership_renewals[]             @relation("membership_renewals_final_reviewed_byTousers")
-  membership_renewals_membership_renewals_financial_reviewed_byTousers            membership_renewals[]             @relation("membership_renewals_financial_reviewed_byTousers")
-  message_templates                                                               message_templates[]
-  notifications                                                                   notifications[]
-  operation_templates                                                             operation_templates[]
-  password_history                                                                password_history[]
-  payments                                                                        payments[]
-  renewal_approvals_renewal_approvals_approved_byTousers                          renewal_approvals[]               @relation("renewal_approvals_approved_byTousers")
-  renewal_approvals_renewal_approvals_assigned_toTousers                          renewal_approvals[]               @relation("renewal_approvals_assigned_toTousers")
-  renewal_approvals_renewal_approvals_rejected_byTousers                          renewal_approvals[]               @relation("renewal_approvals_rejected_byTousers")
-  renewal_approvals_renewal_approvals_reviewed_byTousers                          renewal_approvals[]               @relation("renewal_approvals_reviewed_byTousers")
-  renewal_audit_trail                                                             renewal_audit_trail[]
-  renewal_bulk_operations                                                         renewal_bulk_operations[]
-  renewal_bulk_uploads                                                            renewal_bulk_uploads[]
-  renewal_export_jobs                                                             renewal_export_jobs[]
-  renewal_financial_audit_trail                                                   renewal_financial_audit_trail[]
-  renewal_fraud_cases                                                             renewal_fraud_cases[]
-  renewal_manual_notes                                                            renewal_manual_notes[]
-  renewal_pricing_overrides_renewal_pricing_overrides_approved_byTousers          renewal_pricing_overrides[]       @relation("renewal_pricing_overrides_approved_byTousers")
-  renewal_pricing_overrides_renewal_pricing_overrides_requested_byTousers         renewal_pricing_overrides[]       @relation("renewal_pricing_overrides_requested_byTousers")
-  renewal_pricing_rules                                                           renewal_pricing_rules[]
-  scheduled_operations                                                            scheduled_operations[]
-  security_alerts_security_alerts_resolved_byTousers                              security_alerts[]                 @relation("security_alerts_resolved_byTousers")
-  security_alerts_security_alerts_user_idTousers                                  security_alerts[]                 @relation("security_alerts_user_idTousers")
-  security_events                                                                 security_events[]
-  sms_campaigns                                                                   sms_campaigns[]
-  sms_contact_lists                                                               sms_contact_lists[]
-  sms_templates                                                                   sms_templates[]
-  srpa_delegate_config_srpa_delegate_config_created_byTousers                     srpa_delegate_config[]            @relation("srpa_delegate_config_created_byTousers")
-  srpa_delegate_config_srpa_delegate_config_updated_byTousers                     srpa_delegate_config[]            @relation("srpa_delegate_config_updated_byTousers")
-  system_logs                                                                     system_logs[]
-  trusted_devices                                                                 trusted_devices[]
-  uploaded_files                                                                  uploaded_files[]
-  user_activity_logs                                                              user_activity_logs[]
-  user_creation_workflow_user_creation_workflow_created_user_idTousers            user_creation_workflow[]          @relation("user_creation_workflow_created_user_idTousers")
-  user_creation_workflow_user_creation_workflow_requested_byTousers               user_creation_workflow[]          @relation("user_creation_workflow_requested_byTousers")
-  user_creation_workflow_user_creation_workflow_reviewed_byTousers                user_creation_workflow[]          @relation("user_creation_workflow_reviewed_byTousers")
-  user_mfa_settings                                                               user_mfa_settings?
-  user_otp_codes                                                                  user_otp_codes[]
-  user_security_settings                                                          user_security_settings?
-  user_sessions                                                                   user_sessions[]
-  districts                                                                       districts?                        @relation(fields: [district_code], references: [district_code], onDelete: NoAction, onUpdate: NoAction)
-  members                                                                         members_consolidated?             @relation(fields: [member_id], references: [member_id], onUpdate: NoAction)
-  municipalities                                                                  municipalities?                   @relation(fields: [municipal_code], references: [municipality_code], onDelete: NoAction, onUpdate: NoAction)
-  provinces                                                                       provinces?                        @relation(fields: [province_code], references: [province_code], onDelete: NoAction, onUpdate: NoAction)
-  roles                                                                           roles?                            @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
-  wards_users_ward_codeTowards                                                    wards?                            @relation("users_ward_codeTowards", fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
-  ward_compliance_audit_log                                                       ward_compliance_audit_log[]
-  ward_delegates                                                                  ward_delegates[]
-  ward_meeting_records_ward_meeting_records_quorum_verified_byTousers             ward_meeting_records[]            @relation("ward_meeting_records_quorum_verified_byTousers")
-  ward_meeting_records_ward_meeting_records_meeting_verified_byTousers            ward_meeting_records[]            @relation("ward_meeting_records_meeting_verified_byTousers")
-  wards_wards_compliance_approved_byTousers                                       wards[]                           @relation("wards_compliance_approved_byTousers")
-  wards_wards_criterion_1_exception_granted_byTousers                             wards[]                           @relation("wards_criterion_1_exception_granted_byTousers")
-  workflow_notifications                                                          workflow_notifications[]
+  user_id                                                                                Int                                    @id @default(autoincrement())
+  name                                                                                   String                                 @db.VarChar(255)
+  email                                                                                  String                                 @unique @db.VarChar(255)
+  password                                                                               String                                 @db.VarChar(255)
+  password_changed_at                                                                    DateTime?                              @db.Timestamp(6)
+  role_id                                                                                Int?
+  admin_level                                                                            String?                                @db.VarChar(20)
+  province_code                                                                          String?                                @db.VarChar(10)
+  district_code                                                                          String?                                @db.VarChar(20)
+  municipal_code                                                                         String?                                @db.VarChar(20)
+  ward_code                                                                              String?                                @db.VarChar(20)
+  member_id                                                                              Int?
+  email_verified_at                                                                      DateTime?                              @db.Timestamp(6)
+  remember_token                                                                         String?                                @db.VarChar(100)
+  password_reset_token                                                                   String?                                @db.VarChar(255)
+  password_reset_expires                                                                 DateTime?                              @db.Timestamp(6)
+  failed_login_attempts                                                                  Int?                                   @default(0)
+  locked_until                                                                           DateTime?                              @db.Timestamp(6)
+  locked_at                                                                              DateTime?                              @db.Timestamp(6)
+  mfa_enabled                                                                            Boolean?                               @default(false)
+  mfa_secret                                                                             String?                                @db.VarChar(255)
+  is_active                                                                              Boolean?                               @default(true)
+  account_locked                                                                         Boolean?                               @default(false)
+  last_login_at                                                                          DateTime?                              @db.Timestamp(6)
+  last_login_ip                                                                          String?                                @db.VarChar(45)
+  created_at                                                                             DateTime?                              @default(now()) @db.Timestamp(6)
+  updated_at                                                                             DateTime?                              @default(now()) @db.Timestamp(6)
+  id                                                                                     Int                                    @default(autoincrement())
+  cell_number                                                                            String?                                @db.VarChar(20)
+  admin_user_creation_log_admin_user_creation_log_approved_byTousers                     admin_user_creation_log[]              @relation("admin_user_creation_log_approved_byTousers")
+  admin_user_creation_log_admin_user_creation_log_created_by_user_idTousers              admin_user_creation_log[]              @relation("admin_user_creation_log_created_by_user_idTousers")
+  admin_user_creation_log_admin_user_creation_log_created_user_idTousers                 admin_user_creation_log[]              @relation("admin_user_creation_log_created_user_idTousers")
+  application_approval_history                                                           application_approval_history[]
+  approval_audit_trail                                                                   approval_audit_trail[]
+  audit_logs                                                                             audit_logs[]
+  bulk_operations                                                                        bulk_operations[]
+  bulk_operations_log                                                                    bulk_operations_log[]
+  communication_groups                                                                   communication_groups[]
+  database_backups                                                                       database_backups[]
+  expelled_suspended_members_expelled_suspended_members_created_byTousers                expelled_suspended_members[]           @relation("expelled_suspended_members_created_byTousers")
+  expelled_suspended_members_expelled_suspended_members_removed_by_user_idTousers        expelled_suspended_members[]           @relation("expelled_suspended_members_removed_by_user_idTousers")
+  file_processing_jobs                                                                   file_processing_jobs[]
+  financial_operations_audit                                                             financial_operations_audit[]
+  iec_electoral_event_sync_logs                                                          iec_electoral_event_sync_logs[]
+  leadership_appointments_leadership_appointments_appointed_byTomembers                  leadership_appointments[]              @relation("leadership_appointments_appointed_byTomembers")
+  leadership_appointments_leadership_appointments_terminated_byTomembers                 leadership_appointments[]              @relation("leadership_appointments_terminated_byTomembers")
+  leadership_elections                                                                   leadership_elections[]
+  leadership_goals                                                                       leadership_goals[]
+  leadership_meetings                                                                    leadership_meetings[]
+  leadership_performance_reviews                                                         leadership_performance_reviews[]
+  leadership_succession_plans                                                            leadership_succession_plans[]
+  login_attempts                                                                         login_attempts[]
+  maintenance_mode_logs                                                                  maintenance_mode_logs[]
+  maintenance_notifications                                                              maintenance_notifications[]
+  meeting_action_items_meeting_action_items_completed_byTousers                          meeting_action_items[]                 @relation("meeting_action_items_completed_byTousers")
+  meeting_action_items_meeting_action_items_created_byTousers                            meeting_action_items[]                 @relation("meeting_action_items_created_byTousers")
+  meeting_agenda_items                                                                   meeting_agenda_items[]
+  meeting_attendance                                                                     meeting_attendance[]
+  meeting_decisions                                                                      meeting_decisions[]
+  meeting_document_templates                                                             meeting_document_templates[]
+  meeting_documents_meeting_documents_approved_byTousers                                 meeting_documents[]                    @relation("meeting_documents_approved_byTousers")
+  meeting_documents_meeting_documents_created_byTousers                                  meeting_documents[]                    @relation("meeting_documents_created_byTousers")
+  meeting_invitations                                                                    meeting_invitations[]
+  meeting_minutes_meeting_minutes_approved_byTousers                                     meeting_minutes[]                      @relation("meeting_minutes_approved_byTousers")
+  meeting_minutes_meeting_minutes_recorded_byTousers                                     meeting_minutes[]                      @relation("meeting_minutes_recorded_byTousers")
+  meetings                                                                               meetings[]
+  member_application_bulk_uploads                                                        member_application_bulk_uploads[]
+  member_notes                                                                           member_notes[]
+  member_renewal_log                                                                     member_renewal_log[]
+  member_transfers_member_transfers_approved_byTousers                                   member_transfers[]                     @relation("member_transfers_approved_byTousers")
+  member_transfers_member_transfers_transferred_byTousers                                member_transfers[]                     @relation("member_transfers_transferred_byTousers")
+  membership_applications_membership_applications_final_reviewed_byTousers               membership_applications[]              @relation("membership_applications_final_reviewed_byTousers")
+  membership_applications_membership_applications_financial_reviewed_byTousers           membership_applications[]              @relation("membership_applications_financial_reviewed_byTousers")
+  membership_renewals_membership_renewals_final_reviewed_byTousers                       membership_renewals[]                  @relation("membership_renewals_final_reviewed_byTousers")
+  membership_renewals_membership_renewals_financial_reviewed_byTousers                   membership_renewals[]                  @relation("membership_renewals_financial_reviewed_byTousers")
+  message_templates                                                                      message_templates[]
+  mfa_bypass_permissions_mfa_bypass_permissions_granted_by_user_idTousers                mfa_bypass_permissions[]               @relation("mfa_bypass_permissions_granted_by_user_idTousers")
+  mfa_bypass_permissions_mfa_bypass_permissions_revoked_by_user_idTousers                mfa_bypass_permissions[]               @relation("mfa_bypass_permissions_revoked_by_user_idTousers")
+  mfa_bypass_permissions_mfa_bypass_permissions_user_idTousers                           mfa_bypass_permissions[]               @relation("mfa_bypass_permissions_user_idTousers")
+  mfa_emergency_access_audit_log_mfa_emergency_access_audit_log_target_user_idTousers    mfa_emergency_access_audit_log[]       @relation("mfa_emergency_access_audit_log_target_user_idTousers")
+  mfa_emergency_access_audit_log_mfa_emergency_access_audit_log_user_idTousers           mfa_emergency_access_audit_log[]       @relation("mfa_emergency_access_audit_log_user_idTousers")
+  mfa_emergency_access_requests_mfa_emergency_access_requests_reviewed_by_user_idTousers mfa_emergency_access_requests[]        @relation("mfa_emergency_access_requests_reviewed_by_user_idTousers")
+  mfa_emergency_access_requests_mfa_emergency_access_requests_user_idTousers             mfa_emergency_access_requests[]        @relation("mfa_emergency_access_requests_user_idTousers")
+  notifications                                                                          notifications[]
+  operation_templates                                                                    operation_templates[]
+  password_history                                                                       password_history[]
+  payments                                                                               payments[]
+  provincial_admin_performance_metrics                                                   provincial_admin_performance_metrics[]
+  renewal_approvals_renewal_approvals_approved_byTousers                                 renewal_approvals[]                    @relation("renewal_approvals_approved_byTousers")
+  renewal_approvals_renewal_approvals_assigned_toTousers                                 renewal_approvals[]                    @relation("renewal_approvals_assigned_toTousers")
+  renewal_approvals_renewal_approvals_rejected_byTousers                                 renewal_approvals[]                    @relation("renewal_approvals_rejected_byTousers")
+  renewal_approvals_renewal_approvals_reviewed_byTousers                                 renewal_approvals[]                    @relation("renewal_approvals_reviewed_byTousers")
+  renewal_audit_trail                                                                    renewal_audit_trail[]
+  renewal_bulk_operations                                                                renewal_bulk_operations[]
+  renewal_bulk_uploads                                                                   renewal_bulk_uploads[]
+  renewal_export_jobs                                                                    renewal_export_jobs[]
+  renewal_financial_audit_trail                                                          renewal_financial_audit_trail[]
+  renewal_fraud_cases                                                                    renewal_fraud_cases[]
+  renewal_manual_notes                                                                   renewal_manual_notes[]
+  renewal_pricing_overrides_renewal_pricing_overrides_approved_byTousers                 renewal_pricing_overrides[]            @relation("renewal_pricing_overrides_approved_byTousers")
+  renewal_pricing_overrides_renewal_pricing_overrides_requested_byTousers                renewal_pricing_overrides[]            @relation("renewal_pricing_overrides_requested_byTousers")
+  renewal_pricing_rules                                                                  renewal_pricing_rules[]
+  scheduled_operations                                                                   scheduled_operations[]
+  security_alerts_security_alerts_resolved_byTousers                                     security_alerts[]                      @relation("security_alerts_resolved_byTousers")
+  security_alerts_security_alerts_user_idTousers                                         security_alerts[]                      @relation("security_alerts_user_idTousers")
+  security_events                                                                        security_events[]
+  sms_campaigns                                                                          sms_campaigns[]
+  sms_contact_lists                                                                      sms_contact_lists[]
+  sms_templates                                                                          sms_templates[]
+  srpa_delegate_config_srpa_delegate_config_created_byTousers                            srpa_delegate_config[]                 @relation("srpa_delegate_config_created_byTousers")
+  srpa_delegate_config_srpa_delegate_config_updated_byTousers                            srpa_delegate_config[]                 @relation("srpa_delegate_config_updated_byTousers")
+  system_logs                                                                            system_logs[]
+  trusted_devices                                                                        trusted_devices[]
+  uploaded_files                                                                         uploaded_files[]
+  user_activity_logs                                                                     user_activity_logs[]
+  user_creation_workflow_user_creation_workflow_created_user_idTousers                   user_creation_workflow[]               @relation("user_creation_workflow_created_user_idTousers")
+  user_creation_workflow_user_creation_workflow_requested_byTousers                      user_creation_workflow[]               @relation("user_creation_workflow_requested_byTousers")
+  user_creation_workflow_user_creation_workflow_reviewed_byTousers                       user_creation_workflow[]               @relation("user_creation_workflow_reviewed_byTousers")
+  user_mfa_settings                                                                      user_mfa_settings?
+  user_otp_codes                                                                         user_otp_codes[]
+  user_security_settings                                                                 user_security_settings?
+  user_sessions                                                                          user_sessions[]
+  districts                                                                              districts?                             @relation(fields: [district_code], references: [district_code], onDelete: NoAction, onUpdate: NoAction)
+  members                                                                                members_consolidated?                  @relation(fields: [member_id], references: [member_id], onUpdate: NoAction)
+  municipalities                                                                         municipalities?                        @relation(fields: [municipal_code], references: [municipality_code], onDelete: NoAction, onUpdate: NoAction)
+  provinces                                                                              provinces?                             @relation(fields: [province_code], references: [province_code], onDelete: NoAction, onUpdate: NoAction)
+  roles                                                                                  roles?                                 @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  wards_users_ward_codeTowards                                                           wards?                                 @relation("users_ward_codeTowards", fields: [ward_code], references: [ward_code], onDelete: NoAction, onUpdate: NoAction)
+  ward_compliance_audit_log                                                              ward_compliance_audit_log[]
+  ward_delegates                                                                         ward_delegates[]
+  ward_meeting_records_ward_meeting_records_quorum_verified_byTousers                    ward_meeting_records[]                 @relation("ward_meeting_records_quorum_verified_byTousers")
+  ward_meeting_records_ward_meeting_records_meeting_verified_byTousers                   ward_meeting_records[]                 @relation("ward_meeting_records_meeting_verified_byTousers")
+  wards_wards_compliance_approved_byTousers                                              wards[]                                @relation("wards_compliance_approved_byTousers")
+  wards_wards_criterion_1_exception_granted_byTousers                                    wards[]                                @relation("wards_criterion_1_exception_granted_byTousers")
+  workflow_notifications                                                                 workflow_notifications[]
 
   @@index([is_active], map: "idx_users_active")
   @@index([admin_level], map: "idx_users_admin_level")
@@ -4125,9 +4145,11 @@ model members_consolidated {
   voter_registration_id                                                               Int?                             @default(3)
   is_registered_voter                                                                 Boolean?
   last_voter_verification_date                                                        DateTime?                        @db.Timestamp(6)
+  is_duplicate                                                                        Boolean                          @default(false)
   application_approval_history                                                        application_approval_history[]
   birthday_messages_sent                                                              birthday_messages_sent[]
   bulk_notification_recipients                                                        bulk_notification_recipients[]
+  communication_group_members                                                         communication_group_members[]
   documents                                                                           documents[]
   election_candidates                                                                 election_candidates[]
   election_votes                                                                      election_votes[]
@@ -4149,6 +4171,7 @@ model members_consolidated {
   meetings_meetings_meeting_secretary_idTomembers                                     meetings[]                       @relation("meetings_meeting_secretary_idTomembers")
   member_cache_summary                                                                member_cache_summary?
   member_notes                                                                        member_notes[]
+  member_renewal_log                                                                  member_renewal_log[]
   member_transfers                                                                    member_transfers[]
   citizenships                                                                        citizenships?                    @relation(fields: [citizenship_id], references: [citizenship_id], onUpdate: NoAction)
   membership_history_members_consolidated_current_membership_idTomembership_history   membership_history?              @relation("members_consolidated_current_membership_idTomembership_history", fields: [current_membership_id], references: [membership_id], onUpdate: NoAction)
@@ -4200,6 +4223,8 @@ model members_consolidated {
   @@index([payment_status], map: "idx_members_consolidated_payment_status")
   @@index([membership_status_id, expiry_date], map: "idx_members_consolidated_status_expiry")
   @@index([subscription_type_id], map: "idx_members_consolidated_subscription_type_id")
+  @@index([updated_at], map: "idx_members_consolidated_updated_at")
+  @@index([is_duplicate], map: "idx_members_consolidated_is_duplicate")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -4698,30 +4723,33 @@ model uploaded_files {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model user_otp_codes {
-  otp_id                Int       @id @default(autoincrement())
-  user_id               Int
-  otp_code_hash         String    @db.VarChar(255)
-  otp_plain             String?   @db.VarChar(10)
-  generated_at          DateTime  @default(now()) @db.Timestamp(6)
-  expires_at            DateTime  @db.Timestamp(6)
-  validated_at          DateTime? @db.Timestamp(6)
-  is_validated          Boolean?  @default(false)
-  is_expired            Boolean?  @default(false)
-  attempts_count        Int?      @default(0)
-  max_attempts          Int?      @default(5)
-  session_token         String?   @db.VarChar(255)
-  session_expires_at    DateTime? @db.Timestamp(6)
-  sent_to_number        String?   @db.VarChar(20)
-  delivery_status       String?   @default("pending") @db.VarChar(50)
-  delivery_attempted_at DateTime? @db.Timestamp(6)
-  delivery_error        String?
-  ip_address            String?   @db.VarChar(45)
-  user_agent            String?
-  invalidated_at        DateTime? @db.Timestamp(6)
-  invalidation_reason   String?   @db.VarChar(255)
-  created_at            DateTime? @default(now()) @db.Timestamp(6)
-  updated_at            DateTime? @default(now()) @db.Timestamp(6)
-  users                 users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+  otp_id                   Int       @id @default(autoincrement())
+  user_id                  Int
+  otp_code_hash            String    @db.VarChar(255)
+  otp_plain                String?   @db.VarChar(10)
+  generated_at             DateTime  @default(now()) @db.Timestamp(6)
+  expires_at               DateTime  @db.Timestamp(6)
+  validated_at             DateTime? @db.Timestamp(6)
+  is_validated             Boolean?  @default(false)
+  is_expired               Boolean?  @default(false)
+  attempts_count           Int?      @default(0)
+  max_attempts             Int?      @default(5)
+  session_token            String?   @db.VarChar(255)
+  session_expires_at       DateTime? @db.Timestamp(6)
+  sent_to_number           String?   @db.VarChar(20)
+  delivery_status          String?   @default("pending") @db.VarChar(50)
+  delivery_attempted_at    DateTime? @db.Timestamp(6)
+  delivery_error           String?
+  ip_address               String?   @db.VarChar(45)
+  user_agent               String?
+  invalidated_at           DateTime? @db.Timestamp(6)
+  invalidation_reason      String?   @db.VarChar(255)
+  created_at               DateTime? @default(now()) @db.Timestamp(6)
+  updated_at               DateTime? @default(now()) @db.Timestamp(6)
+  whatsapp_delivery_status String?   @default("pending") @db.VarChar(50)
+  whatsapp_delivered_at    DateTime? @db.Timestamp(6)
+  whatsapp_delivery_error  String?
+  users                    users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([user_id, is_validated, is_expired, expires_at], map: "idx_user_otp_active")
   @@index([expires_at], map: "idx_user_otp_expires_at")
@@ -4750,7 +4778,7 @@ model whatsapp_bot_logs {
   metadata             Json?                 @default("{}")
   created_at           DateTime?             @default(now()) @db.Timestamp(6)
   updated_at           DateTime?             @default(now()) @db.Timestamp(6)
-  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([created_at], map: "idx_whatsapp_logs_created")
   @@index([direction], map: "idx_whatsapp_logs_direction")
@@ -4774,7 +4802,7 @@ model whatsapp_bot_sessions {
   session_started_at   DateTime?             @default(now()) @db.Timestamp(6)
   created_at           DateTime?             @default(now()) @db.Timestamp(6)
   updated_at           DateTime?             @default(now()) @db.Timestamp(6)
-  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([last_activity_at], map: "idx_whatsapp_sessions_activity")
   @@index([member_id], map: "idx_whatsapp_sessions_member")
@@ -4802,11 +4830,354 @@ model whatsapp_notification_queue {
   metadata             Json?                 @default("{}")
   created_at           DateTime?             @default(now()) @db.Timestamp(6)
   updated_at           DateTime?             @default(now()) @db.Timestamp(6)
-  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: NoAction, onUpdate: NoAction)
+  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([member_id], map: "idx_whatsapp_queue_member")
   @@index([priority], map: "idx_whatsapp_queue_priority")
   @@index([scheduled_at], map: "idx_whatsapp_queue_scheduled")
   @@index([status], map: "idx_whatsapp_queue_status")
   @@index([notification_type], map: "idx_whatsapp_queue_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model member_renewal_log {
+  log_id               Int                  @id @default(autoincrement())
+  member_id            Int
+  renewal_date         DateTime             @default(now()) @db.Timestamp(6)
+  renewal_year         Int
+  renewal_type         String               @default("Annual") @db.VarChar(20)
+  previous_expiry_date DateTime?            @db.Date
+  new_expiry_date      DateTime             @db.Date
+  amount_paid          Decimal?             @default(0.00) @db.Decimal(10, 2)
+  payment_method       String?              @db.VarChar(50)
+  payment_reference    String?              @db.VarChar(100)
+  payment_status       String?              @default("Completed") @db.VarChar(20)
+  processed_by         Int?
+  province_code        String?              @db.VarChar(10)
+  province_name        String?              @db.VarChar(100)
+  district_code        String?              @db.VarChar(10)
+  municipality_code    String?              @db.VarChar(10)
+  ward_code            String?              @db.VarChar(20)
+  source               String?              @default("manual") @db.VarChar(50)
+  source_reference     String?              @db.VarChar(255)
+  notes                String?
+  metadata             Json?
+  created_at           DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?            @default(now()) @db.Timestamp(6)
+  members_consolidated members_consolidated @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+  users                users?               @relation(fields: [processed_by], references: [user_id], onUpdate: NoAction)
+
+  @@index([member_id], map: "idx_member_renewal_log_member")
+  @@index([renewal_date], map: "idx_member_renewal_log_date")
+  @@index([renewal_year], map: "idx_member_renewal_log_year")
+  @@index([renewal_type], map: "idx_member_renewal_log_type")
+  @@index([province_code], map: "idx_member_renewal_log_province")
+  @@index([processed_by], map: "idx_member_renewal_log_processed_by")
+  @@index([source], map: "idx_member_renewal_log_source")
+  @@index([created_at], map: "idx_member_renewal_log_created")
+  @@index([province_code, renewal_date], map: "idx_member_renewal_log_province_date")
+  @@index([renewal_year, province_code], map: "idx_member_renewal_log_year_province")
+  @@index([processed_by, renewal_date], map: "idx_member_renewal_log_processed_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model provincial_admin_performance_metrics {
+  metric_id                   Int       @id @default(autoincrement())
+  user_id                     Int
+  province_code               String    @db.VarChar(10)
+  province_name               String?   @db.VarChar(100)
+  metric_date                 DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  metric_period               String    @default("daily") @db.VarChar(20)
+  new_registrations_count     Int?      @default(0)
+  registrations_approved      Int?      @default(0)
+  registrations_rejected      Int?      @default(0)
+  registrations_pending       Int?      @default(0)
+  renewals_processed          Int?      @default(0)
+  renewals_completed          Int?      @default(0)
+  renewals_failed             Int?      @default(0)
+  renewal_revenue             Decimal?  @default(0.00) @db.Decimal(12, 2)
+  total_members_managed       Int?      @default(0)
+  active_members_count        Int?      @default(0)
+  expired_members_count       Int?      @default(0)
+  avg_processing_time_minutes Decimal?  @db.Decimal(8, 2)
+  total_actions_count         Int?      @default(0)
+  login_count                 Int?      @default(0)
+  created_at                  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime? @default(now()) @db.Timestamp(6)
+  users                       users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, metric_date, metric_period], map: "idx_perf_metrics_unique")
+  @@index([user_id], map: "idx_perf_metrics_user")
+  @@index([province_code], map: "idx_perf_metrics_province")
+  @@index([metric_date], map: "idx_perf_metrics_date")
+  @@index([metric_period], map: "idx_perf_metrics_period")
+  @@index([province_code, metric_date], map: "idx_perf_metrics_province_date")
+  @@index([user_id, metric_date], map: "idx_perf_metrics_user_date")
+  @@index([metric_period, metric_date], map: "idx_perf_metrics_period_date")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model backup_034_leadership_appointments {
+  id                 Int?
+  position_id        Int?
+  member_id          Int?
+  hierarchy_level    String?   @db.VarChar(20)
+  entity_id          Int?
+  appointment_type   String?   @db.VarChar(20)
+  start_date         DateTime? @db.Date
+  end_date           DateTime? @db.Date
+  appointment_status String?   @db.VarChar(20)
+  appointed_by       Int?
+  appointment_notes  String?
+  termination_reason String?
+  terminated_by      Int?
+  terminated_at      DateTime? @db.Timestamp(6)
+  created_at         DateTime? @db.Timestamp(6)
+  updated_at         DateTime? @db.Timestamp(6)
+
+  @@map("_backup_034_leadership_appointments")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model backup_034_leadership_positions {
+  id                          Int?
+  position_name               String?   @db.VarChar(255)
+  position_code               String?   @db.VarChar(50)
+  position_description        String?
+  hierarchy_level             String?   @db.VarChar(20)
+  position_category           String?   @db.VarChar(50)
+  is_core_position            Boolean?
+  requires_election           Boolean?
+  term_duration_months        Int?
+  max_concurrent_appointments Int?
+  position_order              Int?
+  is_active                   Boolean?
+  created_at                  DateTime? @db.Timestamp(6)
+  updated_at                  DateTime? @db.Timestamp(6)
+  entity_id                   Int?
+  entity_type                 String?   @db.VarChar(50)
+
+  @@map("_backup_034_leadership_positions")
+  @@ignore
+}
+
+model communication_group_members {
+  id                   Int                   @id @default(autoincrement())
+  group_id             Int?
+  member_id            Int?
+  added_at             DateTime?             @default(now()) @db.Timestamp(6)
+  communication_groups communication_groups? @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  members_consolidated members_consolidated? @relation(fields: [member_id], references: [member_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([group_id, member_id])
+  @@index([group_id], map: "idx_comm_group_members_group")
+  @@index([member_id], map: "idx_comm_group_members_member")
+}
+
+model communication_groups {
+  id                          Int                           @id @default(autoincrement())
+  name                        String                        @db.VarChar(255)
+  description                 String?
+  group_type                  String                        @default("STATIC") @db.VarChar(50)
+  query_config                Json?
+  created_by                  Int?
+  is_active                   Boolean?                      @default(true)
+  created_at                  DateTime?                     @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime?                     @default(now()) @db.Timestamp(6)
+  communication_group_members communication_group_members[]
+  users                       users?                        @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([group_type], map: "idx_comm_groups_type")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model mfa_bypass_permissions {
+  bypass_id                                              Int                              @id @default(autoincrement())
+  user_id                                                Int
+  granted_by_user_id                                     Int
+  reason                                                 String
+  granted_at                                             DateTime?                        @default(now()) @db.Timestamptz(6)
+  expires_at                                             DateTime                         @db.Timestamptz(6)
+  revoked_at                                             DateTime?                        @db.Timestamptz(6)
+  revoked_by_user_id                                     Int?
+  revocation_reason                                      String?
+  is_active                                              Boolean?                         @default(true)
+  ip_address                                             String?                          @db.VarChar(45)
+  user_agent                                             String?
+  created_at                                             DateTime?                        @default(now()) @db.Timestamptz(6)
+  updated_at                                             DateTime?                        @default(now()) @db.Timestamptz(6)
+  users_mfa_bypass_permissions_granted_by_user_idTousers users                            @relation("mfa_bypass_permissions_granted_by_user_idTousers", fields: [granted_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_mfa_bypass_permissions_revoked_by_user_idTousers users?                           @relation("mfa_bypass_permissions_revoked_by_user_idTousers", fields: [revoked_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_mfa_bypass_permissions_user_idTousers            users                            @relation("mfa_bypass_permissions_user_idTousers", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+  mfa_emergency_access_audit_log                         mfa_emergency_access_audit_log[]
+  mfa_emergency_access_requests                          mfa_emergency_access_requests[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model mfa_emergency_access_audit_log {
+  audit_id                                                   Int                            @id @default(autoincrement())
+  action                                                     String                         @db.VarChar(50)
+  user_id                                                    Int?
+  target_user_id                                             Int?
+  bypass_id                                                  Int?
+  request_id                                                 Int?
+  details                                                    Json?
+  ip_address                                                 String?                        @db.VarChar(45)
+  user_agent                                                 String?
+  created_at                                                 DateTime?                      @default(now()) @db.Timestamptz(6)
+  mfa_bypass_permissions                                     mfa_bypass_permissions?        @relation(fields: [bypass_id], references: [bypass_id], onDelete: NoAction, onUpdate: NoAction)
+  mfa_emergency_access_requests                              mfa_emergency_access_requests? @relation(fields: [request_id], references: [request_id], onDelete: NoAction, onUpdate: NoAction)
+  users_mfa_emergency_access_audit_log_target_user_idTousers users?                         @relation("mfa_emergency_access_audit_log_target_user_idTousers", fields: [target_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_mfa_emergency_access_audit_log_user_idTousers        users?                         @relation("mfa_emergency_access_audit_log_user_idTousers", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([action], map: "idx_emergency_audit_action")
+  @@index([created_at], map: "idx_emergency_audit_created")
+  @@index([target_user_id], map: "idx_emergency_audit_target")
+  @@index([user_id], map: "idx_emergency_audit_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model mfa_emergency_access_requests {
+  request_id                                                     Int                              @id @default(autoincrement())
+  user_id                                                        Int
+  reason                                                         String
+  contact_phone                                                  String?                          @db.VarChar(20)
+  contact_email                                                  String?                          @db.VarChar(255)
+  urgency_level                                                  String?                          @default("normal") @db.VarChar(20)
+  status                                                         String?                          @default("pending") @db.VarChar(20)
+  requested_at                                                   DateTime?                        @default(now()) @db.Timestamptz(6)
+  reviewed_at                                                    DateTime?                        @db.Timestamptz(6)
+  reviewed_by_user_id                                            Int?
+  review_notes                                                   String?
+  bypass_duration_hours                                          Int?                             @default(24)
+  bypass_permission_id                                           Int?
+  ip_address                                                     String?                          @db.VarChar(45)
+  user_agent                                                     String?
+  created_at                                                     DateTime?                        @default(now()) @db.Timestamptz(6)
+  updated_at                                                     DateTime?                        @default(now()) @db.Timestamptz(6)
+  mfa_emergency_access_audit_log                                 mfa_emergency_access_audit_log[]
+  mfa_bypass_permissions                                         mfa_bypass_permissions?          @relation(fields: [bypass_permission_id], references: [bypass_id], onDelete: NoAction, onUpdate: NoAction)
+  users_mfa_emergency_access_requests_reviewed_by_user_idTousers users?                           @relation("mfa_emergency_access_requests_reviewed_by_user_idTousers", fields: [reviewed_by_user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_mfa_emergency_access_requests_user_idTousers             users                            @relation("mfa_emergency_access_requests_user_idTousers", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_emergency_requests_user")
+}
+
+model sms_credit_balance {
+  id                   Int       @id @default(autoincrement())
+  credits_remaining    Int       @default(0)
+  total_purchased      Int       @default(0)
+  total_used           Int       @default(0)
+  low_credit_threshold Int       @default(1000)
+  last_alert_sent_at   DateTime? @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sms_credit_transactions {
+  id               Int       @id @default(autoincrement())
+  transaction_type String    @db.VarChar(20)
+  amount           Int
+  balance_after    Int
+  reference        String?   @db.VarChar(255)
+  notes            String?
+  created_by       Int?
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at(sort: Desc)], map: "idx_sms_credit_transactions_created_at")
+  @@index([transaction_type], map: "idx_sms_credit_transactions_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sms_delivery_callbacks {
+  callback_id             Int            @id @default(autoincrement())
+  received_at             DateTime?      @default(now()) @db.Timestamp(6)
+  processed_at            DateTime?      @db.Timestamp(6)
+  message_id              String?        @db.VarChar(255)
+  provider_message_id     String?        @db.VarChar(255)
+  campaign_id             Int?
+  provider_name           String         @db.VarChar(100)
+  provider_type           String         @db.VarChar(50)
+  delivery_status         String         @db.VarChar(50)
+  error_code              String?        @db.VarChar(50)
+  error_message           String?
+  failure_reason          String?
+  request_headers         Json?
+  request_body            Json?
+  request_ip              String?        @db.VarChar(50)
+  response_status         Int?
+  processed_successfully  Boolean?       @default(false)
+  processing_error        String?
+  created_at              DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?      @default(now()) @db.Timestamp(6)
+  raw_status              String?        @db.VarChar(100)
+  request_method          String?        @default("POST") @db.VarChar(10)
+  processing_attempts     Int?           @default(0)
+  max_processing_attempts Int?           @default(3)
+  cost                    Decimal?       @db.Decimal(10, 4)
+  currency                String?        @default("ZAR") @db.VarChar(3)
+  signature_valid         Boolean?
+  signature_header        String?        @db.VarChar(500)
+  delivery_timestamp      DateTime?      @db.Timestamp(6)
+  sms_campaigns           sms_campaigns? @relation(fields: [campaign_id], references: [campaign_id], onUpdate: NoAction, map: "fk_sms_callbacks_campaign")
+
+  @@index([message_id], map: "idx_sms_callbacks_message_id")
+  @@index([provider_message_id], map: "idx_sms_callbacks_provider_id")
+  @@index([provider_name, delivery_status], map: "idx_sms_callbacks_provider_status")
+  @@index([received_at], map: "idx_sms_callbacks_received_at")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sms_send_log {
+  id                  Int       @id @default(autoincrement())
+  message_id          String    @unique @db.VarChar(255)
+  provider_message_id String?   @db.VarChar(255)
+  source_type         String    @db.VarChar(50)
+  source_reference_id String?   @db.VarChar(255)
+  recipient_phone     String    @db.VarChar(20)
+  recipient_name      String?   @db.VarChar(255)
+  recipient_member_id String?   @db.VarChar(50)
+  message_content     String
+  message_length      Int?
+  sender_id           Int?
+  sender_name         String?   @db.VarChar(255)
+  status              String?   @default("pending") @db.VarChar(50)
+  delivery_timestamp  DateTime? @db.Timestamp(6)
+  error_code          String?   @db.VarChar(100)
+  error_message       String?
+  retry_count         Int?      @default(0)
+  max_retries         Int?      @default(3)
+  last_retry_at       DateTime? @db.Timestamp(6)
+  cost                Decimal?  @default(0.0000) @db.Decimal(10, 4)
+  provider_name       String?   @default("JSON Applink") @db.VarChar(100)
+  webhook_data        Json?
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([created_at], map: "idx_sms_send_log_created_at")
+  @@index([message_id], map: "idx_sms_send_log_message_id")
+  @@index([recipient_member_id], map: "idx_sms_send_log_recipient_member_id")
+  @@index([recipient_phone], map: "idx_sms_send_log_recipient_phone")
+  @@index([source_type, source_reference_id], map: "idx_sms_send_log_source_reference")
+  @@index([source_type], map: "idx_sms_send_log_source_type")
+  @@index([status], map: "idx_sms_send_log_status")
+}
+
+model digital_card_views {
+  id         Int      @id @default(autoincrement())
+  member_id  Int
+  id_number  String   @db.VarChar(13)
+  viewed_at  DateTime @default(now()) @db.Timestamp(6)
+  ip_address String?  @db.VarChar(45)
+  user_agent String?
+  source     String?  @db.VarChar(20)
+
+  @@index([id_number], map: "idx_digital_card_views_id_number")
+  @@index([member_id], map: "idx_digital_card_views_member_id")
+  @@index([viewed_at], map: "idx_digital_card_views_viewed_at")
 }
