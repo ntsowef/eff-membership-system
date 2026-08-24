@@ -347,6 +347,7 @@ const WardCandidatesListPage: React.FC = () => {
         open={detailOpen}
         onClose={() => { setDetailOpen(false); setSelectedCandidate(null); }}
         candidate={selectedCandidate}
+        onUpdated={(updated) => setSelectedCandidate(updated)}
       />
     </Container>
   );

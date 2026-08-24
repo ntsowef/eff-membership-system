@@ -86,15 +86,13 @@ export interface WardMeetingRecord {
   meeting_id: number;
   ward_code: string;
   meeting_type: string;
-  presiding_officer_id?: number;
-  secretary_id?: number;
+  presiding_officer_name?: string;
+  secretary_name?: string;
   quorum_required: number;
   quorum_achieved: number;
   quorum_met: boolean;
   total_attendees: number;
   meeting_outcome?: string;
-  key_decisions?: string;
-  action_items?: string;
   next_meeting_date?: string;
 
   // Criterion 2: Manual quorum verification
@@ -440,14 +438,12 @@ export class WardAuditModel {
     meeting_id?: number;
     ward_code: string;
     meeting_type: string;
-    presiding_officer_id?: number;
-    secretary_id?: number;
+    presiding_officer_name?: string;
+    secretary_name?: string;
     quorum_required: number;
     quorum_achieved: number;
     total_attendees: number;
     meeting_outcome?: string;
-    key_decisions?: string;
-    action_items?: string;
     next_meeting_date?: string;
     quorum_verified_manually?: boolean;
     quorum_verified_by?: number;
@@ -462,8 +458,8 @@ export class WardAuditModel {
       console.log('📝 Creating meeting record with data:', {
         ward_code: data.ward_code,
         meeting_type: data.meeting_type,
-        presiding_officer_id: data.presiding_officer_id,
-        secretary_id: data.secretary_id,
+        presiding_officer_name: data.presiding_officer_name,
+        secretary_name: data.secretary_name,
         quorum_verified_by: data.quorum_verified_by,
         meeting_verified_by: data.meeting_verified_by
       });
@@ -529,13 +525,13 @@ export class WardAuditModel {
       // Step 3: Create the ward meeting record with the generated meeting_id
       const query = `
         INSERT INTO ward_meeting_records (
-          meeting_id, ward_code, meeting_type, presiding_officer_id, secretary_id,
+          meeting_id, ward_code, meeting_type, presiding_officer_name, secretary_name,
           quorum_required, quorum_achieved, quorum_met, total_attendees,
-          meeting_outcome, key_decisions, action_items, next_meeting_date,
+          meeting_outcome, next_meeting_date,
           quorum_verified_manually, quorum_verified_by, quorum_verified_at, quorum_verification_notes,
           meeting_took_place_verified, meeting_verified_by, meeting_verified_at, meeting_verification_notes,
           meeting_package_path, meeting_package_original_name
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING *
       `;
 
@@ -543,15 +539,13 @@ export class WardAuditModel {
         meeting_id,
         data.ward_code,
         data.meeting_type,
-        data.presiding_officer_id || null,
-        data.secretary_id || null,
+        data.presiding_officer_name || null,
+        data.secretary_name || null,
         data.quorum_required,
         data.quorum_achieved,
         quorum_met,
         data.total_attendees,
         data.meeting_outcome || null,
-        data.key_decisions || null,
-        data.action_items || null,
         data.next_meeting_date || null,
         data.quorum_verified_manually || false,
         data.quorum_verified_by || null,
@@ -576,13 +570,8 @@ export class WardAuditModel {
   static async getWardMeetings(wardCode: string, meetingType?: string): Promise<WardMeetingRecord[]> {
     try {
       let query = `
-        SELECT
-          wmr.*,
-          CONCAT(po.firstname, ' ', po.surname) as presiding_officer_name,
-          CONCAT(sec.firstname, ' ', sec.surname) as secretary_name
+        SELECT wmr.*
         FROM ward_meeting_records wmr
-        LEFT JOIN members_consolidated po ON wmr.presiding_officer_id = po.member_id
-        LEFT JOIN members_consolidated sec ON wmr.secretary_id = sec.member_id
         WHERE wmr.ward_code = $1
       `;
 
@@ -604,13 +593,8 @@ export class WardAuditModel {
   static async getLatestWardMeeting(wardCode: string, meetingType?: string): Promise<WardMeetingRecord | null> {
     try {
       let query = `
-        SELECT
-          wmr.*,
-          CONCAT(po.firstname, ' ', po.surname) as presiding_officer_name,
-          CONCAT(sec.firstname, ' ', sec.surname) as secretary_name
+        SELECT wmr.*
         FROM ward_meeting_records wmr
-        LEFT JOIN members_consolidated po ON wmr.presiding_officer_id = po.member_id
-        LEFT JOIN members_consolidated sec ON wmr.secretary_id = sec.member_id
         WHERE wmr.ward_code = $1
       `;
 
@@ -630,14 +614,12 @@ export class WardAuditModel {
   }
 
   static async updateMeetingRecord(recordId: number, data: {
-    presiding_officer_id?: number;
-    secretary_id?: number;
+    presiding_officer_name?: string;
+    secretary_name?: string;
     quorum_required?: number;
     quorum_achieved?: number;
     total_attendees?: number;
     meeting_outcome?: string;
-    key_decisions?: string;
-    action_items?: string;
     next_meeting_date?: string;
     quorum_verified_manually?: boolean;
     quorum_verified_by?: number;
@@ -651,13 +633,13 @@ export class WardAuditModel {
       const params: any[] = [];
       let paramIndex = 1;
 
-      if (data.presiding_officer_id !== undefined) {
-        updates.push(`presiding_officer_id = $${paramIndex++}`);
-        params.push(data.presiding_officer_id);
+      if (data.presiding_officer_name !== undefined) {
+        updates.push(`presiding_officer_name = $${paramIndex++}`);
+        params.push(data.presiding_officer_name);
       }
-      if (data.secretary_id !== undefined) {
-        updates.push(`secretary_id = $${paramIndex++}`);
-        params.push(data.secretary_id);
+      if (data.secretary_name !== undefined) {
+        updates.push(`secretary_name = $${paramIndex++}`);
+        params.push(data.secretary_name);
       }
       if (data.quorum_required !== undefined) {
         updates.push(`quorum_required = $${paramIndex++}`);
@@ -680,14 +662,6 @@ export class WardAuditModel {
       if (data.meeting_outcome !== undefined) {
         updates.push(`meeting_outcome = $${paramIndex++}`);
         params.push(data.meeting_outcome);
-      }
-      if (data.key_decisions !== undefined) {
-        updates.push(`key_decisions = $${paramIndex++}`);
-        params.push(data.key_decisions);
-      }
-      if (data.action_items !== undefined) {
-        updates.push(`action_items = $${paramIndex++}`);
-        params.push(data.action_items);
       }
       if (data.next_meeting_date !== undefined) {
         updates.push(`next_meeting_date = $${paramIndex++}`);
@@ -1095,7 +1069,7 @@ export class WardAuditModel {
       const criterion3Passed = allMeetings.length > 0;
 
       // Criterion 4: Presiding Officer Information
-      const criterion4Passed = latestMeeting ? !!latestMeeting.presiding_officer_id : false;
+      const criterion4Passed = latestMeeting ? !!latestMeeting.presiding_officer_name : false;
 
       // Criterion 5: Ward Councillor Candidate selected (LGE2026 replacement for SRPA/PPA/NPA)
       const criterion5Passed = !!activeCandidate;
@@ -1125,8 +1099,7 @@ export class WardAuditModel {
         },
         criterion_4_passed: criterion4Passed,
         criterion_4_data: latestMeeting ? {
-          presiding_officer_id: latestMeeting.presiding_officer_id,
-          presiding_officer_name: (latestMeeting as any).presiding_officer_name,
+          presiding_officer_name: latestMeeting.presiding_officer_name,
           meeting_date: latestMeeting.created_at
         } : null,
         criterion_5_passed: criterion5Passed,

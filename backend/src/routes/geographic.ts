@@ -228,7 +228,7 @@ router.get('/wards',
 );
 
 router.get('/wards/:code',
-  validate({ params: commonSchemas.wardCode }),
+  validate({ params: commonSchemas.code }),
   asyncHandler(async (req, res) => {
     const { code } = req.params;
     const ward = await GeographicModel.getWardByCode(code);

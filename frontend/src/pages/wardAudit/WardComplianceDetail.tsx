@@ -399,51 +399,46 @@ const WardComplianceDetail: React.FC = () => {
           {criteria.map((criterion, index) => (
             <React.Fragment key={criterion.id}>
               {index > 0 && <Divider />}
-              <ListItem>
+              <ListItem
+                sx={{ py: 2 }}
+                secondaryAction={
+                  criterion.action && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={criterion.action}
+                    >
+                      {criterion.actionLabel}
+                    </Button>
+                  )
+                }
+              >
                 <ListItemIcon>
                   {criterion.passed ? (
-                    <CheckCircleOutlineIcon color="success" fontSize="large" />
+                    <CheckCircleOutlineIcon color="success" />
                   ) : (
-                    <HighlightOffIcon color="error" fontSize="large" />
+                    <HighlightOffIcon color="error" />
                   )}
                 </ListItemIcon>
                 <ListItemText
                   primary={
-                    <Typography variant="subtitle1" fontWeight="medium" component="span">
+                    <Typography variant="subtitle2">
                       Criterion {criterion.id}: {criterion.name}
                     </Typography>
                   }
                   secondary={
                     <>
-                      <Typography variant="body2" color="text.secondary" component="span">
+                      <Typography variant="body2" color="text.secondary">
                         {criterion.description}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" component="span">
-                        {criterion.details}
-                      </Typography>
+                      {criterion.details && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                          {criterion.details}
+                        </Typography>
+                      )}
                     </>
                   }
-                  primaryTypographyProps={{ component: 'span' }}
-                  secondaryTypographyProps={{ component: 'span' }}
                 />
-                {criterion.action ? (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={criterion.action}
-                    sx={{ ml: 2 }}
-                  >
-                    {criterion.actionLabel}
-                  </Button>
-                ) : criterion.id === 5 && !ward.is_compliant ? (
-                  <Chip
-                    label="Locked"
-                    size="small"
-                    color="default"
-                    icon={<CancelIcon />}
-                    sx={{ ml: 2 }}
-                  />
-                ) : null}
               </ListItem>
             </React.Fragment>
           ))}
@@ -451,58 +446,19 @@ const WardComplianceDetail: React.FC = () => {
 
         {/* Submit Compliance Button */}
         {canSubmitCompliance && (
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               variant="contained"
               color="success"
-              size="large"
               startIcon={<CheckCircleIcon />}
               onClick={() => setApproveDialogOpen(true)}
             >
-              Submit Ward as Compliant
+              Submit as Compliant
             </Button>
           </Box>
         )}
-
-        {/* Success message when ward is already compliant */}
-        {ward.is_compliant && (
-          <Alert severity="success" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>✅ Ward Approved:</strong> This ward has been officially submitted as compliant on{' '}
-              {ward.compliance_approved_at ? new Date(ward.compliance_approved_at).toLocaleDateString() : 'N/A'}.
-              Delegate assignment is now available.
-            </Typography>
-          </Alert>
-        )}
-
-        {/* Warning messages for failed criteria */}
-        {!ward.criterion_1_compliant && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>Criterion 1 Not Met:</strong> {getCriterion1Description()}
-            </Typography>
-          </Alert>
-        )}
-
-        {!canSubmitCompliance && !ward.is_compliant && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>Compliance Submission Requirements:</strong> Criteria 1, 2, 3, and 4 must all pass before the ward can be submitted as compliant.
-              Once submitted, delegate assignment will become available.
-            </Typography>
-          </Alert>
-        )}
-        
-        {ward.is_compliant && (
-          <Alert severity="success" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>Ward Approved:</strong> This ward has been approved for compliance on{' '}
-              {ward.compliance_approved_at ? new Date(ward.compliance_approved_at).toLocaleDateString() : 'N/A'}
-            </Typography>
-          </Alert>
-        )}
       </Paper>
-      
+
       {/* Voting Districts Table */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>

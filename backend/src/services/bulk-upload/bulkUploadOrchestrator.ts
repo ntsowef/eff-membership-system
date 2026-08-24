@@ -117,10 +117,16 @@ export class BulkUploadOrchestrator {
         `${validationResult.validation_stats.duplicates} duplicates`
       );
 
-      // Step 3: IEC Verification (only for unique, valid records)
+      // Step 3: IEC Verification
+      // IEC verification runs for EVERY valid record that will be written to the
+      // database — new inserts, standard updates, AND renewals — so voter
+      // registration data is verified/refreshed in all situations, not just for
+      // new members. (Renewals were previously excluded, which meant a file
+      // containing only renewals skipped IEC entirely.)
       const recordsToVerify = [
         ...validationResult.new_members,
         ...validationResult.existing_members,
+        ...validationResult.renewal_records,
       ];
 
       let iecResults = new Map<string, IECVerificationResult>();

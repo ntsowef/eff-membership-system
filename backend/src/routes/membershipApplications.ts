@@ -2,14 +2,38 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { MembershipApplicationModel, CreateApplicationData, UpdateApplicationData, ApplicationReviewData, ApplicationFilters } from '../models/membershipApplications';
 import { NotificationModel } from '../models/notifications';
 import { MembershipApprovalService } from '../services/membershipApprovalService';
-import { authenticate, requirePermission, requireHierarchicalAccess } from '../middleware/auth';
-import { ValidationError, NotFoundError } from '../middleware/errorHandler';
+import { authenticate, requirePermission, requireHierarchicalAccess, applyGeographicFilter } from '../middleware/auth';
+import { ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler';
 import { logAudit } from '../middleware/auditLogger';
 import { AuditAction, EntityType } from '../models/auditLogs';
 import { executeQuery } from '../config/database';
 import Joi from 'joi';
 
 const router = Router();
+
+/**
+ * Ensure the authenticated admin is allowed to act on a specific application
+ * based on geographic scope. National / super admins have unrestricted access;
+ * a province admin may only act on applications in their own province.
+ */
+function assertApplicationAccess(req: Request, applicationProvinceCode?: string | null): void {
+  const user = req.user as any;
+  if (!user) {
+    throw new AuthorizationError('User not authenticated');
+  }
+
+  // National and super admins are unrestricted
+  if (user.admin_level === 'national' || user.role_name === 'super_admin') {
+    return;
+  }
+
+  // Province admins are limited to their own province
+  if (user.admin_level === 'province') {
+    if (!user.province_code || user.province_code !== applicationProvinceCode) {
+      throw new AuthorizationError('You are not authorised to access applications outside your province');
+    }
+  }
+}
 
 // Validation schemas
 const createApplicationSchema = Joi.object({
@@ -56,10 +80,21 @@ const createApplicationSchema = Joi.object({
   payment_amount: Joi.number().positive().precision(2).optional(),
   payment_notes: Joi.string().max(1000).optional(),
   // Geographic fields
-  province_code: Joi.string().max(10).optional(),
-  district_code: Joi.string().max(10).optional(),
-  municipal_code: Joi.string().max(10).optional(),
-  voting_district_code: Joi.string().max(20).optional()
+  province_code: Joi.string().max(10).allow('', null).optional(),
+  district_code: Joi.string().max(10).allow('', null).optional(),
+  municipal_code: Joi.string().max(10).allow('', null).optional(),
+  voting_district_code: Joi.string().max(20).allow('', null).optional(),
+  // Additional frontend fields
+  postal_code: Joi.string().max(20).allow('', null).optional(),
+  country: Joi.string().max(100).allow('', null).optional(),
+  alternative_phone: Joi.string().max(20).allow('', null).optional(),
+  whatsapp_number: Joi.string().max(20).allow('', null).optional(),
+  // Consent & verification fields
+  agree_terms: Joi.boolean().optional(),
+  agree_privacy: Joi.boolean().optional(),
+  agree_communications: Joi.boolean().optional(),
+  iec_verification: Joi.object().optional(),
+  is_registered_voter: Joi.boolean().optional()
 }).custom((value, helpers) => {
   // Ensure we have either frontend or backend field names for required fields
   if (!value.first_name && !value.firstname) {
@@ -95,25 +130,30 @@ const updateApplicationSchema = Joi.object({
 
 const reviewApplicationSchema = Joi.object({
   status: Joi.string().valid('Approved', 'Rejected').required(),
-  rejection_reason: Joi.string().max(500).when('status', {
+  rejection_reason: Joi.string().max(500).allow('', null).when('status', {
     is: 'Rejected',
     then: Joi.required(),
     otherwise: Joi.optional()
   }),
-  admin_notes: Joi.string().max(1000).optional(),
+  admin_notes: Joi.string().max(1000).allow('', null).optional(),
   send_notification: Joi.boolean().default(true)
 });
 
 const bulkReviewSchema = Joi.object({
   application_ids: Joi.array().items(Joi.number().integer().positive()).min(1).max(50).required(),
   status: Joi.string().valid('Approved', 'Rejected').required(),
-  rejection_reason: Joi.string().max(500).when('status', {
+  rejection_reason: Joi.string().max(500).allow('', null).when('status', {
     is: 'Rejected',
     then: Joi.required(),
     otherwise: Joi.optional()
   }),
-  admin_notes: Joi.string().max(1000).optional(),
+  admin_notes: Joi.string().max(1000).allow('', null).optional(),
   send_notifications: Joi.boolean().default(true)
+});
+
+const escalateApplicationSchema = Joi.object({
+  escalation_reason: Joi.string().max(1000).required(),
+  admin_notes: Joi.string().max(1000).allow('', null).optional()
 });
 
 // Create new membership application
@@ -133,11 +173,16 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       gender: value.gender,
       email: value.email,
       cell_number: value.cell_number || value.phone,
-      alternative_number: value.alternative_number,
+      alternative_number: value.alternative_number || value.alternative_phone,
       residential_address: value.residential_address || value.address,
       postal_address: value.postal_address,
       ward_code: value.ward_code,
       application_type: value.application_type,
+      // Enhanced Personal Information fields
+      language_id: value.language_id,
+      occupation_id: value.occupation_id,
+      qualification_id: value.qualification_id,
+      citizenship_status: value.citizenship_status,
       // Party Declaration fields
       signature_type: value.signature_type,
       signature_data: value.signature_data,
@@ -150,11 +195,19 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       reason_for_joining: value.reason_for_joining,
       skills_experience: value.skills_experience,
       referred_by: value.referred_by,
+      // Payment Information fields
+      payment_method: value.payment_method,
+      payment_reference: value.payment_reference,
+      last_payment_date: value.last_payment_date,
+      payment_amount: value.payment_amount,
+      payment_notes: value.payment_notes,
       // Geographic fields
       province_code: value.province_code,
       district_code: value.district_code,
       municipal_code: value.municipal_code,
-      voting_district_code: value.voting_district_code
+      voting_district_code: value.voting_district_code || value.iec_verification?.voting_district_code,
+      // IEC Verification
+      iec_is_registered: value.is_registered_voter,
     };
 
     const applicationId = await MembershipApplicationModel.createApplication(applicationData);
@@ -242,25 +295,27 @@ router.post('/check-id-number', async (req: Request, res: Response, next: NextFu
 });
 
 // Get all membership applications (admin only)
-router.get('/', authenticate, requirePermission('applications.read'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', authenticate, requirePermission('applications.read'), applyGeographicFilter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = (page - 1) * limit;
 
     const filters: ApplicationFilters = {};
-    
+
     if (req.query.status) filters.status = req.query.status as string;
     if (req.query.application_type) filters.application_type = req.query.application_type as string;
     if (req.query.ward_code) filters.ward_code = req.query.ward_code as string;
     if (req.query.municipal_code) filters.municipal_code = req.query.municipal_code as string;
     if (req.query.district_code) filters.district_code = req.query.district_code as string;
     if (req.query.province_code) filters.province_code = req.query.province_code as string;
+    if (req.query.escalation_level) filters.escalation_level = req.query.escalation_level as string;
     if (req.query.submitted_after) filters.submitted_after = req.query.submitted_after as string;
     if (req.query.submitted_before) filters.submitted_before = req.query.submitted_before as string;
     if (req.query.search) filters.search = req.query.search as string;
 
-    // No geographic filtering needed - all admins are national level
+    // applyGeographicFilter has already injected province_code (etc.) into req.query
+    // for non-national admins, so provincial admins only see their own applications.
 
     const [applications, totalCount] = await Promise.all([
       MembershipApplicationModel.getAllApplications(limit, offset, filters),
@@ -290,6 +345,69 @@ router.get('/', authenticate, requirePermission('applications.read'), async (req
   }
 });
 
+// Get application status (public - allows applicants to track their application)
+router.get('/:id/status', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const idParam = req.params.id;
+    const numericId = parseInt(idParam, 10);
+    const isNumericId = !isNaN(numericId);
+
+    const query = `
+      SELECT
+        ma.application_id,
+        ma.application_number,
+        ma.first_name AS firstname,
+        ma.last_name AS surname,
+        ma.email,
+        ma.cell_number AS phone,
+        ma.membership_type,
+        ma.hierarchy_level,
+        ma.status,
+        ma.created_at
+      FROM membership_applications ma
+      WHERE ${isNumericId ? 'ma.application_id = $1' : 'ma.application_number = $1'}
+      LIMIT 1
+    `;
+
+    const results = await executeQuery(query, [isNumericId ? numericId : idParam]) as any[];
+
+    if (!results || results.length === 0) {
+      throw new NotFoundError('Membership application not found');
+    }
+
+    const application = results[0];
+
+    // Map internal status values to public-facing status tokens used by the frontend
+    const statusMap: Record<string, string> = {
+      'Draft': 'pending',
+      'Submitted': 'pending',
+      'Under Review': 'under_review',
+      'Approved': 'approved',
+      'Rejected': 'rejected'
+    };
+
+    res.json({
+      success: true,
+      message: 'Application status retrieved successfully',
+      data: {
+        application_id: application.application_id,
+        application_number: application.application_number,
+        firstname: application.firstname,
+        surname: application.surname,
+        email: application.email,
+        phone: application.phone,
+        membership_type: application.membership_type,
+        hierarchy_level: application.hierarchy_level,
+        status: statusMap[application.status] || (application.status ? String(application.status).toLowerCase() : 'pending'),
+        created_at: application.created_at
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get application by ID
 router.get('/:id', authenticate, requirePermission('applications.read'), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -302,6 +420,9 @@ router.get('/:id', authenticate, requirePermission('applications.read'), async (
     if (!application) {
       throw new NotFoundError('Membership application not found');
     }
+
+    // Enforce geographic scope: province admins may only view their own province
+    assertApplicationAccess(req, (application as any).province_code);
 
     res.json({
       success: true,
@@ -400,6 +521,41 @@ router.post('/:id/submit', authenticate, async (req: Request, res: Response, nex
     }
 
     const application = await MembershipApplicationModel.getApplicationById(applicationId);
+
+    // Notify provincial admins of the application's province about the new submission.
+    // Failure to notify must not fail the submission itself, so errors are swallowed.
+    try {
+      const provinceCode = (application as any)?.province_code as string | undefined;
+      if (provinceCode) {
+        const provincialAdmins = await MembershipApplicationModel.getProvincialAdminsByProvince(provinceCode);
+        const applicantName = [
+          (application as any)?.first_name,
+          (application as any)?.last_name
+        ].filter(Boolean).join(' ').trim() || 'A new applicant';
+        const applicationNumber = (application as any)?.application_number || applicationId;
+
+        await Promise.all(
+          provincialAdmins.map(admin =>
+            NotificationModel.createNotification({
+              user_id: admin.id,
+              recipient_type: 'Admin',
+              notification_type: 'Application Status',
+              delivery_channel: 'Email',
+              title: 'New Membership Application Submitted',
+              message: `${applicantName} submitted membership application ${applicationNumber} in your province and is awaiting review.`,
+              template_data: {
+                application_id: applicationId,
+                application_number: applicationNumber,
+                province_code: provinceCode
+              },
+              send_immediately: true
+            })
+          )
+        );
+      }
+    } catch (notifyError) {
+      console.error('Failed to notify provincial admins of new application submission:', notifyError);
+    }
 
     res.json({
       success: true,
@@ -667,7 +823,7 @@ router.post('/bulk/review', authenticate, requirePermission('applications.review
 });
 
 // Get applications pending review (admin only)
-router.get('/pending/review', authenticate, requirePermission('applications.review'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/pending/review', authenticate, requirePermission('applications.review'), applyGeographicFilter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
@@ -677,7 +833,8 @@ router.get('/pending/review', authenticate, requirePermission('applications.revi
       status: 'Submitted'
     };
 
-    // No geographic filtering needed - all admins are national level
+    // applyGeographicFilter injects province_code for non-national admins
+    if (req.query.province_code) filters.province_code = req.query.province_code as string;
 
     const [applications, totalCount] = await Promise.all([
       MembershipApplicationModel.getAllApplications(limit, offset, filters),
@@ -708,7 +865,7 @@ router.get('/pending/review', authenticate, requirePermission('applications.revi
 });
 
 // Get applications under review (admin only)
-router.get('/under-review/list', authenticate, requirePermission('applications.review'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/under-review/list', authenticate, requirePermission('applications.review'), applyGeographicFilter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
@@ -718,7 +875,8 @@ router.get('/under-review/list', authenticate, requirePermission('applications.r
       status: 'Under Review'
     };
 
-    // No geographic filtering needed - all admins are national level
+    // applyGeographicFilter injects province_code for non-national admins
+    if (req.query.province_code) filters.province_code = req.query.province_code as string;
 
     const [applications, totalCount] = await Promise.all([
       MembershipApplicationModel.getAllApplications(limit, offset, filters),
@@ -793,6 +951,13 @@ router.post('/:id/approve', authenticate, requirePermission('applications.approv
 
     const { admin_notes } = req.body;
 
+    // Enforce geographic scope before approving
+    const applicationToApprove = await MembershipApplicationModel.getApplicationById(applicationId);
+    if (!applicationToApprove) {
+      throw new NotFoundError('Membership application not found');
+    }
+    assertApplicationAccess(req, (applicationToApprove as any).province_code);
+
     const result = await MembershipApprovalService.approveApplication(
       applicationId,
       req.user!.id,
@@ -843,6 +1008,13 @@ router.post('/:id/reject', authenticate, requirePermission('applications.approve
       throw new ValidationError('Rejection reason is required');
     }
 
+    // Enforce geographic scope before rejecting
+    const applicationToReject = await MembershipApplicationModel.getApplicationById(applicationId);
+    if (!applicationToReject) {
+      throw new NotFoundError('Membership application not found');
+    }
+    assertApplicationAccess(req, (applicationToReject as any).province_code);
+
     const result = await MembershipApprovalService.rejectApplication(
       applicationId,
       req.user!.id,
@@ -858,6 +1030,55 @@ router.post('/:id/reject', authenticate, requirePermission('applications.approve
       applicationId,
       { status: 'Under Review' },
       { status: 'Rejected', rejection_reason },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: result.message,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Escalate application for national review (province admin flags an application
+// they cannot finalise; national/super admins then process it)
+router.post('/:id/escalate', authenticate, requirePermission('applications.review'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    if (isNaN(applicationId)) {
+      throw new ValidationError('Invalid application ID');
+    }
+
+    const { error, value } = escalateApplicationSchema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    // Enforce geographic scope: an admin may only escalate applications they can access
+    const existingApplication = await MembershipApplicationModel.getApplicationById(applicationId);
+    if (!existingApplication) {
+      throw new NotFoundError('Membership application not found');
+    }
+    assertApplicationAccess(req, (existingApplication as any).province_code);
+
+    const result = await MembershipApprovalService.escalateApplication(
+      applicationId,
+      req.user!.id,
+      value.escalation_reason,
+      value.admin_notes
+    );
+
+    // Log the escalation action
+    await logAudit(
+      req.user!.id,
+      AuditAction.UPDATE,
+      EntityType.APPLICATION,
+      applicationId,
+      { escalation_level: (existingApplication as any).escalation_level || 'Provincial' },
+      { escalation_level: 'National', escalation_reason: value.escalation_reason },
       req
     );
 

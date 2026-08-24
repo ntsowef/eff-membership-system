@@ -1001,6 +1001,8 @@ router.get('/lge2026-package',
     }
 
     // Per-VD breakdown for this ward — includes VDs with zero members via LEFT JOIN
+    // BUG FIX: Added m.ward_code = $1 to the JOIN so we only count members belonging
+    // to this ward, not all members across every ward who share the same VD code.
     const vdBreakdown: any[] = await executeQuery(
       `SELECT
          vd.voting_district_code,
@@ -1012,6 +1014,7 @@ router.get('/lge2026-package',
        FROM voting_districts vd
        LEFT JOIN members_consolidated m
          ON m.voting_district_code = vd.voting_district_code
+         AND m.ward_code = $1
        WHERE vd.ward_code = $1
          AND vd.is_active = TRUE
        GROUP BY vd.voting_district_code, vd.voting_district_name
@@ -1019,12 +1022,12 @@ router.get('/lge2026-package',
       [ward_code]
     );
 
-    // Filter members for the Attendance Register: Active + Registered voters
-    const attendanceMembers = members.filter((m: any) => m.membership_status_id === 1 && m.voter_status_id === 1);
+    // Word Attendance Register: ALL Active members — matches the membership system count
+    const attendanceMembers = members.filter((m: any) => m.membership_status_id === 1);
 
     const wordBuffer = await WordDocumentService.generateWardAttendanceRegister(wardInfo, attendanceMembers);
 
-    // Generate the PDF Attendance Register from the same Active + Registered members
+    // PDF Attendance Register: same Active members as the Word register
     const pdfBuffer = await HtmlPdfService.generateWardAttendanceRegisterPDF(wardInfo, attendanceMembers);
 
     // Build the Membership Spreadsheet

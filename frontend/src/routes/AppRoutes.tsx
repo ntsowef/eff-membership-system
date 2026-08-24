@@ -171,12 +171,12 @@ const AppRoutes: React.FC = () => {
       {/* Public Routes */}
       <Route path="/" element={<PublicLayout />}>
         <Route index element={isAuthenticated ? <Navigate to="/admin/dashboard" replace /> : <HomePage />} />
-        <Route path="apply" element={<MembershipApplicationPage />} />
         <Route path="application-status" element={<ApplicationStatusPage />} />
         <Route path="renew" element={<MemberRenewalPortal />} />
       </Route>
 
       {/* Standalone Public Routes */}
+      <Route path="/apply" element={<MembershipApplicationPage />} />
       <Route path="/my-card" element={<MyMembershipCardPage />} />
       <Route path="/payment-result" element={<PaymentResultPage />} />
 

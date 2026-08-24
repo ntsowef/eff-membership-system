@@ -36,16 +36,17 @@ CREATE INDEX IF NOT EXISTS idx_iec_province_mappings_province_code ON iec_provin
 CREATE INDEX IF NOT EXISTS idx_iec_province_mappings_iec_province_id ON iec_province_mappings(iec_province_id);
 CREATE INDEX IF NOT EXISTS idx_iec_province_mappings_is_active ON iec_province_mappings(is_active);
 
--- Insert default province mappings
+-- Insert default province mappings (IEC Province IDs verified from iec_voting_stations)
+-- Note: IEC does NOT use alphabetical ordering for LP/MP/NC
 INSERT INTO iec_province_mappings (province_code, province_name, iec_province_id, iec_province_name, is_active)
 VALUES
     ('EC', 'Eastern Cape', 1, 'Eastern Cape', TRUE),
     ('FS', 'Free State', 2, 'Free State', TRUE),
     ('GP', 'Gauteng', 3, 'Gauteng', TRUE),
     ('KZN', 'KwaZulu-Natal', 4, 'KwaZulu-Natal', TRUE),
-    ('LP', 'Limpopo', 5, 'Limpopo', TRUE),
-    ('MP', 'Mpumalanga', 6, 'Mpumalanga', TRUE),
-    ('NC', 'Northern Cape', 7, 'Northern Cape', TRUE),
+    ('MP', 'Mpumalanga', 5, 'Mpumalanga', TRUE),
+    ('NC', 'Northern Cape', 6, 'Northern Cape', TRUE),
+    ('LP', 'Limpopo', 7, 'Limpopo', TRUE),
     ('NW', 'North West', 8, 'North West', TRUE),
     ('WC', 'Western Cape', 9, 'Western Cape', TRUE)
 ON CONFLICT (province_code) DO NOTHING;

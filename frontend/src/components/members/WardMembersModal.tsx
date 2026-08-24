@@ -25,7 +25,8 @@ import {
   Select,
   MenuItem,
   Tooltip,
-  Grid
+  Grid,
+  Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -36,7 +37,7 @@ import {
   Phone as PhoneIcon
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '../../services/api';
+import { api, apiGet } from '../../services/api';
 
 interface WardInfo {
   ward_code: string;
@@ -93,6 +94,8 @@ const WardMembersModal: React.FC<WardMembersModalProps> = ({ open, onClose, ward
   const [membershipStatus, setMembershipStatus] = useState('all');
   const [sortBy, setSortBy] = useState('firstname');
   const [sortOrder] = useState<'asc' | 'desc'>('asc');
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Fetch ward members
   const { data, isLoading, error } = useQuery<WardMembersData>({
@@ -135,13 +138,64 @@ const WardMembersModal: React.FC<WardMembersModalProps> = ({ open, onClose, ward
     setPage(0);
   };
 
-  const handleDownload = () => {
-    const params = new URLSearchParams({
-      ...(search && { search }),
-      membership_status: membershipStatus
-    });
-    const downloadUrl = `${import.meta.env.VITE_API_BASE_URL}/members/ward/${wardCode}/download?${params}`;
-    window.open(downloadUrl, '_blank');
+  const handleDownload = async () => {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      // Authenticated Blob download (window.open cannot send the Authorization header)
+      const response = await api.get(`/members/ward/${wardCode}/download`, {
+        params: {
+          ...(search && { search }),
+          membership_status: membershipStatus
+        },
+        responseType: 'blob',
+        timeout: 300000 // 5 minutes for large wards
+      });
+
+      // Detect JSON error responses returned as a blob
+      const contentType = response.headers['content-type'];
+      if (contentType && contentType.includes('application/json')) {
+        const text = await response.data.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData?.message || errorData?.error?.message || 'Download failed');
+      }
+
+      // Use the filename from Content-Disposition if available
+      const disposition = response.headers['content-disposition'] || '';
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+      const filename = filenameMatch
+        ? filenameMatch[1]
+        : `Ward_${wardCode}_Members_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      let message = 'Failed to download ward members';
+      // Axios errors with blob responseType wrap JSON errors in a Blob
+      const blobData = err?.response?.data;
+      if (blobData instanceof Blob) {
+        try {
+          const errorData = JSON.parse(await blobData.text());
+          message = errorData?.message || errorData?.error?.message || message;
+        } catch {
+          // keep default message
+        }
+      } else if (err?.response?.data?.message) {
+        message = err.response.data.message;
+      } else if (err?.message) {
+        message = err.message;
+      }
+      console.error('❌ Ward members download failed:', err);
+      setDownloadError(message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -227,11 +281,11 @@ const WardMembersModal: React.FC<WardMembersModalProps> = ({ open, onClose, ward
               <Button
                 fullWidth
                 variant="contained"
-                startIcon={<DownloadIcon />}
+                startIcon={downloading ? <CircularProgress size={18} color="inherit" /> : <DownloadIcon />}
                 onClick={handleDownload}
-                disabled={isLoading || !data?.members?.length}
+                disabled={isLoading || downloading || !data?.members?.length}
               >
-                Download
+                {downloading ? 'Downloading...' : 'Download'}
               </Button>
             </Grid>
           </Grid>
@@ -363,6 +417,18 @@ const WardMembersModal: React.FC<WardMembersModalProps> = ({ open, onClose, ward
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
+
+      {/* Download error notification */}
+      <Snackbar
+        open={!!downloadError}
+        autoHideDuration={6000}
+        onClose={() => setDownloadError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setDownloadError(null)} sx={{ width: '100%' }}>
+          {downloadError}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 };

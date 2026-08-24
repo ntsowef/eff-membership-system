@@ -132,7 +132,7 @@ export class MembershipApprovalService {
   /**
    * Create a member record with membership fields from approved application (consolidated schema)
    */
-  private static async createMemberWithMembershipFromApplication(application: any): Promise<{ member_id: number; membership_number: string }> {
+  public static async createMemberWithMembershipFromApplication(application: any): Promise<{ member_id: number; membership_number: string }> {
     // Map gender to gender_id (assuming: 1=Male, 2=Female, 3=Other)
     const genderMap: { [key: string]: number } = {
       'Male': 1,
@@ -159,8 +159,8 @@ export class MembershipApprovalService {
 
       // If no VD code from IEC, assign special code for registered voters without VD data
       if (!voting_district_code) {
-        voting_district_code = '222222222'; // Special code: Registered but no VD data
-        console.log('⚠️ Registered voter without VD code - assigning special code: 222222222');
+        voting_district_code = '22222222'; // Special code: Registered but no VD data
+        console.log('⚠️ Registered voter without VD code - assigning special code: 22222222');
       } else {
         console.log('✅ Registered voter with VD code:', voting_district_code);
       }
@@ -440,6 +440,53 @@ export class MembershipApprovalService {
 
     } catch (error) {
       throw createDatabaseError('Failed to reject membership application', error);
+    }
+  }
+
+  /**
+   * Escalate a membership application for national review.
+   * A provincial admin flags an application they cannot finalise; this sets
+   * escalation_level to 'National' and moves the application to 'Under Review'
+   * so that national (super) admins can pick it up for final processing.
+   */
+  static async escalateApplication(
+    applicationId: number,
+    escalatedBy: number,
+    escalationReason?: string,
+    adminNotes?: string
+  ): Promise<ApprovalResult> {
+    try {
+      // Get the application details
+      const application = await MembershipApplicationModel.getApplicationById(applicationId);
+      if (!application) {
+        throw new Error('Application not found');
+      }
+
+      if (application.status !== 'Submitted' && application.status !== 'Under Review') {
+        throw new Error(`Cannot escalate application with status: ${application.status}`);
+      }
+
+      // Flag for national review and move into the review queue
+      const query = `
+        UPDATE membership_applications
+        SET escalation_level = 'National',
+            status = 'Under Review',
+            escalated_by = $1,
+            escalated_at = CURRENT_TIMESTAMP,
+            escalation_reason = $2,
+            admin_notes = COALESCE($3, admin_notes)
+        WHERE application_id = $4
+      `;
+
+      await executeQuery(query, [escalatedBy, escalationReason || null, adminNotes || null, applicationId]);
+
+      return {
+        success: true,
+        message: 'Application escalated for national review successfully'
+      };
+
+    } catch (error) {
+      throw createDatabaseError('Failed to escalate membership application', error);
     }
   }
 

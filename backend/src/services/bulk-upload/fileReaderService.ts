@@ -47,6 +47,18 @@ export class FileReaderService {
         normalized['Last Payment'] = normalized['Last Payment Date'];
       }
 
+      // Normalize ward column variations to "Ward" so the spreadsheet ward is retained.
+      // Files may use "Ward", "Ward Code", "ward_code", or "ward" as the header.
+      // Without this, record.Ward is undefined and downstream logic falls back to the
+      // IEC (registered-to-vote) ward instead of keeping the member in the file's ward.
+      if (normalized.Ward === undefined || normalized.Ward === null || normalized.Ward === '') {
+        const wardVariant =
+          row['Ward Code'] ?? row['ward_code'] ?? row['ward'] ?? row['WARD'] ?? row['Ward Number'];
+        if (wardVariant !== undefined && wardVariant !== null && String(wardVariant).trim() !== '') {
+          normalized.Ward = wardVariant;
+        }
+      }
+
       // Parse dates from Excel serial numbers
       if (normalized['Last Payment']) {
         normalized['Last Payment'] = this.parseDate(normalized['Last Payment']);

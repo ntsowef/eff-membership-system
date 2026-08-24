@@ -164,21 +164,24 @@ export const memberSchemas = {
   }),
 
   update: Joi.object({
-    firstname: Joi.string().min(1).max(50).optional(),
-    surname: Joi.string().min(1).max(50).optional(),
+    firstname: Joi.string().max(50).optional().allow('', null),
+    surname: Joi.string().max(50).optional().allow('', null),
     gender_id: Joi.number().integer().min(1).max(3).optional(),
     race_id: Joi.number().integer().min(1).max(5).optional(),
     citizenship_id: Joi.number().integer().min(1).max(2).optional(),
     language_id: Joi.number().integer().min(1).max(11).optional(),
     ward_code: Joi.string().min(5).max(15).optional(),
     province_code: Joi.string().min(2).max(3).optional(),
-    district_code: Joi.string().min(3).max(10).optional(),
+    district_code: Joi.string().min(3).max(10).optional().allow(null),
     municipality_code: Joi.string().min(3).max(10).optional(),
     voting_station_id: Joi.number().integer().positive().optional().allow(null),
-    residential_address: Joi.string().max(500).optional(),
-    cell_number: Joi.string().optional(),
+    residential_address: Joi.string().max(500).optional().allow(null),
+    cell_number: Joi.string().pattern(/^(\+27|27|0)[6-8][0-9]{8}$/).optional().allow(null),
     landline_number: Joi.string().pattern(/^(\+27|0)\d{9}$/).optional().allow(null),
-    email: Joi.string().email().max(100).optional().allow(''),
+    date_joined: Joi.date().iso().optional().allow(null),
+    email: Joi.string().email().max(100).optional().allow('', null).messages({
+      'string.email': '"email" must be a valid email'
+    }).failover(null),
     occupation_id: Joi.number().integer().positive().optional(),
     qualification_id: Joi.number().integer().min(1).max(11).optional()
   }).min(1).unknown(true) // At least one field must be provided for update, allow unknown fields

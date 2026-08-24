@@ -128,6 +128,7 @@ export interface UpdateMemberData {
   voter_status_id?: number;
   voter_registration_number?: string;
   voter_registration_date?: string;
+  date_joined?: string;
 }
 
 // Interface for API compatibility (maps to database fields)
@@ -544,7 +545,8 @@ export class MemberModel {
         'voting_station_id': 'voting_station_id',
         'voter_status_id': 'voter_status_id',
         'voter_registration_number': 'voter_registration_number',
-        'voter_registration_date': 'voter_registration_date'
+        'voter_registration_date': 'voter_registration_date',
+        'date_joined': 'date_joined'
       };
 
       const updateFields: string[] = [];

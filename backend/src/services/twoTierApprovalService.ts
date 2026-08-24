@@ -1,5 +1,8 @@
 import { getPrisma } from './prismaService';
 import { createDatabaseError } from '../middleware/errorHandler';
+import { MembershipApprovalService } from './membershipApprovalService';
+import { MembershipApplicationModel } from '../models/membershipApplications';
+import { executeQuerySingle } from '../config/database';
 
 const prisma = getPrisma();
 
@@ -489,15 +492,31 @@ export class TwoTierApprovalService {
   // Create membership from approved application
   private static async createMembershipFromApplication(applicationId: number): Promise<void> {
     try {
-      // This would integrate with the existing membership creation service
-      // For now, just log that membership should be created
       console.log(`Creating membership for approved application ${applicationId}`);
-      
-      // TODO: Integrate with existing MembershipApprovalService.approveApplication
-      // This would create the member record and membership record
-      
-    } catch (error) {
-      console.error('Failed to create membership from application:', error);
+
+      const application = await MembershipApplicationModel.getApplicationById(applicationId);
+      if (!application) {
+        console.error(`❌ Application #${applicationId} not found when creating member record`);
+        return;
+      }
+
+      // Check if member already exists in members_consolidated by ID number
+      const existingMember = await executeQuerySingle(
+        'SELECT member_id FROM members_consolidated WHERE id_number = $1',
+        [application.id_number]
+      );
+
+      if (existingMember) {
+        console.log(`ℹ️ Member already exists for ID number ${application.id_number} (Member ID: ${existingMember.member_id})`);
+        return;
+      }
+
+      // Create member record in members_consolidated
+      const result = await MembershipApprovalService.createMemberWithMembershipFromApplication(application);
+      console.log(`✅ Member record created successfully for application #${applicationId}:`, result);
+
+    } catch (error: any) {
+      console.error(`❌ Failed to create membership from application #${applicationId}:`, error?.message || error);
       // Don't throw error to avoid breaking approval workflow
     }
   }

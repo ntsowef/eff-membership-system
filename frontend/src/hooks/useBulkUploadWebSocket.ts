@@ -49,17 +49,44 @@ interface IECRateLimitExceeded {
   timestamp: string;
 }
 
+interface BulkUploadFailed {
+  job_id: string;
+  error: string;
+  stage?: string;
+  status: string;
+  timestamp: string;
+}
+
+interface ReportNotification {
+  report_type: string;
+  filename?: string;
+  message?: string;
+  error?: string;
+  status: 'ready' | 'failed';
+  timestamp: string;
+}
+
+// Acknowledge delivery-tracked server events so the backend can log receipt
+const ackDelivery = (ack?: unknown) => {
+  if (typeof ack === 'function') {
+    ack('received');
+  }
+};
+
 interface UseBulkUploadWebSocketOptions {
   fileId?: number;
   onProgress?: (data: BulkUploadProgress) => void;
   onComplete?: (data: BulkUploadComplete) => void;
   onError?: (data: BulkUploadError) => void;
+  onFailed?: (data: BulkUploadFailed) => void;
+  onReportReady?: (data: ReportNotification) => void;
+  onReportFailed?: (data: ReportNotification) => void;
   onRateLimitWarning?: (data: IECRateLimitWarning) => void;
   onRateLimitExceeded?: (data: IECRateLimitExceeded) => void;
 }
 
 export const useBulkUploadWebSocket = (options: UseBulkUploadWebSocketOptions = {}) => {
-  const { fileId, onProgress, onComplete, onError, onRateLimitWarning, onRateLimitExceeded } = options;
+  const { fileId, onProgress, onComplete, onError, onFailed, onReportReady, onReportFailed, onRateLimitWarning, onRateLimitExceeded } = options;
   const { token } = useAuth();
 
   // State - maintain same hook order as before
@@ -71,7 +98,7 @@ export const useBulkUploadWebSocket = (options: UseBulkUploadWebSocketOptions = 
   const callbacksRef = useRef<UseBulkUploadWebSocketOptions>({});
 
   // Keep callbacks up to date without triggering reconnection
-  callbacksRef.current = { onProgress, onComplete, onError, onRateLimitWarning, onRateLimitExceeded };
+  callbacksRef.current = { onProgress, onComplete, onError, onFailed, onReportReady, onReportFailed, onRateLimitWarning, onRateLimitExceeded };
 
   const connect = useCallback(() => {
     if (!token) {
@@ -90,6 +117,10 @@ export const useBulkUploadWebSocket = (options: UseBulkUploadWebSocketOptions = 
       auth: { token },
       path: '/socket.io',
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      timeout: 20000,
     });
 
     socket.on('connect', () => {
@@ -122,14 +153,41 @@ export const useBulkUploadWebSocket = (options: UseBulkUploadWebSocketOptions = 
       callbacksRef.current.onProgress?.(data);
     });
 
-    socket.on('bulk_upload_complete', (data: BulkUploadComplete) => {
+    socket.on('bulk_upload_complete', (data: BulkUploadComplete, ack?: unknown) => {
       devLog('✅ Bulk upload complete:', data);
+      ackDelivery(ack);
       callbacksRef.current.onComplete?.(data);
     });
 
-    socket.on('bulk_upload_error', (data: BulkUploadError) => {
+    socket.on('bulk_upload_error', (data: BulkUploadError, ack?: unknown) => {
       console.error('❌ Bulk upload error:', data);
+      ackDelivery(ack);
       callbacksRef.current.onError?.(data);
+    });
+
+    // Job-level failure from the TypeScript orchestrator (sent to user:{id} room)
+    socket.on('bulk_upload_failed', (data: BulkUploadFailed, ack?: unknown) => {
+      console.error('❌ Bulk upload failed:', data);
+      ackDelivery(ack);
+      if (callbacksRef.current.onFailed) {
+        callbacksRef.current.onFailed(data);
+      } else {
+        // Fall back to onError so the UI exits its loading state
+        callbacksRef.current.onError?.({ file_id: -1, error: data.error, timestamp: data.timestamp });
+      }
+    });
+
+    // Background report generation notifications (sent to user:{id} room)
+    socket.on('report_ready', (data: ReportNotification, ack?: unknown) => {
+      devLog('📄 Report ready:', data);
+      ackDelivery(ack);
+      callbacksRef.current.onReportReady?.(data);
+    });
+
+    socket.on('report_failed', (data: ReportNotification, ack?: unknown) => {
+      console.error('❌ Report generation failed:', data);
+      ackDelivery(ack);
+      callbacksRef.current.onReportFailed?.(data);
     });
 
     socket.on('iec_rate_limit_warning', (data: IECRateLimitWarning) => {

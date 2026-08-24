@@ -110,6 +110,22 @@ const LeadershipRoster: React.FC = () => {
   const appointments = data?.appointments || [];
   const totalCount = data?.pagination?.total_count || 0;
 
+  // Format position display: "Province - Municipality Ward code RoleName"
+  // instead of raw DB value like "Ward 48 Ward 48 Chairperson"
+  const formatPositionDisplay = (appt: LeadershipAppointmentDetails): string => {
+    // For Ward/Municipality/Province, use entity_location + base role
+    if (appt.entity_location && appt.hierarchy_level !== 'National') {
+      // Extract the base role from position_name (e.g., "Chairperson" from "Ward 48 Ward 48 Chairperson")
+      const baseRole = appt.position_name
+        .replace(/^(Ward\s*\d+\s*)+/i, '')
+        .replace(/^(Municipal\s*)+/i, '')
+        .replace(/^(Provincial\s*)+/i, '')
+        .trim() || appt.position_name;
+      return `${appt.entity_location} ${baseRole}`;
+    }
+    return appt.position_name;
+  };
+
   // Handle pagination change
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -131,7 +147,7 @@ const LeadershipRoster: React.FC = () => {
       return allAppointments.map((appt: LeadershipAppointmentDetails) => ({
         'Member Name': appt.member_name || 'N/A',
         'ID Number': (appt as any).id_number || 'N/A',
-        'Position': appt.position_name || 'N/A',
+        'Position': formatPositionDisplay(appt) || 'N/A',
         'Province': (appt as any).province_name || 'N/A',
         'Municipality': (appt as any).municipality_name || 'N/A',
         'Ward': (appt as any).ward_name || 'N/A',
@@ -343,7 +359,7 @@ const LeadershipRoster: React.FC = () => {
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2}>
                         <Box>
                           <Typography variant="subtitle2" color="text.secondary">Position</Typography>
-                          <Typography variant="h6">{appt.position_name}</Typography>
+                          <Typography variant="h6">{formatPositionDisplay(appt)}</Typography>
                           <Typography variant="caption" color="text.secondary">{appt.position_code}</Typography>
                           <Box mt={1}>
                             <Chip label={appt.hierarchy_level} size="small" color={
@@ -404,7 +420,7 @@ const LeadershipRoster: React.FC = () => {
                       <TableCell>
                         <Box>
                           <Typography variant="subtitle2" fontWeight="medium">
-                            {appt.position_name}
+                            {formatPositionDisplay(appt)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {appt.position_code}
@@ -582,7 +598,7 @@ const LeadershipRoster: React.FC = () => {
           {selectedAppointment && (
             <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, mb: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">
-                Position: <strong>{selectedAppointment.position_name}</strong>
+                Position: <strong>{formatPositionDisplay(selectedAppointment)}</strong>
               </Typography>
               <Typography variant="subtitle2" color="text.secondary">
                 Member: <strong>{selectedAppointment.member_name}</strong>

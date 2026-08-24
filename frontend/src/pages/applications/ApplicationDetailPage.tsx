@@ -230,12 +230,23 @@ const ApplicationDetailPage: React.FC = () => {
   const reviewMutation = useMutation({
     mutationFn: async (reviewData: any) => {
       if (!id) throw new Error('Application ID is required');
-      return applicationsApi.reviewApplication(id, reviewData);
+      // Route to the correct endpoint based on the action
+      if (reviewData.status === 'Approved') {
+        return applicationsApi.approveApplication(id, { admin_notes: reviewData.admin_notes });
+      } else {
+        return applicationsApi.rejectApplication(id, {
+          rejection_reason: reviewData.rejection_reason,
+          admin_notes: reviewData.admin_notes,
+        });
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
-      showNotification('Application reviewed successfully', 'success');
+      const message = data?.data?.membership_number
+        ? `Application approved — Member ${data.data.membership_number} created`
+        : 'Application reviewed successfully';
+      showNotification(message, 'success');
       setReviewDialog({ open: false, action: null });
       setReviewForm({
         status: 'Approved',

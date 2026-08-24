@@ -75,6 +75,16 @@ const updateStatusSchema = Joi.object({
   notes: Joi.string().allow('', null).optional()
 });
 
+const updateMemberDetailsSchema = Joi.object({
+  firstname: Joi.string().min(1).max(100).required(),
+  surname: Joi.string().min(1).max(100).required(),
+  cell_number: Joi.string().allow('', null).optional(),
+  email: Joi.alternatives().try(
+    Joi.string().email(),
+    Joi.string().valid('', null)
+  ).optional()
+});
+
 // Helper to resolve the acting user_id consistently with other routes.
 const getUserId = (req: Request): number => {
   const user: any = (req as any).user;
@@ -342,6 +352,141 @@ router.patch('/candidate/:candidate_id/status',
     );
 
     sendSuccess(res, updated, `Candidate ${req.body.status} successfully`);
+  })
+);
+
+/**
+ * POST /api/v1/lge2026/candidate/:candidate_id/documents
+ * Upload CV and/or IEC Form C2 for an existing candidate.
+ */
+router.post('/candidate/:candidate_id/documents',
+  authenticate,
+  requirePermission('ward_audit.manage_delegates'),
+  candidateDocUpload.fields([
+    { name: 'candidate_cv', maxCount: 1 },
+    { name: 'iec_form_c2', maxCount: 1 },
+  ]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const candidateId = parseInt(req.params.candidate_id, 10);
+
+    const candidate = await Lge2026Model.getCandidateById(candidateId);
+    if (!candidate) {
+      return sendError(res, 'Candidate not found', 404);
+    }
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const updates: Record<string, string | null> = {};
+
+    if (files?.candidate_cv?.[0]) {
+      // Delete old CV file if it exists
+      if (candidate.cv_path) {
+        const oldPath = path.join(CANDIDATE_DOCS_DIR, candidate.cv_path);
+        try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (e) { /* ignore */ }
+      }
+      updates.cv_path = files.candidate_cv[0].filename;
+      updates.cv_original_name = files.candidate_cv[0].originalname;
+    }
+    if (files?.iec_form_c2?.[0]) {
+      // Delete old IEC Form C2 file if it exists
+      if (candidate.iec_form_c2_path) {
+        const oldPath = path.join(CANDIDATE_DOCS_DIR, candidate.iec_form_c2_path);
+        try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (e) { /* ignore */ }
+      }
+      updates.iec_form_c2_path = files.iec_form_c2[0].filename;
+      updates.iec_form_c2_original_name = files.iec_form_c2[0].originalname;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return sendError(res, 'No files uploaded', 400);
+    }
+
+    await Lge2026Model.updateCandidateDocuments(candidateId, updates);
+    const updated = await Lge2026Model.getCandidateById(candidateId);
+
+    sendSuccess(res, updated, 'Candidate documents uploaded successfully');
+  })
+);
+
+/**
+ * GET /api/v1/lge2026/candidate/:candidate_id/document/:doc_type
+ * Download a candidate document (cv or iec_form_c2).
+ */
+router.get('/candidate/:candidate_id/document/:doc_type',
+  authenticate,
+  requirePermission('ward_audit.read'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const candidateId = parseInt(req.params.candidate_id, 10);
+    const docType = req.params.doc_type; // 'cv' or 'iec_form_c2'
+
+    const candidate = await Lge2026Model.getCandidateById(candidateId);
+    if (!candidate) {
+      return sendError(res, 'Candidate not found', 404);
+    }
+
+    let filePath: string | null = null;
+    let originalName: string | null = null;
+
+    if (docType === 'cv') {
+      filePath = candidate.cv_path || null;
+      originalName = candidate.cv_original_name || null;
+    } else if (docType === 'iec_form_c2') {
+      filePath = candidate.iec_form_c2_path || null;
+      originalName = candidate.iec_form_c2_original_name || null;
+    } else {
+      return sendError(res, 'Invalid document type. Use "cv" or "iec_form_c2"', 400);
+    }
+
+    if (!filePath) {
+      return sendError(res, `No ${docType} document uploaded for this candidate`, 404);
+    }
+
+    const fullPath = path.join(CANDIDATE_DOCS_DIR, filePath);
+    if (!fs.existsSync(fullPath)) {
+      return sendError(res, 'Document file not found on server', 404);
+    }
+
+    res.download(fullPath, originalName || filePath);
+  })
+);
+
+/**
+ * PATCH /api/v1/lge2026/candidate/:candidate_id/member-details
+ * Update the candidate's personal details (name, phone, email)
+ * in the members_consolidated table.
+ */
+router.patch('/candidate/:candidate_id/member-details',
+  authenticate,
+  requirePermission('ward_audit.manage_delegates'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const candidateId = parseInt(req.params.candidate_id, 10);
+    if (!candidateId || isNaN(candidateId)) {
+      return sendError(res, 'Valid candidate_id is required', 400);
+    }
+
+    const { firstname, surname, cell_number, email } = req.body;
+
+    if (!firstname || typeof firstname !== 'string' || !firstname.trim()) {
+      return sendError(res, 'First name is required', 400);
+    }
+    if (!surname || typeof surname !== 'string' || !surname.trim()) {
+      return sendError(res, 'Surname is required', 400);
+    }
+
+    const candidate = await Lge2026Model.getCandidateById(candidateId);
+    if (!candidate) {
+      return sendError(res, 'Candidate not found', 404);
+    }
+
+    await Lge2026Model.updateMemberDetails(candidate.member_id, {
+      firstname: firstname.trim(),
+      surname: surname.trim(),
+      cell_number: cell_number?.trim() || null,
+      email: email?.trim() || null,
+    });
+
+    // Re-fetch candidate to return updated joined data
+    const updated = await Lge2026Model.getCandidateById(candidateId);
+    sendSuccess(res, updated, 'Member details updated successfully');
   })
 );
 

@@ -128,8 +128,7 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             value={applicationData.email || ''}
             onChange={(e) => handleChange('email', e.target.value)}
             error={!!errors.email}
-            helperText={errors.email || 'We will use this email for all communications'}
-            required
+            helperText={errors.email || 'Optional — we will use this email for communications if provided'}
           />
         </Grid>
 

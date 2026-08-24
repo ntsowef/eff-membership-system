@@ -361,14 +361,12 @@ router.get('/members-with-voting-districts/export',
         const pdfFilename = `${wordBaseFilename}.pdf`;
         const pdfFilePath = path.join(tempDir, pdfFilename);
 
-        // Filter members for attendance register - only Active members who are Registered voters
+        // Filter members for attendance register - only Active members (in good standing)
         const attendanceMembers = members.filter((member: any) => {
-          const isActive = member.membership_status_id === 1;
-          const isRegistered = member.voter_status_id === 1;
-          return isActive && isRegistered;
+          return member.membership_status_id === 1;
         });
 
-        console.log(`📋 Filtered ${attendanceMembers.length} Active & Registered members from ${members.length} total members for PDF attendance register`);
+        console.log(`📋 Filtered ${attendanceMembers.length} Active members from ${members.length} total members for PDF attendance register`);
 
         // Import HtmlPdfService dynamically
         const { HtmlPdfService } = require('../services/htmlPdfService');
@@ -383,14 +381,14 @@ router.get('/members-with-voting-districts/export',
           AttendanceRegisterEmailService.processAttendanceRegisterEmailFromHtml({
             userEmail: req.user.email,
             userName: req.user.name || req.user.email,
+            userId: req.user.id,
             wardInfo: wardInfo,
             members: attendanceMembers
           }).catch(error => {
-            // Log error but don't fail the request
+            // Log error but don't fail the request. The service sends a
+            // report_failed WebSocket event to the user; headers cannot be
+            // modified here because the response has already been sent.
             console.error('❌ Background email process failed (non-blocking):', error);
-            // Set header to indicate email failed
-            res.setHeader('X-Email-Status', 'failed');
-            res.setHeader('X-Email-Error', error.message || 'Unknown error');
           });
           console.log(`📧 Background HTML-based PDF email process initiated for ${req.user.email}`);
           // Set header to indicate email is being sent
@@ -432,15 +430,15 @@ router.get('/members-with-voting-districts/export',
           AttendanceRegisterEmailService.processAttendanceRegisterEmail({
             userEmail: req.user.email,
             userName: req.user.name || req.user.email,
+            userId: req.user.id,
             wordBuffer: wordBuffer,
             wardInfo: wardInfo,
             memberCount: attendanceMembers.length
           }).catch(error => {
-            // Log error but don't fail the request
+            // Log error but don't fail the request. The service sends a
+            // report_failed WebSocket event to the user; headers cannot be
+            // modified here because the response has already been sent.
             console.error('❌ Background email process failed (non-blocking):', error);
-            // Set header to indicate email failed
-            res.setHeader('X-Email-Status', 'failed');
-            res.setHeader('X-Email-Error', error.message || 'Unknown error');
           });
           console.log(`📧 Background email process initiated for ${req.user.email}`);
           // Set header to indicate email is being sent

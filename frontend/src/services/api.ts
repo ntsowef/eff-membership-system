@@ -169,14 +169,25 @@ export const membersApi = {
   exportMembers: (format: string, filters?: any) =>
     apiGet('/members/export', { format, ...filters }),
   exportWardAudit: async (wardCode: string, format: 'excel' | 'word' | 'pdf' | 'both' = 'pdf') => {
-    // Use the configured api instance which has auth interceptor
+    // Use the configured api instance which has auth interceptor.
+    // Extended timeout: PDF generation (Puppeteer) for large wards can exceed the 60s default.
     const response = await api.get(
       `/members/ward/${wardCode}/audit-export`,
       {
         params: { format },
         responseType: 'blob',
+        timeout: 300000, // 5 minutes (matches backend res.setTimeout)
       }
     );
+
+    // Check for JSON error response (will come as blob but is actually JSON)
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('application/json')) {
+      const text = await response.data.text();
+      const errorData = JSON.parse(text);
+      throw { response: { status: response.status, data: errorData } };
+    }
+
     return response.data;
   },
 };
@@ -195,6 +206,8 @@ export const applicationsApi = {
 
   // Review actions
   reviewApplication: (id: string, reviewData: any) => apiPost(`/membership-applications/${id}/review`, reviewData),
+  approveApplication: (id: string, data?: any) => apiPost(`/membership-applications/${id}/approve`, data || {}),
+  rejectApplication: (id: string, data: any) => apiPost(`/membership-applications/${id}/reject`, data),
   setUnderReview: (id: string) => apiPost(`/membership-applications/${id}/under-review`),
   bulkReview: (data: any) => apiPost('/membership-applications/bulk/review', data),
 

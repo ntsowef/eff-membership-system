@@ -36,16 +36,19 @@ import {
   Dashboard,
   Assessment,
   Person,
-  Gavel
+  Gavel,
+  Home
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useUI } from '../../store';
 import { LeadershipAPI } from '../../services/leadershipApi';
 import { apiGet } from '../../lib/api';
 import LeadershipAssignment from './LeadershipAssignment';
+import WardLeadershipAssignment from './WardLeadershipAssignment';
 import LeadershipRoster from './LeadershipRoster';
 import WarCouncilDashboard from './WarCouncilDashboard';
 import ProvincialLeadershipOverview from './ProvincialLeadershipOverview';
+import LeadershipDirectory from './LeadershipDirectory';
 import { WarCouncilPermissions } from '../../utils/warCouncilPermissions';
 import { useAuth } from '../../store';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
@@ -167,15 +170,15 @@ const LeadershipManagement: React.FC = () => {
 
   // Calculate tab indices based on War Council visibility
   const getTabIndex = (tabName: string): number => {
-    const baseTabs = ['overview', 'assignment', 'leaders', 'srct-overview'];
+    const baseTabs = ['overview', 'assignment', 'ward-assignment', 'leaders', 'srct-overview'];
     let index = baseTabs.indexOf(tabName);
 
     if (index !== -1) return index;
 
     // For tabs after SRCT Overview, adjust index based on War Council visibility
-    const warCouncilIndex = warCouncilUIConfig.showWarCouncilTab ? 4 : -1;
-    const structureIndex = warCouncilUIConfig.showWarCouncilTab ? 5 : 4;
-    const reportsIndex = warCouncilUIConfig.showWarCouncilTab ? 6 : 5;
+    const warCouncilIndex = warCouncilUIConfig.showWarCouncilTab ? 5 : -1;
+    const structureIndex = warCouncilUIConfig.showWarCouncilTab ? 6 : 5;
+    const reportsIndex = warCouncilUIConfig.showWarCouncilTab ? 7 : 6;
 
     switch (tabName) {
       case 'war-council': return warCouncilIndex;
@@ -262,13 +265,14 @@ const LeadershipManagement: React.FC = () => {
         <Tabs value={tabValue} onChange={handleTabChange} variant="fullWidth">
           <Tab icon={<Dashboard />} label="Overview" />
           <Tab icon={<Assignment />} label="Assignment" />
+          <Tab icon={<Home />} label="Ward Assignment" />
           <Tab icon={<People />} label="Leaders" />
           <Tab icon={<AccountTree />} label="SRCT Overview" />
           {warCouncilUIConfig.showWarCouncilTab && (
             <Tab icon={<Gavel />} label="War Council" />
           )}
           <Tab icon={<AccountTree />} label="Structure" />
-          <Tab icon={<Analytics />} label="Reports" />
+          <Tab icon={<Analytics />} label="Directory" />
         </Tabs>
       </Paper>
 
@@ -489,12 +493,17 @@ const LeadershipManagement: React.FC = () => {
       </TabPanel>
 
       {/* Assignment Tab */}
-      <TabPanel value={tabValue} index={1}>
+      <TabPanel value={tabValue} index={getTabIndex('assignment')}>
         <LeadershipAssignment onAssignmentComplete={handleAssignmentComplete} />
       </TabPanel>
 
+      {/* Ward Assignment Tab */}
+      <TabPanel value={tabValue} index={getTabIndex('ward-assignment')}>
+        <WardLeadershipAssignment onAssignmentComplete={handleAssignmentComplete} />
+      </TabPanel>
+
       {/* Leaders Tab */}
-      <TabPanel value={tabValue} index={2}>
+      <TabPanel value={tabValue} index={getTabIndex('leaders')}>
         <LeadershipRoster />
       </TabPanel>
 
@@ -570,25 +579,9 @@ const LeadershipManagement: React.FC = () => {
         </Card>
       </TabPanel>
 
-      {/* Reports Tab */}
+      {/* Directory Tab */}
       <TabPanel value={tabValue} index={getTabIndex('reports')}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Leadership Reports & Analytics
-            </Typography>
-            <Alert severity="info">
-              Advanced reporting features coming soon! This will include:
-              <ul>
-                <li>Leadership tenure analysis</li>
-                <li>Appointment history reports</li>
-                <li>Election participation statistics</li>
-                <li>Vacancy trend analysis</li>
-                <li>Performance metrics</li>
-              </ul>
-            </Alert>
-          </CardContent>
-        </Card>
+        <LeadershipDirectory />
       </TabPanel>
     </Box>
   );

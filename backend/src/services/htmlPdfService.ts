@@ -50,25 +50,38 @@ export class HtmlPdfService {
       console.log(`📋 Unique voting district names in data:`, Array.from(uniqueVDs));
       console.log(`📋 Unique voting district codes in data:`, Array.from(uniqueVDCodes));
 
-      members.forEach(member => {
-        const vdCode = member.voting_district_code || '';
-        const vdName = member.voting_district_name || 'Not Registered to vote';
-        const vdNameLower = vdName.toLowerCase().trim();
+      // Sentinel VD codes used across the data layer. The DB stores 8-digit
+      // variants (e.g. '22222222'); 9-digit forms are accepted defensively for
+      // any legacy/imported rows.
+      const SENTINEL_NOT_REGISTERED = new Set(['99999999', '999999999']);
+      const SENTINEL_DIFFERENT_WARD = new Set(['22222222', '222222222']);
 
-        // Check for special voting district codes
-        // '99999999' or '999999999' = Not Registered to vote — excluded from register and quorum
-        if (vdCode === '99999999' || vdCode === '999999999' || vdNameLower === 'not registered to vote') {
+      members.forEach(member => {
+        const vdCode = (member.voting_district_code || '').trim();
+        const rawName = (member.voting_district_name || '').trim();
+        const vdNameLower = rawName.toLowerCase();
+
+        // Not Registered to vote — excluded from register and quorum.
+        // Only triggered by an explicit not-registered sentinel/name, or when the
+        // member has no VD code AND no resolved name at all. A member with a REAL
+        // VD code but a blank name is NOT unregistered (see other-ward branch below).
+        if (SENTINEL_NOT_REGISTERED.has(vdCode) ||
+            vdNameLower === 'not registered to vote' ||
+            (!vdCode && !rawName)) {
           console.log(`⏭️ Skipping unregistered voter: ${member.full_name || member.first_name} - VD Code: "${vdCode}"`);
           return;
         }
 
-        // '22222222' or '222222222' = Registered in different ward
-        // These members ARE included in the register and counted toward quorum
-        if (vdCode === '22222222' || vdCode === '222222222' ||
+        // Registered in a different ward — included in the register and counted
+        // toward quorum. Covers the different-ward sentinels AND members with a
+        // real VD code whose ward-scoped name lookup returned blank (their VD
+        // belongs to another ward, so the ward-restricted join produced no name).
+        if (SENTINEL_DIFFERENT_WARD.has(vdCode) ||
             vdNameLower === 'registered in different ward' ||
             vdNameLower.includes('different ward') ||
-            vdNameLower.includes('other ward')) {
-          console.log(`🔄 Including other-ward member in register: ${member.full_name || member.first_name} - VD Code: "${vdCode}", VD Name: "${vdName}"`);
+            vdNameLower.includes('other ward') ||
+            !rawName) {
+          console.log(`🔄 Including other-ward member in register: ${member.full_name || member.first_name} - VD Code: "${vdCode}", VD Name: "${rawName || 'Registered in Different Ward'}"`);
           differentWardMembers.push(member);
           // Also add to grouped map so they render in the attendance table
           const otherWardKey = 'Registered in Other Ward';
@@ -80,10 +93,10 @@ export class HtmlPdfService {
         }
 
         // Add to main table (registered in this ward)
-        if (!grouped[vdName]) {
-          grouped[vdName] = [];
+        if (!grouped[rawName]) {
+          grouped[rawName] = [];
         }
-        grouped[vdName].push(member);
+        grouped[rawName].push(member);
       });
 
       // Quorum rule: members registered IN THIS WARD plus members registered

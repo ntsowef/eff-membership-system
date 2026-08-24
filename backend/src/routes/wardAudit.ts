@@ -91,14 +91,8 @@ const approveComplianceSchema = Joi.object({
 const createMeetingSchema = Joi.object({
   meeting_id: Joi.number().integer().optional(), // Made optional - will be auto-generated
   meeting_type: Joi.string().required().valid('BPA', 'BGA'),
-  presiding_officer_id: Joi.alternatives().try(
-    Joi.number().integer(),
-    Joi.string().allow('').optional()
-  ).optional(),
-  secretary_id: Joi.alternatives().try(
-    Joi.number().integer(),
-    Joi.string().allow('').optional()
-  ).optional(),
+  presiding_officer_name: Joi.string().allow('').optional(),
+  secretary_name: Joi.string().allow('').optional(),
   quorum_required: Joi.number().integer().required().min(0),
   quorum_achieved: Joi.number().integer().required().min(0),
   total_attendees: Joi.number().integer().required().min(0),
@@ -107,20 +101,16 @@ const createMeetingSchema = Joi.object({
   meeting_took_place_verified: Joi.boolean().optional(),
   meeting_verification_notes: Joi.string().allow('').optional(),
   meeting_outcome: Joi.string().allow('').optional(),
-  key_decisions: Joi.string().allow('').optional(),
-  action_items: Joi.string().allow('').optional(),
   next_meeting_date: Joi.date().optional()
 });
 
 const updateMeetingSchema = Joi.object({
-  presiding_officer_id: Joi.number().integer().optional(),
-  secretary_id: Joi.number().integer().optional(),
+  presiding_officer_name: Joi.string().allow('').optional(),
+  secretary_name: Joi.string().allow('').optional(),
   quorum_required: Joi.number().integer().optional().min(0),
   quorum_achieved: Joi.number().integer().optional().min(0),
   total_attendees: Joi.number().integer().optional().min(0),
   meeting_outcome: Joi.string().optional(),
-  key_decisions: Joi.string().optional(),
-  action_items: Joi.string().optional(),
   next_meeting_date: Joi.date().optional()
 });
 
@@ -356,8 +346,8 @@ router.post('/ward/:ward_code/meeting',
       quorum_required: parseInt(body.quorum_required) || 0,
       quorum_achieved: parseInt(body.quorum_achieved) || 0,
       total_attendees: parseInt(body.total_attendees) || 0,
-      presiding_officer_id: body.presiding_officer_id && body.presiding_officer_id !== '' ? parseInt(body.presiding_officer_id) : null,
-      secretary_id: body.secretary_id && body.secretary_id !== '' ? parseInt(body.secretary_id) : null,
+      presiding_officer_name: body.presiding_officer_name && body.presiding_officer_name !== '' ? body.presiding_officer_name : null,
+      secretary_name: body.secretary_name && body.secretary_name !== '' ? body.secretary_name : null,
       quorum_verified_manually: body.quorum_verified_manually === 'true' || body.quorum_verified_manually === true,
       meeting_took_place_verified: body.meeting_took_place_verified === 'true' || body.meeting_took_place_verified === true,
     };
@@ -375,7 +365,6 @@ router.post('/ward/:ward_code/meeting',
       ...parsedBody,
       ward_code,
       meeting_outcome: parsedBody.meeting_outcome === '' ? null : parsedBody.meeting_outcome,
-      action_items: parsedBody.action_items === '' ? null : parsedBody.action_items,
       quorum_verified_by: parsedBody.quorum_verified_manually ? userId : null,
       meeting_verified_by: parsedBody.meeting_took_place_verified ? userId : null,
       meeting_package_path: meetingPackagePath,

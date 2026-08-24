@@ -24,6 +24,10 @@ export interface MembershipApplication {
   reviewed_by?: number;
   rejection_reason?: string;
   admin_notes?: string;
+  escalation_level?: string;
+  escalated_by?: number;
+  escalated_at?: string;
+  escalation_reason?: string;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +94,8 @@ export interface CreateApplicationData {
   district_code?: string;
   municipal_code?: string;
   voting_district_code?: string;
+  // IEC Verification
+  iec_is_registered?: boolean;
 }
 
 export interface UpdateApplicationData {
@@ -158,6 +164,7 @@ export interface ApplicationFilters {
   municipal_code?: string;
   district_code?: string;
   province_code?: string;
+  escalation_level?: string;
   submitted_after?: string;
   submitted_before?: string;
   search?: string;
@@ -199,8 +206,8 @@ export class MembershipApplicationModel {
           hierarchy_level, entity_name, membership_type, reason_for_joining,
           skills_experience, referred_by, payment_method, payment_reference,
           last_payment_date, payment_amount, payment_notes, payment_status, province_code,
-          district_code, municipal_code, voting_district_code
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'Draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+          district_code, municipal_code, voting_district_code, iec_is_registered
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'Draft', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
         RETURNING application_id
       `;
 
@@ -246,7 +253,9 @@ export class MembershipApplicationModel {
         applicationData.province_code || null,
         applicationData.district_code || null,
         applicationData.municipal_code || null,
-        applicationData.voting_district_code || null
+        applicationData.voting_district_code || null,
+        // IEC Verification
+        applicationData.iec_is_registered !== undefined ? applicationData.iec_is_registered : null
       ];
 
       console.log('🔍 DEBUG: Executing INSERT query with RETURNING...');
@@ -311,6 +320,7 @@ export class MembershipApplicationModel {
           ma.district_code,
           ma.municipal_code,
           ma.voting_district_code,
+          ma.iec_is_registered,
           ma.created_at,
           ma.updated_at,
           ma.reviewed_by,
@@ -492,6 +502,27 @@ export class MembershipApplicationModel {
     }
   }
 
+  // Get active provincial admins for a given province (used to notify them of new submissions)
+  // Note: notifications resolve the recipient email via users.id, so we select that column.
+  static async getProvincialAdminsByProvince(
+    provinceCode: string
+  ): Promise<{ id: number; email: string; name: string }[]> {
+    try {
+      const query = `
+        SELECT u.id, u.email, u.name
+        FROM users u
+        WHERE u.admin_level = 'province'
+          AND u.province_code = $1
+          AND u.is_active = TRUE
+      `;
+
+      const admins = await executeQuery(query, [provinceCode]);
+      return (admins || []) as { id: number; email: string; name: string }[];
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch provincial admins', error);
+    }
+  }
+
   // Review application (approve or reject)
   static async reviewApplication(id: number, reviewData: ApplicationReviewData): Promise<boolean> {
     try {
@@ -643,6 +674,12 @@ export class MembershipApplicationModel {
         paramIndex++;
       }
 
+      if (filters.escalation_level) {
+        whereClause += ` AND escalation_level = $${paramIndex}`;
+        queryParams.push(filters.escalation_level);
+        paramIndex++;
+      }
+
       if (filters.submitted_after) {
         whereClause += ` AND submitted_at >= $${paramIndex}`;
         queryParams.push(filters.submitted_after);
@@ -742,6 +779,12 @@ export class MembershipApplicationModel {
       if (filters.province_code) {
         whereClause += ` AND province_code = $${paramIndex}`;
         queryParams.push(filters.province_code);
+        paramIndex++;
+      }
+
+      if (filters.escalation_level) {
+        whereClause += ` AND escalation_level = $${paramIndex}`;
+        queryParams.push(filters.escalation_level);
         paramIndex++;
       }
 

@@ -47,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPut, apiPost } from '../../lib/api';
+import { lookupApi } from '../../services/api';
 import type { Member } from '../../store';
 import { LeadershipAPI, type GeographicEntity } from '../../services/leadershipApi';
 
@@ -148,6 +149,14 @@ const MemberDetailPage: React.FC = () => {
   const { data: provinces = [] } = useQuery<GeographicEntity[]>({
     queryKey: ['provinces'],
     queryFn: () => LeadershipAPI.getProvinces(),
+    enabled: editMode,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch genders
+  const { data: genders = [] } = useQuery({
+    queryKey: ['genders'],
+    queryFn: () => lookupApi.getGenders().then(res => res.data),
     enabled: editMode,
     staleTime: 10 * 60 * 1000,
   });
@@ -478,6 +487,27 @@ const MemberDetailPage: React.FC = () => {
                 />
               </Grid>
 
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Gender"
+                  value={editedMember.gender_id || ''}
+                  onChange={(e) =>
+                    setEditedMember(prev => prev ? {...prev, gender_id: Number(e.target.value)} : null)
+                  }
+                >
+                  <MenuItem value="">
+                    <em>Select Gender</em>
+                  </MenuItem>
+                  {genders.map((g: any) => (
+                    <MenuItem key={g.gender_id} value={g.gender_id}>
+                      {g.gender_name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
               {/* Cascading Province / Municipality / Ward */}
               <Grid item xs={12} sm={4}>
                 <Autocomplete
@@ -591,13 +621,15 @@ const MemberDetailPage: React.FC = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
+                  type="date"
                   label="Date Joined"
                   value={editedMember.date_joined
-                    ? new Date(editedMember.date_joined).toLocaleDateString()
-                    : (editedMember.created_at ? new Date(editedMember.created_at).toLocaleDateString() : 'N/A')}
-                  InputProps={{
-                    readOnly: true,
-                  }}
+                    ? new Date(editedMember.date_joined).toISOString().split('T')[0]
+                    : (editedMember.created_at ? new Date(editedMember.created_at).toISOString().split('T')[0] : '')}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditedMember(prev => prev ? {...prev, date_joined: e.target.value} : null)
+                  }
+                  InputLabelProps={{ shrink: true }}
                   helperText="The date when the member first joined"
                 />
               </Grid>

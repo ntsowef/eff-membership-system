@@ -245,16 +245,16 @@ export class IecGeographicMappingService {
 
       console.log(`Found ${ourProvinces.length} provinces to map`);
 
-      // For now, we'll use hardcoded mappings based on standard SA province IDs
-      // In a real implementation, you would call the IEC API to get these
+      // IEC Province IDs verified from iec_voting_stations data (IEC API actual values)
+      // Note: IEC does NOT use alphabetical ordering for LP/MP/NC
       const iecProvinceMap = {
         'EC': { id: 1, name: 'Eastern Cape' },
         'FS': { id: 2, name: 'Free State' },
         'GP': { id: 3, name: 'Gauteng' },
         'KZN': { id: 4, name: 'KwaZulu-Natal' },
-        'LP': { id: 5, name: 'Limpopo' },
-        'MP': { id: 6, name: 'Mpumalanga' },
-        'NC': { id: 7, name: 'Northern Cape' },
+        'MP': { id: 5, name: 'Mpumalanga' },
+        'NC': { id: 6, name: 'Northern Cape' },
+        'LP': { id: 7, name: 'Limpopo' },
         'NW': { id: 8, name: 'North West' },
         'WC': { id: 9, name: 'Western Cape' }
       };

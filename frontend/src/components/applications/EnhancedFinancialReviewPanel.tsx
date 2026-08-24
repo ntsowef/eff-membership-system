@@ -229,6 +229,24 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
     });
   };
 
+  const displayAmount = (() => {
+    if (entity.amount !== undefined && entity.amount !== null) return Number(entity.amount);
+    if (entity.payment_amount !== undefined && entity.payment_amount !== null) return Number(entity.payment_amount);
+    if (entity.renewal_amount !== undefined && entity.renewal_amount !== null) return Number(entity.renewal_amount);
+    if (entity.amount_paid !== undefined && entity.amount_paid !== null) return Number(entity.amount_paid);
+    if (payments && payments.length > 0 && payments[0].amount !== undefined && payments[0].amount !== null) return Number(payments[0].amount);
+    return null;
+  })();
+
+  const displayReference = entity.payment_reference || entity.transaction_reference || 
+    (payments && payments.length > 0 ? (payments[0].payment_reference || payments[0].reference) : null);
+
+  const displayPaymentDate = entity.payment_date || 
+    (payments && payments.length > 0 ? (payments[0].payment_date || payments[0].created_at) : null);
+
+  const displayPaymentMethod = entity.payment_method || 
+    (payments && payments.length > 0 ? payments[0].payment_method : null);
+
   return (
     <Box>
       {/* Enhanced Status Header */}
@@ -250,10 +268,10 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
                   color={getFinancialStatusColor(entity.financial_status)}
                   size="small"
                 />
-                {entity.amount && (
+                {displayAmount !== null && (
                   <Chip
                     icon={<AttachMoney />}
-                    label={formatCurrency(entity.amount)}
+                    label={formatCurrency(displayAmount)}
                     variant="outlined"
                     size="small"
                   />
@@ -308,29 +326,29 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
                   <ListItemIcon><Payment /></ListItemIcon>
                   <ListItemText
                     primary="Payment Method"
-                    secondary={entity.payment_method || 'Not specified'}
+                    secondary={displayPaymentMethod || 'Not specified'}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemIcon><AttachMoney /></ListItemIcon>
                   <ListItemText
                     primary="Amount"
-                    secondary={entity.amount ? formatCurrency(entity.amount) : 'Not specified'}
+                    secondary={displayAmount !== null ? formatCurrency(displayAmount) : 'Not specified'}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemIcon><Receipt /></ListItemIcon>
                   <ListItemText
                     primary="Reference"
-                    secondary={entity.payment_reference || 'Not specified'}
+                    secondary={displayReference || 'Not specified'}
                   />
                 </ListItem>
-                {entity.payment_date && (
+                {displayPaymentDate && (
                   <ListItem>
                     <ListItemIcon><Info /></ListItemIcon>
                     <ListItemText
                       primary="Payment Date"
-                      secondary={formatDate(entity.payment_date)}
+                      secondary={formatDate(displayPaymentDate)}
                     />
                   </ListItem>
                 )}

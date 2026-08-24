@@ -225,6 +225,15 @@ const BulkFileUploadTab: React.FC = () => {
 			});
 			queryClient.invalidateQueries({ queryKey: ['uploadHistory'] });
     },
+    onFailed: (data) => {
+      setSnackbar({
+        open: true,
+        message: `Processing failed: ${data.error}`,
+        severity: 'error',
+      });
+			setUploadProgress(null);
+			queryClient.invalidateQueries({ queryKey: ['uploadHistory'] });
+    },
     onRateLimitWarning: (data) => {
       setSnackbar({
         open: true,

@@ -18,6 +18,10 @@ export interface Lge2026Candidate {
   decided_at?: string | null;
   notes?: string | null;
   campaign_statement?: string | null;
+  cv_path?: string | null;
+  cv_original_name?: string | null;
+  iec_form_c2_path?: string | null;
+  iec_form_c2_original_name?: string | null;
   created_at: string;
   updated_at: string;
 
@@ -51,6 +55,10 @@ const CANDIDATE_SELECT_COLS = `
   c.decided_at,
   c.notes,
   c.campaign_statement,
+  c.cv_path,
+  c.cv_original_name,
+  c.iec_form_c2_path,
+  c.iec_form_c2_original_name,
   c.created_at,
   c.updated_at,
   CONCAT(m.firstname, ' ', m.surname) AS member_name,
@@ -282,6 +290,57 @@ export class Lge2026Model {
     } catch (error: any) {
       if (error?.name === 'ValidationError') throw error;
       throw createDatabaseError('Failed to update LGE2026 candidate status', error);
+    }
+  }
+
+  /**
+   * Update document paths for an existing candidate (CV / IEC Form C2).
+   */
+  static async updateCandidateDocuments(
+    candidateId: number,
+    updates: Record<string, string | null>
+  ): Promise<void> {
+    try {
+      const allowed = ['cv_path', 'cv_original_name', 'iec_form_c2_path', 'iec_form_c2_original_name'];
+      const sets: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowed.includes(key)) {
+          sets.push(`${key} = $${idx++}`);
+          params.push(value);
+        }
+      }
+      if (sets.length === 0) return;
+      params.push(candidateId);
+      await executeQuery(
+        `UPDATE lge2026_candidates SET ${sets.join(', ')} WHERE candidate_id = $${idx}`,
+        params
+      );
+    } catch (error) {
+      throw createDatabaseError('Failed to update candidate documents', error);
+    }
+  }
+
+  /**
+   * Update editable member details (name, phone, email) in members_consolidated.
+   */
+  static async updateMemberDetails(
+    memberId: number,
+    data: { firstname: string; surname: string; cell_number: string | null; email: string | null }
+  ): Promise<void> {
+    try {
+      await executeQuery(
+        `UPDATE members_consolidated
+            SET firstname = $1,
+                surname = $2,
+                cell_number = $3,
+                email = $4
+          WHERE member_id = $5`,
+        [data.firstname, data.surname, data.cell_number, data.email, memberId]
+      );
+    } catch (error) {
+      throw createDatabaseError('Failed to update member details', error);
     }
   }
 

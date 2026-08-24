@@ -29,7 +29,7 @@ import ReviewStep from '../../components/application/ReviewStep';
 import { useMutation } from '@tanstack/react-query';
 import { apiPost, api } from '../../lib/api';
 import { useUI } from '../../store';
-import PublicHeader from '../../components/layout/PublicHeader';
+import logo from '../../assets/images/EFF_Reglogo.png';
 import { devLog } from '../../utils/logger';
 
 // New multi-step wizard with ID Verification as first step
@@ -54,7 +54,7 @@ const MembershipApplicationPage: React.FC = () => {
 
   // Handle IEC verification completion from IdVerificationStep
   const handleIECVerificationComplete = useCallback((iecData: any, isRegistered: boolean) => {
-    devLog('🔍 IEC Verification Complete:', { iecData, isRegistered });
+    devLog('ðŸ” IEC Verification Complete:', { iecData, isRegistered });
     setIdVerified(true);
 
     // Store verification result in application data
@@ -81,9 +81,9 @@ const MembershipApplicationPage: React.FC = () => {
       });
     },
     onError: (error: any) => {
-      console.error('❌ Application submission error:', error);
-      console.error('❌ Error response:', error.response);
-      console.error('❌ Error data:', error.response?.data);
+      console.error('âŒ Application submission error:', error);
+      console.error('âŒ Error response:', error.response);
+      console.error('âŒ Error data:', error.response?.data);
 
       const errorMessage = error.response?.data?.message
         || error.response?.data?.error?.message
@@ -147,25 +147,25 @@ const MembershipApplicationPage: React.FC = () => {
 
     try {
       // Check for duplicate ID number
-      devLog('🔍 Checking for duplicate ID number...');
-      devLog('📤 Sending request with ID:', idNumber);
+      devLog('ðŸ” Checking for duplicate ID number...');
+      devLog('ðŸ“¤ Sending request with ID:', idNumber);
 
       const duplicateCheckResponse = await api.post('/membership-applications/check-id-number', {
         id_number: idNumber,
       });
 
-      devLog('✅ Duplicate check response:', duplicateCheckResponse.data);
+      devLog('âœ… Duplicate check response:', duplicateCheckResponse.data);
 
       // Check if ID exists
       if (duplicateCheckResponse.data.success && duplicateCheckResponse.data.data?.exists) {
-        devLog('❌ Duplicate ID found!');
+        devLog('âŒ Duplicate ID found!');
         setDuplicateData(duplicateCheckResponse.data.data);
         setDuplicateDialogOpen(true);
         setIsCheckingId(false);
         return; // Stop here - don't proceed
       }
 
-      devLog('✅ No duplicate found. Proceeding to next step...');
+      devLog('âœ… No duplicate found. Proceeding to next step...');
 
       // IEC verification is already done in IdVerificationStep
       // All checks passed - proceed to next step
@@ -173,9 +173,9 @@ const MembershipApplicationPage: React.FC = () => {
       setApplicationStep(applicationStep + 1);
 
     } catch (error: any) {
-      console.error('❌ Error during ID check:', error);
-      console.error('❌ Error response:', error.response);
-      console.error('❌ Error data:', error.response?.data);
+      console.error('âŒ Error during ID check:', error);
+      console.error('âŒ Error response:', error.response);
+      console.error('âŒ Error data:', error.response?.data);
       setIsCheckingId(false);
 
       const errorMessage = error.response?.data?.message
@@ -195,8 +195,8 @@ const MembershipApplicationPage: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    devLog('📤 Submitting application with data:', applicationData);
-    devLog('📋 Required fields check:');
+    devLog('ðŸ“¤ Submitting application with data:', applicationData);
+    devLog('ðŸ“‹ Required fields check:');
     devLog('  - firstname:', applicationData.firstname);
     devLog('  - surname:', applicationData.surname);
     devLog('  - id_number:', applicationData.id_number);
@@ -233,7 +233,10 @@ const MembershipApplicationPage: React.FC = () => {
         break;
 
       case 2: // Contact Information
-        if (!applicationData.email) errors.email = 'Email is required';
+        // Email is optional - only validate format if provided
+        if (applicationData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicationData.email)) {
+          errors.email = 'Please enter a valid email address';
+        }
         if (!applicationData.phone) errors.phone = 'Phone number is required';
         if (!applicationData.address) errors.address = 'Address is required';
         if (!applicationData.city) errors.city = 'City is required';
@@ -300,10 +303,17 @@ const MembershipApplicationPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
-      {/* Sticky Header */}
-      <PublicHeader />
-
+    <Box
+      sx={{
+        minHeight: '100vh',
+        width: '100%',
+        bgcolor: '#006030',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflowX: 'hidden'
+      }}
+    >
       {/* Duplicate ID Dialog */}
       <Dialog
         open={duplicateDialogOpen}
@@ -318,44 +328,6 @@ const MembershipApplicationPage: React.FC = () => {
           <DialogContentText>
             This ID number is already registered in our system.
           </DialogContentText>
-
-          {duplicateData?.exists_in_members && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                ✓ You are already a member
-              </Typography>
-              {duplicateData.member_details && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="body2">
-                    <strong>Member ID:</strong> {duplicateData.member_details.member_id}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Full Name:</strong> {duplicateData.member_details.first_name} {duplicateData.member_details.last_name}
-                  </Typography>
-                  {duplicateData.member_details.province_name && (
-                    <Typography variant="body2">
-                      <strong>Province:</strong> {duplicateData.member_details.province_name}
-                    </Typography>
-                  )}
-                  {duplicateData.member_details.municipality_name && (
-                    <Typography variant="body2">
-                      <strong>Sub-Region:</strong> {duplicateData.member_details.municipality_name}
-                    </Typography>
-                  )}
-                  {duplicateData.member_details.ward_code && (
-                    <Typography variant="body2">
-                      <strong>Ward Code:</strong> {duplicateData.member_details.ward_code}
-                    </Typography>
-                  )}
-                  {duplicateData.member_details.ward_name && (
-                    <Typography variant="body2">
-                      <strong>Ward Name:</strong> {duplicateData.member_details.ward_name}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-            </Alert>
-          )}
 
           {duplicateData?.exists_in_applications && (
             <Alert severity="warning" sx={{ mt: 2 }}>
@@ -397,18 +369,6 @@ const MembershipApplicationPage: React.FC = () => {
               )}
             </Alert>
           )}
-
-          <Typography variant="body2" sx={{ mt: 2 }}>
-            Please contact our membership support team for assistance:
-          </Typography>
-          <Box sx={{ mt: 1, ml: 2 }}>
-            <Typography variant="body2">
-              <strong>Email:</strong> membership@eff.org.za
-            </Typography>
-            <Typography variant="body2">
-              <strong>Phone:</strong> +27 11 447 4797
-            </Typography>
-          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDuplicateDialogOpen(false)} color="primary">
@@ -417,248 +377,186 @@ const MembershipApplicationPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Hero Header */}
+      {/* Top Red Section */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
-          color: 'white',
-          py: 7,
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'radial-gradient(circle at 20% 50%, rgba(220, 20, 60, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139, 0, 0, 0.15) 0%, transparent 50%)',
-            pointerEvents: 'none'
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.02"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-            pointerEvents: 'none'
-          },
+          flex: 1,
+          bgcolor: '#E60000',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          pt: { xs: 4, md: 6 },
+          pb: { xs: 6, md: 10 },
+          px: 2,
         }}
       >
-        <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
-          <Box textAlign="center">
-            <Typography
-              variant="overline"
-              sx={{
-                color: '#DC143C',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                letterSpacing: '0.15em',
-                mb: 2,
-                display: 'block',
-                textShadow: '0 2px 8px rgba(220, 20, 60, 0.3)',
-                animation: 'fadeInUp 0.8s ease-out 0.1s both',
-                '@keyframes fadeInUp': {
-                  '0%': { opacity: 0, transform: 'translateY(20px)' },
-                  '100%': { opacity: 1, transform: 'translateY(0)' }
-                }
-              }}
-            >
-              JOIN THE REVOLUTION
-            </Typography>
-            <Typography
-              variant="h2"
-              component="h1"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                mb: 3,
-                fontSize: { xs: '2rem', md: '3rem' },
-                textShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                animation: 'fadeInUp 0.8s ease-out 0.2s both',
-                '@keyframes fadeInUp': {
-                  '0%': { opacity: 0, transform: 'translateY(20px)' },
-                  '100%': { opacity: 1, transform: 'translateY(0)' }
-                }
-              }}
-            >
-              Membership Application
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                opacity: 0.95,
-                maxWidth: '700px',
-                mx: 'auto',
-                lineHeight: 1.7,
-                fontSize: '1.1rem',
-                color: 'rgba(255, 255, 255, 0.9)',
-                animation: 'fadeInUp 0.8s ease-out 0.3s both',
-                '@keyframes fadeInUp': {
-                  '0%': { opacity: 0, transform: 'translateY(20px)' },
-                  '100%': { opacity: 1, transform: 'translateY(0)' }
-                }
-              }}
-            >
-              Take your first step in the fight for economic freedom.
-              Complete your application to join thousands of fighters across South Africa.
-            </Typography>
-          </Box>
-        </Container>
-      </Box>
-
-      <Container maxWidth="md" sx={{ py: 8 }}>
-        <Paper
-          elevation={0}
+        {/* Brand Logo */}
+        <Box
           sx={{
-            p: 6,
-            borderRadius: 4,
-            border: '1px solid rgba(220, 20, 60, 0.15)',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 100px rgba(220, 20, 60, 0.05)',
-            animation: 'fadeInUp 0.8s ease-out 0.4s both',
-            '@keyframes fadeInUp': {
-              '0%': { opacity: 0, transform: 'translateY(30px)' },
-              '100%': { opacity: 1, transform: 'translateY(0)' }
-            }
+            width: 100,
+            height: 100,
+            bgcolor: 'black',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3,
+            border: '2px solid #FFCE00',
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
           }}
         >
-
-          {/* Progress Stepper */}
-          <Stepper
-            activeStep={applicationStep}
-            sx={{
-              mb: 6,
-              '& .MuiStepLabel-root .Mui-completed': {
-                color: '#8B0000',
-              },
-              '& .MuiStepLabel-root .Mui-active': {
-                color: '#DC143C',
-              },
-              '& .MuiStepConnector-root': {
-                '&.Mui-completed .MuiStepConnector-line': {
-                  borderColor: '#8B0000',
-                  borderWidth: 2,
-                },
-                '&.Mui-active .MuiStepConnector-line': {
-                  borderColor: '#DC143C',
-                  borderWidth: 2,
-                },
-              },
-              '& .MuiStepIcon-root': {
-                fontSize: '1.8rem',
-                '&.Mui-completed': {
-                  color: '#8B0000',
-                },
-                '&.Mui-active': {
-                  color: '#DC143C',
-                  filter: 'drop-shadow(0 2px 4px rgba(220, 20, 60, 0.3))',
-                },
-              },
-            }}
-          >
-            {steps.map((step, index) => (
-              <Step key={step.label}>
-                <StepLabel
-                  StepIconComponent={() => (
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: index < applicationStep
-                          ? '#8B0000'
-                          : index === applicationStep
-                          ? '#DC143C'
-                          : 'grey.300',
-                        color: index <= applicationStep ? 'white' : 'grey.600',
-                        transition: 'all 0.3s ease',
-                        '& svg': { fontSize: 18 }
-                      }}
-                    >
-                      {step.icon}
-                    </Box>
-                  )}
-                  sx={{
-                    '& .MuiStepLabel-label': {
-                      fontWeight: 500,
-                      fontSize: '0.85rem',
-                    },
-                    '& .MuiStepLabel-label.Mui-active': {
-                      color: '#DC143C',
-                      fontWeight: 700,
-                    },
-                    '& .MuiStepLabel-label.Mui-completed': {
-                      color: '#8B0000',
-                      fontWeight: 600,
-                    },
-                  }}
-                >
-                  {step.label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-
-        {/* Step Content */}
-        <Box sx={{ mb: 4 }}>
-          {renderStepContent(applicationStep)}
+          <img src={logo} alt="EFF Logo" style={{ width: '85%', height: 'auto' }} />
         </Box>
 
-        {/* Error Display */}
-        {Object.keys(errors).length > 0 && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            Please correct the errors above before proceeding.
-          </Alert>
-        )}
+        {/* Brand Title */}
+        <Typography
+          variant="h2"
+          sx={{
+            color: '#FFCE00',
+            fontWeight: 800,
+            textAlign: 'center',
+            fontFamily: '"Poppins", sans-serif',
+            fontSize: { xs: '2rem', md: '3.5rem' },
+            textTransform: 'uppercase',
+            letterSpacing: '-0.02em',
+            mb: 2,
+            lineHeight: 1
+          }}
+        >
+          New Membership<br />Application
+        </Typography>
 
-        {/* Navigation Buttons */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-          <Button
-            onClick={handleBack}
-            disabled={applicationStep === 0}
-            variant="outlined"
-            startIcon={<ArrowBack />}
+        {/* Brand Subtitle */}
+        <Typography
+          variant="h6"
+          sx={{
+            color: '#FFFFFF',
+            textAlign: 'center',
+            fontFamily: '"Poppins", sans-serif',
+            maxWidth: '800px',
+            fontWeight: 400,
+            mb: 4,
+            opacity: 0.9,
+            fontSize: { xs: '1rem', md: '1.3rem' }
+          }}
+        >
+          Take your first step in the fight for economic freedom. Complete your application to join thousands of fighters across South Africa.
+        </Typography>
+
+        {/* Content Container (White Box) */}
+        <Container maxWidth={false} sx={{ maxWidth: '900px', position: 'relative' }}>
+          <Paper
+            elevation={0}
             sx={{
-              borderColor: 'rgba(220, 20, 60, 0.3)',
-              color: '#DC143C',
-              fontWeight: 600,
-              px: 3,
-              py: 1.5,
-              borderRadius: 3,
-              textTransform: 'none',
-              fontSize: '1rem',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: '#DC143C',
-                backgroundColor: 'rgba(220, 20, 60, 0.05)',
-                transform: 'translateX(-3px)',
-              },
-              '&:disabled': {
-                borderColor: 'rgba(0, 0, 0, 0.12)',
-                color: 'rgba(0, 0, 0, 0.26)',
-              }
+              p: { xs: 3, md: 5 },
+              borderRadius: 4,
+              background: '#FFFFFF',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
             }}
           >
-            Back
-          </Button>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                resetApplication();
-                navigate('/');
-              }}
+            {/* Progress Stepper */}
+            <Stepper
+              activeStep={applicationStep}
               sx={{
-                borderColor: 'rgba(0, 0, 0, 0.23)',
-                color: 'text.secondary',
+                mb: 5,
+                '& .MuiStepLabel-root .Mui-completed': {
+                  color: '#8B0000',
+                },
+                '& .MuiStepLabel-root .Mui-active': {
+                  color: '#DC143C',
+                },
+                '& .MuiStepConnector-root': {
+                  '&.Mui-completed .MuiStepConnector-line': {
+                    borderColor: '#8B0000',
+                    borderWidth: 2,
+                  },
+                  '&.Mui-active .MuiStepConnector-line': {
+                    borderColor: '#DC143C',
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiStepIcon-root': {
+                  fontSize: '1.8rem',
+                  '&.Mui-completed': {
+                    color: '#8B0000',
+                  },
+                  '&.Mui-active': {
+                    color: '#DC143C',
+                    filter: 'drop-shadow(0 2px 4px rgba(220, 20, 60, 0.3))',
+                  },
+                },
+              }}
+            >
+              {steps.map((step, index) => (
+                <Step key={step.label}>
+                  <StepLabel
+                    StepIconComponent={() => (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: index < applicationStep
+                            ? '#8B0000'
+                            : index === applicationStep
+                            ? '#DC143C'
+                            : 'grey.300',
+                          color: index <= applicationStep ? 'white' : 'grey.600',
+                          transition: 'all 0.3s ease',
+                          '& svg': { fontSize: 18 }
+                        }}
+                      >
+                        {step.icon}
+                      </Box>
+                    )}
+                    sx={{
+                      '& .MuiStepLabel-label': {
+                        fontWeight: 500,
+                        fontSize: '0.85rem',
+                      },
+                      '& .MuiStepLabel-label.Mui-active': {
+                        color: '#DC143C',
+                        fontWeight: 700,
+                      },
+                      '& .MuiStepLabel-label.Mui-completed': {
+                        color: '#8B0000',
+                        fontWeight: 600,
+                      },
+                    }}
+                  >
+                    {step.label}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+
+          {/* Step Content */}
+          <Box sx={{ mb: 4 }}>
+            {renderStepContent(applicationStep)}
+          </Box>
+
+          {/* Error Display */}
+          {Object.keys(errors).length > 0 && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              Please correct the errors above before proceeding.
+            </Alert>
+          )}
+
+          {/* Navigation Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+            <Button
+              onClick={handleBack}
+              disabled={applicationStep === 0}
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              sx={{
+                borderColor: 'rgba(220, 20, 60, 0.3)',
+                color: '#DC143C',
                 fontWeight: 600,
                 px: 3,
                 py: 1.5,
@@ -667,65 +565,129 @@ const MembershipApplicationPage: React.FC = () => {
                 fontSize: '1rem',
                 transition: 'all 0.3s ease',
                 '&:hover': {
-                  borderColor: 'rgba(0, 0, 0, 0.5)',
-                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  borderColor: '#DC143C',
+                  backgroundColor: 'rgba(220, 20, 60, 0.05)',
+                  transform: 'translateX(-3px)',
+                },
+                '&:disabled': {
+                  borderColor: 'rgba(0, 0, 0, 0.12)',
+                  color: 'rgba(0, 0, 0, 0.26)',
                 }
               }}
             >
-              Cancel
+              Back
             </Button>
 
-            <Button
-              variant="contained"
-              size="large"
-              onClick={handleNext}
-              disabled={submitApplicationMutation.isPending || isCheckingId}
-              startIcon={isCheckingId ? <CircularProgress size={20} color="inherit" /> : null}
-              endIcon={!isCheckingId && <ArrowForward />}
-              sx={{
-                background: applicationStep === steps.length - 1
-                  ? 'linear-gradient(135deg, #8B0000 0%, #6B0000 100%)'
-                  : 'linear-gradient(135deg, #DC143C 0%, #8B0000 100%)',
-                color: 'white',
-                fontWeight: 700,
-                px: 4,
-                py: 1.8,
-                textTransform: 'none',
-                borderRadius: 3,
-                fontSize: '1.05rem',
-                boxShadow: applicationStep === steps.length - 1
-                  ? '0 6px 20px rgba(139, 0, 0, 0.4)'
-                  : '0 6px 20px rgba(220, 20, 60, 0.4)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  resetApplication();
+                  navigate('/');
+                }}
+                sx={{
+                  borderColor: 'rgba(0, 0, 0, 0.23)',
+                  color: 'text.secondary',
+                  fontWeight: 600,
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    borderColor: 'rgba(0, 0, 0, 0.5)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleNext}
+                disabled={submitApplicationMutation.isPending || isCheckingId}
+                startIcon={isCheckingId ? <CircularProgress size={20} color="inherit" /> : null}
+                endIcon={!isCheckingId && <ArrowForward />}
+                sx={{
                   background: applicationStep === steps.length - 1
-                    ? 'linear-gradient(135deg, #6B0000 0%, #4B0000 100%)'
-                    : 'linear-gradient(135deg, #B01030 0%, #6B0000 100%)',
-                  transform: 'translateY(-3px)',
+                    ? 'linear-gradient(135deg, #8B0000 0%, #6B0000 100%)'
+                    : 'linear-gradient(135deg, #DC143C 0%, #8B0000 100%)',
+                  color: 'white',
+                  fontWeight: 700,
+                  px: 4,
+                  py: 1.8,
+                  textTransform: 'none',
+                  borderRadius: 3,
+                  fontSize: '1.05rem',
                   boxShadow: applicationStep === steps.length - 1
-                    ? '0 8px 28px rgba(139, 0, 0, 0.5)'
-                    : '0 8px 28px rgba(220, 20, 60, 0.5)',
-                },
-                '&:disabled': {
-                  background: 'rgba(0, 0, 0, 0.12)',
-                  color: 'rgba(0, 0, 0, 0.26)',
-                  boxShadow: 'none',
-                },
-              }}
-            >
-              {isCheckingId
-                ? 'Verifying ID...'
-                : applicationStep === steps.length - 1
-                ? (submitApplicationMutation.isPending ? 'Submitting...' : 'Submit Application')
-                : 'Next'
-              }
-            </Button>
+                    ? '0 6px 20px rgba(139, 0, 0, 0.4)'
+                    : '0 6px 20px rgba(220, 20, 60, 0.4)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: applicationStep === steps.length - 1
+                      ? 'linear-gradient(135deg, #6B0000 0%, #4B0000 100%)'
+                      : 'linear-gradient(135deg, #B01030 0%, #6B0000 100%)',
+                    transform: 'translateY(-3px)',
+                    boxShadow: applicationStep === steps.length - 1
+                      ? '0 8px 28px rgba(139, 0, 0, 0.5)'
+                      : '0 8px 28px rgba(220, 20, 60, 0.5)',
+                  },
+                  '&:disabled': {
+                    background: 'rgba(0, 0, 0, 0.12)',
+                    color: 'rgba(0, 0, 0, 0.26)',
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                {isCheckingId
+                  ? 'Verifying ID...'
+                  : applicationStep === steps.length - 1
+                  ? (submitApplicationMutation.isPending ? 'Submitting...' : 'Submit Application')
+                  : 'Next'
+                }
+              </Button>
+            </Box>
           </Box>
-        </Box>
-        </Paper>
-      </Container>
+          </Paper>
+        </Container>
+      </Box>
+
+      {/* Bottom Green Section (Footer) */}
+      <Box
+        sx={{
+          bgcolor: '#006030',
+          py: 4,
+          px: 2,
+          textAlign: 'center'
+        }}
+      >
+        <Typography
+          variant="h5"
+          sx={{
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontFamily: '"Poppins", sans-serif',
+            mb: 0.5
+          }}
+        >
+          Economic Freedom in our Lifetime
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'rgba(255,255,255,0.7)',
+            fontFamily: '"Poppins", sans-serif'
+          }}
+        >
+          @2026 Economic Freedom Fighters. All rights reserved
+        </Typography>
+      </Box>
     </Box>
   );
 };
 
 export default MembershipApplicationPage;
+

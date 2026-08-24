@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { LeadershipService } from '../services/leadershipService';
+import { LeadershipDirectoryService } from '../services/leadershipDirectoryService';
 import { LeadershipModel } from '../models/leadership';
 import { ElectionModel } from '../models/elections';
 import { ValidationError, NotFoundError, sendPaginatedSuccess } from '../middleware/errorHandler';
@@ -47,6 +48,17 @@ const terminateAppointmentSchema = Joi.object({
   termination_reason: Joi.string().min(10).max(500).required(),
   end_date: Joi.date().iso().optional()
 });
+
+const directoryIdParamSchema = Joi.number().integer().positive().required();
+
+// Validate a positive integer route parameter using Joi
+const validateDirectoryIdParam = (rawValue: string, label: string): number => {
+  const { error, value } = directoryIdParamSchema.validate(rawValue);
+  if (error) {
+    throw new ValidationError(`Invalid ${label}`);
+  }
+  return value as number;
+};
 
 // Get organizational structures
 router.get('/structures', async (req: Request, res: Response, next: NextFunction) => {
@@ -519,6 +531,157 @@ router.get('/dashboard', async (req: Request, res: Response, next: NextFunction)
       data: dashboard,
       timestamp: new Date().toISOString()
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== LEADERSHIP DIRECTORY & EXPORT ROUTES ====================
+// NOTE: These /directory/... routes are registered before parameterized routes
+// so they are not shadowed by catch-all path parameters.
+
+// Get CCT (Central Command Team) roster
+router.get('/directory/cct', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const roster = await LeadershipDirectoryService.getCCTRoster();
+
+    res.json({
+      success: true,
+      message: 'CCT leadership roster retrieved successfully',
+      data: { roster },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get PCT (Provincial Command Team) roster for a province
+router.get('/directory/pct/:provinceId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const provinceId = validateDirectoryIdParam(req.params.provinceId, 'province ID');
+    const { province, roster } = await LeadershipDirectoryService.getPCTRoster(provinceId);
+
+    res.json({
+      success: true,
+      message: 'PCT leadership roster retrieved successfully',
+      data: { province, roster },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get SRCT (Sub-Regional Command Team) roster for a municipality
+router.get('/directory/srct/:municipalityId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const municipalityId = validateDirectoryIdParam(req.params.municipalityId, 'municipality ID');
+    const { municipality, roster } = await LeadershipDirectoryService.getSRCTRoster(municipalityId);
+
+    res.json({
+      success: true,
+      message: 'SRCT leadership roster retrieved successfully',
+      data: { municipality, roster },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get BCT (Branch Command Team) rosters per ward for a municipality
+router.get('/directory/bct/:municipalityId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const municipalityId = validateDirectoryIdParam(req.params.municipalityId, 'municipality ID');
+    const { municipality, wards } = await LeadershipDirectoryService.getBCTRostersByMunicipality(municipalityId);
+
+    res.json({
+      success: true,
+      message: 'BCT leadership rosters retrieved successfully',
+      data: { municipality, wards },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get municipalities in a province with active SRCT appointments
+router.get('/directory/srct-municipalities/:provinceId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const provinceId = validateDirectoryIdParam(req.params.provinceId, 'province ID');
+    const includeWardLevel = req.query.level === 'bct';
+    const municipalities = await LeadershipDirectoryService.getMunicipalitiesWithSRCT(provinceId, includeWardLevel);
+
+    res.json({
+      success: true,
+      message: 'Municipalities with SRCT appointments retrieved successfully',
+      data: { municipalities },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Export CCT roster as Excel
+router.get('/directory/export/cct', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const buffer = await LeadershipDirectoryService.buildCCTWorkbook();
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="CCT_Leadership_${dateStr}.xlsx"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Export provincial (PCT + SRCT) rosters as Excel
+router.get('/directory/export/pct/:provinceId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const provinceId = validateDirectoryIdParam(req.params.provinceId, 'province ID');
+    const province = await LeadershipDirectoryService.getProvince(provinceId);
+    const buffer = await LeadershipDirectoryService.buildProvincialWorkbook(provinceId);
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="PCT_${province.province_code}_${dateStr}.xlsx"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Export SRCT roster as Excel
+router.get('/directory/export/srct/:municipalityId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const municipalityId = validateDirectoryIdParam(req.params.municipalityId, 'municipality ID');
+    const municipality = await LeadershipDirectoryService.getMunicipality(municipalityId);
+    const buffer = await LeadershipDirectoryService.buildSRCTWorkbook(municipalityId);
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="SRCT_${municipality.municipality_code}_${dateStr}.xlsx"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Export BCT rosters as Excel (one sheet per ward)
+router.get('/directory/export/bct/:municipalityId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const municipalityId = validateDirectoryIdParam(req.params.municipalityId, 'municipality ID');
+    const municipality = await LeadershipDirectoryService.getMunicipality(municipalityId);
+    const buffer = await LeadershipDirectoryService.buildBCTWorkbook(municipalityId);
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="BCT_${municipality.municipality_code}_${dateStr}.xlsx"`);
+    res.send(buffer);
   } catch (error) {
     next(error);
   }

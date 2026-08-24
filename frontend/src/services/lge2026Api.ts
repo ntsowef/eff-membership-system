@@ -136,6 +136,79 @@ export const lge2026Api = {
       throw new Error(error.response?.data?.message || 'Failed to export candidates');
     }
   },
+
+  /**
+   * Upload CV and/or IEC Form C2 for an existing candidate.
+   */
+  uploadCandidateDocuments: async (
+    candidateId: number,
+    cvFile?: File,
+    iecFormC2File?: File,
+  ): Promise<Lge2026Candidate> => {
+    try {
+      const formData = new FormData();
+      if (cvFile) formData.append('candidate_cv', cvFile);
+      if (iecFormC2File) formData.append('iec_form_c2', iecFormC2File);
+
+      const res = await api.post(`/lge2026/candidate/${candidateId}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return unwrap<Lge2026Candidate>(res);
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to upload candidate documents'
+      );
+    }
+  },
+
+  /**
+   * Download a candidate document (cv or iec_form_c2).
+   */
+  downloadCandidateDocument: async (
+    candidateId: number,
+    docType: 'cv' | 'iec_form_c2',
+  ): Promise<void> => {
+    try {
+      const res = await api.get(`/lge2026/candidate/${candidateId}/document/${docType}`, {
+        responseType: 'blob',
+      });
+      const disposition = res.headers['content-disposition'];
+      let filename = `candidate_${candidateId}_${docType}`;
+      if (disposition) {
+        const match = disposition.match(/filename="?(.+)"?/i);
+        if (match) filename = match[1];
+      }
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to download candidate document'
+      );
+    }
+  },
+
+  /**
+   * Update a candidate's personal details (name, phone, email) in members_consolidated.
+   */
+  updateMemberDetails: async (
+    candidateId: number,
+    data: { firstname: string; surname: string; cell_number: string; email: string }
+  ): Promise<Lge2026Candidate> => {
+    try {
+      const res = await api.patch(`/lge2026/candidate/${candidateId}/member-details`, data);
+      return unwrap<Lge2026Candidate>(res);
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to update member details'
+      );
+    }
+  },
 };
 
 export default lge2026Api;

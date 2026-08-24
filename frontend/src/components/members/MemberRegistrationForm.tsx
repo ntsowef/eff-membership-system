@@ -591,8 +591,8 @@ const MemberRegistrationForm: React.FC = () => {
               handleChange('municipality_code', '');
               handleChange('ward_code', '');
             }}
-            disabled={!isNationalAdmin}
-            helperText={!isNationalAdmin ? 'Restricted to your assigned province' : ''}
+            disabled={!isNationalAdmin && !isProvinceAdmin}
+            helperText={!isNationalAdmin && !isProvinceAdmin ? 'Restricted to your assigned province' : ''}
           >
             <MenuItem value="">
               <em>Select Province</em>

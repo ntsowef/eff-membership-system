@@ -4,7 +4,8 @@
   "description": "EFF Membership Management System",
   "scripts": {
     "test:sms": "node test/sms/test-json-applink-sms.js",
-    "test:sms:ts": "ts-node test/sms/test-json-applink-sms.ts"
+    "test:sms:ts": "ts-node test/sms/test-json-applink-sms.ts",
+    "ingest:lge-audit": "ts-node scripts/ingest-lge-audit-report.ts"
   },
   "dependencies": {
     "@types/node": "^24.10.1",

@@ -11,6 +11,10 @@ export class MembershipRenewalSMSJob {
      * Prioritises recently expired members first.
      */
     static start() {
+        // ⛔ DISABLED: Membership expiry SMS sending is disabled as of 2026-08-14
+        logger.info('MembershipRenewalSMSJob is DISABLED. Skipping start.');
+        return;
+
         if (this.job) {
             logger.warn('MembershipRenewalSMSJob is already running.');
             return;

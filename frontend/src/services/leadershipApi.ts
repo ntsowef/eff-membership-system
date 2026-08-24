@@ -186,6 +186,36 @@ export interface WarCouncilValidation {
   errors: string[];
 }
 
+// Leadership Directory interfaces
+export interface DirectoryRosterRow {
+  position_id: number;
+  position_name: string;
+  position_code: string;
+  position_order: number;
+  position_category: string | null;
+  section: string;
+  member_id: number;
+  member_name: string;
+  id_number: string | null;
+  membership_number: string | null;
+  cell_number: string | null;
+  email: string | null;
+  start_date: string;
+  appointment_status: string;
+  province_name?: string | null;
+  municipality_name?: string | null;
+  ward_code?: string | null;
+  ward_name?: string | null;
+}
+
+export interface DirectoryWard {
+  ward_id: number;
+  ward_code: string;
+  ward_number: number | null;
+  ward_name: string | null;
+  roster: DirectoryRosterRow[];
+}
+
 // =====================================================
 // Leadership API Service Class
 // =====================================================
@@ -576,6 +606,104 @@ export class LeadershipAPI {
       return response.data.data.wards ?? response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch wards: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  // ==================== LEADERSHIP DIRECTORY ====================
+
+  /**
+   * Get National (CCT) leadership directory
+   */
+  static async getCCTDirectory(): Promise<DirectoryRosterRow[]> {
+    try {
+      const response = await api.get('/leadership/directory/cct');
+      return response.data.data.roster;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch CCT directory: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Get Provincial (PCT) leadership directory
+   */
+  static async getPCTDirectory(provinceId: number): Promise<{ province: any; roster: DirectoryRosterRow[] }> {
+    try {
+      const response = await api.get(`/leadership/directory/pct/${provinceId}`);
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch PCT directory: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Get Municipality (SRCT) leadership directory
+   */
+  static async getSRCTDirectory(municipalityId: number): Promise<{ municipality: any; roster: DirectoryRosterRow[] }> {
+    try {
+      const response = await api.get(`/leadership/directory/srct/${municipalityId}`);
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch SRCT directory: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Get Branch (BCT) leadership directory grouped by ward
+   */
+  static async getBCTDirectory(municipalityId: number): Promise<{ municipality: any; wards: DirectoryWard[] }> {
+    try {
+      const response = await api.get(`/leadership/directory/bct/${municipalityId}`);
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch BCT directory: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Get municipalities with SRCT data for a province
+   */
+  static async getSRCTMunicipalities(provinceId: number, level?: string): Promise<any[]> {
+    try {
+      const params = level ? `?level=${level}` : '';
+      const response = await api.get(`/leadership/directory/srct-municipalities/${provinceId}${params}`);
+      const data = response.data.data;
+      return Array.isArray(data) ? data : (data?.municipalities || []);
+    } catch (error: any) {
+      throw new Error(`Failed to fetch SRCT municipalities: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Download leadership directory Excel export and trigger a browser download
+   */
+  static async downloadDirectoryExport(kind: 'cct' | 'pct' | 'srct' | 'bct', entityId?: number): Promise<void> {
+    try {
+      const url = kind === 'cct'
+        ? '/leadership/directory/export/cct'
+        : `/leadership/directory/export/${kind}/${entityId}`;
+
+      const response = await api.get(url, { responseType: 'blob' });
+
+      // Prefer filename from Content-Disposition header, fall back to a sensible default
+      let filename = `${kind.toUpperCase()}_Leadership_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const disposition = response.headers?.['content-disposition'];
+      if (typeof disposition === 'string') {
+        const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+        if (match?.[1]) {
+          filename = decodeURIComponent(match[1]);
+        }
+      }
+
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error: any) {
+      throw new Error(`Failed to download directory export: ${error.response?.data?.message || error.message}`);
     }
   }
 

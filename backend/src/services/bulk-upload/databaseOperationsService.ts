@@ -81,6 +81,12 @@ export class DatabaseOperationsService {
         // Check if this person is deceased (IEC voter_status contains 'DECEASED')
         const isDeceased = (iecResult.voter_status?.toUpperCase() || '').includes('DECEASED');
 
+        // Whether we have an AUTHORITATIVE IEC result for this ID (present in the
+        // iecResults map and free of verification errors). Shared by insert,
+        // update and renewal paths so that an unavailable/failed IEC result never
+        // overwrites existing voter data.
+        const wasVerifiedByIec = iecResults.has(record['ID Number']) && !iecResult.error;
+
         if (type === 'insert') {
           // SKIP new member inserts for deceased voters - they cannot be new members
           if (isDeceased) {
@@ -98,11 +104,10 @@ export class DatabaseOperationsService {
           }
 
           // SKIP new member inserts for people IEC verified as NOT registered to vote.
-          // Only skip when we have an authoritative IEC result for this ID (present
-          // in iecResults map and free of verification errors). Unverified records
-          // (IEC disabled, rate-limited, or verification error) are still inserted
-          // with special VD codes, matching existing behavior.
-          const wasVerifiedByIec = iecResults.has(record['ID Number']) && !iecResult.error;
+          // Only skip when we have an authoritative IEC result for this ID (see
+          // wasVerifiedByIec above). Unverified records (IEC disabled, rate-limited,
+          // or verification error) are still inserted with special VD codes, matching
+          // existing behavior.
           const vdCode = iecResult.voting_district_code ? String(iecResult.voting_district_code).trim() : '';
           const isNotRegisteredToVote = wasVerifiedByIec &&
             (iecResult.is_registered === false || vdCode === '99999999' || vdCode === '999999999');
@@ -127,7 +132,7 @@ export class DatabaseOperationsService {
           }
         } else if (type === 'renewal') {
           const renewalRecord = record as RenewalRecord;
-          const result = await this.processRenewal(client, renewalRecord);
+          const result = await this.processRenewal(client, renewalRecord, iecResult, wasVerifiedByIec);
           memberId = result.memberId;
           renewalClassification = renewalRecord.renewal_classification;
           previousExpiryDate = renewalRecord.db_expiry_date;
@@ -755,7 +760,9 @@ export class DatabaseOperationsService {
    */
   private async processRenewal(
     client: any,
-    record: RenewalRecord
+    record: RenewalRecord,
+    iecResult: IECVerificationResult,
+    wasVerifiedByIec: boolean
   ): Promise<{ memberId: number | null; updated: boolean }> {
     const memberId = record.existing_member_id;
 
@@ -774,21 +781,67 @@ export class DatabaseOperationsService {
       newExpiryDate = record.excel_expiry_date;
     }
 
-    // Always set membership_status_id to 1 (Active/Good Standing) for renewals
-    const membershipStatusId = 1;
-
     // Always set subscription_type_id to 7 (Renewal) for renewal records
     const subscriptionTypeId = 7;
+
+    // ------------------------------------------------------------------
+    // IEC / geographic application for renewals
+    // ------------------------------------------------------------------
+    // Renewals now apply IEC verification just like standard updates so a
+    // member's ward/voter data can be corrected at renewal time (previously
+    // renewals preserved the existing ward and skipped IEC entirely). Ward
+    // priority: file value first, then the IEC-verified ward. IEC-derived voter
+    // fields are only applied when we have an authoritative IEC result
+    // (wasVerifiedByIec); otherwise null is passed and COALESCE preserves the
+    // existing data so an unavailable IEC result never wipes a member's
+    // ward/registration.
+    const fileWard = (record.Ward !== undefined && record.Ward !== null && String(record.Ward).trim() !== '')
+      ? String(record.Ward).trim()
+      : null;
+    const iecWard = (wasVerifiedByIec && iecResult.ward_code) ? String(iecResult.ward_code) : null;
+    const wardCode = fileWard || iecWard; // null => COALESCE preserves existing ward
+
+    const votingDistrictCode = wasVerifiedByIec ? (iecResult.voting_district_code || null) : null;
+    const provinceCode = wasVerifiedByIec ? (iecResult.province_code || null) : null;
+    const municipalityCode = wasVerifiedByIec ? (iecResult.municipality_code || null) : null;
+
+    // Geographic names come from the file (preserved by COALESCE when absent)
+    const provinceName = record.Province || null;
+    const municipalityName = record.Municipality || null;
+
+    // Only derive voter_status_id when the file actually supplies a Status,
+    // otherwise preserve the existing value (getVoterStatusId defaults to 1).
+    const voterStatusId = (record.Status !== undefined && record.Status !== null && String(record.Status).trim() !== '')
+      ? this.lookupService.getVoterStatusId(record.Status)
+      : null;
+
+    // Voter registration tracking (migration 011) - only when authoritatively verified
+    let voterRegistrationId: number | null = null;
+    let isRegisteredVoter: boolean | null = null;
+    let lastVoterVerificationDate: Date | null = null;
+    if (wasVerifiedByIec) {
+      const voterRegStatus = this.lookupService.getVoterRegistrationStatus(votingDistrictCode);
+      voterRegistrationId = voterRegStatus.voterRegistrationId;
+      isRegisteredVoter = voterRegStatus.isRegisteredVoter;
+      lastVoterVerificationDate = new Date();
+    }
+
+    // Membership status: Active (1) for renewals, Inactive (6) if IEC flags deceased
+    let membershipStatusId = 1;
+    if (wasVerifiedByIec && votingDistrictCode === '11111111') {
+      membershipStatusId = 6;
+    }
 
     console.log(`      Processing renewal for member ${memberId}:`);
     console.log(`      Previous expiry: ${record.db_expiry_date?.toISOString().split('T')[0] || 'N/A'}`);
     console.log(`      New expiry: ${newExpiryDate?.toISOString().split('T')[0] || 'N/A'} (calculated: last_payment_date + 2 years)`);
     console.log(`      Classification: ${record.renewal_classification}`);
     console.log(`      Setting subscription_type_id: ${subscriptionTypeId} (Renewal)`);
-    console.log(`      Setting membership_status_id: ${membershipStatusId} (Active)`);
+    console.log(`      Setting membership_status_id: ${membershipStatusId} (${membershipStatusId === 1 ? 'Active' : 'Inactive - Deceased'})`);
+    console.log(`      IEC verified: ${wasVerifiedByIec ? 'yes' : 'no'} | ward -> ${wardCode || '(unchanged)'} | VD -> ${votingDistrictCode || '(unchanged)'}`);
 
-    // Build UPDATE query for renewal-specific fields only
-    // Now includes subscription_type_id to mark as renewal
+    // Build UPDATE query for renewal fields + IEC/geographic fields.
+    // COALESCE preserves existing values when a parameter is null.
     const query = `
       UPDATE members_consolidated
       SET
@@ -797,17 +850,37 @@ export class DatabaseOperationsService {
         membership_status_id = $3,
         membership_amount = COALESCE($4, membership_amount),
         subscription_type_id = $5,
+        ward_code = COALESCE($6, ward_code),
+        voting_district_code = COALESCE($7, voting_district_code),
+        voter_status_id = COALESCE($8, voter_status_id),
+        province_name = COALESCE($9, province_name),
+        province_code = COALESCE($10, province_code),
+        municipality_name = COALESCE($11, municipality_name),
+        municipality_code = COALESCE($12, municipality_code),
+        voter_registration_id = COALESCE($13, voter_registration_id),
+        is_registered_voter = COALESCE($14, is_registered_voter),
+        last_voter_verification_date = COALESCE($15, last_voter_verification_date),
         updated_at = NOW()
-      WHERE member_id = $6
+      WHERE member_id = $16
     `;
 
     const params = [
-      newExpiryDate,          // $1: expiry_date
-      lastPaymentDate,        // $2: last_payment_date
-      membershipStatusId,     // $3: membership_status_id
-      membershipAmount,       // $4: membership_amount
-      subscriptionTypeId,     // $5: subscription_type_id (7 = Renewal)
-      memberId                // $6: member_id
+      newExpiryDate,             // $1: expiry_date
+      lastPaymentDate,           // $2: last_payment_date
+      membershipStatusId,        // $3: membership_status_id
+      membershipAmount,          // $4: membership_amount
+      subscriptionTypeId,        // $5: subscription_type_id (7 = Renewal)
+      wardCode,                  // $6: ward_code (file > IEC > unchanged)
+      votingDistrictCode,        // $7: voting_district_code (IEC)
+      voterStatusId,             // $8: voter_status_id (file Status)
+      provinceName,              // $9: province_name (file)
+      provinceCode,              // $10: province_code (IEC)
+      municipalityName,          // $11: municipality_name (file)
+      municipalityCode,          // $12: municipality_code (IEC)
+      voterRegistrationId,       // $13: voter_registration_id
+      isRegisteredVoter,         // $14: is_registered_voter
+      lastVoterVerificationDate, // $15: last_voter_verification_date
+      memberId                   // $16: member_id
     ];
 
     const result = await client.query(query, params);

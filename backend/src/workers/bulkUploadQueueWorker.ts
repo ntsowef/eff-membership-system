@@ -253,60 +253,8 @@ export function initializeBulkUploadWorker(): void {
         failures: result.database_operations.operation_stats.failures
       });
 
-      // Send email notification to the user who uploaded the file
-      if (userEmail) {
-        try {
-          const processingSeconds = (result.processing_duration_ms / 1000).toFixed(2);
-          const processingDuration = result.processing_duration_ms > 60000
-            ? `${Math.floor(result.processing_duration_ms / 60000)}m ${Math.round((result.processing_duration_ms % 60000) / 1000)}s`
-            : `${processingSeconds}s`;
-
-          // Map failed operations to the expected email error format
-          const emailErrors = result.database_operations.failed_operations?.slice(0, 20).map((op, index) => ({
-            row: index + 1, // Use index as row number since DatabaseOperationResult doesn't have row
-            id_number: op.id_number,
-            error: op.error || 'Unknown error'
-          }));
-
-          // Collect all attachment paths (report + attendance registers)
-          const attachmentPaths: string[] = [];
-          if (result.report_path) {
-            attachmentPaths.push(result.report_path);
-          }
-          if (result.attendance_register_paths && result.attendance_register_paths.length > 0) {
-            attachmentPaths.push(...result.attendance_register_paths);
-          }
-
-          console.log(`📎 Preparing email with ${attachmentPaths.length} attachment(s)`);
-
-          const emailSent = await emailService.sendBulkUploadCompletionEmail(
-            userEmail,
-            uploadedBy,
-            fileName,
-            {
-              totalRecords: result.database_operations.operation_stats.total_records,
-              successfulRecords: result.database_operations.operation_stats.inserts + result.database_operations.operation_stats.updates,
-              failedRecords: result.database_operations.operation_stats.failures,
-              duplicates: result.validation.validation_stats.duplicates || 0,
-              processingDuration,
-              reportPath: result.report_path
-            },
-            emailErrors,
-            attachmentPaths // Include report and attendance registers as attachments
-          );
-
-          if (emailSent) {
-            console.log(`📧 Email notification sent to ${userEmail}`);
-          } else {
-            console.warn(`⚠️ Failed to send email notification to ${userEmail}`);
-          }
-        } catch (emailError: any) {
-          console.error(`❌ Error sending email notification: ${emailError.message}`);
-          // Don't fail the job if email fails
-        }
-      } else {
-        console.log(`📧 No user email provided, skipping email notification`);
-      }
+      // Email notifications with attachments disabled per business request
+      console.log(`📧 Bulk upload completion email disabled - skipping email to ${userEmail || 'N/A'}`);
 
       // Clean up uploaded file
       if (fs.existsSync(filePath)) {

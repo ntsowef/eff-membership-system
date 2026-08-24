@@ -15,7 +15,17 @@ export class WebSocketService {
         methods: ["GET", "POST"],
         credentials: true
       },
-      path: '/socket.io'
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+      // Tolerate event-loop blocking during heavy file/PDF generation without
+      // dropping clients (defaults: pingInterval 25s / pingTimeout 20s)
+      pingInterval: 25000,
+      pingTimeout: 60000,
+      // Allow clients to recover rooms/state after short disconnections
+      // (e.g. transport upgrade, proxy hiccup) without losing events
+      connectionStateRecovery: {
+        maxDisconnectionDuration: 2 * 60 * 1000
+      }
     });
 
     this.io.use(this.authenticateSocket);
@@ -355,11 +365,9 @@ export class WebSocketService {
         timestamp: new Date().toISOString()
       };
 
-      // Send to specific file room
-      this.io.to('bulk_upload:' + file_id).emit('bulk_upload_complete', payload);
-
-      // Also send to general bulk_upload room for clients not subscribed to specific file
-      this.io.to('bulk_upload').emit('bulk_upload_complete', payload);
+      // Send to specific file room and general room with delivery tracking
+      this.emitWithDeliveryTracking('bulk_upload:' + file_id, 'bulk_upload_complete', payload);
+      this.emitWithDeliveryTracking('bulk_upload', 'bulk_upload_complete', payload);
 
       console.log('✅ Sent bulk_upload_complete for file ' + file_id + ' to rooms: bulk_upload:' + file_id + ', bulk_upload');
     }
@@ -376,11 +384,9 @@ export class WebSocketService {
         timestamp: new Date().toISOString()
       };
 
-      // Send to specific file room
-      this.io.to('bulk_upload:' + file_id).emit('bulk_upload_error', payload);
-
-      // Also send to general bulk_upload room for clients not subscribed to specific file
-      this.io.to('bulk_upload').emit('bulk_upload_error', payload);
+      // Send to specific file room and general room with delivery tracking
+      this.emitWithDeliveryTracking('bulk_upload:' + file_id, 'bulk_upload_error', payload);
+      this.emitWithDeliveryTracking('bulk_upload', 'bulk_upload_error', payload);
 
       console.log('❌ Sent bulk_upload_error for file ' + file_id + ' to rooms: bulk_upload:' + file_id + ', bulk_upload');
     }
@@ -514,11 +520,9 @@ export class WebSocketService {
         timestamp: new Date().toISOString()
       };
 
-      // Send to user-specific room
-      this.io.to('user:' + userId).emit('bulk_upload_complete', payload);
-
-      // Send to job-specific room
-      this.io.to('bulk_upload_job:' + jobId).emit('bulk_upload_complete', payload);
+      // Send to user-specific and job-specific rooms with delivery tracking
+      this.emitWithDeliveryTracking('user:' + userId, 'bulk_upload_complete', payload);
+      this.emitWithDeliveryTracking('bulk_upload_job:' + jobId, 'bulk_upload_complete', payload);
 
       console.log('✅ Sent bulk_upload_complete for job ' + jobId + ': ' + data.status + ' (' + data.processing_duration_ms + 'ms)');
     }
@@ -540,14 +544,80 @@ export class WebSocketService {
         timestamp: new Date().toISOString()
       };
 
-      // Send to user-specific room
-      this.io.to('user:' + userId).emit('bulk_upload_failed', payload);
-
-      // Send to job-specific room
-      this.io.to('bulk_upload_job:' + jobId).emit('bulk_upload_failed', payload);
+      // Send to user-specific and job-specific rooms with delivery tracking
+      this.emitWithDeliveryTracking('user:' + userId, 'bulk_upload_failed', payload);
+      this.emitWithDeliveryTracking('bulk_upload_job:' + jobId, 'bulk_upload_failed', payload);
 
       console.log('❌ Sent bulk_upload_failed for job ' + jobId + ': ' + data.error);
     }
+  }
+
+  /**
+   * Notify a user that a generated report/file is ready (download/email)
+   */
+  static sendReportReady(userId: number | string, data: {
+    report_type: string;
+    filename?: string;
+    message?: string;
+  }): void {
+    if (this.io) {
+      const payload = {
+        ...data,
+        status: 'ready',
+        timestamp: new Date().toISOString()
+      };
+      this.emitWithDeliveryTracking('user:' + userId, 'report_ready', payload);
+    }
+  }
+
+  /**
+   * Notify a user that a background report/file generation process failed
+   * so the UI can exit its loading state
+   */
+  static sendReportFailed(userId: number | string, data: {
+    report_type: string;
+    error: string;
+    filename?: string;
+  }): void {
+    if (this.io) {
+      const payload = {
+        ...data,
+        status: 'failed',
+        timestamp: new Date().toISOString()
+      };
+      this.emitWithDeliveryTracking('user:' + userId, 'report_failed', payload);
+    }
+  }
+
+  /**
+   * Get number of sockets currently joined to a room
+   */
+  private static getRoomSize(room: string): number {
+    return this.io?.sockets.adapter.rooms.get(room)?.size || 0;
+  }
+
+  /**
+   * Emit an event to a room with delivery tracking:
+   * logs when the event is emitted (with room occupancy) and when clients acknowledge receipt
+   */
+  private static emitWithDeliveryTracking(room: string, event: string, payload: any): void {
+    if (!this.io) return;
+
+    const roomSize = this.getRoomSize(room);
+    console.log('📤 [WS-EMIT] event=' + event + ' room=' + room + ' clientsInRoom=' + roomSize);
+
+    if (roomSize === 0) {
+      console.warn('⚠️ [WS-EMIT] No clients in room ' + room + ' - event ' + event + ' has no recipients');
+    }
+
+    this.io.to(room).timeout(10000).emit(event, payload, (err: Error | null, responses: any[]) => {
+      const ackCount = responses?.length || 0;
+      if (err) {
+        console.warn('⚠️ [WS-ACK] event=' + event + ' room=' + room + ' - not all clients acknowledged within 10s (' + ackCount + '/' + roomSize + ' acks)');
+      } else {
+        console.log('✅ [WS-ACK] event=' + event + ' room=' + room + ' acknowledged by ' + ackCount + ' client(s)');
+      }
+    });
   }
 
   /**

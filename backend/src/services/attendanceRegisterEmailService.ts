@@ -3,6 +3,7 @@ import * as path from 'path';
 import { WordToPdfService } from './wordToPdfService';
 import { HtmlPdfService } from './htmlPdfService';
 import { EmailService } from './emailService';
+import { WebSocketService } from './websocketService';
 
 interface WardInfo {
   ward_code: string;
@@ -19,6 +20,7 @@ interface WardInfo {
 interface AttendanceRegisterEmailOptions {
   userEmail: string;
   userName: string;
+  userId?: number;
   wordBuffer: Buffer;
   wardInfo: WardInfo;
   memberCount: number;
@@ -35,7 +37,7 @@ export class AttendanceRegisterEmailService {
   static async processAttendanceRegisterEmail(
     options: AttendanceRegisterEmailOptions
   ): Promise<void> {
-    const { userEmail, userName, wordBuffer, wardInfo, memberCount } = options;
+    const { userEmail, userName, userId, wordBuffer, wardInfo, memberCount } = options;
     
     let pdfFilePath: string | null = null;
 
@@ -87,8 +89,10 @@ export class AttendanceRegisterEmailService {
 
       if (emailSent) {
         console.log(`✅ Email sent successfully to ${userEmail}`);
+        this.notifyReportStatus(userId, 'ready', wardInfo);
       } else {
         console.warn(`⚠️ Email sending failed for ${userEmail}`);
+        this.notifyReportStatus(userId, 'failed', wardInfo, 'Email sending failed');
       }
 
       // Step 4: Schedule cleanup after 24 hours
@@ -102,6 +106,9 @@ export class AttendanceRegisterEmailService {
         userEmail,
         wardCode: wardInfo.ward_code
       });
+
+      // Notify the frontend so the UI doesn't remain in a loading state
+      this.notifyReportStatus(userId, 'failed', wardInfo, error.message || 'PDF generation failed');
 
       // Clean up immediately on error
       if (pdfFilePath && fs.existsSync(pdfFilePath)) {
@@ -238,6 +245,39 @@ This is an automated message. Please do not reply to this email.
   }
 
   /**
+   * Send report_ready/report_failed WebSocket notification to the requesting user
+   * so the frontend can exit its loading state even if the background process fails
+   */
+  private static notifyReportStatus(
+    userId: number | undefined,
+    status: 'ready' | 'failed',
+    wardInfo: WardInfo,
+    error?: string
+  ): void {
+    if (userId === undefined || userId === null || !WebSocketService.isInitialized()) {
+      return;
+    }
+
+    const wardLabel = wardInfo.ward_number || wardInfo.ward_code;
+
+    try {
+      if (status === 'ready') {
+        WebSocketService.sendReportReady(userId, {
+          report_type: 'attendance_register',
+          message: `Attendance register for Ward ${wardLabel} has been emailed to you`
+        });
+      } else {
+        WebSocketService.sendReportFailed(userId, {
+          report_type: 'attendance_register',
+          error: error || `Attendance register generation failed for Ward ${wardLabel}`
+        });
+      }
+    } catch (notifyError) {
+      console.warn('⚠️ Failed to send report status WebSocket notification:', notifyError);
+    }
+  }
+
+  /**
    * Schedule cleanup of temporary PDF file after specified delay
    */
   private static scheduleCleanup(filePath: string, delayMs: number): void {
@@ -261,11 +301,12 @@ This is an automated message. Please do not reply to this email.
   static async processAttendanceRegisterEmailWithBuffer(options: {
     userEmail: string;
     userName: string;
+    userId?: number;
     pdfBuffer: Buffer;
     wardInfo: WardInfo;
     memberCount: number;
   }): Promise<void> {
-    const { userEmail, userName, pdfBuffer, wardInfo, memberCount } = options;
+    const { userEmail, userName, userId, pdfBuffer, wardInfo, memberCount } = options;
 
     let pdfFilePath: string | null = null;
 
@@ -324,6 +365,7 @@ This is an automated message. Please do not reply to this email.
       });
 
       console.log(`✅ Email sent successfully to ${userEmail}`);
+      this.notifyReportStatus(userId, 'ready', wardInfo);
 
       // Step 3: Schedule file cleanup after 24 hours
       setTimeout(() => {
@@ -337,8 +379,11 @@ This is an automated message. Please do not reply to this email.
         }
       }, 24 * 60 * 60 * 1000); // 24 hours
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error in PDF email process:', error);
+
+      // Notify the frontend so the UI doesn't remain in a loading state
+      this.notifyReportStatus(userId, 'failed', wardInfo, error.message || 'PDF email process failed');
 
       // Clean up file if it exists
       if (pdfFilePath && fs.existsSync(pdfFilePath)) {
@@ -362,10 +407,11 @@ This is an automated message. Please do not reply to this email.
   static async processAttendanceRegisterEmailFromHtml(options: {
     userEmail: string;
     userName: string;
+    userId?: number;
     wardInfo: WardInfo;
     members: any[];
   }): Promise<void> {
-    const { userEmail, userName, wardInfo, members } = options;
+    const { userEmail, userName, userId, wardInfo, members } = options;
 
     let pdfFilePath: string | null = null;
 
@@ -417,8 +463,10 @@ This is an automated message. Please do not reply to this email.
 
       if (emailSent) {
         console.log(`✅ Email sent successfully to ${userEmail}`);
+        this.notifyReportStatus(userId, 'ready', wardInfo);
       } else {
         console.warn(`⚠️ Email sending failed for ${userEmail}`);
+        this.notifyReportStatus(userId, 'failed', wardInfo, 'Email sending failed');
       }
 
       // Step 4: Schedule cleanup after 24 hours
@@ -426,8 +474,11 @@ This is an automated message. Please do not reply to this email.
       this.scheduleCleanup(pdfFilePath, 24 * 60 * 60 * 1000); // 24 hours
 
       console.log(`✅ Background email process completed successfully for ${userEmail}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Background email process failed for ${userEmail}:`, error);
+
+      // Notify the frontend so the UI doesn't remain in a loading state
+      this.notifyReportStatus(userId, 'failed', wardInfo, error.message || 'PDF generation failed');
 
       // Clean up temporary file if it exists
       if (pdfFilePath && fs.existsSync(pdfFilePath)) {

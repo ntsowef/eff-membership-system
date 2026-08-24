@@ -1140,6 +1140,8 @@ router.get('/subregion/:municipalityCode/download',
 
 // Download ward members as Excel
 router.get('/ward/:wardCode/download',
+  authenticate,
+  requirePermission('members.read'),
   validate({
     params: commonSchemas.wardCode,
     query: Joi.object({
@@ -2900,6 +2902,7 @@ router.get('/ward/:wardCode/audit-export',
         emailData?: {
           userEmail: string;
           userName: string;
+          userId?: number;
           wordBuffer?: Buffer;
           pdfBuffer?: Buffer;
           wardInfo: any;
@@ -2935,6 +2938,7 @@ router.get('/ward/:wardCode/audit-export',
           emailData: req.user?.email ? {
             userEmail: req.user.email,
             userName: req.user.name || req.user.email,
+            userId: req.user.id,
             wordBuffer: wordBuffer,
             wardInfo: wardInfo,
             memberCount: members.length
@@ -2970,6 +2974,7 @@ router.get('/ward/:wardCode/audit-export',
           emailData: req.user?.email ? {
             userEmail: req.user.email,
             userName: req.user.name || req.user.email,
+            userId: req.user.id,
             pdfBuffer: pdfBuffer,
             wardInfo: wardInfo,
             memberCount: members.length

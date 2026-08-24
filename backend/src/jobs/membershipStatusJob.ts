@@ -16,6 +16,8 @@
 import * as cron from 'node-cron';
 import { executeQuery } from '../config/database';
 import logger from '../utils/logger';
+import { MembershipApplicationModel } from '../models/membershipApplications';
+import { MembershipApprovalService } from '../services/membershipApprovalService';
 
 interface StatusUpdateResult {
   updated: number;
@@ -172,6 +174,9 @@ export class MembershipStatusJob {
         result.details.to_expired +
         result.details.to_inactive;
 
+      // Auto-heal / reconcile any approved applications missing from members_consolidated
+      await this.reconcileApprovedApplications();
+
     } catch (error) {
       logger.error('Error updating membership statuses:', { error });
       result.errors++;
@@ -179,6 +184,38 @@ export class MembershipStatusJob {
     }
 
     return result;
+  }
+
+  /**
+   * Fail-safe auto-reconciliation: checks for any approved applications missing in members_consolidated
+   */
+  private static async reconcileApprovedApplications(): Promise<void> {
+    try {
+      const unSyncedApps = await executeQuery<{ application_id: number }>(`
+        SELECT ma.application_id
+        FROM membership_applications ma
+        LEFT JOIN members_consolidated mc ON ma.id_number = mc.id_number
+        WHERE LOWER(ma.status) = 'approved'
+          AND mc.member_id IS NULL
+      `);
+
+      if (unSyncedApps && unSyncedApps.length > 0) {
+        logger.warn(`⚠️ [AUTO-HEAL] Found ${unSyncedApps.length} approved application(s) missing in members_consolidated. Auto-syncing...`);
+        for (const app of unSyncedApps) {
+          try {
+            const fullApp = await MembershipApplicationModel.getApplicationById(app.application_id);
+            if (fullApp) {
+              await MembershipApprovalService.createMemberWithMembershipFromApplication(fullApp);
+              logger.info(`✅ [AUTO-HEAL SUCCESS] Auto-synced approved application #${app.application_id} to members_consolidated`);
+            }
+          } catch (err) {
+            logger.error(`❌ [AUTO-HEAL ERROR] Failed auto-sync for application #${app.application_id}:`, { err });
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Error during approved applications reconciliation:', { error });
+    }
   }
 }
 
