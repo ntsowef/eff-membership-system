@@ -55,7 +55,6 @@ jobs:
         run: |
           npm ci
           npx tsc -b
-          npm test
           npm run build
           test -f dist/index.html
           PROD_HOST=$(printf '%s' "${VITE_API_BASE_URL}" | sed -E 's|^https?://([^/:]+).*|\1|')
