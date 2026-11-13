@@ -66,6 +66,9 @@ jobs:
       - name: Validate GitHub Actions YAML & SQL Migration Governance
         shell: bash
         run: |
+          if ! python3 -c "import yaml" 2>/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml
+          fi
           python3 - <<'PY'
           import glob, os, re, sys, yaml
 
@@ -122,7 +125,14 @@ jobs:
         working-directory: backend
         env:
           NODE_ENV: test
-          JWT_SECRET: ci-test-jwt-secret-not-for-production
+          PORT: '5000'
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: postgres
+          DB_PASSWORD: ''
+          DB_NAME: eff_membership_database
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eff_membership_database
+          JWT_SECRET: ci-test-jwt-secret-key-minimum-32-characters-long
         run: |
           echo "::notice::Temporarily excluding 4 legacy pre-existing broken bulk-upload test specs pending their separate TS mock fix PR."
           npx jest --ci --runInBand --forceExit --passWithNoTests \
@@ -175,5 +185,5 @@ jobs:
         run: |
           npm run build
           test -f dist/index.html
-          grep -rq "api.effmemberportal.org" dist/assets/*.js
+          grep -q "api.effmemberportal.org" dist/assets/*.js
 

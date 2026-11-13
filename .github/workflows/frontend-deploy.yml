@@ -59,7 +59,7 @@ jobs:
           npm run build
           test -f dist/index.html
           PROD_HOST=$(printf '%s' "${VITE_API_BASE_URL}" | sed -E 's|^https?://([^/:]+).*|\1|')
-          grep -rq "$PROD_HOST" dist/assets/*.js
+          grep -q "$PROD_HOST" dist/assets/*.js
 
       - name: Package built dist archive
         working-directory: frontend
