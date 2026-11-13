@@ -40,7 +40,7 @@ ALTER TABLE members
 ADD COLUMN IF NOT EXISTS district_code VARCHAR(10),
 ADD COLUMN IF NOT EXISTS district_name VARCHAR(100);
 
--- Add municipality/sub-region columns
+-- Add municipality/Local Municipality columns
 ALTER TABLE members 
 ADD COLUMN IF NOT EXISTS municipality_code VARCHAR(10),
 ADD COLUMN IF NOT EXISTS municipality_name VARCHAR(100);
@@ -165,8 +165,8 @@ COMMENT ON COLUMN members.province_code IS 'Province code where member is regist
 COMMENT ON COLUMN members.province_name IS 'Province name (denormalized for performance)';
 COMMENT ON COLUMN members.district_code IS 'District/Region code where member is registered';
 COMMENT ON COLUMN members.district_name IS 'District/Region name (denormalized for performance)';
-COMMENT ON COLUMN members.municipality_code IS 'Municipality/Sub-Region code where member is registered';
-COMMENT ON COLUMN members.municipality_name IS 'Municipality/Sub-Region name (denormalized for performance)';
+COMMENT ON COLUMN members.municipality_code IS 'Municipality/Local Municipality code where member is registered';
+COMMENT ON COLUMN members.municipality_name IS 'Municipality/Local Municipality name (denormalized for performance)';
 
 SELECT 'Comments added successfully' as status;
 

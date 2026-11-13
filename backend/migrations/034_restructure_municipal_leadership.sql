@@ -159,9 +159,9 @@ BEGIN
         IF municipality_record.municipality_type = 'Metropolitan' THEN
             v_display_name := municipality_record.municipality_name;
             v_position_prefix := 'Metro';
-        ELSIF municipality_record.municipality_type = 'Metro Sub-Region' THEN
+        ELSIF municipality_record.municipality_type = 'Metro Local Municipality' THEN
             v_display_name := municipality_record.municipality_name;
-            v_position_prefix := 'Sub-Region';
+            v_position_prefix := 'Local Municipality';
         ELSE
             v_display_name := municipality_record.municipality_name;
             v_position_prefix := 'Municipal';

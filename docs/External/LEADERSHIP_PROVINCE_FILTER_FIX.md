@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-**Issue**: Leadership assignment search on provinces with metros does not show members in sub-regions of metros  
+**Issue**: Leadership assignment search on provinces with metros does not show members in Local Municipalitys of metros  
 **Root Cause**: Incorrect column names in geographic filtering queries (`id` instead of `province_id`, etc.)  
 **Impact**: Metro members not appearing in leadership assignment dropdowns for province-specific positions  
 **Status**: ✅ **FIXED**
@@ -15,7 +15,7 @@
 
 ### User Report
 
-> "On leadership assignment search on provinces with metros, it does not show members in sub-regions of metros. can you fix that"
+> "On leadership assignment search on provinces with metros, it does not show members in Local Municipalitys of metros. can you fix that"
 
 ### Investigation
 
@@ -140,9 +140,9 @@ case 'Ward':
 
 Sample members returned:
 ```
-🏙️ 1.   ABEL SHAI (MEM037811) - EKU - South (Metro Sub-Region)
-🏙️ 2.   ANDISILE (MEM040644) - EKU - East (Metro Sub-Region)
-🏙️ 3.   Anna Mathabatha (MEM007221) - EKU - Central (Metro Sub-Region)
+🏙️ 1.   ABEL SHAI (MEM037811) - EKU - South (Metro Local Municipality)
+🏙️ 2.   ANDISILE (MEM040644) - EKU - East (Metro Local Municipality)
+🏙️ 3.   Anna Mathabatha (MEM007221) - EKU - Central (Metro Local Municipality)
 ...
 ```
 
@@ -197,7 +197,7 @@ node test/database/test-leadership-province-filter.js
    🏘️  Regular members: 27,486
 
 ✅ Found 10 members (showing first 10)
-🏙️ 1.   ABEL SHAI (MEM037811) - EKU - South (Metro Sub-Region)
+🏙️ 1.   ABEL SHAI (MEM037811) - EKU - South (Metro Local Municipality)
 ...
 
 ✅ Total members: 100,765
@@ -226,8 +226,8 @@ node test/database/test-leadership-province-filter.js
 
 3. **Verify Metro Members**:
    - Start typing a name from a metro area
-   - Members from metro sub-regions should appear ✅
-   - Municipality should show as "Metro Sub-Region" ✅
+   - Members from metro Local Municipalitys should appear ✅
+   - Municipality should show as "Metro Local Municipality" ✅
 
 ---
 

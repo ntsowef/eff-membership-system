@@ -138,11 +138,11 @@ INSERT INTO meeting_types (
   true
 ),
 
--- MUNICIPAL/SUB-REGIONAL LEVEL MEETINGS
+-- MUNICIPAL/Local MunicipalityAL LEVEL MEETINGS
 (
-  'Sub-Regional Command Team Meeting', 
+  'Local Municipalityal Command Team Meeting', 
   'srct_municipal', 
-  'Monthly Sub-Regional Command Team meetings for municipal leadership coordination', 
+  'Monthly Local Municipalityal Command Team meetings for municipal leadership coordination', 
   'Municipal', 
   'Regular', 
   150, 

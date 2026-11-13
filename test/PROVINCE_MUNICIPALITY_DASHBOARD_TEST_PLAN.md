@@ -49,13 +49,13 @@
 - Total members count matches province total
 - Province filter chip is visible (e.g., "Gauteng Only")
 
-#### Test 1.4: Sub-Regional Breakdown Display
+#### Test 1.4: Local Municipalityal Breakdown Display
 **Steps:**
-1. Scroll to "Sub-Regional Breakdown" section
+1. Scroll to "Local Municipalityal Breakdown" section
 2. Verify the section is visible and populated
 
 **Expected Results:**
-- Section title shows "Sub-Regional Breakdown (Province Name)"
+- Section title shows "Local Municipalityal Breakdown (Province Name)"
 - List displays municipalities within the province
 - Top 10 municipalities are shown (sorted by expired/expiring count)
 - Each municipality shows:
@@ -68,12 +68,12 @@
 
 #### Test 1.5: Metro Municipality Exclusion
 **Steps:**
-1. Check sub-regional breakdown for provinces with Metro Municipalities (e.g., Gauteng)
+1. Check Local Municipalityal breakdown for provinces with Metro Municipalities (e.g., Gauteng)
 2. Verify Metro Municipalities are excluded
 
 **Expected Results:**
 - Parent Metro Municipalities (e.g., City of Johannesburg) are NOT shown
-- Only Local Municipalities and Metro sub-regions are shown
+- Only Local Municipalities and Metro Local Municipalitys are shown
 - Consistent with Daily Report Metro Municipality fix
 
 #### Test 1.6: No National-Level Data
@@ -146,7 +146,7 @@
 
 **Expected Results:**
 - No "Province Breakdown" section is visible
-- No "Sub-Regional Breakdown" section is visible
+- No "Local Municipalityal Breakdown" section is visible
 - No province or national-level charts or statistics
 - All data is filtered to assigned municipality only
 
@@ -165,11 +165,11 @@
 #### Test 3.2: Geographic Filtering Verification
 **Steps:**
 1. Login as Province Admin for Province A
-2. Note the municipalities shown in sub-regional breakdown
+2. Note the municipalities shown in Local Municipalityal breakdown
 3. Verify all municipalities belong to Province A only
 
 **Expected Results:**
-- All municipalities in sub-regional breakdown belong to assigned province
+- All municipalities in Local Municipalityal breakdown belong to assigned province
 - No municipalities from other provinces are shown
 
 ### 4. Edge Cases and Error Handling
@@ -177,7 +177,7 @@
 #### Test 4.1: Province with No Municipalities
 **Steps:**
 1. Login as Province Admin for a province with no municipalities (if exists)
-2. Check sub-regional breakdown section
+2. Check Local Municipalityal breakdown section
 
 **Expected Results:**
 - Section either shows empty state or is hidden
@@ -239,7 +239,7 @@ ORDER BY member_count DESC;
 ✅ All Municipality Admin tests pass
 ✅ Data is correctly filtered by geographic area
 ✅ No national/province data leaks to lower admin levels
-✅ Metro Municipalities are excluded from sub-regional breakdown
+✅ Metro Municipalities are excluded from Local Municipalityal breakdown
 ✅ Dashboard performance is acceptable (< 3 seconds load time)
 ✅ No console errors or warnings
 ✅ UI is responsive and user-friendly

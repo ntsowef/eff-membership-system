@@ -80,8 +80,8 @@ console.log(`✅ Voting District mapped DIRECTLY: IEC VD Number ${delimitation.V
 - ✅ Region (District): City of Johannesburg (JHB) - **DISPLAYED**
 
 ### What's NOT Working
-- ❌ Sub-Region (Municipality): "Select a sub-region..." - **NOT DISPLAYED**
-- ❌ Ward: Disabled - "Select a sub-region first..."
+- ❌ Local Municipality (Municipality): "Select a Local Municipality..." - **NOT DISPLAYED**
+- ❌ Ward: Disabled - "Select a Local Municipality first..."
 - ❌ Voting District: Disabled - "Select a ward first..."
 
 ### Console Logs
@@ -109,11 +109,11 @@ console.log(`✅ Voting District mapped DIRECTLY: IEC VD Number ${delimitation.V
 ## 🔍 ROOT CAUSE
 
 The frontend `GeographicSelector` component has a hierarchical dependency:
-- Sub-Region depends on Region being selected
-- Ward depends on Sub-Region being selected
+- Local Municipality depends on Region being selected
+- Ward depends on Local Municipality being selected
 - Voting District depends on Ward being selected
 
-Since Sub-Region is not displaying (even though it's in the state), the entire chain is blocked.
+Since Local Municipality is not displaying (even though it's in the state), the entire chain is blocked.
 
 ---
 

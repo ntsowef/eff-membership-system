@@ -61,17 +61,28 @@ import { devLog } from '../../utils/logger';
 // Interface definitions
 interface Meeting {
   id: number;
+  meeting_id?: number;
   title: string;
+  meeting_title?: string;
   description?: string;
   hierarchy_level: string;
   entity_id: number;
   meeting_type: string;
+  type_name?: string;
+  meeting_category?: string;
   start_datetime: string;
   end_datetime: string;
+  meeting_date?: string;
+  meeting_time?: string;
+  end_time?: string;
+  duration_minutes?: number;
   location?: string;
   virtual_meeting_link?: string;
   meeting_status: string;
   max_attendees?: number;
+  quorum_required?: number;
+  total_invited?: number;
+  total_attendees?: number;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -83,6 +94,72 @@ interface Meeting {
   excused_count?: number;
   late_count?: number;
 }
+
+// Helper to resolve start and end Date objects from either start_datetime/end_datetime or meeting_date/meeting_time
+const getMeetingDates = (meeting: Meeting): { start: Date | null; end: Date | null } => {
+  if (meeting.start_datetime) {
+    const start = new Date(meeting.start_datetime);
+    if (!isNaN(start.getTime())) {
+      const end = meeting.end_datetime ? new Date(meeting.end_datetime) : null;
+      return {
+        start,
+        end: end && !isNaN(end.getTime())
+          ? end
+          : new Date(start.getTime() + (Number(meeting.duration_minutes) || 60) * 60000),
+      };
+    }
+  }
+
+  if (meeting.meeting_date) {
+    let year: number, month: number, day: number;
+    const rawDate = String(meeting.meeting_date);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+      [year, month, day] = rawDate.split('-').map(Number);
+    } else {
+      const parsed = new Date(rawDate);
+      if (isNaN(parsed.getTime())) return { start: null, end: null };
+      year = parsed.getFullYear();
+      month = parsed.getMonth() + 1;
+      day = parsed.getDate();
+    }
+
+    const rawTime = meeting.meeting_time ? String(meeting.meeting_time) : '00:00:00';
+    const [hours = 0, minutes = 0, seconds = 0] = rawTime.split(':').map(Number);
+    const start = new Date(year, month - 1, day, hours, minutes, seconds);
+
+    let end: Date | null = null;
+    if (meeting.end_time) {
+      const [eh = 0, em = 0, es = 0] = String(meeting.end_time).split(':').map(Number);
+      end = new Date(year, month - 1, day, eh, em, es);
+    } else {
+      const durationMins = Number(meeting.duration_minutes) || 60;
+      end = new Date(start.getTime() + durationMins * 60000);
+    }
+
+    return { start, end };
+  }
+
+  return { start: null, end: null };
+};
+
+const formatMeetingDate = (meeting: Meeting): string => {
+  const { start } = getMeetingDates(meeting);
+  if (!start) return 'N/A';
+  return start.toLocaleDateString('en-ZA', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const formatMeetingTimeRange = (meeting: Meeting): string => {
+  const { start, end } = getMeetingDates(meeting);
+  if (!start) return 'N/A';
+  const startStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  if (!end) return startStr;
+  const endStr = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${startStr} - ${endStr}`;
+};
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -111,7 +188,9 @@ const MeetingsPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [filterStatus] = useState<string>('all');
 
   // Fetch meetings data
@@ -137,8 +216,19 @@ const MeetingsPage: React.FC = () => {
     mutationFn: (meetingId: number) => apiDelete(`/meetings/${meetingId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
       setDeleteDialogOpen(false);
+      setMeetingToDelete(null);
       setSelectedMeeting(null);
+      setDeleteError(null);
+    },
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete meeting. Please try again.';
+      setDeleteError(message);
     },
   });
 
@@ -158,13 +248,15 @@ const MeetingsPage: React.FC = () => {
       case 0: // All meetings
         return meetings;
       case 1: // Upcoming
-        return meetings.filter((meeting: Meeting) =>
-          new Date(meeting.start_datetime) >= now && meeting.meeting_status === 'Scheduled'
-        );
+        return meetings.filter((meeting: Meeting) => {
+          const { start } = getMeetingDates(meeting);
+          return (start ? start >= now : true) && meeting.meeting_status === 'Scheduled';
+        });
       case 2: // Past
-        return meetings.filter((meeting: Meeting) =>
-          new Date(meeting.start_datetime) < now || meeting.meeting_status === 'Completed'
-        );
+        return meetings.filter((meeting: Meeting) => {
+          const { start } = getMeetingDates(meeting);
+          return (start ? start < now : false) || meeting.meeting_status === 'Completed';
+        });
       case 3: // Cancelled
         return meetings.filter((meeting: Meeting) => meeting.meeting_status === 'Cancelled');
       default:
@@ -205,27 +297,44 @@ const MeetingsPage: React.FC = () => {
 
   const handleViewMeeting = () => {
     if (selectedMeeting) {
-      // Navigate to full detail page
-      navigate(`/admin/meetings/${selectedMeeting.id}`);
+      const meetingId = selectedMeeting.id || selectedMeeting.meeting_id;
+      navigate(`/admin/meetings/${meetingId}`);
     }
     handleMenuClose();
   };
 
   const handleEditMeeting = () => {
     if (selectedMeeting) {
-      navigate(`/admin/meetings/${selectedMeeting.id}/edit`);
+      const meetingId = selectedMeeting.id || selectedMeeting.meeting_id;
+      navigate(`/admin/meetings/${meetingId}/edit`);
     }
     handleMenuClose();
   };
 
   const handleDeleteClick = () => {
-    setDeleteDialogOpen(true);
+    if (selectedMeeting) {
+      setMeetingToDelete(selectedMeeting);
+      setDeleteError(null);
+      setDeleteDialogOpen(true);
+    }
     handleMenuClose();
   };
 
+  const handleDeleteCancel = () => {
+    if (deleteMeetingMutation.isPending) return;
+    setDeleteDialogOpen(false);
+    setMeetingToDelete(null);
+    setDeleteError(null);
+  };
+
   const handleDeleteConfirm = () => {
-    if (selectedMeeting) {
-      deleteMeetingMutation.mutate(selectedMeeting.id);
+    if (!meetingToDelete) return;
+    const meetingId = Number(meetingToDelete.id ?? meetingToDelete.meeting_id);
+    if (!isNaN(meetingId) && meetingId > 0) {
+      setDeleteError(null);
+      deleteMeetingMutation.mutate(meetingId);
+    } else {
+      setDeleteError('Invalid meeting ID.');
     }
   };
 
@@ -234,13 +343,15 @@ const MeetingsPage: React.FC = () => {
   };
 
   // Count meetings by status
-  const upcomingCount = meetings.filter((m: Meeting) =>
-    new Date(m.start_datetime) >= new Date() && m.meeting_status === 'Scheduled'
-  ).length;
+  const upcomingCount = meetings.filter((m: Meeting) => {
+    const { start } = getMeetingDates(m);
+    return (start ? start >= new Date() : true) && m.meeting_status === 'Scheduled';
+  }).length;
 
-  const pastCount = meetings.filter((m: Meeting) =>
-    new Date(m.start_datetime) < new Date() || m.meeting_status === 'Completed'
-  ).length;
+  const pastCount = meetings.filter((m: Meeting) => {
+    const { start } = getMeetingDates(m);
+    return (start ? start < new Date() : false) || m.meeting_status === 'Completed';
+  }).length;
 
   const cancelledCount = meetings.filter((m: Meeting) =>
     m.meeting_status === 'Cancelled'
@@ -456,11 +567,11 @@ const MeetingsPage: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {filteredMeetings.map((meeting: Meeting) => (
-                      <TableRow key={meeting.id} hover>
+                      <TableRow key={meeting.id || meeting.meeting_id} hover>
                         <TableCell>
                           <Box>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              {meeting.title}
+                              {meeting.title || meeting.meeting_title}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {meeting.hierarchy_level} • {meeting.entity_name || `Entity ${meeting.entity_id}`}
@@ -470,16 +581,16 @@ const MeetingsPage: React.FC = () => {
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              {new Date(meeting.start_datetime).toLocaleDateString()}
+                              {formatMeetingDate(meeting)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(meeting.end_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatMeetingTimeRange(meeting)}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={meeting.meeting_type || 'Regular'}
+                            label={meeting.type_name || meeting.meeting_type || meeting.meeting_category || 'Regular'}
                             size="small"
                             variant="outlined"
                           />
@@ -506,11 +617,12 @@ const MeetingsPage: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {meeting.present_count || 0} / {meeting.max_attendees || 0}
+                            {meeting.present_count ?? meeting.total_attendees ?? 0} / {meeting.max_attendees ?? meeting.total_invited ?? meeting.quorum_required ?? 0}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <IconButton
+                            aria-label={`Actions for ${meeting.title || meeting.meeting_title || 'meeting'}`}
                             onClick={(e) => handleMenuClick(e, meeting)}
                             size="small"
                           >
@@ -565,11 +677,11 @@ const MeetingsPage: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {filteredMeetings.map((meeting: Meeting) => (
-                      <TableRow key={meeting.id} hover>
+                      <TableRow key={meeting.id || meeting.meeting_id} hover>
                         <TableCell>
                           <Box>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              {meeting.title}
+                              {meeting.title || meeting.meeting_title}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {meeting.hierarchy_level} • {meeting.entity_name || `Entity ${meeting.entity_id}`}
@@ -579,16 +691,16 @@ const MeetingsPage: React.FC = () => {
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              {new Date(meeting.start_datetime).toLocaleDateString()}
+                              {formatMeetingDate(meeting)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(meeting.end_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatMeetingTimeRange(meeting)}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={meeting.meeting_type || 'Regular'}
+                            label={meeting.type_name || meeting.meeting_type || meeting.meeting_category || 'Regular'}
                             size="small"
                             variant="outlined"
                           />
@@ -615,11 +727,12 @@ const MeetingsPage: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {meeting.present_count || 0} / {meeting.max_attendees || 0}
+                            {meeting.present_count ?? meeting.total_attendees ?? 0} / {meeting.max_attendees ?? meeting.total_invited ?? meeting.quorum_required ?? 0}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <IconButton
+                            aria-label={`Actions for ${meeting.title || meeting.meeting_title || 'meeting'}`}
                             onClick={(e) => handleMenuClick(e, meeting)}
                             size="small"
                           >
@@ -666,11 +779,11 @@ const MeetingsPage: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {filteredMeetings.map((meeting: Meeting) => (
-                      <TableRow key={meeting.id} hover>
+                      <TableRow key={meeting.id || meeting.meeting_id} hover>
                         <TableCell>
                           <Box>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              {meeting.title}
+                              {meeting.title || meeting.meeting_title}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {meeting.hierarchy_level} • {meeting.entity_name || `Entity ${meeting.entity_id}`}
@@ -680,16 +793,16 @@ const MeetingsPage: React.FC = () => {
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              {new Date(meeting.start_datetime).toLocaleDateString()}
+                              {formatMeetingDate(meeting)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(meeting.end_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatMeetingTimeRange(meeting)}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={meeting.meeting_type || 'Regular'}
+                            label={meeting.type_name || meeting.meeting_type || meeting.meeting_category || 'Regular'}
                             size="small"
                             variant="outlined"
                           />
@@ -716,11 +829,12 @@ const MeetingsPage: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {meeting.present_count || 0} / {meeting.max_attendees || 0}
+                            {meeting.present_count ?? meeting.total_attendees ?? 0} / {meeting.max_attendees ?? meeting.total_invited ?? meeting.quorum_required ?? 0}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <IconButton
+                            aria-label={`Actions for ${meeting.title || meeting.meeting_title || 'meeting'}`}
                             onClick={(e) => handleMenuClick(e, meeting)}
                             size="small"
                           >
@@ -767,11 +881,11 @@ const MeetingsPage: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {filteredMeetings.map((meeting: Meeting) => (
-                      <TableRow key={meeting.id} hover>
+                      <TableRow key={meeting.id || meeting.meeting_id} hover>
                         <TableCell>
                           <Box>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              {meeting.title}
+                              {meeting.title || meeting.meeting_title}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {meeting.hierarchy_level} • {meeting.entity_name || `Entity ${meeting.entity_id}`}
@@ -781,16 +895,16 @@ const MeetingsPage: React.FC = () => {
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              {new Date(meeting.start_datetime).toLocaleDateString()}
+                              {formatMeetingDate(meeting)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(meeting.end_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatMeetingTimeRange(meeting)}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={meeting.meeting_type || 'Regular'}
+                            label={meeting.type_name || meeting.meeting_type || meeting.meeting_category || 'Regular'}
                             size="small"
                             variant="outlined"
                           />
@@ -817,11 +931,12 @@ const MeetingsPage: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {meeting.present_count || 0} / {meeting.max_attendees || 0}
+                            {meeting.present_count ?? meeting.total_attendees ?? 0} / {meeting.max_attendees ?? meeting.total_invited ?? meeting.quorum_required ?? 0}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <IconButton
+                            aria-label={`Actions for ${meeting.title || meeting.meeting_title || 'meeting'}`}
                             onClick={(e) => handleMenuClick(e, meeting)}
                             size="small"
                           >
@@ -862,19 +977,26 @@ const MeetingsPage: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        onClose={handleDeleteCancel}
         maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Delete Meeting</DialogTitle>
         <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
           <Typography>
-            Are you sure you want to delete "{selectedMeeting?.title}"?
+            Are you sure you want to delete "{meetingToDelete?.title || meetingToDelete?.meeting_title || 'this meeting'}"?
             This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteCancel} disabled={deleteMeetingMutation.isPending}>
+            Cancel
+          </Button>
           <Button
             onClick={handleDeleteConfirm}
             color="error"

@@ -1,47 +1,162 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { HierarchicalMeetingService } from '../services/hierarchicalMeetingService';
-import { MeetingModel, CreateMeetingData } from '../models/meetings';
+import { MeetingModel, CreateMeetingData, InvitationTarget } from '../models/meetings';
 import { MeetingNotificationService } from '../services/meetingNotificationService';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
 import Joi from 'joi';
 
 const router = Router();
-import { executeQuerySingle } from '../config/database';
+import { executeQuery, executeQuerySingle } from '../config/database';
 
-// Helper: map UI hierarchy to entity_type used in appointments
+async function enrichInvitationTargetsWithMemberDetails(targets: InvitationTarget[]): Promise<InvitationTarget[]> {
+  if (!targets || targets.length === 0) {
+    return [];
+  }
+
+  const memberIds = Array.from(new Set(targets.map((target) => target.member_id).filter(Boolean)));
+  const memberMap = new Map<number, any>();
+
+  if (memberIds.length > 0) {
+    const placeholders = memberIds.map((_, index) => `$${index + 1}`).join(', ');
+    const query = `
+      SELECT
+        m.member_id,
+        TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, '')) AS member_name,
+        CASE WHEN m.email LIKE '%@%' THEN TRIM(m.email) ELSE '' END AS member_email,
+        COALESCE(m.cell_number, '') AS member_phone,
+        COALESCE(NULLIF(m.membership_number, ''), 'MEM' || LPAD(CAST(m.member_id AS TEXT), GREATEST(LENGTH(CAST(m.member_id AS TEXT)), 6), '0')) AS membership_number
+      FROM members_consolidated m
+      WHERE m.member_id IN (${placeholders})
+    `;
+    const rows = await executeQuery(query, memberIds);
+    for (const row of rows) {
+      memberMap.set(Number(row.member_id), row);
+    }
+  }
+
+  return targets.map((target) => {
+    const member = memberMap.get(Number(target.member_id));
+    return {
+      ...target,
+      member_name: String(target.member_name || member?.member_name || '').replace(/\s+/g, ' ').trim() || 'Unknown Member',
+      member_email: target.member_email ?? member?.member_email ?? '',
+      member_phone: target.member_phone ?? member?.member_phone ?? '',
+      membership_number: target.membership_number || member?.membership_number || '',
+    };
+  });
+}
+
+// Helper: map UI/DB hierarchy to canonical entity_type used in appointments
 const mapHierarchyToEntityType = (level: string): 'National' | 'Province' | 'Region' | 'Municipality' | 'Ward' => {
   switch (level) {
-    case 'Provincial': return 'Province';
-    case 'Municipal': return 'Municipality';
-    case 'Regional': return 'Region';
-    case 'Ward': return 'Ward';
+    case 'Provincial':
+    case 'Province':
+      return 'Province';
+    case 'Municipal':
+    case 'Municipality':
+      return 'Municipality';
+    case 'Regional':
+    case 'Region':
+      return 'Region';
+    case 'Ward':
+    case 'Branch':
+      return 'Ward';
     case 'National':
     default:
       return 'National';
   }
 };
 
-// Helper: resolve numeric entity_id from provided codes
-async function resolveEntityIdFromCodes(hierarchyLevel: string, province_code?: string, municipality_code?: string, ward_code?: string): Promise<{entity_id?: number, entity_type?: string}> {
-  const entity_type = mapHierarchyToEntityType(hierarchyLevel);
+const areHierarchyLevelsCompatible = (typeLevel: string, requestLevel: string): boolean => {
+  return mapHierarchyToEntityType(typeLevel) === mapHierarchyToEntityType(requestLevel);
+};
+
+// Helper: resolve numeric entity_id from provided geographic codes (always prefers non-empty codes over dummy entity_id)
+async function resolveEntityIdFromCodes(
+  hierarchyLevel: string,
+  province_code?: string,
+  municipality_code?: string,
+  ward_code?: string,
+  fallbackEntityId?: number,
+  fallbackEntityType?: string
+): Promise<{ entity_id?: number; entity_type: string }> {
+  const entity_type = mapHierarchyToEntityType(hierarchyLevel || fallbackEntityType || 'National');
+  const cleanProvince = province_code?.trim();
+  const cleanMunicipality = municipality_code?.trim();
+  const cleanWard = ward_code?.trim();
+
   try {
-    if (entity_type === 'Province' && province_code) {
-      const row = await executeQuerySingle<any>("SELECT province_id FROM provinces WHERE province_code = ?", [province_code]);
-      return { entity_id: row?.province_id, entity_type };
+    if (entity_type === 'Province' && cleanProvince) {
+      const row = await executeQuerySingle<any>(
+        'SELECT province_id FROM provinces WHERE province_code = $1 LIMIT 1',
+        [cleanProvince]
+      );
+      if (row?.province_id) {
+        return { entity_id: Number(row.province_id), entity_type };
+      }
     }
-    if (entity_type === 'Municipality' && municipality_code) {
-      const row = await executeQuerySingle<any>("SELECT municipality_id FROM municipalities WHERE municipality_code = ?", [municipality_code]);
-      return { entity_id: row?.municipality_id, entity_type };
+    if (entity_type === 'Municipality' && cleanMunicipality) {
+      const row = await executeQuerySingle<any>(
+        'SELECT municipality_id FROM municipalities WHERE municipality_code = $1 LIMIT 1',
+        [cleanMunicipality]
+      );
+      if (row?.municipality_id) {
+        return { entity_id: Number(row.municipality_id), entity_type };
+      }
     }
-    if (entity_type === 'Ward' && ward_code) {
-      const row = await executeQuerySingle<any>("SELECT id FROM wards WHERE ward_code = ?", [ward_code]);
-      return { entity_id: row?.id, entity_type };
+    if (entity_type === 'Ward' && cleanWard) {
+      const row = await executeQuerySingle<any>(
+        'SELECT ward_id FROM wards WHERE ward_code = $1 LIMIT 1',
+        [cleanWard]
+      );
+      if (row?.ward_id) {
+        return { entity_id: Number(row.ward_id), entity_type };
+      }
     }
   } catch (_err) {
-    // fallthrough; return empty so upstream can handle no invitations gracefully
+    // Fall through to fallbackEntityId if lookup fails
   }
-  return { entity_id: undefined, entity_type };
+
+  if (entity_type === 'National') {
+    return { entity_id: fallbackEntityId || 1, entity_type };
+  }
+
+  return { entity_id: fallbackEntityId, entity_type };
+}
+
+async function resolveValidCreatorUserId(req: Request, fallbackId?: number): Promise<number> {
+  const user = (req as any).user;
+  const candidates = [user?.user_id, user?.id, fallbackId].filter(
+    (v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
+  );
+
+  for (const candidate of candidates) {
+    try {
+      const found = await executeQuerySingle<{ user_id: number }>(
+        'SELECT user_id FROM users WHERE user_id = $1 LIMIT 1',
+        [candidate]
+      );
+      if (found?.user_id) {
+        return Number(found.user_id);
+      }
+    } catch (_err) {
+      // Ignore and try fallback
+    }
+  }
+
+  try {
+    const firstUser = await executeQuerySingle<{ user_id: number }>(
+      'SELECT user_id FROM users ORDER BY user_id ASC LIMIT 1'
+    );
+    if (firstUser?.user_id) {
+      return Number(firstUser.user_id);
+    }
+  } catch (_err) {
+    // Ignore and use default
+  }
+
+  return 8571;
 }
 
 
@@ -49,9 +164,9 @@ async function resolveEntityIdFromCodes(hierarchyLevel: string, province_code?: 
 const createHierarchicalMeetingSchema = Joi.object({
   title: Joi.string().max(255).required(),
   meeting_type_id: Joi.number().integer().positive().required(),
-  hierarchy_level: Joi.string().valid('National', 'Provincial', 'Regional', 'Municipal', 'Ward').required(),
+  hierarchy_level: Joi.string().valid('National', 'Provincial', 'Province', 'Regional', 'Region', 'Municipal', 'Municipality', 'Ward', 'Branch').required(),
   entity_id: Joi.number().integer().positive().optional(),
-  entity_type: Joi.string().valid('National', 'Province', 'Region', 'Municipality', 'Ward').optional(),
+  entity_type: Joi.string().valid('National', 'Province', 'Region', 'Municipality', 'Ward', 'Branch').optional(),
   // Allow geographic codes for invitation logic (not persisted on meeting)
   province_code: Joi.string().allow('').optional(),
   municipality_code: Joi.string().allow('').optional(),
@@ -74,9 +189,9 @@ const createHierarchicalMeetingSchema = Joi.object({
 
 const invitationPreviewSchema = Joi.object({
   meeting_type_id: Joi.number().integer().positive().required(),
-  hierarchy_level: Joi.string().valid('National', 'Provincial', 'Regional', 'Municipal', 'Ward').required(),
+  hierarchy_level: Joi.string().valid('National', 'Provincial', 'Province', 'Regional', 'Region', 'Municipal', 'Municipality', 'Ward', 'Branch').required(),
   entity_id: Joi.number().integer().positive().optional(),
-  entity_type: Joi.string().valid('National', 'Province', 'Region', 'Municipality', 'Ward').optional(),
+  entity_type: Joi.string().valid('National', 'Province', 'Region', 'Municipality', 'Ward', 'Branch').optional(),
   province_code: Joi.string().allow('').optional(),
   municipality_code: Joi.string().allow('').optional(),
   ward_code: Joi.string().allow('').optional()
@@ -136,14 +251,17 @@ router.post('/invitation-preview', async (req: Request, res: Response, next: Nex
       throw new ValidationError(error.details[0].message);
     }
 
-    // Resolve entity_id from codes if not provided
-    let effectiveEntityId = value.entity_id as number | undefined;
-    let effectiveEntityType = value.entity_type as string | undefined;
-    if (!effectiveEntityId) {
-      const resolved = await resolveEntityIdFromCodes(value.hierarchy_level, value.province_code, value.municipality_code, value.ward_code);
-      effectiveEntityId = resolved.entity_id;
-      effectiveEntityType = resolved.entity_type;
-    }
+    // Resolve entity_id from geographic codes whenever provided (overrides dummy entity_id = 1)
+    const resolvedPreviewEntity = await resolveEntityIdFromCodes(
+      value.hierarchy_level,
+      value.province_code,
+      value.municipality_code,
+      value.ward_code,
+      value.entity_id,
+      value.entity_type
+    );
+    const effectiveEntityId = resolvedPreviewEntity.entity_id;
+    const effectiveEntityType = resolvedPreviewEntity.entity_type;
 
     const invitationTargets = await HierarchicalMeetingService.generateAutoInvitations({
       meeting_id: 0, // Preview mode
@@ -156,39 +274,8 @@ router.post('/invitation-preview', async (req: Request, res: Response, next: Nex
       ward_code: value.ward_code
     });
 
-    // Get member details for the preview
-    const memberIds = invitationTargets.map(target => target.member_id);
-    let memberDetails = [];
-
-    if (memberIds.length > 0) {
-      const placeholders = memberIds.map(() => '?').join(',');
-      const query = `
-        SELECT
-          m.member_id,
-          m.firstname as first_name,
-          COALESCE(m.surname, '') as last_name,
-          COALESCE(m.email, '') as email,
-          COALESCE(m.cell_number, '') as phone_number,
-          CONCAT('MEM', LPAD(m.member_id, 6, '0')) as membership_number
-        FROM members m
-        WHERE m.member_id IN (${placeholders})
-        ORDER BY m.surname, m.firstname
-      `;
-
-      memberDetails = await MeetingModel.executeQuery(query, memberIds);
-    }
-
-    // Combine invitation targets with member details
-    const invitationPreview = invitationTargets.map((target: any) => {
-      const member: any = memberDetails.find((m: any) => m.member_id === target.member_id);
-      return {
-        ...target,
-        member_name: member ? `${member.first_name} ${member.last_name}`.trim() : 'Unknown',
-        member_email: member?.email || '',
-        member_phone: member?.phone_number || '',
-        membership_number: member?.membership_number || ''
-      };
-    });
+    // Combine invitation targets with member details from members_consolidated
+    const invitationPreview = await enrichInvitationTargetsWithMemberDetails(invitationTargets);
 
     // Group by attendance type for better organization
     const groupedInvitations = {
@@ -239,32 +326,52 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
     if (!meetingType.is_active) {
       throw new ValidationError('Meeting type is not active and is compulsory');
     }
-    if (meetingType.hierarchy_level !== value.hierarchy_level) {
+    if (!areHierarchyLevelsCompatible(meetingType.hierarchy_level, value.hierarchy_level)) {
       throw new ValidationError(`Meeting type "${meetingType.type_name}" is not valid for ${value.hierarchy_level} level meetings`);
     }
 
-    // Map hierarchy_level to database values
-    // Frontend uses: 'Provincial', 'Municipal', 'Regional'
-    // Database expects: 'Province', 'Municipality', 'Region'
+    // Map hierarchy_level to database values matching meetings_hierarchy_level_check
     const hierarchyLevelMap: Record<string, string> = {
       'National': 'National',
       'Provincial': 'Province',
+      'Province': 'Province',
       'Regional': 'Region',
+      'Region': 'Region',
       'Municipal': 'Municipality',
+      'Municipality': 'Municipality',
       'Ward': 'Ward',
-      'Branch': 'Branch'
+      'Branch': 'Ward'
     };
 
     const dbHierarchyLevel = hierarchyLevelMap[value.hierarchy_level] || value.hierarchy_level;
+
+    // Resolve actual entity_id from geographic codes BEFORE creating the meeting record
+    const resolvedMeetingEntity = await resolveEntityIdFromCodes(
+      value.hierarchy_level,
+      value.province_code,
+      value.municipality_code,
+      value.ward_code,
+      value.entity_id,
+      value.entity_type
+    );
+    const effectiveEntityId = resolvedMeetingEntity.entity_id;
+    const effectiveEntityType = resolvedMeetingEntity.entity_type;
+
+    // Normalize meeting_date to YYYY-MM-DD string (Joi.date() converts strings to Date instances)
+    const formattedMeetingDate = value.meeting_date instanceof Date
+      ? value.meeting_date.toISOString().split('T')[0]
+      : String(value.meeting_date).split('T')[0];
+
+    const createdByUserId = await resolveValidCreatorUserId(req);
 
     // Create meeting data
     const meetingData: CreateMeetingData = {
       title: value.title, // Fixed: use 'title' instead of 'meeting_title'
       meeting_type_id: value.meeting_type_id,
       hierarchy_level: dbHierarchyLevel,
-      entity_id: value.entity_id,
-      entity_type: value.entity_type,
-      meeting_date: value.meeting_date,
+      entity_id: effectiveEntityId,
+      entity_type: effectiveEntityType,
+      meeting_date: formattedMeetingDate,
       meeting_time: value.meeting_time,
       end_time: value.end_time,
       duration_minutes: value.duration_minutes || 120,
@@ -277,7 +384,7 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       quorum_required: value.quorum_required || 0,
       meeting_chair_id: value.meeting_chair_id,
       meeting_secretary_id: value.meeting_secretary_id,
-      created_by: (req as any).user?.id || (req as any).user?.user_id,
+      created_by: createdByUserId,
       auto_send_invitations: value.auto_send_invitations || false
     };
 
@@ -287,55 +394,70 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
     // Generate and send automatic invitations if requested
     let invitationResults: any = null;
     if (value.auto_send_invitations) {
-      // Resolve entity_id from codes if not provided
-      let effectiveEntityId = value.entity_id as number | undefined;
-      let effectiveEntityType = value.entity_type as string | undefined;
-      if (!effectiveEntityId) {
-        const resolved = await resolveEntityIdFromCodes(value.hierarchy_level, value.province_code, value.municipality_code, value.ward_code);
-        effectiveEntityId = resolved.entity_id;
-        effectiveEntityType = resolved.entity_type;
-      }
-
-      const invitationTargets = await HierarchicalMeetingService.generateAutoInvitations({
-        meeting_id: meetingId,
-        meeting_type_id: value.meeting_type_id,
-        hierarchy_level: value.hierarchy_level,
-        entity_id: effectiveEntityId,
-        entity_type: effectiveEntityType,
-        province_code: value.province_code,
-        municipality_code: value.municipality_code,
-        ward_code: value.ward_code
-      });
-
-      // Create invitation records for all invited members
-      for (const target of invitationTargets) {
-        await MeetingModel.createInvitation({
+      try {
+        const rawTargets = await HierarchicalMeetingService.generateAutoInvitations({
           meeting_id: meetingId,
-          member_id: target.member_id,
-          attendance_type: target.attendance_type,
-          role_in_meeting: target.role_in_meeting,
-          voting_rights: target.voting_rights,
-          invitation_priority: target.invitation_priority,
-          invitation_method: 'System',
-          invitation_status: 'Sent'
+          meeting_type_id: value.meeting_type_id,
+          hierarchy_level: value.hierarchy_level,
+          entity_id: effectiveEntityId,
+          entity_type: effectiveEntityType,
+          province_code: value.province_code,
+          municipality_code: value.municipality_code,
+          ward_code: value.ward_code
         });
-      }
+        const invitationTargets = await enrichInvitationTargetsWithMemberDetails(rawTargets);
 
-      invitationResults = {
-        total_invitations_sent: invitationTargets.length,
-        invitation_breakdown: {
-          required: invitationTargets.filter(inv => inv.attendance_type === 'Required').length,
-          optional: invitationTargets.filter(inv => inv.attendance_type === 'Optional').length,
-          observer: invitationTargets.filter(inv => inv.attendance_type === 'Observer').length,
-          guest: invitationTargets.filter(inv => inv.attendance_type === 'Guest').length,
-          delegate: invitationTargets.filter(inv => inv.attendance_type === 'Delegate').length
+        // Create or update invitation records for all invited members without duplicates
+        for (const target of invitationTargets) {
+          const existingInvitation = await MeetingModel.getInvitationByMeetingAndMember(meetingId, target.member_id);
+          if (existingInvitation) {
+            await MeetingModel.updateInvitation(existingInvitation.invitation_id || existingInvitation.id, {
+              member_name: target.member_name,
+              member_email: target.member_email,
+              invitee_name: target.member_name,
+              invitee_email: target.member_email,
+              attendance_type: target.attendance_type,
+              role_in_meeting: target.role_in_meeting,
+              voting_rights: target.voting_rights,
+              invitation_priority: target.invitation_priority
+            });
+          } else {
+            await MeetingModel.createInvitation({
+              meeting_id: meetingId,
+              member_id: target.member_id,
+              member_name: target.member_name,
+              member_email: target.member_email,
+              invitee_name: target.member_name,
+              invitee_email: target.member_email,
+              attendance_type: target.attendance_type,
+              role_in_meeting: target.role_in_meeting,
+              voting_rights: target.voting_rights,
+              invitation_priority: target.invitation_priority,
+              invitation_method: 'System',
+              invitation_status: 'Sent',
+              created_by: createdByUserId
+            });
+          }
         }
-      };
 
-      // Update meeting with invitation count (using valid fields)
-      await MeetingModel.updateMeeting(meetingId, {
-        meeting_status: 'Scheduled'
-      });
+        invitationResults = {
+          total_invitations_sent: invitationTargets.length,
+          invitation_breakdown: {
+            required: invitationTargets.filter(inv => inv.attendance_type === 'Required').length,
+            optional: invitationTargets.filter(inv => inv.attendance_type === 'Optional').length,
+            observer: invitationTargets.filter(inv => inv.attendance_type === 'Observer').length,
+            guest: invitationTargets.filter(inv => inv.attendance_type === 'Guest').length,
+            delegate: invitationTargets.filter(inv => inv.attendance_type === 'Delegate').length
+          }
+        };
+
+        // Update meeting status
+        await MeetingModel.updateMeeting(meetingId, {
+          meeting_status: 'Scheduled'
+        });
+      } catch (inviteErr) {
+        console.warn('⚠️ Failed to auto-generate invitations for meeting:', inviteErr);
+      }
     }
 
     // Get the created meeting details
@@ -410,13 +532,18 @@ router.post('/:meetingId/send-invitations', async (req: Request, res: Response, 
     }
 
     // Generate invitations
-    const invitationTargets = await HierarchicalMeetingService.generateAutoInvitations({
+    const rawTargets = await HierarchicalMeetingService.generateAutoInvitations({
       meeting_id: meetingId,
       meeting_type_id: meeting.meeting_type_id,
       hierarchy_level: meeting.hierarchy_level,
       entity_id: meeting.entity_id,
-      entity_type: meeting.entity_type
+      entity_type: meeting.entity_type || mapHierarchyToEntityType(meeting.hierarchy_level),
+      province_code: meeting.province_code,
+      municipality_code: meeting.municipality_code,
+      ward_code: meeting.ward_code
     });
+    const invitationTargets = await enrichInvitationTargetsWithMemberDetails(rawTargets);
+    const createdByUserId = await resolveValidCreatorUserId(req, meeting.created_by);
 
     // Create or update invitation records
     for (const target of invitationTargets) {
@@ -425,7 +552,11 @@ router.post('/:meetingId/send-invitations', async (req: Request, res: Response, 
 
       if (existingInvitation) {
         // Update existing invitation record
-        await MeetingModel.updateInvitation(existingInvitation.id, {
+        await MeetingModel.updateInvitation(existingInvitation.invitation_id || existingInvitation.id, {
+          member_name: target.member_name,
+          member_email: target.member_email,
+          invitee_name: target.member_name,
+          invitee_email: target.member_email,
           attendance_type: target.attendance_type,
           role_in_meeting: target.role_in_meeting,
           voting_rights: target.voting_rights,
@@ -436,12 +567,17 @@ router.post('/:meetingId/send-invitations', async (req: Request, res: Response, 
         await MeetingModel.createInvitation({
           meeting_id: meetingId,
           member_id: target.member_id,
+          member_name: target.member_name,
+          member_email: target.member_email,
+          invitee_name: target.member_name,
+          invitee_email: target.member_email,
           attendance_type: target.attendance_type,
           role_in_meeting: target.role_in_meeting,
           voting_rights: target.voting_rights,
           invitation_priority: target.invitation_priority,
           invitation_method: 'System',
-          invitation_status: 'Sent'
+          invitation_status: 'Sent',
+          created_by: createdByUserId
         });
       }
     }
@@ -675,10 +811,13 @@ router.put('/:meetingId', async (req: Request, res: Response, next: NextFunction
     const hierarchyLevelMap: Record<string, string> = {
       'National': 'National',
       'Provincial': 'Province',
+      'Province': 'Province',
       'Regional': 'Region',
+      'Region': 'Region',
       'Municipal': 'Municipality',
+      'Municipality': 'Municipality',
       'Ward': 'Ward',
-      'Branch': 'Branch'
+      'Branch': 'Ward'
     };
 
     // Prepare update data
@@ -688,24 +827,39 @@ router.put('/:meetingId', async (req: Request, res: Response, next: NextFunction
     if (value.hierarchy_level) {
       updateData.hierarchy_level = hierarchyLevelMap[value.hierarchy_level] || value.hierarchy_level;
     }
-    if (value.entity_id !== undefined) updateData.entity_id = value.entity_id;
-    if (value.entity_type) updateData.entity_type = value.entity_type;
-    if (value.location) updateData.location = value.location;
-    if (value.virtual_meeting_link) updateData.virtual_meeting_link = value.virtual_meeting_link;
+    if (value.province_code || value.municipality_code || value.ward_code) {
+      const resolvedUpdateEntity = await resolveEntityIdFromCodes(
+        value.hierarchy_level || existingMeeting.hierarchy_level,
+        value.province_code,
+        value.municipality_code,
+        value.ward_code,
+        value.entity_id ?? existingMeeting.entity_id,
+        value.entity_type
+      );
+      if (resolvedUpdateEntity.entity_id !== undefined) {
+        updateData.entity_id = resolvedUpdateEntity.entity_id;
+      }
+    } else if (value.entity_id !== undefined) {
+      updateData.entity_id = value.entity_id;
+    }
+    if (value.location !== undefined) updateData.location = value.location;
+    if (value.virtual_meeting_link !== undefined) updateData.virtual_meeting_link = value.virtual_meeting_link;
     if (value.meeting_platform) updateData.meeting_platform = value.meeting_platform;
-    if (value.description) updateData.description = value.description;
-    if (value.objectives) updateData.objectives = value.objectives;
-    if (value.agenda_summary) updateData.agenda_summary = value.agenda_summary;
+    if (value.description !== undefined) updateData.description = value.description;
+    if (value.objectives !== undefined) updateData.objectives = value.objectives;
     if (value.quorum_required !== undefined) updateData.quorum_required = value.quorum_required;
     if (value.duration_minutes) updateData.duration_minutes = value.duration_minutes;
     if (value.meeting_chair_id !== undefined) updateData.meeting_chair_id = value.meeting_chair_id;
     if (value.meeting_secretary_id !== undefined) updateData.meeting_secretary_id = value.meeting_secretary_id;
 
     // Handle date and time
-    if (value.meeting_date && value.meeting_time) {
-      const dateStr = value.meeting_date.split('T')[0];
-      const timeStr = value.meeting_time.includes(':') ? value.meeting_time : `${value.meeting_time}:00`;
-      updateData.meeting_date = `${dateStr}T${timeStr}:00.000Z`;
+    if (value.meeting_date) {
+      updateData.meeting_date = value.meeting_date instanceof Date
+        ? value.meeting_date.toISOString().split('T')[0]
+        : String(value.meeting_date).split('T')[0];
+    }
+    if (value.meeting_time) {
+      updateData.meeting_time = value.meeting_time;
     }
 
     if (value.end_time) {
@@ -741,7 +895,15 @@ router.delete('/:meetingId', async (req: Request, res: Response, next: NextFunct
       throw new ValidationError('Invalid meeting ID');
     }
 
+    const meeting = await MeetingModel.getMeetingById(meetingId);
+    if (!meeting) {
+      throw new NotFoundError('Meeting not found');
+    }
+
     const result = await HierarchicalMeetingService.deleteMeeting(meetingId);
+    if (!result.deleted) {
+      throw new Error('Failed to delete meeting');
+    }
 
     res.json({
       success: true,

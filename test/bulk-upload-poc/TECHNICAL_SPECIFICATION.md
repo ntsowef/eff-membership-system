@@ -323,7 +323,7 @@ function mapVDCode(iecDetails: IECVoterDetails): string {
 - Insert new members
 - Update existing members
 - Handle transactions
-- Map metro codes to sub-region codes
+- Map metro codes to Local Municipality codes
 
 **Interface:**
 
@@ -376,7 +376,7 @@ WHERE member_id = $9
 - All approved members get `membership_status_id = 1` (Good Standing)
 - Registered voters without VD get `voter_district_code = '22222222'` (8 digits)
 - Non-registered voters get `voter_district_code = '99999999'` (8 digits)
-- Metro municipality codes must be mapped to sub-region codes
+- Metro municipality codes must be mapped to Local Municipality codes
 - Expiry date = Last Payment Date + 24 months
 
 ---

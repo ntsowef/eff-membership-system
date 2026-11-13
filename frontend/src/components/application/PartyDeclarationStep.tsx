@@ -8,7 +8,6 @@ import {
   Checkbox,
   TextField,
   Button,
-  Alert,
   Paper,
   Tabs,
   Tab,
@@ -156,11 +155,8 @@ I understand that membership in the EFF requires dedication, discipline, and unw
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" sx={{ mb: 2.5 }}>
         Party Declaration and Signature
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please read the party declaration carefully and provide your signature to confirm your commitment to the Economic Freedom Fighters.
       </Typography>
 
       {/* Party Declaration */}
@@ -180,11 +176,8 @@ I understand that membership in the EFF requires dedication, discipline, and unw
       {/* Signature Section */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" sx={{ mb: 1.5 }}>
             Digital Signature
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Choose how you would like to provide your signature:
           </Typography>
 
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -197,21 +190,17 @@ I understand that membership in the EFF requires dedication, discipline, and unw
           <TabPanel value={tabValue} index={0}>
             <TextField
               fullWidth
-              label="Type your full name as signature"
+              label="Full Name (Signature)"
               placeholder="Enter your full name"
               value={applicationData.signature_type === 'typed' ? applicationData.signature_data || '' : ''}
               onChange={handleTypedSignatureChange}
               error={!!errors.signature_data}
-              helperText={errors.signature_data || 'Type your full name exactly as it appears on your ID document'}
-              sx={{ mb: 2 }}
+              helperText={errors.signature_data}
             />
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
             <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Draw your signature in the box below:
-              </Typography>
               <canvas
                 ref={canvasRef}
                 width={400}
@@ -243,7 +232,7 @@ I understand that membership in the EFF requires dedication, discipline, and unw
       </Card>
 
       {/* Confirmation Checkboxes */}
-      <Card sx={{ mb: 3 }}>
+      <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Confirmation
@@ -292,15 +281,6 @@ I understand that membership in the EFF requires dedication, discipline, and unw
           )}
         </CardContent>
       </Card>
-
-      {/* Information Alert */}
-      <Alert severity="info">
-        <Typography variant="body2">
-          <strong>Important:</strong> By providing your signature and checking the confirmation boxes above, 
-          you are making a solemn commitment to the Economic Freedom Fighters. This declaration is legally binding 
-          and represents your formal application for membership in the EFF.
-        </Typography>
-      </Alert>
     </Box>
   );
 };

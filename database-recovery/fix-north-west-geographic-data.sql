@@ -4,7 +4,7 @@
 -- This script adds missing districts and municipalities for North West province
 -- to resolve the Ward Audit System geographic filtering issue
 --
--- Issue: When users select "North West" province, no sub-regions (districts/
+-- Issue: When users select "North West" province, no Local Municipalitys (districts/
 -- municipalities) appear in the dropdown because the database is missing
 -- this geographic hierarchy data.
 --

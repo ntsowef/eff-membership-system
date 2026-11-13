@@ -17,24 +17,27 @@ import { geographicApi } from '../../services/api';
 import { devLog } from '../../utils/logger';
 
 interface Province {
+  province_id?: number;
   province_code: string;
   province_name: string;
 }
 
 interface Municipality {
+  municipality_id?: number;
   municipality_code: string;
   municipality_name: string;
   province_code: string;
 }
 
 interface Ward {
+  ward_id?: number;
   ward_code: string;
   ward_name: string;
   municipality_code: string;
 }
 
 interface HierarchicalGeographicSelectorProps {
-  adminLevel: 'Municipal' | 'Ward';
+  adminLevel: 'Provincial' | 'Municipal' | 'Ward';
   onSelectionChange: (selection: {
     province?: Province;
     municipality?: Municipality;
@@ -63,7 +66,7 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Fetch municipalities when province is selected
+  // Fetch municipalities when province is selected (only for Municipal and Ward levels)
   const { data: municipalitiesData, isLoading: municipalitiesLoading } = useQuery({
     queryKey: ['municipalities', selectedProvince?.province_code],
     queryFn: async () => {
@@ -71,7 +74,7 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
       devLog('Municipalities API response:', result);
       return result;
     },
-    enabled: !!selectedProvince,
+    enabled: !!selectedProvince && adminLevel !== 'Provincial',
     staleTime: 10 * 60 * 1000,
   });
 
@@ -160,6 +163,16 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
     setSelectedWard(ward);
   };
 
+  // Clear child selections if adminLevel narrows
+  useEffect(() => {
+    if (adminLevel === 'Provincial') {
+      setSelectedMunicipality(null);
+      setSelectedWard(null);
+    } else if (adminLevel === 'Municipal') {
+      setSelectedWard(null);
+    }
+  }, [adminLevel]);
+
   // Notify parent of selection changes
   useEffect(() => {
     onSelectionChange({
@@ -184,9 +197,11 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
       </Typography>
       
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        {adminLevel === 'Municipal' 
-          ? 'Select the province and municipality for this Municipal Administrator.'
-          : 'Select the province, municipality, and ward for this Ward Administrator.'
+        {adminLevel === 'Provincial'
+          ? 'Select the province.'
+          : adminLevel === 'Municipal'
+            ? 'Select the province and municipality.'
+            : 'Select the province, municipality, and ward.'
         }
       </Typography>
 
@@ -217,31 +232,33 @@ const HierarchicalGeographicSelector: React.FC<HierarchicalGeographicSelectorPro
           </Select>
         </FormControl>
 
-        {/* Municipality Selection */}
-        <FormControl fullWidth disabled={disabled || !selectedProvince}>
-          <InputLabel>Municipality *</InputLabel>
-          <Select
-            value={selectedMunicipality?.municipality_code || ''}
-            onChange={(e) => handleMunicipalityChange(e.target.value)}
-            label="Municipality *"
-          >
-            <MenuItem value="">
-              <em>Select Municipality</em>
-            </MenuItem>
-            {municipalitiesLoading ? (
-              <MenuItem disabled>
-                <CircularProgress size={20} sx={{ mr: 1 }} />
-                Loading municipalities...
+        {/* Municipality Selection (only for Municipal and Ward levels) */}
+        {adminLevel !== 'Provincial' && (
+          <FormControl fullWidth disabled={disabled || !selectedProvince}>
+            <InputLabel>Municipality *</InputLabel>
+            <Select
+              value={selectedMunicipality?.municipality_code || ''}
+              onChange={(e) => handleMunicipalityChange(e.target.value)}
+              label="Municipality *"
+            >
+              <MenuItem value="">
+                <em>Select Municipality</em>
               </MenuItem>
-            ) : (
-              municipalities.map((municipality) => (
-                <MenuItem key={municipality.municipality_code} value={municipality.municipality_code}>
-                  {municipality.municipality_name}
+              {municipalitiesLoading ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Loading municipalities...
                 </MenuItem>
-              ))
-            )}
-          </Select>
-        </FormControl>
+              ) : (
+                municipalities.map((municipality) => (
+                  <MenuItem key={municipality.municipality_code} value={municipality.municipality_code}>
+                    {municipality.municipality_name}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        )}
 
         {/* Ward Selection (only for Ward admin level) */}
         {adminLevel === 'Ward' && (

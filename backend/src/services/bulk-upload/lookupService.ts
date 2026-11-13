@@ -455,7 +455,7 @@ export class LookupService {
       }
     }
 
-    // Try to get province from municipality_to_province mapping (for metros and sub-regions)
+    // Try to get province from municipality_to_province mapping (for metros and Local Municipalitys)
     if (!result.province_code) {
       const provInfo = this.municipalityToProvince.get(muniInfo.code);
       if (provInfo) {

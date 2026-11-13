@@ -51,7 +51,7 @@ Test the complete IEC integration flow on the frontend:
 - **Success Notification**: ✅ "Voter registration verified with IEC"
 - **Province**: ✅ "Gauteng" (GP) - **DISPLAYED CORRECTLY**
 - **Region**: ⚠️ "Select a region..." - **NOT DISPLAYED** (value: JHB)
-- **Sub-Region**: ⚠️ "JHB" shown in disabled field - **PARTIALLY WORKING**
+- **Local Municipality**: ⚠️ "JHB" shown in disabled field - **PARTIALLY WORKING**
 - **Ward**: ⚠️ "Select a ward..." - **NOT DISPLAYED** (value: 79800135)
 - **Voting District**: ⚠️ "Select a ward first..." - **NOT DISPLAYED** (value: 32871326)
 
@@ -66,7 +66,7 @@ Test the complete IEC integration flow on the frontend:
 | **State Population** | Values in app state | ✅ Populated | ✅ PASS |
 | **Province Display** | "Gauteng" | ✅ "Gauteng" | ✅ PASS |
 | **Region Display** | "City of Johannesburg" | ⚠️ "Select a region..." | ❌ FAIL |
-| **Sub-Region Display** | "JHB" | ⚠️ "JHB" (disabled) | ⚠️ PARTIAL |
+| **Local Municipality Display** | "JHB" | ⚠️ "JHB" (disabled) | ⚠️ PARTIAL |
 | **Ward Display** | Ward name | ⚠️ "Select a ward..." | ❌ FAIL |
 | **VD Display** | VD name | ⚠️ "Select a ward first..." | ❌ FAIL |
 

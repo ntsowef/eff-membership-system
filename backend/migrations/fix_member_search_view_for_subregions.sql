@@ -1,5 +1,5 @@
--- Fix vw_enhanced_member_search to properly handle metro sub-regions
--- Problem: Metro sub-regions have NULL district_code, so province_code becomes NULL
+-- Fix vw_enhanced_member_search to properly handle metro Local Municipalitys
+-- Problem: Metro Local Municipalitys have NULL district_code, so province_code becomes NULL
 -- Solution: Use COALESCE to get district_code from parent municipality if needed
 
 DROP VIEW IF EXISTS vw_enhanced_member_search CASCADE;
@@ -60,7 +60,7 @@ LEFT JOIN citizenships c ON m.citizenship_id = c.citizenship_id
 LEFT JOIN languages l ON m.language_id = l.language_id
 LEFT JOIN wards w ON m.ward_code = w.ward_code
 LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
--- Join to parent municipality to get district_code for sub-regions
+-- Join to parent municipality to get district_code for Local Municipalitys
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 -- Use COALESCE to get district_code from municipality or parent
 LEFT JOIN districts d ON COALESCE(mu.district_code, pm.district_code) = d.district_code

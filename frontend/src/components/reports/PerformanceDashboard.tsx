@@ -377,7 +377,7 @@ const PerformanceDashboard: React.FC = () => {
                       {geographicDistribution.subRegions ?? 0}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Sub-Regions
+                      Local Municipalitys
                     </Typography>
                   </Box>
                 </Grid>

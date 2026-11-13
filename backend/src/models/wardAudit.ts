@@ -33,7 +33,7 @@ export interface WardDelegate {
   selected_by?: number;
   created_at: string;
   updated_at: string;
-  
+
   // Joined fields
   member_name?: string;
   assembly_code?: string;
@@ -45,7 +45,7 @@ export interface WardComplianceAuditLog {
   ward_code: string;
   audit_date: string;
   audited_by: number;
-  
+
   // Criterion 1
   total_members: number;
   meets_member_threshold: boolean;
@@ -53,27 +53,27 @@ export interface WardComplianceAuditLog {
   compliant_voting_districts: number;
   meets_vd_threshold: boolean;
   criterion_1_passed: boolean;
-  
+
   // Criterion 2
   last_meeting_id?: number;
   quorum_required?: number;
   quorum_achieved?: number;
   quorum_met: boolean;
   criterion_2_passed: boolean;
-  
+
   // Criterion 3
   meeting_attended: boolean;
   criterion_3_passed: boolean;
-  
+
   // Criterion 4
   presiding_officer_id?: number;
   presiding_officer_recorded: boolean;
   criterion_4_passed: boolean;
-  
+
   // Criterion 5
   delegates_selected: boolean;
   criterion_5_passed: boolean;
-  
+
   // Overall
   overall_compliant: boolean;
   compliance_score?: number;
@@ -169,16 +169,16 @@ export interface MunicipalityDelegateReport {
   municipality_name: string;
   district_code: string;
   province_code: string;
-  
+
   total_wards: number;
   compliant_wards: number;
   non_compliant_wards: number;
   compliance_percentage: number;
-  
+
   total_srpa_delegates: number;
   total_ppa_delegates: number;
   total_npa_delegates: number;
-  
+
   wards: WardComplianceSummary[];
 }
 
@@ -187,11 +187,11 @@ export interface MunicipalityDelegateReport {
 // =====================================================
 
 export class WardAuditModel {
-  
+
   // =====================================================
   // Assembly Types
   // =====================================================
-  
+
   static async getAllAssemblyTypes(): Promise<AssemblyType[]> {
     try {
       const query = `
@@ -204,7 +204,7 @@ export class WardAuditModel {
       throw createDatabaseError('Failed to fetch assembly types', error);
     }
   }
-  
+
   static async getAssemblyTypeByCode(code: string): Promise<AssemblyType | null> {
     try {
       const query = `
@@ -216,11 +216,11 @@ export class WardAuditModel {
       throw createDatabaseError('Failed to fetch assembly type', error);
     }
   }
-  
+
   // =====================================================
   // Ward Compliance
   // =====================================================
-  
+
   static async getWardComplianceSummary(wardCode: string): Promise<WardComplianceSummary | null> {
     try {
       // ✅ OPTIMIZED: Using materialized view for 100x faster performance
@@ -271,7 +271,7 @@ export class WardAuditModel {
       throw createDatabaseError('Failed to fetch voting district compliance', error);
     }
   }
-  
+
   static async approveWardCompliance(
     wardCode: string,
     userId: number,
@@ -298,7 +298,7 @@ export class WardAuditModel {
   /**
    * Get members filtered by province for presiding officer selection (Criterion 4)
    * Returns active members from the same province as the ward
-   * FIXED: Now includes members from metro sub-regions
+   * FIXED: Now includes members from metro Local Municipalitys
    * @deprecated Use searchMembersByProvince instead for better performance
    */
   static async getMembersByProvince(provinceCode: string): Promise<any[]> {
@@ -320,7 +320,7 @@ export class WardAuditModel {
         LEFT JOIN wards w ON m.ward_code = w.ward_code
         LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
 
-        -- Join to parent municipality (for metro sub-regions)
+        -- Join to parent municipality (for metro Local Municipalitys)
         LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
         -- Join to districts (both direct and through parent)
@@ -797,7 +797,7 @@ export class WardAuditModel {
       throw createDatabaseError('Failed to fetch ward delegates', error);
     }
   }
-  
+
   /**
    * Get eligible members for delegate assignment in a ward
    */
@@ -964,7 +964,7 @@ export class WardAuditModel {
       throw createDatabaseError('Failed to assign delegate', error);
     }
   }
-  
+
   static async removeDelegateAssignment(delegateId: number, reason: string, userId: number): Promise<void> {
     try {
       const query = `
@@ -1134,7 +1134,7 @@ export class WardAuditModel {
   static async getMunicipalityDelegateReport(municipalityCode: string): Promise<MunicipalityDelegateReport> {
     try {
       // Get municipality info
-      // Use LEFT JOIN to handle metro sub-regions that have NULL district_code
+      // Use LEFT JOIN to handle metro Local Municipalitys that have NULL district_code
       const municipalityQuery = `
         SELECT
           m.municipality_code,
@@ -1153,20 +1153,20 @@ export class WardAuditModel {
       if (!municipality) {
         throw new Error('Municipality not found');
       }
-      
+
       // Get wards with compliance data
       const wards = await this.getWardsByMunicipality(municipalityCode);
-      
+
       // Calculate aggregates
       const totalWards = wards.length;
       const compliantWards = wards.filter(w => w.is_compliant).length;
       const nonCompliantWards = totalWards - compliantWards;
       const compliancePercentage = totalWards > 0 ? (compliantWards / totalWards) * 100 : 0;
-      
+
       const totalSrpaDelegate = wards.reduce((sum, w) => sum + (w.srpa_delegates || 0), 0);
       const totalPpaDelegate = wards.reduce((sum, w) => sum + (w.ppa_delegates || 0), 0);
       const totalNpaDelegate = wards.reduce((sum, w) => sum + (w.npa_delegates || 0), 0);
-      
+
       return {
         municipality_code: municipality.municipality_code,
         municipality_name: municipality.municipality_name,

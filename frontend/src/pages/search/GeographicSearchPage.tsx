@@ -94,10 +94,10 @@ const GeographicSearchPage = () => {
         label: searchType === 'voting_districts'
           ? `${item.name} (${item.voting_district_number})`
           : searchType === 'voting_stations'
-          ? `${item.name} (${item.station_code})`
-          : searchType === 'wards'
-          ? `${item.name} (${item.ward_code})` // ward_name already contains "Ward X", show ward_code for clarity
-          : `${item.name} (${item.municipality_code || item.code})`, // subregions
+            ? `${item.name} (${item.station_code})`
+            : searchType === 'wards'
+              ? `${item.name} (${item.ward_code})` // ward_name already contains "Ward X", show ward_code for clarity
+              : `${item.name} (${item.municipality_code || item.code})`, // subregions
       }));
     },
   });
@@ -224,26 +224,26 @@ const GeographicSearchPage = () => {
         filename = format === 'both'
           ? `SubRegion_${filters.municipal_code}_Complete_Export_${timestamp}.zip`
           : format === 'excel'
-          ? `SubRegion_${filters.municipal_code}_Members_${timestamp}.xlsx`
-          : format === 'pdf'
-          ? `SubRegion_${filters.municipal_code}_Attendance_Register_${timestamp}.pdf`
-          : `SubRegion_${filters.municipal_code}_Export_${timestamp}.docx`;
+            ? `SubRegion_${filters.municipal_code}_Members_${timestamp}.xlsx`
+            : format === 'pdf'
+              ? `SubRegion_${filters.municipal_code}_Attendance_Register_${timestamp}.pdf`
+              : `SubRegion_${filters.municipal_code}_Export_${timestamp}.docx`;
       } else if (filters.ward_code) {
         filename = format === 'both'
           ? `Ward_${filters.ward_code}_Complete_Export_${timestamp}.zip`
           : format === 'excel'
-          ? `Ward_${filters.ward_code}_All_Members_${timestamp}.xlsx`
-          : format === 'pdf'
-          ? `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.pdf`
-          : `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.docx`;
+            ? `Ward_${filters.ward_code}_All_Members_${timestamp}.xlsx`
+            : format === 'pdf'
+              ? `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.pdf`
+              : `Ward_${filters.ward_code}_Attendance_Register_${timestamp}.docx`;
       } else {
         filename = format === 'both'
           ? `Geographic_Search_Complete_Export_${timestamp}.zip`
           : format === 'excel'
-          ? `Geographic_Search_All_Members_${timestamp}.xlsx`
-          : format === 'pdf'
-          ? `Geographic_Search_Attendance_Register_${timestamp}.pdf`
-          : `Geographic_Search_Export_${timestamp}.docx`;
+            ? `Geographic_Search_All_Members_${timestamp}.xlsx`
+            : format === 'pdf'
+              ? `Geographic_Search_Attendance_Register_${timestamp}.pdf`
+              : `Geographic_Search_Export_${timestamp}.docx`;
       }
 
       downloadBlob(blob, filename);
@@ -293,7 +293,7 @@ const GeographicSearchPage = () => {
     if (filters.voting_district_code) return `Voting District: ${selectedSearch?.label || filters.voting_district_code}`;
     if (filters.voting_station_id) return `Voting Station: ${selectedSearch?.label || filters.voting_station_id}`;
     if (filters.ward_code) return `Ward: ${selectedSearch?.label || filters.ward_code}`;
-    if (filters.municipal_code) return `Sub-Region: ${selectedSearch?.label || filters.municipal_code}`;
+    if (filters.municipal_code) return `Local Municipality: ${selectedSearch?.label || filters.municipal_code}`;
     return null;
   };
 
@@ -312,7 +312,7 @@ const GeographicSearchPage = () => {
             <LocationIcon />
             Search by Geographic Location
           </Typography>
-          
+
           {/* Search Type Toggle */}
           <Box mb={3}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -339,7 +339,7 @@ const GeographicSearchPage = () => {
               </ToggleButton>
               <ToggleButton value="subregions">
                 <LocationIcon sx={{ mr: 1 }} />
-                Sub-Region
+                Local Municipality
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
@@ -444,7 +444,7 @@ const GeographicSearchPage = () => {
                   onClick={handleDownloadClick}
                   disabled={isDownloading}
                 >
-                  {searchType === 'subregions' ? 'Download Sub-Region Members' : 'Download Attendance Register'}
+                  {searchType === 'subregions' ? 'Download Local Municipality Members' : 'Download Attendance Register'}
                 </Button>
               )}
             </Box>

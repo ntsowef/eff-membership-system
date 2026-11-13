@@ -18,7 +18,7 @@ async function testWordDocumentService() {
     const wardInfo = {
       province_name: 'Gauteng',
       district_name: 'City of Johannesburg',
-      municipality_name: 'Johannesburg Sub-Region 1',
+      municipality_name: 'Johannesburg Local Municipality 1',
       ward_number: '001',
       ward_name: 'Test Ward',
       ward_code: '79800001',
@@ -76,7 +76,7 @@ async function testWordDocumentService() {
     // Save to test directory
     const outputPath = path.join(__dirname, `test_attendance_register_${Date.now()}.docx`);
     fs.writeFileSync(outputPath, wordBuffer);
-    
+
     console.log(`   Saved to: ${outputPath}`);
     console.log('\n' + '='.repeat(60));
     console.log('✅ TEST PASSED!');

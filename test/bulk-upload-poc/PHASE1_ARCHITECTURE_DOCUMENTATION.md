@@ -162,7 +162,7 @@ Update database: report_file_path = <path>
 - `members_consolidated` - Main member table
 - `provinces` - Province lookup
 - `municipalities` - Municipality lookup
-- `sub_regions` - Sub-region lookup
+- `sub_regions` - Local Municipality lookup
 - `wards` - Ward lookup
 - `voting_districts` - Voting district lookup
 - `membership_statuses` - Status lookup
@@ -294,8 +294,8 @@ Frontend (React)
 - **Report:** Not generated
 
 ### 9. **Metro Municipality Codes**
-- **Scenario:** Municipality code is metro (needs mapping to sub-region)
-- **Handling:** Query mapping table, use sub-region code
+- **Scenario:** Municipality code is metro (needs mapping to Local Municipality)
+- **Handling:** Query mapping table, use Local Municipality code
 - **Fallback:** If mapping not found, use municipality code as-is
 
 ### 10. **Non-Registered Voters**

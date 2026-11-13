@@ -75,7 +75,7 @@ export class DigitalMembershipCardModel {
       `;
 
       const memberData = await executeQuerySingle<MemberCardData>(memberQuery, [memberId]);
-      
+
       if (!memberData) {
         throw new Error(`Member not found: ${memberId}`);
       }
@@ -83,11 +83,11 @@ export class DigitalMembershipCardModel {
       // Generate unique card ID and number
       const cardId = `CARD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const cardNumber = `DC${Date.now().toString().slice(-8)}`;
-      
+
       // Create security hash
       const securityData = `${memberData.member_id}:${memberData.membership_number}:${cardNumber}:${Date.now()}`;
       const securityHash = crypto.createHash('sha256').update(securityData).digest('hex');
-      
+
       // Generate QR code data
       const qrCodeData = JSON.stringify({
         card_id: cardId,
@@ -99,7 +99,7 @@ export class DigitalMembershipCardModel {
         security_hash: securityHash ? securityHash.substring(0, 16) : 'N/A', // First 16 chars for QR
         issued: new Date().toISOString()
       });
-      
+
       // Generate QR code image
       const qrCodeUrl = await QRCode.toDataURL(qrCodeData, {
         width: 200,
@@ -319,10 +319,10 @@ export class DigitalMembershipCardModel {
     ctx.font = 'bold 14px Arial';
     const expiryDate = cardData.expiry_date
       ? new Date(cardData.expiry_date).toLocaleDateString('en-ZA', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        })
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
       : 'N/A';
     ctx.fillText(`EXP: ${expiryDate}`, 16, 26);
 
@@ -343,7 +343,7 @@ export class DigitalMembershipCardModel {
     const idDisplay = memberData.id_number || memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
     ctx.fillText(idDisplay, width / 2, height * 0.63);
 
-    // Sub-region and Ward - Center (position: approximately 78% from top - shifted down)
+    // Local Municipality and Ward - Center (position: approximately 78% from top - shifted down)
     ctx.font = 'bold 14px Arial';
     const subRegion = memberData.municipality_name || 'N/A';
     const ward = memberData.ward_code || 'N/A';
@@ -375,85 +375,85 @@ export class DigitalMembershipCardModel {
 
         // Card background and border
         doc.rect(0, 0, 350, 220)
-           .fillAndStroke('#1976d2', '#0d47a1');
+          .fillAndStroke('#1976d2', '#0d47a1');
 
         // Header section
         doc.rect(0, 0, 350, 50)
-           .fill('#0d47a1');
+          .fill('#0d47a1');
 
         // Organization name
         doc.fillColor('#ffffff')
-           .fontSize(16)
-           .font('Helvetica-Bold')
-           .text('ORGANIZATION NAME', 20, 15, { align: 'left' });
+          .fontSize(16)
+          .font('Helvetica-Bold')
+          .text('ORGANIZATION NAME', 20, 15, { align: 'left' });
 
         // Province in top right
         doc.fontSize(10)
-           .font('Helvetica')
-           .text(`Province: ${memberData.province_name}`, 250, 15, { align: 'right' });
+          .font('Helvetica')
+          .text(`Province: ${memberData.province_name}`, 250, 15, { align: 'right' });
 
         // Membership card title
         doc.fontSize(10)
-           .font('Helvetica')
-           .text('DIGITAL MEMBERSHIP CARD', 20, 32);
+          .font('Helvetica')
+          .text('DIGITAL MEMBERSHIP CARD', 20, 32);
 
         // Member information - Centered (shifted down into dark blue area)
         doc.fillColor('#000000')
-           .fontSize(16)
-           .font('Helvetica-Bold')
-           .text(`${memberData.first_name} ${memberData.last_name}`, 0, 80, { align: 'center', width: 350 });
+          .fontSize(16)
+          .font('Helvetica-Bold')
+          .text(`${memberData.first_name} ${memberData.last_name}`, 0, 80, { align: 'center', width: 350 });
 
         // ID Number - Center display
         const pdfIdDisplay = memberData.id_number || memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
         doc.fontSize(12)
-           .font('Helvetica-Bold')
-           .text(pdfIdDisplay, 0, 100, { align: 'center', width: 350 });
+          .font('Helvetica-Bold')
+          .text(pdfIdDisplay, 0, 100, { align: 'center', width: 350 });
 
         doc.fontSize(12)
-           .font('Helvetica')
-           .text(`${memberData.municipality_name}`, 0, 120, { align: 'center', width: 350 })
-           .text(`Ward Code: ${memberData.ward_code}`, 0, 138, { align: 'center', width: 350 })
-           .text(`${memberData.voting_station_name}`, 0, 156, { align: 'center', width: 350 });
+          .font('Helvetica')
+          .text(`${memberData.municipality_name}`, 0, 120, { align: 'center', width: 350 })
+          .text(`Ward Code: ${memberData.ward_code}`, 0, 138, { align: 'center', width: 350 })
+          .text(`${memberData.voting_station_name}`, 0, 156, { align: 'center', width: 350 });
 
         // Membership dates - Centered (shifted down)
         doc.fontSize(10)
-           .font('Helvetica')
-           .text(`Member Since: ${new Date(memberData.join_date).toLocaleDateString()}`, 50, 178, { align: 'center', width: 120 })
-           .text(`Valid Until: ${new Date(cardData.expiry_date).toLocaleDateString()}`, 180, 178, { align: 'center', width: 120 });
+          .font('Helvetica')
+          .text(`Member Since: ${new Date(memberData.join_date).toLocaleDateString()}`, 50, 178, { align: 'center', width: 120 })
+          .text(`Valid Until: ${new Date(cardData.expiry_date).toLocaleDateString()}`, 180, 178, { align: 'center', width: 120 });
 
         // Card number (shifted down)
         doc.fontSize(8)
-           .font('Helvetica')
-           .text(`Card No: ${cardData.card_number}`, 20, 162);
+          .font('Helvetica')
+          .text(`Card No: ${cardData.card_number}`, 20, 162);
 
         // Issue date (shifted down)
         doc.text(`Issued: ${new Date(cardData.issue_date).toLocaleDateString()}`, 20, 178);
 
         // Security features (shifted down)
         doc.fontSize(6)
-           .fillColor('#666666')
-           .text(`Security Hash: ${cardData.security_hash ? cardData.security_hash.substring(0, 16) : 'N/A'}...`, 20, 195);
+          .fillColor('#666666')
+          .text(`Security Hash: ${cardData.security_hash ? cardData.security_hash.substring(0, 16) : 'N/A'}...`, 20, 195);
 
         // Footer (shifted down)
         doc.fontSize(8)
-           .fillColor('#1976d2')
-           .text('This is a digitally generated membership card. Scan QR code to verify authenticity.', 20, 208, {
-             width: 310,
-             align: 'center'
-           });
+          .fillColor('#1976d2')
+          .text('This is a digitally generated membership card. Scan QR code to verify authenticity.', 20, 208, {
+            width: 310,
+            align: 'center'
+          });
 
         // Add new page for back side
         doc.addPage();
 
         // Back side background
         doc.rect(0, 0, 350, 220)
-           .fillAndStroke('#0d47a1', '#1976d2');
+          .fillAndStroke('#0d47a1', '#1976d2');
 
         // Back side header
         doc.fillColor('#ffffff')
-           .fontSize(16)
-           .font('Helvetica-Bold')
-           .text('MEMBERSHIP VERIFICATION', 0, 30, { align: 'center', width: 350 });
+          .fontSize(16)
+          .font('Helvetica-Bold')
+          .text('MEMBERSHIP VERIFICATION', 0, 30, { align: 'center', width: 350 });
 
         // Generate membership number QR code for back side
         const membershipNumber = memberData.membership_number || `MEM${memberData.member_id.padStart(6, '0')}`;
@@ -474,12 +474,12 @@ export class DigitalMembershipCardModel {
 
         // Membership number text
         doc.fontSize(12)
-           .font('Helvetica-Bold')
-           .text('Membership Number', 0, 200, { align: 'center', width: 350 });
+          .font('Helvetica-Bold')
+          .text('Membership Number', 0, 200, { align: 'center', width: 350 });
 
         doc.fontSize(14)
-           .font('Helvetica')
-           .text(membershipNumber, 0, 215, { align: 'center', width: 350 });
+          .font('Helvetica')
+          .text(membershipNumber, 0, 215, { align: 'center', width: 350 });
 
         doc.end();
       } catch (error) {
@@ -498,11 +498,11 @@ export class DigitalMembershipCardModel {
     try {
       // Parse QR code data
       const parsedData = JSON.parse(cardData);
-      
+
       // Verify required fields
       const requiredFields = ['card_id', 'member_id', 'membership_number', 'security_hash'];
       const missingFields = requiredFields.filter(field => !parsedData[field]);
-      
+
       if (missingFields.length > 0) {
         return {
           valid: false,
@@ -613,9 +613,9 @@ export class DigitalMembershipCardModel {
         FROM vw_member_details_optimized
         WHERE member_id = $1
       `;
-      
+
       const memberData = await executeQuerySingle(memberQuery, [memberId]);
-      
+
       if (!memberData) {
         throw new Error(`Member not found: ${memberId}`);
       }
@@ -778,7 +778,7 @@ export class DigitalMembershipCardModel {
           premium: 25,
           executive: 10
         },
-        
+
         // --- New Tracking Stats (Real data) ---
         total_views: parseInt(trackingStats.total_views) || 0,
         unique_members: parseInt(trackingStats.unique_members) || 0,
@@ -786,14 +786,14 @@ export class DigitalMembershipCardModel {
         views_today: parseInt(trackingStats.views_today) || 0,
         views_last_7_days: parseInt(trackingStats.views_last_7_days) || 0,
         recent_card_views: recentViews,
-        
+
         // Compatibility for recent activity
         recent_activity: [
           { date: new Date().toISOString().split('T')[0], cards_generated: 45, verifications: 12 },
           { date: new Date(Date.now() - 86400000).toISOString().split('T')[0], cards_generated: 38, verifications: 8 },
           { date: new Date(Date.now() - 172800000).toISOString().split('T')[0], cards_generated: 52, verifications: 15 }
         ],
-        
+
         generated_at: new Date().toISOString()
       };
     } catch (error) {

@@ -111,7 +111,7 @@ const voterDetails: IECVoterDetails = {
 
 ### Rule 5: Municipality Code Mapping
 - **IF**: `municipal_code` is metro-level (e.g., "EKU", "JHB")
-- **THEN**: Look up sub-region code from ward table
+- **THEN**: Look up Local Municipality code from ward table
 - **Example**: Ward 79700100 → Municipality Code "EKU004" (not "EKU")
 
 ### Rule 6: Membership Status
@@ -178,7 +178,7 @@ if (application.iec_is_registered === true) {
 
 2. **Map Municipality Code** (before creating member):
 ```typescript
-// Get correct municipality_code from ward table (sub-region, not metro)
+// Get correct municipality_code from ward table (Local Municipality, not metro)
 const wardMunicipalityQuery = `
   SELECT municipality_code FROM wards WHERE ward_code = $1
 `;
@@ -255,7 +255,7 @@ UPDATE members_consolidated
 SET 
   voter_status_id = 2,           -- Not Registered (since no IEC data stored)
   voting_district_code = '999999999',  -- Not registered special code
-  municipality_code = 'EKU004'   -- Correct sub-region code from ward table
+  municipality_code = 'EKU004'   -- Correct Local Municipality code from ward table
 WHERE member_id = 772468;
 ```
 
@@ -305,7 +305,7 @@ WHERE member_id = 772468;
 
 1. **IEC Data Not Stored**: Currently, IEC verification happens in frontend but data is NOT stored in database. We need to add columns to store this data.
 
-2. **Municipality Code Issue**: Member has "EKU" (metro) but should have "EKU004" (sub-region from ward table).
+2. **Municipality Code Issue**: Member has "EKU" (metro) but should have "EKU004" (Local Municipality from ward table).
 
 3. **Voter Status Unknown**: Member 772468 has NULL voter_status_id. We need to determine if they were IEC verified.
 

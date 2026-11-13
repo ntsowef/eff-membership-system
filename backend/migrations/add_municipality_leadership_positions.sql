@@ -1,23 +1,23 @@
 -- =====================================================================================
--- ADD MUNICIPALITY (SUB-REGION) LEADERSHIP POSITIONS
+-- ADD MUNICIPALITY (Local Municipality) LEADERSHIP POSITIONS
 -- =====================================================================================
--- This script creates leadership positions for all municipalities (sub-regions)
+-- This script creates leadership positions for all municipalities (Local Municipalitys)
 -- including:
 -- 1. Metropolitan municipalities (8 metros)
 -- 2. Local municipalities (195 local)
--- 3. Metro sub-regions (sub-regions within metro municipalities)
+-- 3. Metro Local Municipalitys (Local Municipalitys within metro municipalities)
 -- =====================================================================================
 
--- Standard leadership positions for each municipality/sub-region:
--- 1. Municipal/Sub-Region Chairperson
--- 2. Municipal/Sub-Region Secretary
--- 3. Municipal/Sub-Region Treasurer
--- 4. Municipal/Sub-Region Deputy Chairperson
--- 5. Municipal/Sub-Region Deputy Secretary
--- 6. Municipal/Sub-Region Youth Leader
--- 7. Municipal/Sub-Region Women Leader
--- 8. Municipal/Sub-Region Organizer
--- 9-18. Municipal/Sub-Region Committee Members (10 members)
+-- Standard leadership positions for each municipality/Local Municipality:
+-- 1. Municipal/Local Municipality Chairperson
+-- 2. Municipal/Local Municipality Secretary
+-- 3. Municipal/Local Municipality Treasurer
+-- 4. Municipal/Local Municipality Deputy Chairperson
+-- 5. Municipal/Local Municipality Deputy Secretary
+-- 6. Municipal/Local Municipality Youth Leader
+-- 7. Municipal/Local Municipality Women Leader
+-- 8. Municipal/Local Municipality Organizer
+-- 9-18. Municipal/Local Municipality Committee Members (10 members)
 
 BEGIN;
 
@@ -32,7 +32,7 @@ BEGIN
     -- Get the maximum position ID to start from
     SELECT COALESCE(MAX(id), 0) + 1 INTO base_position_id FROM leadership_positions;
     
-    -- Loop through all municipalities (including metros and metro sub-regions)
+    -- Loop through all municipalities (including metros and metro Local Municipalitys)
     FOR municipality_record IN 
         SELECT 
             municipality_id,
@@ -52,12 +52,12 @@ BEGIN
             IF municipality_record.municipality_type = 'Metropolitan' THEN
                 display_name := municipality_record.municipality_name;
                 position_prefix := 'Metro';
-            ELSIF municipality_record.municipality_type = 'Metro Sub-Region' THEN
+            ELSIF municipality_record.municipality_type = 'Metro Local Municipality' THEN
                 display_name := municipality_record.municipality_name;
-                position_prefix := 'Sub-Region';
+                position_prefix := 'Local Municipality';
             ELSE
                 display_name := municipality_record.municipality_name;
-                position_prefix := 'Sub-Region';
+                position_prefix := 'Local Municipality';
             END IF;
 
             -- 1. Chairperson

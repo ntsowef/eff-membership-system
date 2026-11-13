@@ -69,10 +69,10 @@ router.get('/province/:province_code',
 );
 
 /**
- * GET /api/v1/srpa-delegate-config/sub-region/:sub_region_code
- * Get SRPA delegate configuration for a specific sub-region
+ * GET /api/v1/srpa-delegate-config/Local Municipality/:sub_region_code
+ * Get SRPA delegate configuration for a specific Local Municipality
  */
-router.get('/sub-region/:sub_region_code',
+router.get('/Local Municipality/:sub_region_code',
   authenticate,
   requirePermission('ward_audit.read'),
   validate({ params: subRegionCodeSchema }),
@@ -81,7 +81,7 @@ router.get('/sub-region/:sub_region_code',
     const config = await SRPADelegateConfigModel.getConfigBySubRegion(sub_region_code);
 
     if (!config) {
-      throw new NotFoundError('Configuration not found for this sub-region');
+      throw new NotFoundError('Configuration not found for this Local Municipality');
     }
 
     sendSuccess(res, config, 'SRPA delegate configuration retrieved successfully');
@@ -90,7 +90,7 @@ router.get('/sub-region/:sub_region_code',
 
 /**
  * POST /api/v1/srpa-delegate-config
- * Create or update SRPA delegate configuration for a sub-region
+ * Create or update SRPA delegate configuration for a Local Municipality
  */
 router.post('/',
   authenticate,
@@ -160,7 +160,7 @@ router.post('/bulk',
 
 /**
  * DELETE /api/v1/srpa-delegate-config/:sub_region_code
- * Delete (deactivate) SRPA delegate configuration for a sub-region
+ * Delete (deactivate) SRPA delegate configuration for a Local Municipality
  */
 router.delete('/:sub_region_code',
   authenticate,
@@ -168,9 +168,9 @@ router.delete('/:sub_region_code',
   validate({ params: subRegionCodeSchema }),
   asyncHandler(async (req: Request, res: Response) => {
     const { sub_region_code } = req.params;
-    
+
     await SRPADelegateConfigModel.deleteConfig(sub_region_code);
-    
+
     sendSuccess(res, null, 'SRPA delegate configuration deleted successfully');
   })
 );

@@ -92,6 +92,59 @@ export interface IECVotingDistrictInfo {
   voting_station_address?: string;
 }
 
+export const DEFAULT_IEC_PROXY_URL = 'https://xdohhgnwrknh4l4zardtnm5eh40xoang.lambda-url.af-south-1.on.aws/?idNumber=';
+
+/**
+ * Helper to construct the voter verification URL from the proxyUrl configuration.
+ * Handles AWS Lambda Function URLs, AWS API Gateway, and legacy proxy formats:
+ * - AWS Lambda Function URL: "https://<id>.lambda-url.<region>.on.aws/" or ".../?idNumber="
+ * - Full template with query param: "https://.../api/iec/verify-voter?idNumber="
+ * - Base AWS API URL: "https://.../prod"
+ * - Direct endpoint: "https://.../api/iec/verify-voter"
+ * - Legacy proxy: "http://host:port" -> /api/voters/:idNumber
+ */
+export function buildIecVoterUrl(proxyUrl: string, idNumber: string): string {
+  const trimmed = (proxyUrl || '').trim();
+  const cleanId = encodeURIComponent(idNumber.trim());
+
+  if (!trimmed) {
+    return `${DEFAULT_IEC_PROXY_URL}${cleanId}`;
+  }
+
+  // If the proxy URL already specifies the query param name (e.g. "...?idNumber=" or "...?idNumber")
+  if (/[?&]idNumber=?$/i.test(trimmed)) {
+    return trimmed.endsWith('=') ? `${trimmed}${cleanId}` : `${trimmed}=${cleanId}`;
+  }
+
+  // If query parameters already exist
+  if (trimmed.includes('?')) {
+    return `${trimmed}&idNumber=${cleanId}`;
+  }
+
+  // If endpoint ends with /verify-voter or contains /verify-voter
+  if (trimmed.endsWith('/verify-voter') || trimmed.includes('/verify-voter')) {
+    return `${trimmed}?idNumber=${cleanId}`;
+  }
+
+  // If AWS Lambda Function URL (e.g. "https://...lambda-url.af-south-1.on.aws" or ".../")
+  if (trimmed.includes('.lambda-url.') || trimmed.includes('.on.aws')) {
+    const base = trimmed.replace(/\/+$/, '');
+    return `${base}/?idNumber=${cleanId}`;
+  }
+
+  // If AWS API Gateway base (e.g. ".../prod" or contains execute-api)
+  if (trimmed.includes('execute-api') || trimmed.endsWith('/api/iec')) {
+    const base = trimmed.replace(/\/+$/, '');
+    if (base.endsWith('/api/iec')) {
+      return `${base}/verify-voter?idNumber=${cleanId}`;
+    }
+    return `${base}/api/iec/verify-voter?idNumber=${cleanId}`;
+  }
+
+  // Legacy fallback (e.g. http://197.85.7.202:5000 -> /api/voters/:idNumber)
+  return `${trimmed.replace(/\/+$/, '')}/api/voters/${cleanId}`;
+}
+
 class IECApiService {
   // HTTP client pointed at the IECProxy service. The proxy handles all
   // authentication / Cloudflare bypass and forwards lookups to the IEC Voter
@@ -101,8 +154,17 @@ class IECApiService {
   private rateLimitResetTime: number = Date.now() + 60000; // Reset every minute
 
   constructor() {
+    // Extract base URL for general requests (stripping query string and specific voter path if present)
+    let baseUrl = config.iec.proxyUrl;
+    if (baseUrl.includes('?')) {
+      baseUrl = baseUrl.split('?')[0];
+    }
+    if (baseUrl.endsWith('/api/iec/verify-voter')) {
+      baseUrl = baseUrl.replace(/\/api\/iec\/verify-voter$/, '');
+    }
+
     this.client = axios.create({
-      baseURL: config.iec.proxyUrl,
+      baseURL: baseUrl,
       timeout: config.iec.timeout,
       headers: {
         'Content-Type': 'application/json',
@@ -115,13 +177,11 @@ class IECApiService {
 
   /**
    * Fetch voter details from the IECProxy service.
-   * Endpoint: GET {proxyUrl}/api/voters/{id_number}
-   * The proxy returns the raw IEC voter payload (IECVoterResponse shape).
+   * Handles new AWS API Gateway endpoint (?idNumber=) and legacy proxy (/api/voters/:id).
    */
   private async fetchVoter(idNumber: string): Promise<IECVoterResponse> {
-    const resp = await this.client.get<IECVoterResponse>(
-      `/api/voters/${idNumber}`
-    );
+    const url = buildIecVoterUrl(config.iec.proxyUrl, idNumber);
+    const resp = await this.client.get<IECVoterResponse>(url);
     return resp.data;
   }
 
@@ -151,6 +211,8 @@ class IECApiService {
         || error.response.statusText;
 
       switch (status) {
+        case 400:
+          return new Error(message || 'IEC proxy bad request (invalid ID number).');
         case 401:
           return new Error('IEC proxy authentication failed.');
         case 403:
@@ -409,7 +471,24 @@ class IECApiService {
    */
   async getApiStatus(): Promise<{ status: string; timestamp: string }> {
     try {
-      const response = await this.client.get('/health');
+      const proxyUrl = config.iec.proxyUrl || '';
+      if (proxyUrl.includes('.lambda-url.') || proxyUrl.includes('.on.aws')) {
+        const resp = await this.client.get('/', {
+          validateStatus: (status) => status < 500
+        });
+        if (resp.status < 500) {
+          return {
+            status: 'connected',
+            timestamp: new Date().toISOString()
+          };
+        }
+      }
+
+      try {
+        await this.client.get('/api/health');
+      } catch {
+        await this.client.get('/health');
+      }
       return {
         status: 'connected',
         timestamp: new Date().toISOString()

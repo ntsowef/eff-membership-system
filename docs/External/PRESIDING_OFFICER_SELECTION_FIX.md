@@ -60,7 +60,7 @@ Testing ward 79800044 (Johannesburg metro ward):
 
 📊 Test 2: Direct wards table with COALESCE
 ✅ Ward: Ward 44 (79800044)
-   Municipality: JHB - C (Metro Sub-Region)
+   Municipality: JHB - C (Metro Local Municipality)
    Resolved District: JHB
    Resolved Province: GP  ← Correct!
 
@@ -79,9 +79,9 @@ LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
 LEFT JOIN districts d ON m.district_code = d.district_code  -- ❌ NULL for metros
 ```
 
-**Problem**: Metro sub-regions have `district_code = NULL` because they link through parent municipalities:
+**Problem**: Metro Local Municipalitys have `district_code = NULL` because they link through parent municipalities:
 - Regular: `ward → municipality → district → province`
-- Metro: `ward → metro sub-region → parent metro → district → province`
+- Metro: `ward → metro Local Municipality → parent metro → district → province`
 
 ---
 
@@ -96,7 +96,7 @@ Updated `vw_ward_compliance_summary` view to include parent municipality joins w
 FROM wards w
 LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
 
--- ADDED: Join to parent municipality (for metro sub-regions)
+-- ADDED: Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
 
 -- MODIFIED: Join to districts (both direct and through parent)
@@ -272,7 +272,7 @@ LEFT JOIN districts d ON m.district_code = d.district_code
 
 ### Key Insights
 
-1. **Metro Hierarchy is Different**: Always remember that metro sub-regions have a parent-child relationship
+1. **Metro Hierarchy is Different**: Always remember that metro Local Municipalitys have a parent-child relationship
 2. **Views Need Metro Support**: Any view that joins to districts needs parent municipality support
 3. **Test with Metro Data**: Always test with metro wards (Johannesburg, Tshwane, etc.)
 4. **COALESCE is Your Friend**: Use COALESCE to resolve values through parent relationships

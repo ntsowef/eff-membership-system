@@ -2,8 +2,8 @@
 -- FIX: vw_member_details_optimized - Add Metropolitan Municipality Support
 -- ============================================================================
 -- Date: 2025-11-02
--- Issue: Members in metropolitan sub-regions return NULL for province_code and province_name
--- Root Cause: View doesn't join through parent_municipality_id for metro sub-regions
+-- Issue: Members in metropolitan Local Municipalitys return NULL for province_code and province_name
+-- Root Cause: View doesn't join through parent_municipality_id for metro Local Municipalitys
 -- Solution: Add parent municipality joins and use COALESCE to inherit geographic data
 -- ============================================================================
 
@@ -28,11 +28,11 @@ SELECT
     COALESCE(p.province_code, pp.province_code) as province_code,
     COALESCE(p.province_name, pp.province_name) as province_name,
     
-    -- Municipality name (always from direct join - shows sub-region name, not parent)
+    -- Municipality name (always from direct join - shows Local Municipality name, not parent)
     mu.municipality_name,
     mu.municipality_code,
     
-    -- District info (COALESCE to handle metro sub-regions)
+    -- District info (COALESCE to handle metro Local Municipalitys)
     COALESCE(d.district_code, pd.district_code) as district_code,
     COALESCE(d.district_name, pd.district_name) as district_name,
     
@@ -71,7 +71,7 @@ FROM members m
 LEFT JOIN wards w ON m.ward_code = w.ward_code
 LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
 
--- Join to parent municipality (for metro sub-regions)
+-- Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
 -- Join to districts (both direct and through parent)

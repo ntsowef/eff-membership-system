@@ -151,7 +151,7 @@ This report provides a comprehensive analysis of EFF membership status distribut
 ### Query Methodology
 - **Source Table:** `members_consolidated`
 - **Geographic Join Path:** members → wards → municipalities → districts → provinces
-- **Metro Handling:** Includes parent municipality lookup for metro sub-regions
+- **Metro Handling:** Includes parent municipality lookup for metro Local Municipalitys
 - **Status Mapping:** Uses `membership_statuses` lookup table
 
 ### Data Integrity

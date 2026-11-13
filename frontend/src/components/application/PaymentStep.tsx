@@ -16,6 +16,9 @@ import {
   Paper,
   CircularProgress,
   Button,
+  IconButton,
+  Tooltip,
+  Chip,
 } from '@mui/material';
 import {
   Payment as PaymentIcon,
@@ -27,6 +30,9 @@ import {
   CheckCircle,
   Lock,
   Person as PersonIcon,
+  CloudUpload,
+  Delete,
+  PictureAsPdf,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -80,6 +86,45 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [paymentError, setPaymentError] = useState('');
+  const [fileError, setFileError] = useState<string>('');
+
+  const handleFileUpload = (file: File) => {
+    setFileError('');
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      setFileError('Only JPEG, PNG, and PDF files are allowed.');
+      return;
+    }
+    const maxBytes = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxBytes) {
+      setFileError('File size exceeds the 5MB limit.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result as string;
+      updateApplicationData({
+        proof_of_payment: {
+          filename: file.name,
+          mime_type: file.type,
+          file_size: file.size,
+          file_data: base64Data
+        }
+      });
+    };
+    reader.onerror = () => {
+      setFileError('Failed to read the file. Please try again.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveProofOfPayment = () => {
+    updateApplicationData({
+      proof_of_payment: undefined
+    });
+    setFileError('');
+  };
 
   const handleFieldChange = (field: string, value: any) => {
     updateApplicationData({ [field]: value });
@@ -203,24 +248,12 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
         <Card elevation={2}>
           <CardContent sx={{ p: 4 }}>
             {/* Header */}
-            <Box display="flex" alignItems="center" mb={3}>
-              <PaymentIcon sx={{ mr: 2, color: 'primary.main', fontSize: 32 }} />
-              <Box>
-                <Typography variant="h5" component="h2" gutterBottom>
-                  Payment Information
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Complete your membership payment to finalize your application
-                </Typography>
-              </Box>
-            </Box>
-
-            <Alert severity="info" sx={{ mb: 3 }}>
-              <Typography variant="body2">
-                <strong>Membership Fee:</strong> The standard EFF membership fee is R{defaultMembershipFee.toFixed(2)}.
-                Select your preferred payment method below.
+            <Box display="flex" alignItems="center" mb={2.5}>
+              <PaymentIcon sx={{ mr: 1.5, color: 'primary.main', fontSize: 30 }} />
+              <Typography variant="h5" component="h2">
+                Payment Information
               </Typography>
-            </Alert>
+            </Box>
 
             <Divider sx={{ mb: 3 }} />
 
@@ -259,7 +292,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                   value={applicationData.payment_amount || defaultMembershipFee}
                   onChange={(e) => handleFieldChange('payment_amount', parseFloat(e.target.value) || '')}
                   error={!!errors.payment_amount}
-                  helperText={errors.payment_amount || `Standard membership fee: R${defaultMembershipFee.toFixed(2)}`}
+                  helperText={errors.payment_amount}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -484,9 +517,6 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                   Your card payment of R{(applicationData.payment_amount || defaultMembershipFee).toFixed(2)} has been processed successfully.
                   Reference: <strong>{applicationData.payment_reference}</strong>
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  You can now proceed to the next step to review and submit your application.
-                </Typography>
               </Alert>
             )}
 
@@ -495,13 +525,6 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
             {/* ============================================================= */}
             {applicationData.payment_method === 'Cash' && (
               <Box sx={{ mt: 3 }}>
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  <Typography variant="body2">
-                    Please visit your nearest branch office to complete the cash payment.
-                    Bring your ID number for verification.
-                  </Typography>
-                </Alert>
-
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={6}>
                     <DatePicker
@@ -513,7 +536,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                         textField: {
                           fullWidth: true,
                           error: !!errors.last_payment_date,
-                          helperText: errors.last_payment_date || 'Date when payment was made',
+                          helperText: errors.last_payment_date,
                           InputProps: {
                             startAdornment: (
                               <InputAdornment position="start">
@@ -533,7 +556,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                       value={applicationData.payment_reference || ''}
                       onChange={(e) => handleFieldChange('payment_reference', e.target.value)}
                       error={!!errors.payment_reference}
-                      helperText={errors.payment_reference || 'Receipt number or confirmation code'}
+                      helperText={errors.payment_reference}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -553,7 +576,6 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                       label="Payment Notes (Optional)"
                       value={applicationData.payment_notes || ''}
                       onChange={(e) => handleFieldChange('payment_notes', e.target.value)}
-                      helperText="Additional information about the payment"
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
@@ -561,8 +583,121 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                           </InputAdornment>
                         ),
                       }}
-                      placeholder="e.g., Cash payment at branch office..."
                     />
+                  </Grid>
+
+                  {/* Proof of Payment Upload */}
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ReceiptIcon color="primary" fontSize="small" />
+                      Proof of Payment (Optional / Recommended)
+                    </Typography>
+
+                    {applicationData.proof_of_payment ? (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          bgcolor: 'rgba(46, 125, 50, 0.04)',
+                          borderColor: 'success.main'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          {applicationData.proof_of_payment.mime_type === 'application/pdf' ? (
+                            <PictureAsPdf sx={{ fontSize: 40, color: '#d32f2f' }} />
+                          ) : (
+                            <Box
+                              component="img"
+                              src={applicationData.proof_of_payment.file_data}
+                              alt="Proof of Payment"
+                              sx={{
+                                width: 48,
+                                height: 48,
+                                objectFit: 'cover',
+                                borderRadius: 1,
+                                border: '1px solid #ddd'
+                              }}
+                            />
+                          )}
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {applicationData.proof_of_payment.filename}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {((applicationData.proof_of_payment.file_size || 0) / (1024 * 1024)).toFixed(2)} MB • Ready for submission
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip
+                            icon={<CheckCircle fontSize="small" />}
+                            label="Attached"
+                            color="success"
+                            size="small"
+                          />
+                          <Tooltip title="Remove file">
+                            <IconButton color="error" size="small" onClick={handleRemoveProofOfPayment}>
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Paper>
+                    ) : (
+                      <Box
+                        sx={{
+                          border: '2px dashed',
+                          borderColor: fileError ? 'error.main' : '#ccc',
+                          borderRadius: 2,
+                          p: 3,
+                          textAlign: 'center',
+                          bgcolor: '#fafafa',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            borderColor: '#DC143C',
+                            bgcolor: 'rgba(220, 20, 60, 0.02)'
+                          }
+                        }}
+                        onClick={() => document.getElementById('pop-file-input')?.click()}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            handleFileUpload(e.dataTransfer.files[0]);
+                          }
+                        }}
+                      >
+                        <input
+                          id="pop-file-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/jpg,application/pdf"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleFileUpload(e.target.files[0]);
+                            }
+                          }}
+                        />
+                        <CloudUpload sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          Upload Proof of Payment (Cash Receipt / Deposit Slip)
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Click to browse or drag & drop (PDF, JPG, PNG up to 5MB)
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {fileError && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                        {fileError}
+                      </Typography>
+                    )}
                   </Grid>
                 </Grid>
               </Box>
@@ -608,16 +743,6 @@ const PaymentStep: React.FC<PaymentStepProps> = ({ errors, onPaymentSuccess }) =
                   </Box>
                 </Alert>
               </>
-            )}
-
-            {/* Help for no method selected */}
-            {!applicationData.payment_method && (
-              <Alert severity="warning" sx={{ mt: 3 }}>
-                <Typography variant="body2">
-                  <strong>Important:</strong> If you haven't made payment yet, you can complete your application 
-                  and make payment after approval. Our membership team will contact you with payment instructions.
-                </Typography>
-              </Alert>
             )}
           </CardContent>
         </Card>

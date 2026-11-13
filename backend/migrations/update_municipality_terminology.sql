@@ -1,6 +1,6 @@
 -- =====================================================
 -- Migration: Update Municipality Terminology
--- Description: Replace "Local Municipality" with "Sub-Region" in municipality names
+-- Description: Replace "Local Municipality" with "Local Municipality" in municipality names
 -- Date: 2025-10-01
 -- Author: System Migration
 -- =====================================================
@@ -24,9 +24,9 @@ BEGIN
     RAISE NOTICE 'Found % municipalities with "Local Municipality" in their names', record_count;
 END $$;
 
--- Update municipality names: Replace "Local Municipality" with "Sub-Region"
+-- Update municipality names: Replace "Local Municipality" with "Local Municipality"
 UPDATE municipalities
-SET municipality_name = REPLACE(municipality_name, 'Local Municipality', 'Sub-Region')
+SET municipality_name = REPLACE(municipality_name, 'Local Municipality', 'Local Municipality')
 WHERE municipality_name LIKE '%Local Municipality%';
 
 -- Log the results
@@ -36,9 +36,9 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO updated_count
     FROM municipalities
-    WHERE municipality_name LIKE '%Sub-Region%';
+    WHERE municipality_name LIKE '%Local Municipality%';
     
-    RAISE NOTICE 'Updated % municipalities to use "Sub-Region" terminology', updated_count;
+    RAISE NOTICE 'Updated % municipalities to use "Local Municipality" terminology', updated_count;
 END $$;
 
 -- Display sample of updated records
@@ -47,7 +47,7 @@ SELECT
     municipality_name,
     municipality_type
 FROM municipalities
-WHERE municipality_name LIKE '%Sub-Region%'
+WHERE municipality_name LIKE '%Local Municipality%'
 ORDER BY municipality_name
 LIMIT 10;
 
@@ -63,14 +63,14 @@ SELECT COUNT(*) as remaining_local_municipality_count
 FROM municipalities
 WHERE municipality_name LIKE '%Local Municipality%';
 
--- Show all municipalities with "Sub-Region" in their names
+-- Show all municipalities with "Local Municipality" in their names
 SELECT 
     municipality_code,
     municipality_name,
     municipality_type,
     district_code
 FROM municipalities
-WHERE municipality_name LIKE '%Sub-Region%'
+WHERE municipality_name LIKE '%Local Municipality%'
 ORDER BY municipality_name;
 
 -- =====================================================
@@ -81,8 +81,8 @@ ORDER BY municipality_name;
 -- BEGIN;
 -- 
 -- UPDATE municipalities
--- SET municipality_name = REPLACE(municipality_name, 'Sub-Region', 'Local Municipality')
--- WHERE municipality_name LIKE '%Sub-Region%';
+-- SET municipality_name = REPLACE(municipality_name, 'Local Municipality', 'Local Municipality')
+-- WHERE municipality_name LIKE '%Local Municipality%';
 -- 
 -- COMMIT;
 -- 

@@ -12,7 +12,7 @@
 ![Ward Audit Dashboard](../images/ward-audit/dashboard-overview.png)
 
 **Key Elements**:
-1. Geographic filter (Province → Region → Sub-Region → Ward)
+1. Geographic filter (Province → Region → Local Municipality → Ward)
 2. Summary statistics cards
 3. Ward compliance table
 4. Action buttons

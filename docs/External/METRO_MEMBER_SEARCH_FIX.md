@@ -4,9 +4,9 @@
 
 Two critical search issues were identified in the membership system related to metropolitan municipalities (metros):
 
-1. **Province-level member search issue**: When searching for members and filtering by province, members who belong to metropolitan sub-regions were not appearing in the search results.
+1. **Province-level member search issue**: When searching for members and filtering by province, members who belong to metropolitan Local Municipalitys were not appearing in the search results.
 
-2. **Membership directory search issue**: The membership directory search functionality was not returning any results for members who belong to metropolitan municipalities (displayed as "Metro Sub-Region" in the UI).
+2. **Membership directory search issue**: The membership directory search functionality was not returning any results for members who belong to metropolitan municipalities (displayed as "Metro Local Municipality" in the UI).
 
 ### Impact
 - **73,279 members** in Gauteng province alone were missing from search results
@@ -26,7 +26,7 @@ Province → District → Municipality → Ward → Member
 
 However, **metropolitan municipalities** have a special structure:
 ```
-Province → Metro District → Metro Municipality (Parent) → Metro Sub-Region (Child) → Ward → Member
+Province → Metro District → Metro Municipality (Parent) → Metro Local Municipality (Child) → Ward → Member
 ```
 
 ### The Problem
@@ -41,13 +41,13 @@ LEFT JOIN districts d ON mu.district_code = d.district_code  -- ❌ FAILS FOR ME
 LEFT JOIN provinces p ON d.province_code = p.province_code
 ```
 
-**For metro sub-regions:**
-- The municipality has `municipality_type = 'Metro Sub-Region'`
+**For metro Local Municipalitys:**
+- The municipality has `municipality_type = 'Metro Local Municipality'`
 - The municipality has a `parent_municipality_id` pointing to the parent metro
-- The municipality's `district_code` is **NULL** (because it's a sub-region)
+- The municipality's `district_code` is **NULL** (because it's a Local Municipality)
 - The parent metro has the `district_code`
 
-When joining `districts d ON mu.district_code = d.district_code`, it **fails for metro sub-regions** because `mu.district_code` is NULL!
+When joining `districts d ON mu.district_code = d.district_code`, it **fails for metro Local Municipalitys** because `mu.district_code` is NULL!
 
 This resulted in:
 - `district_code` = NULL
@@ -63,7 +63,7 @@ This resulted in:
 
 Use `COALESCE` to get the district_code from either:
 1. The municipality directly (for regular municipalities)
-2. The parent municipality (for metro sub-regions)
+2. The parent municipality (for metro Local Municipalitys)
 
 ### Updated View Definition
 
@@ -77,11 +77,11 @@ SELECT
     mu.municipality_name,
     mu.municipality_type,
     
-    -- District info (COALESCE to handle metro sub-regions)
+    -- District info (COALESCE to handle metro Local Municipalitys)
     COALESCE(mu.district_code, pm.district_code) as district_code,
     COALESCE(d.district_name, pd.district_name) as district_name,
     
-    -- Province info (COALESCE to handle metro sub-regions)
+    -- Province info (COALESCE to handle metro Local Municipalitys)
     COALESCE(d.province_code, pd.province_code) as province_code,
     COALESCE(p.province_name, pp.province_name) as province_name,
     
@@ -93,7 +93,7 @@ FROM members m
 LEFT JOIN wards w ON m.ward_code = w.ward_code
 LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
 
--- Join to parent municipality (for metro sub-regions)
+-- Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
 -- Join to districts (both direct and through parent)
@@ -226,8 +226,8 @@ The fix applies to all South African metropolitan municipalities:
 
 ## ✅ Verification Checklist
 
-- [x] Metro sub-region members now have province_code populated
-- [x] Metro sub-region members now have district_code populated
+- [x] Metro Local Municipality members now have province_code populated
+- [x] Metro Local Municipality members now have district_code populated
 - [x] Province filtering includes all metro members
 - [x] District filtering includes all metro members
 - [x] Membership directory search works for metro members
@@ -263,16 +263,16 @@ CREATE TABLE municipalities (
   municipality_id SERIAL PRIMARY KEY,
   municipality_code VARCHAR(20) NOT NULL UNIQUE,
   municipality_name VARCHAR(150) NOT NULL,
-  district_code VARCHAR(20),  -- NULL for metro sub-regions
-  municipality_type VARCHAR(20),  -- 'Metropolitan', 'Metro Sub-Region', 'Local', 'District'
-  parent_municipality_id INT,  -- Points to parent metro for sub-regions
+  district_code VARCHAR(20),  -- NULL for metro Local Municipalitys
+  municipality_type VARCHAR(20),  -- 'Metropolitan', 'Metro Local Municipality', 'Local', 'District'
+  parent_municipality_id INT,  -- Points to parent metro for Local Municipalitys
   -- ... other fields ...
 );
 ```
 
 ### Key Relationships
 - **Regular Municipality**: `district_code` → `districts.district_code` → `provinces.province_code`
-- **Metro Sub-Region**: `parent_municipality_id` → `municipalities.municipality_id` → `district_code` → `districts.district_code` → `provinces.province_code`
+- **Metro Local Municipality**: `parent_municipality_id` → `municipalities.municipality_id` → `district_code` → `districts.district_code` → `provinces.province_code`
 
 ---
 
@@ -281,7 +281,7 @@ CREATE TABLE municipalities (
 If you encounter any issues with metro member searches after applying this fix, please check:
 
 1. The view was recreated successfully: `SELECT * FROM vw_member_details LIMIT 1;`
-2. Metro members have province_code: `SELECT COUNT(*) FROM vw_member_details WHERE municipality_type = 'Metro Sub-Region' AND province_code IS NOT NULL;`
+2. Metro members have province_code: `SELECT COUNT(*) FROM vw_member_details WHERE municipality_type = 'Metro Local Municipality' AND province_code IS NOT NULL;`
 3. Indexes were created: `\d municipalities` (in psql)
 
 ---

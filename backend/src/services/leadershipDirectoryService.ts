@@ -194,7 +194,7 @@ export class LeadershipDirectoryService {
     }
   }
 
-  // SRCT (Sub-Regional Command Team) roster for a municipality
+  // SRCT (Local Municipalityal Command Team) roster for a municipality
   static async getSRCTRoster(municipalityId: number): Promise<{ municipality: DirectoryMunicipality; roster: RosterRow[] }> {
     try {
       const municipality = await this.getMunicipality(municipalityId);
@@ -224,7 +224,7 @@ export class LeadershipDirectoryService {
   }
 
   // BCT (Branch Command Team) rosters for all wards in a municipality
-  // (including wards of child municipalities, e.g. metro sub-regions)
+  // (including wards of child municipalities, e.g. metro Local Municipalitys)
   static async getBCTRostersByMunicipality(municipalityId: number): Promise<{
     municipality: DirectoryMunicipality;
     wards: BCTWardRoster[];

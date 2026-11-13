@@ -155,6 +155,12 @@ export interface MembershipApplication {
   last_payment_date?: string;
   payment_amount?: number;
   payment_notes?: string;
+  proof_of_payment?: {
+    filename: string;
+    mime_type: string;
+    file_size?: number;
+    file_data: string;
+  };
   // Geographic fields
   province_code?: string;
   district_code?: string;

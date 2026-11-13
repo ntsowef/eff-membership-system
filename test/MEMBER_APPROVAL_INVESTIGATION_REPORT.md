@@ -55,9 +55,9 @@
 - IEC provides **metro-level** municipality code
 
 **Internal Database**:
-- Uses **sub-region** codes like `320` (EKU - North)
-- Ekurhuleni is divided into multiple sub-regions (EKU001-EKU007 or similar)
-- Ward 79700100 belongs to sub-region `320`
+- Uses **Local Municipality** codes like `320` (EKU - North)
+- Ekurhuleni is divided into multiple Local Municipalitys (EKU001-EKU007 or similar)
+- Ward 79700100 belongs to Local Municipality `320`
 
 ### Problem 2: Approval Process Uses IEC Code Directly
 
@@ -85,7 +85,7 @@ const params = [
 - Ward Code: 79700100
 - Municipality Code: `EKU004` ← **Different from both!**
 
-This suggests the ward table uses a different coding system (possibly EKU001-EKU007 for sub-regions).
+This suggests the ward table uses a different coding system (possibly EKU001-EKU007 for Local Municipalitys).
 
 ---
 
@@ -220,7 +220,7 @@ CREATE TABLE iec_municipality_mappings (
 
 **Pros**:
 - Explicit mapping between IEC and internal codes
-- Can handle complex mappings (metro → sub-regions)
+- Can handle complex mappings (metro → Local Municipalitys)
 - Reusable for other IEC integrations
 
 **Cons**:
@@ -290,7 +290,7 @@ But the member was approved with:
 ## 📝 SUMMARY
 
 **Problem**: Municipality code mismatch causes filtering issues
-**Root Cause**: Approval process uses IEC metro-level code instead of internal sub-region code
+**Root Cause**: Approval process uses IEC metro-level code instead of internal Local Municipality code
 **Impact**: Only newly approved members visible in ward listings
 **Solution**: Map IEC municipality code to internal code during approval using ward table
 **Priority**: HIGH - Affects member visibility and data consistency

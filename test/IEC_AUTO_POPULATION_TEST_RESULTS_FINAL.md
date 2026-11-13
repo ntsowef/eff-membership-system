@@ -77,22 +77,22 @@
 |-------------|----------------|----------------|--------------|--------|
 | **Province** | `province_code` | GP (Gauteng) | GP (Gauteng) | ✅ POPULATED |
 | **Region** | `district_code` | JHB | JHB (City of Johannesburg) | ✅ POPULATED |
-| **Sub-Region** | `municipal_code` | JHB | *Empty* - "Select a sub-region..." | ❌ NOT POPULATED |
-| **Ward** | `ward_code` | JHB135 | *Disabled* - "Select a sub-region first..." | ❌ BLOCKED |
+| **Local Municipality** | `municipal_code` | JHB | *Empty* - "Select a Local Municipality..." | ❌ NOT POPULATED |
+| **Ward** | `ward_code` | JHB135 | *Disabled* - "Select a Local Municipality first..." | ❌ BLOCKED |
 | **Voting District** | `voting_district_code` | null | *Disabled* - "Select a ward first..." | ❌ BLOCKED |
 
 ---
 
 ## 🔍 ROOT CAUSE ANALYSIS
 
-### Issue: Sub-Region (Municipality) Not Populated
+### Issue: Local Municipality (Municipality) Not Populated
 
-**Problem**: The form shows "Select a sub-region..." even though the backend returned `municipal_code: JHB`.
+**Problem**: The form shows "Select a Local Municipality..." even though the backend returned `municipal_code: JHB`.
 
 **Root Cause**: 
 1. The backend correctly returns `district_code: JHB` and `municipal_code: JHB` (both are "JHB" because City of Johannesburg is a Metropolitan municipality that serves as both district and municipality)
 2. The frontend `ContactInfoStep` component correctly receives and attempts to populate both fields
-3. The `GeographicSelector` component shows the "Region" (district) as "City of Johannesburg" but the "Sub-Region" (municipality) dropdown is not populated
+3. The `GeographicSelector` component shows the "Region" (district) as "City of Johannesburg" but the "Local Municipality" (municipality) dropdown is not populated
 
 **Console Logs Show**:
 ```
@@ -122,8 +122,8 @@ MUI: You have provided an out-of-range value `JHB135` for the select component.
 8. ✅ Frontend receives all mapped data from backend
 
 ### ❌ What's NOT Working:
-1. ❌ Sub-Region (Municipality) dropdown not showing selected value
-2. ❌ Ward dropdown blocked due to Sub-Region not being selected
+1. ❌ Local Municipality (Municipality) dropdown not showing selected value
+2. ❌ Ward dropdown blocked due to Local Municipality not being selected
 3. ❌ Voting District dropdown blocked due to Ward not being selected
 4. ❌ MUI Select components showing "out-of-range value" warnings
 
@@ -182,7 +182,7 @@ This suggests `applicationData.municipal_code` already has a value, so the updat
 
 ### Impact:
 - Province and District/Region populate correctly
-- Municipality (Sub-Region) does NOT populate
+- Municipality (Local Municipality) does NOT populate
 - Ward and Voting District are blocked because they depend on Municipality selection
 
 ### Recommended Fix:

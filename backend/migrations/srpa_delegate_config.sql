@@ -1,8 +1,8 @@
 -- =====================================================
 -- SRPA Delegate Configuration Table
 -- =====================================================
--- Purpose: Store configurable delegate limits for SRPA (Sub-Regional People's Assembly)
--- This allows administrators to set different delegate limits per sub-region
+-- Purpose: Store configurable delegate limits for SRPA (Local Municipalityal People's Assembly)
+-- This allows administrators to set different delegate limits per Local Municipality
 -- instead of using a hardcoded limit of 3 delegates
 -- =====================================================
 
@@ -10,7 +10,7 @@
 CREATE TABLE IF NOT EXISTS srpa_delegate_config (
     id SERIAL PRIMARY KEY,
     province_code VARCHAR(10) NOT NULL,
-    sub_region_code VARCHAR(20) NOT NULL, -- municipality_code for Metro Sub-Region
+    sub_region_code VARCHAR(20) NOT NULL, -- municipality_code for Metro Local Municipality
     max_delegates INTEGER NOT NULL DEFAULT 3,
     notes TEXT,
     is_active BOOLEAN DEFAULT TRUE,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS srpa_delegate_config (
     CONSTRAINT chk_max_delegates_positive 
         CHECK (max_delegates > 0),
     
-    -- Unique constraint: one config per sub-region
+    -- Unique constraint: one config per Local Municipality
     CONSTRAINT uq_srpa_config_sub_region 
         UNIQUE (sub_region_code)
 );
@@ -74,26 +74,26 @@ CREATE TRIGGER trg_update_srpa_delegate_config_timestamp
     EXECUTE FUNCTION update_srpa_delegate_config_timestamp();
 
 -- Add comments for documentation
-COMMENT ON TABLE srpa_delegate_config IS 'Stores configurable delegate limits for SRPA (Sub-Regional People''s Assembly) by municipality';
+COMMENT ON TABLE srpa_delegate_config IS 'Stores configurable delegate limits for SRPA (Local Municipalityal People''s Assembly) by municipality';
 COMMENT ON COLUMN srpa_delegate_config.province_code IS 'Province code (e.g., GP, WC, KZN)';
-COMMENT ON COLUMN srpa_delegate_config.sub_region_code IS 'Municipality code (includes Local municipalities and Metro Sub-Regions)';
+COMMENT ON COLUMN srpa_delegate_config.sub_region_code IS 'Municipality code (includes Local municipalities and Metro Local Municipalitys)';
 COMMENT ON COLUMN srpa_delegate_config.max_delegates IS 'Maximum number of SRPA delegates allowed for this municipality';
 COMMENT ON COLUMN srpa_delegate_config.is_active IS 'Whether this configuration is currently active';
 COMMENT ON COLUMN srpa_delegate_config.created_by IS 'User ID who created this configuration';
 COMMENT ON COLUMN srpa_delegate_config.updated_by IS 'User ID who last updated this configuration';
 
--- Insert default configurations for ALL municipalities (Local, Local Municipality, and Metro Sub-Regions)
+-- Insert default configurations for ALL municipalities (Local, Local Municipality, and Metro Local Municipalitys)
 -- This sets all municipalities to the default limit of 3 delegates
 -- Administrators can then modify these values through the SRPA Delegate Setter interface
 INSERT INTO srpa_delegate_config (province_code, sub_region_code, max_delegates, notes, created_by)
 SELECT
     -- For Local municipalities: get province from district
-    -- For Metro Sub-Regions: get province from parent municipality's district
+    -- For Metro Local Municipalitys: get province from parent municipality's district
     COALESCE(d.province_code, pd.province_code) as province_code,
     m.municipality_code as sub_region_code,
     3 as max_delegates,
     CASE
-        WHEN m.municipality_type = 'Metro Sub-Region' THEN 'Default configuration for Metro Sub-Region - automatically created during migration'
+        WHEN m.municipality_type = 'Metro Local Municipality' THEN 'Default configuration for Metro Local Municipality - automatically created during migration'
         WHEN m.municipality_type IN ('Local', 'Local Municipality') THEN 'Default configuration for Local Municipality - automatically created during migration'
         ELSE 'Default configuration - automatically created during migration'
     END as notes,
@@ -102,7 +102,7 @@ FROM municipalities m
 LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
 LEFT JOIN districts d ON m.district_code = d.district_code
 LEFT JOIN districts pd ON pm.district_code = pd.district_code
-WHERE m.municipality_type IN ('Local', 'Local Municipality', 'Metro Sub-Region')
+WHERE m.municipality_type IN ('Local', 'Local Municipality', 'Metro Local Municipality')
     AND m.is_active = TRUE
     AND COALESCE(d.province_code, pd.province_code) IS NOT NULL -- Only include municipalities with valid province
 ON CONFLICT (sub_region_code) DO NOTHING;
@@ -143,5 +143,5 @@ LEFT JOIN users u2 ON sdc.updated_by = u2.user_id
 WHERE sdc.is_active = TRUE
 ORDER BY p.province_name, m.municipality_type, m.municipality_name;
 
-COMMENT ON VIEW vw_srpa_delegate_config IS 'View showing SRPA delegate configurations for all municipalities (Local and Metro Sub-Regions) with geographic details and current delegate counts';
+COMMENT ON VIEW vw_srpa_delegate_config IS 'View showing SRPA delegate configurations for all municipalities (Local and Metro Local Municipalitys) with geographic details and current delegate counts';
 

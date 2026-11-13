@@ -554,9 +554,9 @@ const MemberCardDisplay: React.FC = () => {
                 inputProps={{
                   maxLength: 13,
                   inputMode: 'numeric',
-                  style: { 
-                    height: '56px', 
-                    padding: '0 16px', 
+                  style: {
+                    height: '56px',
+                    padding: '0 16px',
                     boxSizing: 'border-box',
                     fontFamily: '"Poppins", sans-serif'
                   }
@@ -582,7 +582,7 @@ const MemberCardDisplay: React.FC = () => {
                 }}
               />
               <Typography variant="caption" sx={{ mt: 1.5, display: 'block', ml: 1, color: '#718096', fontFamily: '"Poppins", sans-serif', fontSize: '0.85rem' }}>
-                 Enter your 13-digit South African ID Number
+                Enter your 13-digit South African ID Number
               </Typography>
             </Grid>
             <Grid item xs={12} sm={4} md={3}>
@@ -595,7 +595,7 @@ const MemberCardDisplay: React.FC = () => {
                 sx={{
                   height: '64px',
                   borderRadius: '16px',
-                  bgcolor: '#E2E8F0', 
+                  bgcolor: '#E2E8F0',
                   color: '#718096',
                   boxShadow: 'none',
                   textTransform: 'none',
@@ -883,7 +883,7 @@ const MemberCardDisplay: React.FC = () => {
                   </Typography>
                 </Box>
 
-                {/* Sub-region and Ward - Absolute positioned */}
+                {/* Local Municipality and Ward - Absolute positioned */}
                 <Box
                   sx={{
                     position: 'absolute',
@@ -899,7 +899,7 @@ const MemberCardDisplay: React.FC = () => {
                   }}
                 >
                   <Typography sx={{ fontSize: { xs: '0.55rem', sm: '1rem' }, fontWeight: 600 }}>
-                    {memberData.municipality_name?.replace(' Sub-Region', '').replace(' Sub-region', '')}
+                    {memberData.municipality_name?.replace(' Local Municipality', '').replace(' Local Municipality', '')}
                   </Typography>
                   <Typography sx={{ fontSize: { xs: '0.55rem', sm: '1rem' }, fontWeight: 600 }}>
                     |
@@ -1116,7 +1116,7 @@ const MemberCardDisplay: React.FC = () => {
                   </Typography>
                 </Box>
 
-                {/* Sub-region and Ward */}
+                {/* Local Municipality and Ward */}
                 <Box
                   sx={{
                     position: 'absolute',
@@ -1132,7 +1132,7 @@ const MemberCardDisplay: React.FC = () => {
                   }}
                 >
                   <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                    {memberData.municipality_name?.replace(' Sub-Region', '').replace(' Sub-region', '')}
+                    {memberData.municipality_name?.replace(' Local Municipality', '').replace(' Local Municipality', '')}
                   </Typography>
                   <Typography sx={{ fontSize: '1rem', fontWeight: 600 }}>
                     |

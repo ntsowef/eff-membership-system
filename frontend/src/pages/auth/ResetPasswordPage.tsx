@@ -24,7 +24,6 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import PublicHeader from '../../components/layout/PublicHeader';
 import { authApi } from '../../services/api';
 
 const resetPasswordSchema = yup.object({
@@ -82,8 +81,7 @@ const ResetPasswordPage: React.FC = () => {
 
   if (!token) {
     return (
-      <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
-        <PublicHeader />
+      <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)' }}>
         <Container maxWidth="sm" sx={{ pt: 12 }}>
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <Typography variant="h5" color="error" gutterBottom>Invalid Reset Link</Typography>
@@ -101,8 +99,7 @@ const ResetPasswordPage: React.FC = () => {
 
   if (isSuccess) {
     return (
-      <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
-        <PublicHeader />
+      <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)' }}>
         <Container maxWidth="sm" sx={{ pt: 12 }}>
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
@@ -126,8 +123,7 @@ const ResetPasswordPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
-      <PublicHeader />
+    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)' }}>
       <Container maxWidth="sm" sx={{ pt: 12 }}>
         <Paper sx={{ p: 4 }}>
           <Typography variant="h4" align="center" gutterBottom>Reset Your Password</Typography>

@@ -1,7 +1,7 @@
 /**
- * Fix vw_ward_compliance_summary View for Metro Sub-Regions
+ * Fix vw_ward_compliance_summary View for Metro Local Municipalitys
  * 
- * Issue: The vw_ward_compliance_summary view doesn't include metro sub-regions
+ * Issue: The vw_ward_compliance_summary view doesn't include metro Local Municipalitys
  * because it uses direct joins to districts without considering parent municipalities.
  * 
  * This causes ward.province_code to be NULL for metro wards, which breaks the
@@ -69,7 +69,7 @@ SELECT
 FROM wards w
 LEFT JOIN municipalities m ON w.municipality_code = m.municipality_code
 
--- ADDED: Join to parent municipality (for metro sub-regions)
+-- ADDED: Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON m.parent_municipality_id = pm.municipality_id
 
 -- MODIFIED: Join to districts (both direct and through parent)
@@ -89,7 +89,7 @@ GROUP BY
     w.last_audit_date, w.created_at, w.updated_at;
 
 -- Add comment
-COMMENT ON VIEW vw_ward_compliance_summary IS 'Comprehensive ward compliance summary with all criteria - FIXED to include metro sub-regions';
+COMMENT ON VIEW vw_ward_compliance_summary IS 'Comprehensive ward compliance summary with all criteria - FIXED to include metro Local Municipalitys';
 
 -- Verify the fix
 DO $$
@@ -101,7 +101,7 @@ BEGIN
     SELECT COUNT(*) INTO metro_ward_count
     FROM vw_ward_compliance_summary wcs
     JOIN municipalities m ON wcs.municipality_code = m.municipality_code
-    WHERE m.municipality_type = 'Metro Sub-Region';
+    WHERE m.municipality_type = 'Metro Local Municipality';
     
     -- Count wards with NULL province_code
     SELECT COUNT(*) INTO null_province_count

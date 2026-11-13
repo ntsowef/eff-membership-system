@@ -15,7 +15,22 @@ let prisma: PrismaClient | null = null;
  */
 export const getPrisma = (): PrismaClient => {
   if (!prisma) {
+    const dbHost = process.env.DB_HOST || 'localhost';
+    const dbPort = process.env.DB_PORT || '5432';
+    const dbUser = process.env.DB_USER || 'eff_admin';
+    const dbPassword = process.env.DB_PASSWORD || '';
+    const dbName = process.env.DB_NAME || 'eff_membership_database';
+
+    const dbUrl = (process.env.DATABASE_URL && process.env.DATABASE_URL.includes(dbHost))
+      ? process.env.DATABASE_URL
+      : `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}?schema=public`;
+
     prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: dbUrl,
+        },
+      },
       log: process.env.NODE_ENV === 'development' 
         ? ['query', 'info', 'warn', 'error'] 
         : ['error'],

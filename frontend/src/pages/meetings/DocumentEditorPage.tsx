@@ -143,8 +143,8 @@ const DocumentEditorPage: React.FC = () => {
     enabled: !!meetingId,
   });
 
-  const templates = (templatesData as any)?.data?.templates || [];
-  const meeting = (meetingData as any)?.data?.meeting || null;
+  const templates = (templatesData as any)?.templates || (templatesData as any)?.data?.templates || [];
+  const meeting = (meetingData as any)?.meeting || (meetingData as any)?.data?.meeting || null;
 
   // Create/Update document mutation
   const saveDocumentMutation = useMutation({
@@ -157,19 +157,25 @@ const DocumentEditorPage: React.FC = () => {
     },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['meeting-documents', meetingId] });
-      const docId = isEditing ? documentId : response.data?.document_id;
-      navigate(`/admin/meetings/${meetingId}/documents/${docId}`);
+      const docId = isEditing
+        ? documentId
+        : response?.document_id ?? response?.id ?? response?.data?.document_id;
+      if (docId) {
+        navigate(`/admin/meetings/${meetingId}/documents/${docId}`);
+      } else {
+        navigate(`/admin/meetings/${meetingId}/documents`);
+      }
     },
   });
 
   // Load document data when editing
   useEffect(() => {
-    if ((documentData as any)?.data?.document) {
-      const doc = (documentData as any).data.document;
+    const doc = (documentData as any)?.document || (documentData as any)?.data?.document;
+    if (doc) {
       reset({
         document_title: doc.document_title,
         document_type: doc.document_type,
-        template_id: doc.template_id,
+        template_id: doc.template_id ?? undefined,
         document_content: doc.document_content,
         document_status: doc.document_status,
       });
@@ -179,9 +185,20 @@ const DocumentEditorPage: React.FC = () => {
   // Auto-populate meeting details
   useEffect(() => {
     if (meeting && !isEditing) {
-      setValue('document_content.header.meeting_type', meeting.title);
-      setValue('document_content.header.date', new Date(meeting.start_datetime).toLocaleDateString());
-      setValue('document_content.header.time', new Date(meeting.start_datetime).toLocaleTimeString());
+      const resolvedTitle = meeting.meeting_title || meeting.title || '';
+      const resolvedDate = meeting.meeting_date
+        ? String(meeting.meeting_date).split('T')[0]
+        : meeting.start_datetime
+          ? new Date(meeting.start_datetime).toLocaleDateString()
+          : '';
+      const resolvedTime = meeting.meeting_time
+        ? String(meeting.meeting_time)
+        : meeting.start_datetime
+          ? new Date(meeting.start_datetime).toLocaleTimeString()
+          : '';
+      setValue('document_content.header.meeting_type', resolvedTitle);
+      setValue('document_content.header.date', resolvedDate);
+      setValue('document_content.header.time', resolvedTime);
       setValue('document_content.header.venue', meeting.location || '');
     }
   }, [meeting, setValue, isEditing]);
@@ -698,10 +715,10 @@ const DocumentEditorPage: React.FC = () => {
                       )}
                     </Box>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {template.template_type.replace('_', ' ').toUpperCase()} • {template.hierarchy_level}
+                      {template.template_type.replace('_', ' ').toUpperCase()}{template.hierarchy_level ? ` • ${template.hierarchy_level}` : ''}
                     </Typography>
                     <Typography variant="body2">
-                      Professional template for {template.hierarchy_level.toLowerCase()} level meetings
+                      Professional template for {(template.hierarchy_level || 'all').toLowerCase()} level meetings
                     </Typography>
                   </CardContent>
                 </Card>

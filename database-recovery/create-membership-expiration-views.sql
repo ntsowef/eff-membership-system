@@ -22,10 +22,10 @@ DROP VIEW IF EXISTS vw_expired_memberships CASCADE;
 -- Categorized by renewal priority: Urgent (1 Week), High Priority (2 Weeks), Medium Priority (1 Month)
 --
 -- METROPOLITAN MUNICIPALITY SUPPORT:
--- This view properly handles metropolitan municipalities with sub-regions by:
--- 1. Showing the actual sub-region name (not the parent metro name)
--- 2. Properly joining through parent_municipality_id for metro sub-regions
--- 3. Getting province_code from parent metro when sub-region has NULL district_code
+-- This view properly handles metropolitan municipalities with Local Municipalitys by:
+-- 1. Showing the actual Local Municipality name (not the parent metro name)
+-- 2. Properly joining through parent_municipality_id for metro Local Municipalitys
+-- 3. Getting province_code from parent metro when Local Municipality has NULL district_code
 
 CREATE OR REPLACE VIEW vw_expiring_soon AS
 SELECT
@@ -39,13 +39,13 @@ SELECT
 
   -- Geographic information
   w.ward_number,
-  -- Show actual municipality name (sub-region name for metro sub-regions)
+  -- Show actual municipality name (Local Municipality name for metro Local Municipalitys)
   mu.municipality_name,
   mu.municipality_code,
-  -- For metro sub-regions, district_code may be NULL, so use parent's district
+  -- For metro Local Municipalitys, district_code may be NULL, so use parent's district
   COALESCE(mu.district_code, parent_mu.district_code) as district_code,
   COALESCE(d.district_name, parent_d.district_name) as district_name,
-  -- For metro sub-regions, get province from parent metro's district
+  -- For metro Local Municipalitys, get province from parent metro's district
   COALESCE(p.province_code, parent_p.province_code) as province_code,
   COALESCE(p.province_name, parent_p.province_name) as province_name,
 
@@ -70,14 +70,14 @@ INNER JOIN membership_statuses mst ON ms.status_id = mst.status_id
 LEFT JOIN wards w ON m.ward_code = w.ward_code
 LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
 
--- Join to parent municipality for metro sub-regions
+-- Join to parent municipality for metro Local Municipalitys
 LEFT JOIN municipalities parent_mu ON mu.parent_municipality_id = parent_mu.municipality_id
 
--- Join to districts (may be NULL for metro sub-regions)
+-- Join to districts (may be NULL for metro Local Municipalitys)
 LEFT JOIN districts d ON mu.district_code = d.district_code
 LEFT JOIN districts parent_d ON parent_mu.district_code = parent_d.district_code
 
--- Join to provinces (use parent's province for metro sub-regions)
+-- Join to provinces (use parent's province for metro Local Municipalitys)
 LEFT JOIN provinces p ON d.province_code = p.province_code
 LEFT JOIN provinces parent_p ON parent_d.province_code = parent_p.province_code
 
@@ -96,10 +96,10 @@ WHERE
 -- Categorized by expiry category: Recently Expired, Expired 1-3 Months, etc.
 --
 -- METROPOLITAN MUNICIPALITY SUPPORT:
--- This view properly handles metropolitan municipalities with sub-regions by:
--- 1. Showing the actual sub-region name (not the parent metro name)
--- 2. Properly joining through parent_municipality_id for metro sub-regions
--- 3. Getting province_code from parent metro when sub-region has NULL district_code
+-- This view properly handles metropolitan municipalities with Local Municipalitys by:
+-- 1. Showing the actual Local Municipality name (not the parent metro name)
+-- 2. Properly joining through parent_municipality_id for metro Local Municipalitys
+-- 3. Getting province_code from parent metro when Local Municipality has NULL district_code
 
 CREATE OR REPLACE VIEW vw_expired_memberships AS
 SELECT
@@ -113,13 +113,13 @@ SELECT
 
   -- Geographic information
   w.ward_number,
-  -- Show actual municipality name (sub-region name for metro sub-regions)
+  -- Show actual municipality name (Local Municipality name for metro Local Municipalitys)
   mu.municipality_name,
   mu.municipality_code,
-  -- For metro sub-regions, district_code may be NULL, so use parent's district
+  -- For metro Local Municipalitys, district_code may be NULL, so use parent's district
   COALESCE(mu.district_code, parent_mu.district_code) as district_code,
   COALESCE(d.district_name, parent_d.district_name) as district_name,
-  -- For metro sub-regions, get province from parent metro's district
+  -- For metro Local Municipalitys, get province from parent metro's district
   COALESCE(p.province_code, parent_p.province_code) as province_code,
   COALESCE(p.province_name, parent_p.province_name) as province_name,
 
@@ -144,14 +144,14 @@ INNER JOIN membership_statuses mst ON ms.status_id = mst.status_id
 LEFT JOIN wards w ON m.ward_code = w.ward_code
 LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
 
--- Join to parent municipality for metro sub-regions
+-- Join to parent municipality for metro Local Municipalitys
 LEFT JOIN municipalities parent_mu ON mu.parent_municipality_id = parent_mu.municipality_id
 
--- Join to districts (may be NULL for metro sub-regions)
+-- Join to districts (may be NULL for metro Local Municipalitys)
 LEFT JOIN districts d ON mu.district_code = d.district_code
 LEFT JOIN districts parent_d ON parent_mu.district_code = parent_d.district_code
 
--- Join to provinces (use parent's province for metro sub-regions)
+-- Join to provinces (use parent's province for metro Local Municipalitys)
 LEFT JOIN provinces p ON d.province_code = p.province_code
 LEFT JOIN provinces parent_p ON parent_d.province_code = parent_p.province_code
 
@@ -191,7 +191,7 @@ CREATE INDEX IF NOT EXISTS idx_municipalities_parent
 ON municipalities(parent_municipality_id)
 WHERE parent_municipality_id IS NOT NULL;
 
--- Index on municipality_type for filtering metro sub-regions
+-- Index on municipality_type for filtering metro Local Municipalitys
 CREATE INDEX IF NOT EXISTS idx_municipalities_type
 ON municipalities(municipality_type);
 

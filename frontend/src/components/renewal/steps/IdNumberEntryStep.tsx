@@ -11,23 +11,30 @@ import {
   Typography,
   Alert,
   CircularProgress,
-  Paper,
+  Card,
+  CardContent,
   InputAdornment,
 } from '@mui/material';
-import { Person, ArrowForward } from '@mui/icons-material';
-import { useLocation } from 'react-router-dom';
+import { Person, ArrowForward, ArrowBack, HowToVote } from '@mui/icons-material';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useRenewalStore } from '../../../store/renewalStore';
-import { getMemberRenewalData, validateIdNumber, formatIdNumber } from '../../../services/renewalApi';
+import { getMemberRenewalData, validateIdNumber } from '../../../services/renewalApi';
 import { devLog } from '../../../utils/logger';
+import {
+  backButtonSx,
+  cancelButtonSx,
+  primaryActionSx,
+} from '../renewalWizardStyles';
 
 const IdNumberEntryStep: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [idNumber, setIdNumber] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [autoFetchTriggered, setAutoFetchTriggered] = useState(false);
 
-  const { setMemberData, setCurrentStep } = useRenewalStore();
+  const { setMemberData, setCurrentStep, resetRenewal } = useRenewalStore();
 
   // Pre-fill ID number if passed from navigation state (e.g., from card display)
   // and automatically fetch member data
@@ -128,22 +135,20 @@ const IdNumberEntryStep: React.FC = () => {
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 4 }}>
-      <Box sx={{ textAlign: 'center', mb: 4 }}>
-        <Person sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-        <Typography variant="h5" gutterBottom>
-          Enter Your ID Number
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Please enter your South African ID number to retrieve your membership information
-        </Typography>
-      </Box>
+    <Box>
+      <Typography
+        variant="h6"
+        sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600, mb: 2.5 }}
+      >
+        <HowToVote sx={{ color: '#DC143C' }} />
+        Enter Your ID Number
+      </Typography>
 
       {/* Auto-loading indicator */}
       {isLoading && autoFetchTriggered && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={20} />
+            <CircularProgress size={20} sx={{ color: '#DC143C' }} />
             <Typography variant="body2">
               Automatically retrieving your membership information...
             </Typography>
@@ -152,66 +157,97 @@ const IdNumberEntryStep: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit}>
-        <TextField
-          fullWidth
-          label="South African ID Number"
-          value={idNumber}
-          onChange={handleIdNumberChange}
-          placeholder="0000000000000"
-          helperText={
-            idNumber.length > 0
-              ? `${idNumber.length}/13 digits ${idNumber.length === 13 ? '✓' : ''}`
-              : 'Enter your 13-digit ID number'
-          }
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Person />
-              </InputAdornment>
-            ),
+        <Card
+          elevation={0}
+          sx={{
+            border: idNumber.length === 13 && !error
+              ? '2px solid #DC143C'
+              : '1px solid rgba(0, 0, 0, 0.12)',
+            borderRadius: 2.5,
+            mb: 3,
+            transition: 'border-color 0.25s ease',
           }}
-          disabled={isLoading}
-          error={!!error}
-          sx={{ mb: 3 }}
-        />
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-
-        {idNumber.length === 13 && !error && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              <strong>Formatted ID:</strong> {formatIdNumber(idNumber)}
-            </Typography>
-          </Alert>
-        )}
-
-        <Button
-          type="submit"
-          variant="contained"
-          size="large"
-          fullWidth
-          disabled={idNumber.length !== 13 || isLoading}
-          endIcon={isLoading ? <CircularProgress size={20} /> : <ArrowForward />}
         >
-          {isLoading ? 'Retrieving Information...' : 'Retrieve My Information'}
-        </Button>
-      </form>
+          <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+            <TextField
+              fullWidth
+              label="South African ID Number"
+              value={idNumber}
+              onChange={handleIdNumberChange}
+              placeholder="0000000000000"
+              helperText={
+                idNumber.length > 0
+                  ? `${idNumber.length}/13 digits ${idNumber.length === 13 ? '✓' : ''}`
+                  : undefined
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: '#DC143C' }} />
+                  </InputAdornment>
+                ),
+              }}
+              disabled={isLoading}
+              error={!!error}
+            />
 
-      <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-          <strong>Privacy Notice:</strong>
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Your ID number is used solely to retrieve your membership information. We do not store or share this information with third parties.
-        </Typography>
-      </Box>
-    </Paper>
+            {error && (
+              <Alert severity="error" sx={{ mt: 2.5 }}>
+                {error}
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Navigation Actions aligned with /apply */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 2,
+            mt: 2,
+          }}
+        >
+          <Button
+            disabled
+            variant="outlined"
+            startIcon={<ArrowBack />}
+            sx={backButtonSx}
+          >
+            Back
+          </Button>
+
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={() => {
+                resetRenewal();
+                navigate('/');
+              }}
+              sx={cancelButtonSx}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={idNumber.length !== 13 || isLoading}
+              startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
+              endIcon={!isLoading ? <ArrowForward /> : null}
+              sx={primaryActionSx}
+            >
+              {isLoading ? 'Retrieving Information...' : 'Retrieve My Information'}
+            </Button>
+          </Box>
+        </Box>
+      </form>
+    </Box>
   );
 };
 
 export default IdNumberEntryStep;
-

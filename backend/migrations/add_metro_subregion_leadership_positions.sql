@@ -1,22 +1,22 @@
 -- =====================================================================================
--- ADD METRO SUB-REGION LEADERSHIP POSITIONS
+-- ADD METRO Local Municipality LEADERSHIP POSITIONS
 -- =====================================================================================
--- This script creates leadership positions for Metro Sub-Regions (sub-regions within
+-- This script creates leadership positions for Metro Local Municipalitys (Local Municipalitys within
 -- metropolitan municipalities) that are currently missing leadership positions.
 -- 
--- Metro Sub-Regions:
--- - Buffalo City (BUF): 4 sub-regions
--- - Cape Town (CPT): 10 sub-regions
--- - Ekurhuleni (EKU): 5 sub-regions
--- - eThekwini (ETH): 10 sub-regions
--- - Johannesburg (JHB): 7 sub-regions
--- - Mangaung (MAN): 4 sub-regions
--- - Nelson Mandela Bay (NMA): 7 sub-regions
--- - Tshwane (TSH): 6 sub-regions
--- Total: 53 Metro Sub-Regions
+-- Metro Local Municipalitys:
+-- - Buffalo City (BUF): 4 Local Municipalitys
+-- - Cape Town (CPT): 10 Local Municipalitys
+-- - Ekurhuleni (EKU): 5 Local Municipalitys
+-- - eThekwini (ETH): 10 Local Municipalitys
+-- - Johannesburg (JHB): 7 Local Municipalitys
+-- - Mangaung (MAN): 4 Local Municipalitys
+-- - Nelson Mandela Bay (NMA): 7 Local Municipalitys
+-- - Tshwane (TSH): 6 Local Municipalitys
+-- Total: 53 Metro Local Municipalitys
 -- =====================================================================================
 
--- Standard leadership positions for each metro sub-region:
+-- Standard leadership positions for each metro Local Municipality:
 -- 1. Municipal Chairperson
 -- 2. Municipal Secretary
 -- 3. Municipal Treasurer
@@ -29,7 +29,7 @@
 
 BEGIN;
 
--- Create a temporary function to generate leadership positions for metro sub-regions
+-- Create a temporary function to generate leadership positions for metro Local Municipalitys
 CREATE OR REPLACE FUNCTION create_metro_subregion_leadership_positions()
 RETURNS void AS $$
 DECLARE
@@ -40,7 +40,7 @@ BEGIN
     -- Get the maximum position ID to start from
     SELECT COALESCE(MAX(id), 0) + 1 INTO base_position_id FROM leadership_positions;
     
-    -- Loop through all metro sub-regions that don't have leadership positions yet
+    -- Loop through all metro Local Municipalitys that don't have leadership positions yet
     FOR municipality_record IN 
         SELECT 
             m.municipality_id,
@@ -53,7 +53,7 @@ BEGIN
             AND lp.hierarchy_level = 'Municipality'
         WHERE lp.id IS NULL 
             AND m.is_active = TRUE
-            AND m.municipality_type = 'Metro Sub-Region'
+            AND m.municipality_type = 'Metro Local Municipality'
         ORDER BY m.municipality_name
     LOOP
         -- 1. Chairperson
@@ -366,7 +366,7 @@ BEGIN
 
     END LOOP;
 
-    RAISE NOTICE 'Created % leadership positions for metro sub-regions', position_counter;
+    RAISE NOTICE 'Created % leadership positions for metro Local Municipalitys', position_counter;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -395,7 +395,7 @@ WHERE lp.hierarchy_level = 'Municipality'
 GROUP BY lp.entity_type
 ORDER BY lp.entity_type;
 
--- Sample metro sub-region positions
+-- Sample metro Local Municipality positions
 SELECT 
     lp.position_name,
     lp.position_code,
@@ -404,7 +404,7 @@ SELECT
 FROM leadership_positions lp
 JOIN municipalities m ON lp.entity_id = m.municipality_id
 WHERE lp.hierarchy_level = 'Municipality'
-    AND m.municipality_type = 'Metro Sub-Region'
+    AND m.municipality_type = 'Metro Local Municipality'
 ORDER BY m.municipality_name, lp.position_order
 LIMIT 30;
 
@@ -422,7 +422,7 @@ FROM municipalities m
 LEFT JOIN leadership_positions lp 
     ON m.municipality_id = lp.entity_id 
     AND lp.hierarchy_level = 'Municipality'
-WHERE m.municipality_type = 'Metro Sub-Region'
+WHERE m.municipality_type = 'Metro Local Municipality'
 GROUP BY SUBSTRING(m.municipality_code FROM 1 FOR 3)
 ORDER BY metro_code;
 

@@ -50,7 +50,7 @@ UPDATE members_consolidated
 SET 
   voter_status_id = 1,              -- Registered
   voting_district_code = '32871326', -- IEC VD number
-  municipality_code = 'EKU004'      -- Correct sub-region code
+  municipality_code = 'EKU004'      -- Correct Local Municipality code
 WHERE member_id = 772468;
 ```
 
@@ -82,7 +82,7 @@ if (application.iec_is_registered === true) {
 
 #### B. Municipality Code Mapping (Lines 170-186)
 ```typescript
-// Get correct municipality_code from ward table (sub-region, not metro-level code)
+// Get correct municipality_code from ward table (Local Municipality, not metro-level code)
 const wardMunicipalityQuery = `
   SELECT municipality_code FROM wards WHERE ward_code = $1
 `;
@@ -145,7 +145,7 @@ THEN
 
 ### Rule 5: Municipality Code Mapping ✅
 ```
-ALWAYS use ward table's municipality_code (sub-region)
+ALWAYS use ward table's municipality_code (Local Municipality)
 NOT the IEC metro-level code
 Example: Ward 79700100 → "EKU004" (not "EKU")
 ```
@@ -203,7 +203,7 @@ Already implemented correctly
 
 4. **Test Municipality Code Mapping**:
    - Submit application with metro-level code (e.g., "EKU")
-   - Verify member record has sub-region code (e.g., "EKU004")
+   - Verify member record has Local Municipality code (e.g., "EKU004")
 
 5. **Verify Member Display**:
    - Check that member appears in ward listing

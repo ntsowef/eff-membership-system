@@ -45,12 +45,12 @@ export interface MembershipCreationData {
 }
 
 export class MembershipApprovalService {
-  
+
   /**
    * Approve a membership application and create member + membership records
    */
   static async approveApplication(
-    applicationId: number, 
+    applicationId: number,
     approvedBy: number,
     adminNotes?: string
   ): Promise<ApprovalResult> {
@@ -179,7 +179,7 @@ export class MembershipApprovalService {
     // ========================================
     // MUNICIPALITY CODE MAPPING
     // ========================================
-    // Get correct municipality_code from ward table (sub-region, not metro-level code)
+    // Get correct municipality_code from ward table (Local Municipality, not metro-level code)
     const wardMunicipalityQuery = `
       SELECT municipality_code FROM wards WHERE ward_code = $1
     `;
@@ -277,7 +277,7 @@ export class MembershipApprovalService {
       geographicData.province_name,
       application.district_code,
       geographicData.district_name,
-      correctMunicipalityCode,     // Use ward's municipality code (sub-region, not metro)
+      correctMunicipalityCode,     // Use ward's municipality code (Local Municipality, not metro)
       geographicData.municipality_name,
       tempMembershipNumber, // Will be updated below
       dateJoined,
@@ -356,7 +356,7 @@ export class MembershipApprovalService {
    * Create approval history record
    */
   private static async createApprovalHistory(
-    applicationId : number,
+    applicationId: number,
     memberId: number | null,
     approvedBy: number,
     action: string,
@@ -434,7 +434,7 @@ export class MembershipApprovalService {
       await this.createApprovalHistory(applicationId, null, rejectedBy, 'rejected', `${rejectionReason}. ${adminNotes || ''}`);
 
       return {
-        success : true,
+        success: true,
         message: 'Application rejected successfully'
       };
 

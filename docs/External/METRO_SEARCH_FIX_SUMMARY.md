@@ -3,14 +3,14 @@
 ## 🎯 Issues Fixed
 
 ### Issue #1: Province-Level Member Search
-**Problem**: When filtering members by province, metro sub-region members were excluded from results.
+**Problem**: When filtering members by province, metro Local Municipality members were excluded from results.
 
 **Example**: Searching for members in Gauteng (GP) returned only 27,486 members instead of 100,765.
 
 **Impact**: 73,279 members (72.7% of Gauteng) were invisible in province searches.
 
 ### Issue #2: Membership Directory Search
-**Problem**: The membership directory search returned no results for members in metro sub-regions.
+**Problem**: The membership directory search returned no results for members in metro Local Municipalitys.
 
 **Impact**: Members from major cities (Johannesburg, Tshwane, Cape Town, eThekwini, etc.) were not searchable.
 
@@ -128,7 +128,7 @@ Missing members: 0
 If you encounter any issues:
 
 1. Check the view exists: `SELECT COUNT(*) FROM vw_member_details;`
-2. Verify metro members have provinces: `SELECT COUNT(*) FROM vw_member_details WHERE municipality_type = 'Metro Sub-Region' AND province_code IS NOT NULL;`
+2. Verify metro members have provinces: `SELECT COUNT(*) FROM vw_member_details WHERE municipality_type = 'Metro Local Municipality' AND province_code IS NOT NULL;`
 3. Run the test script: `node test/database/test-metro-member-search.js`
 
 ---

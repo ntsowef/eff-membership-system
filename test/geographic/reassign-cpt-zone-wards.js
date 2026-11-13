@@ -1,6 +1,6 @@
 /**
  * Reassign two City of Cape Town wards from the main Metro (code 'CPT') to their
- * correct Metro Sub-Region "Zone" municipalities.
+ * correct Metro Local Municipality "Zone" municipalities.
  *
  *   Ward 118 (19100118) -> "CPT - Zone 1"
  *   Ward 117 (19100117) -> "CPT - Zone 3"
@@ -126,7 +126,7 @@ async function main() {
       console.log(`\nDRY RUN — rolled back. Rows that WOULD change: ${changed}. Re-run with --live to commit.`);
     }
   } catch (e) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { });
     throw e;
   } finally {
     client.release();

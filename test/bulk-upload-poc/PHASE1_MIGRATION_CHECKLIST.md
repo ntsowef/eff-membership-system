@@ -183,7 +183,7 @@ This document ensures 100% feature parity between Python and Node.js/TypeScript 
   - [ ] Set `last_payment_date` from upload
   - [ ] Set `expiry_date` (calculated or from upload)
   - [ ] Set ward and VD codes
-  - [ ] Set province, municipality, sub-region
+  - [ ] Set province, municipality, Local Municipality
   
 - [ ] **Member Update**
   - [ ] Update existing members
@@ -194,7 +194,7 @@ This document ensures 100% feature parity between Python and Node.js/TypeScript 
   - [ ] Update `updated_at` timestamp
   
 - [ ] **Metro-to-Subregion Mapping**
-  - [ ] Map metro municipality codes to sub-region codes
+  - [ ] Map metro municipality codes to Local Municipality codes
   - [ ] Query mapping table
   - [ ] Handle unmapped codes
   - [ ] Log mapping errors
@@ -453,7 +453,7 @@ This document ensures 100% feature parity between Python and Node.js/TypeScript 
   - [ ] All approved members get `membership_status_id = 1`
 
 - [ ] **Metro Municipality Mapping**
-  - [ ] Map metro codes to sub-region codes
+  - [ ] Map metro codes to Local Municipality codes
   - [ ] Query mapping table before insert
 
 - [ ] **Date Joined**

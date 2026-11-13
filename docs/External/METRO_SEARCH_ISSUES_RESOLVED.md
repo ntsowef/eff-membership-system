@@ -11,17 +11,17 @@
 ## 🎯 Issues Identified and Fixed
 
 ### Issue #1: Province-Level Member Search
-**Problem**: Members in metropolitan sub-regions were excluded from province-filtered searches.
+**Problem**: Members in metropolitan Local Municipalitys were excluded from province-filtered searches.
 
 **Symptoms**:
 - Searching for members in Gauteng returned only 27,486 members instead of 100,765
 - 73,279 members (72.7%) were invisible in province searches
 - Members from major cities (Johannesburg, Tshwane, Ekurhuleni) were not appearing
 
-**Root Cause**: The `vw_member_details` view was joining districts directly to municipalities, but metro sub-regions have NULL `district_code` because they link through parent metros.
+**Root Cause**: The `vw_member_details` view was joining districts directly to municipalities, but metro Local Municipalitys have NULL `district_code` because they link through parent metros.
 
 ### Issue #2: Membership Directory Search
-**Problem**: The membership directory search returned no results for metro sub-region members.
+**Problem**: The membership directory search returned no results for metro Local Municipality members.
 
 **Symptoms**:
 - Searching by province in the membership directory excluded metro members
@@ -39,7 +39,7 @@
 Updated `vw_member_details` to use `COALESCE` for resolving geographic codes:
 
 ```sql
--- Join to parent municipality (for metro sub-regions)
+-- Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
 -- Join to districts (both direct and through parent)
@@ -57,7 +57,7 @@ COALESCE(d.province_code, pd.province_code) as province_code
 
 ### Key Changes
 
-1. **Added parent municipality join** for metro sub-regions
+1. **Added parent municipality join** for metro Local Municipalitys
 2. **Added parent district join** to get district through parent
 3. **Added parent province join** to get province through parent
 4. **Used COALESCE** to prioritize direct codes, fall back to parent codes
@@ -105,22 +105,22 @@ COALESCE(d.province_code, pd.province_code) as province_code
 All South African metropolitan municipalities are now properly searchable:
 
 ### Gauteng (GP)
-- **City of Johannesburg (JHB)** - Sub-regions: JHB001-JHB007
-- **City of Tshwane (TSH)** - Sub-regions: TSH001-TSH007
-- **Ekurhuleni (EKU)** - Sub-regions: EKU001-EKU005
+- **City of Johannesburg (JHB)** - Local Municipalitys: JHB001-JHB007
+- **City of Tshwane (TSH)** - Local Municipalitys: TSH001-TSH007
+- **Ekurhuleni (EKU)** - Local Municipalitys: EKU001-EKU005
 
 ### Western Cape (WC)
-- **City of Cape Town (CPT)** - Sub-regions: CPT001-CPT008
+- **City of Cape Town (CPT)** - Local Municipalitys: CPT001-CPT008
 
 ### KwaZulu-Natal (KZN)
-- **eThekwini (ETH)** - Sub-regions: ETH001-ETH008
+- **eThekwini (ETH)** - Local Municipalitys: ETH001-ETH008
 
 ### Eastern Cape (EC)
-- **Buffalo City (BUF)** - Sub-regions: BUF001-BUF004
-- **Nelson Mandela Bay (NMB)** - Sub-regions: NMB001-NMB004
+- **Buffalo City (BUF)** - Local Municipalitys: BUF001-BUF004
+- **Nelson Mandela Bay (NMB)** - Local Municipalitys: NMB001-NMB004
 
 ### Free State (FS)
-- **Mangaung (MAN)** - Sub-regions: MAN001-MAN004
+- **Mangaung (MAN)** - Local Municipalitys: MAN001-MAN004
 
 ---
 
@@ -153,7 +153,7 @@ node test/database/test-member-api-endpoints.js
 
 ```
 ✅ Metro Member Search Fix Applied Successfully!
-✅ Metro sub-region members with province: 73,279
+✅ Metro Local Municipality members with province: 73,279
 ✅ Total members in Gauteng: 100,765
 ```
 
@@ -162,8 +162,8 @@ node test/database/test-member-api-endpoints.js
 ## ✅ Verification Checklist
 
 - [x] Database view `vw_member_details` updated
-- [x] Metro sub-region members have province_code populated
-- [x] Metro sub-region members have district_code populated
+- [x] Metro Local Municipality members have province_code populated
+- [x] Metro Local Municipality members have district_code populated
 - [x] Province filtering includes all metro members
 - [x] District filtering includes all metro members
 - [x] Membership directory search works for metro members
@@ -272,7 +272,7 @@ ON municipalities(municipality_type);
 2. **Verify metro members have provinces**:
    ```sql
    SELECT COUNT(*) FROM vw_member_details 
-   WHERE municipality_type = 'Metro Sub-Region' 
+   WHERE municipality_type = 'Metro Local Municipality' 
    AND province_code IS NOT NULL;
    ```
 
@@ -284,7 +284,7 @@ ON municipalities(municipality_type);
 4. **Check for NULL parent relationships**:
    ```sql
    SELECT COUNT(*) FROM municipalities 
-   WHERE municipality_type = 'Metro Sub-Region' 
+   WHERE municipality_type = 'Metro Local Municipality' 
    AND parent_municipality_id IS NULL;
    ```
 

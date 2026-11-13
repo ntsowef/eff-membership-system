@@ -19,30 +19,30 @@
 
 ```
 JHB (Metropolitan Municipality)
-├── JHB001 - JHB - A (Metro Sub-Region)
-├── JHB002 - JHB - B (Metro Sub-Region)
-├── JHB003 - JHB - C (Metro Sub-Region)
-├── JHB004 - JHB - D (Metro Sub-Region)
-├── JHB005 - JHB - E (Metro Sub-Region)
-├── JHB006 - JHB - F (Metro Sub-Region)
-└── JHB007 - JHB - G (Metro Sub-Region)
+├── JHB001 - JHB - A (Metro Local Municipality)
+├── JHB002 - JHB - B (Metro Local Municipality)
+├── JHB003 - JHB - C (Metro Local Municipality)
+├── JHB004 - JHB - D (Metro Local Municipality)
+├── JHB005 - JHB - E (Metro Local Municipality)
+├── JHB006 - JHB - F (Metro Local Municipality)
+└── JHB007 - JHB - G (Metro Local Municipality)
 ```
 
 ---
 
-## Sub-Regions
+## Local Municipalitys
 
-The City of Johannesburg Metropolitan Municipality has **7 sub-regions**:
+The City of Johannesburg Metropolitan Municipality has **7 Local Municipalitys**:
 
 | Code | Name | Type |
 |------|------|------|
-| JHB001 | JHB - A | Metro Sub-Region |
-| JHB002 | JHB - B | Metro Sub-Region |
-| JHB003 | JHB - C | Metro Sub-Region |
-| JHB004 | JHB - D | Metro Sub-Region |
-| JHB005 | JHB - E | Metro Sub-Region |
-| JHB006 | JHB - F | Metro Sub-Region |
-| JHB007 | JHB - G | Metro Sub-Region |
+| JHB001 | JHB - A | Metro Local Municipality |
+| JHB002 | JHB - B | Metro Local Municipality |
+| JHB003 | JHB - C | Metro Local Municipality |
+| JHB004 | JHB - D | Metro Local Municipality |
+| JHB005 | JHB - E | Metro Local Municipality |
+| JHB006 | JHB - F | Metro Local Municipality |
+| JHB007 | JHB - G | Metro Local Municipality |
 
 ---
 
@@ -53,17 +53,17 @@ The City of Johannesburg Metropolitan Municipality has **7 sub-regions**:
    - `municipality_code = 'JHB'`
    - This is typical for metropolitan municipalities in South Africa
 
-2. **JHB has Sub-Regions**
-   - The main metro (JHB) is divided into 7 administrative sub-regions
-   - Each sub-region has its own municipality code (JHB001-JHB007)
-   - Sub-regions have `parent_municipality_id = 318` (pointing to JHB)
+2. **JHB has Local Municipalitys**
+   - The main metro (JHB) is divided into 7 administrative Local Municipalitys
+   - Each Local Municipality has its own municipality code (JHB001-JHB007)
+   - Local Municipalitys have `parent_municipality_id = 318` (pointing to JHB)
 
 3. **Geographic Hierarchy**
    ```
    Province (GP - Gauteng)
    └── District (JHB - City of Johannesburg)
        └── Municipality (JHB - City of Johannesburg Metropolitan Municipality)
-           └── Sub-Regions (JHB001-JHB007)
+           └── Local Municipalitys (JHB001-JHB007)
                └── Wards (e.g., 79800135)
                    └── Voting Districts (e.g., 32871326)
    ```
@@ -80,7 +80,7 @@ This maps to:
 - `municipality_code: "JHB"` (the main metropolitan municipality)
 - `district_code: "JHB"` (same as municipality for metros)
 
-The sub-regions (JHB001-JHB007) are used for internal administrative purposes and ward organization, but the IEC typically references the main metro municipality (JHB).
+The Local Municipalitys (JHB001-JHB007) are used for internal administrative purposes and ward organization, but the IEC typically references the main metro municipality (JHB).
 
 ---
 
@@ -105,8 +105,8 @@ CREATE TABLE municipalities (
 - `municipality_type = 'Metropolitan'`
 - `parent_municipality_id = NULL` (top-level)
 
-**Sub-Region Records** (e.g., JHB001):
+**Local Municipality Records** (e.g., JHB001):
 - `municipality_code = 'JHB001'`
-- `municipality_type = 'Metro Sub-Region'`
+- `municipality_type = 'Metro Local Municipality'`
 - `parent_municipality_id = 318` (points to JHB)
 

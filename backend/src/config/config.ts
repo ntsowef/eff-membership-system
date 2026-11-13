@@ -224,7 +224,7 @@ export const config: Config = {
   // IEC API Configuration
   iec: {
     apiUrl: process.env.IEC_API_URL || 'https://api.iec.org.za',
-    proxyUrl: process.env.IEC_PROXY_URL || 'http://197.85.7.202:5000',
+    proxyUrl: process.env.IEC_PROXY_URL || 'https://xdohhgnwrknh4l4zardtnm5eh40xoang.lambda-url.af-south-1.on.aws/?idNumber=',
     username: process.env.IEC_API_USERNAME || '',
     password: process.env.IEC_API_PASSWORD || '',
     timeout: parseInt(process.env.IEC_API_TIMEOUT || '30000', 10),

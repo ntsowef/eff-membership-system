@@ -24,7 +24,7 @@ const mysql = require('mysql2/promise');
     {
       type_name: 'Ordinary SRCT Meeting',
       type_code: 'srct_ordinary',
-      description: 'Sub-Regional (Municipal) Command Team ordinary meeting including Youth and Women leadership',
+      description: 'Local Municipalityal (Municipal) Command Team ordinary meeting including Youth and Women leadership',
       hierarchy_level: 'Municipal',
       meeting_category: 'Regular',
       default_duration_minutes: 180,

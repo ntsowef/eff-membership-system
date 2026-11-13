@@ -162,10 +162,11 @@ const MeetingDocumentsPage: React.FC = () => {
     enabled: !!meetingId,
   });
 
-  const documents = (documentsData as any)?.data?.documents || [];
-  const actionItems = (actionItemsData as any)?.data?.action_items || [];
-  const decisions = (decisionsData as any)?.data?.decisions || [];
-  const meeting = (meetingData as any)?.data?.meeting || null;
+  const documents = (documentsData as any)?.documents || (documentsData as any)?.data?.documents || [];
+  const actionItems = (actionItemsData as any)?.action_items || (actionItemsData as any)?.data?.action_items || [];
+  const decisions = (decisionsData as any)?.decisions || (decisionsData as any)?.data?.decisions || [];
+  const meeting = (meetingData as any)?.meeting || (meetingData as any)?.data?.meeting || null;
+  const meetingDisplayTitle = meeting?.meeting_title || meeting?.title || '';
 
   // Delete document mutation
   const deleteDocumentMutation = useMutation({
@@ -198,8 +199,9 @@ const MeetingDocumentsPage: React.FC = () => {
   };
 
   const handleDeleteConfirm = () => {
-    if (documentToDelete) {
-      deleteDocumentMutation.mutate(documentToDelete.id);
+    const docId = (documentToDelete as any)?.id ?? (documentToDelete as any)?.document_id;
+    if (docId) {
+      deleteDocumentMutation.mutate(docId);
     }
   };
 
@@ -254,13 +256,13 @@ const MeetingDocumentsPage: React.FC = () => {
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: theme.palette.background.default }}>
       <PageHeader
-        title={`Meeting Documents${meeting ? ` - ${meeting.title}` : ''}`}
+        title={`Meeting Documents${meetingDisplayTitle ? ` - ${meetingDisplayTitle}` : ''}`}
         subtitle="Manage agendas, minutes, action items, and decisions for this meeting"
         gradient={true}
         breadcrumbs={[
           { label: 'Dashboard', href: '/admin/dashboard' },
           { label: 'Meetings', href: '/admin/meetings' },
-          { label: meeting?.title || 'Meeting', href: `/admin/meetings/${meetingId}` },
+          { label: meetingDisplayTitle || 'Meeting', href: `/admin/meetings/${meetingId}` },
           { label: 'Documents' },
         ]}
         badge={{

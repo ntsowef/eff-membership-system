@@ -45,7 +45,7 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
     return (
       <Chip
         icon={showIcon ? <LocationOn /> : undefined}
-        label={`${assignedMunicipality.name} Sub-Region`}
+        label={`${assignedMunicipality.name} Local Municipality`}
         color="primary"
         variant="outlined"
         size="small"
@@ -84,7 +84,7 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
             gap: 0.5,
           }}
         >
-          {assignedMunicipality.name} Sub-Region Dashboard
+          {assignedMunicipality.name} Local Municipality Dashboard
         </Typography>
       </Box>
     );
@@ -125,7 +125,7 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
             <LocationOn color="primary" />
           </Box>
         )}
-        
+
         <Box sx={{ flex: 1 }}>
           <Typography
             variant="h6"
@@ -135,7 +135,7 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
               mb: showDescription ? 0.5 : 0,
             }}
           >
-            {assignedMunicipality.name} Sub-Region
+            {assignedMunicipality.name} Local Municipality
           </Typography>
 
           {showDescription && (
@@ -144,15 +144,15 @@ const MunicipalityContextBanner: React.FC<MunicipalityContextBannerProps> = ({
               color="text.secondary"
               sx={{ lineHeight: 1.4 }}
             >
-              You are viewing data and managing operations for {assignedMunicipality.name} Sub-Region{assignedProvince ? ` in ${assignedProvince.name} Province` : ''} only.
-              All statistics, members, and leadership information are filtered to this sub-region.
+              You are viewing data and managing operations for {assignedMunicipality.name} Local Municipality{assignedProvince ? ` in ${assignedProvince.name} Province` : ''} only.
+              All statistics, members, and leadership information are filtered to this Local Municipality.
             </Typography>
           )}
         </Box>
 
         <Chip
           icon={<Security />}
-          label="Sub-Region Admin"
+          label="Local Municipality Admin"
           color="primary"
           variant="outlined"
           size="small"

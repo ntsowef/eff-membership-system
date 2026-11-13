@@ -156,7 +156,7 @@
   "message": "Login successful",
   "data": {
     "user": {
-      "name": "Ward 1 - Matzikama Sub-Region Admin",
+      "name": "Ward 1 - Matzikama Local Municipality Admin",
       "email": "ward.10101001.admin@eff.org.za",
       "role": "Ward Administrator",
       "admin_level": "ward",

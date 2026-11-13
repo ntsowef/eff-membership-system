@@ -132,7 +132,7 @@ export class ExcelReportService {
       }
     }
   }
-  
+
   /**
    * Generate Comprehensive Audit Excel Report (matching original format)
    * Sheet1: Provincial Summary
@@ -541,7 +541,7 @@ export class ExcelReportService {
             d.district_name,
             mu.municipality_name,
             mu.municipality_type,
-            -- Handle Metro Sub-Regions: get province from parent municipality
+            -- Handle Metro Local Municipalitys: get province from parent municipality
             COALESCE(p.province_code, parent_p.province_code) as province_code,
             COALESCE(p.province_name, parent_p.province_name) as province_name,
             COUNT(DISTINCT m.member_id) FILTER (
@@ -552,13 +552,13 @@ export class ExcelReportService {
           LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
           LEFT JOIN districts d ON mu.district_code = d.district_code
           LEFT JOIN provinces p ON d.province_code = p.province_code
-          -- Join parent municipality for Metro Sub-Regions
+          -- Join parent municipality for Metro Local Municipalitys
           LEFT JOIN municipalities parent_mu ON mu.parent_municipality_id = parent_mu.municipality_id
           LEFT JOIN districts parent_d ON parent_mu.district_code = parent_d.district_code
           LEFT JOIN provinces parent_p ON parent_d.province_code = parent_p.province_code
           LEFT JOIN members_consolidated m ON m.ward_code = w.ward_code
           WHERE COALESCE(w.is_active, TRUE) = TRUE
-            -- Exclude Metropolitan municipalities (only show sub-regions)
+            -- Exclude Metropolitan municipalities (only show Local Municipalitys)
             AND COALESCE(mu.municipality_type, 'Local') != 'Metropolitan'
           GROUP BY w.ward_code, w.municipality_code, d.district_name, mu.municipality_name, mu.municipality_type,
                    COALESCE(p.province_code, parent_p.province_code), COALESCE(p.province_name, parent_p.province_name)
@@ -1124,7 +1124,7 @@ export class ExcelReportService {
   static async saveReportToFile(buffer: Buffer, fileName: string): Promise<string> {
     try {
       const reportsDir = path.join(process.cwd(), 'reports');
-      
+
       // Ensure reports directory exists
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });

@@ -864,7 +864,7 @@ export class LeadershipModel {
 
   // Get provincial leadership overview - all municipal structures in a province
   // Handles both regular municipalities (linked via district_code) and
-  // metro sub-regions (linked via parent_municipality_id -> parent metro -> district -> province)
+  // metro Local Municipalitys (linked via parent_municipality_id -> parent metro -> district -> province)
   static async getProvincialLeadershipOverview(provinceId: number): Promise<any[]> {
     try {
       const query = `

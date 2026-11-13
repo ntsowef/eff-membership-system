@@ -10,7 +10,7 @@ After implementing the voter status logic, we need to verify that when a members
 
 1. ✅ **Voter Status ID** is correctly set (1=Registered, 2=Not Registered, 4=Verification Failed)
 2. ✅ **Voting District Code** is assigned based on business rules
-3. ✅ **Municipality Code** is mapped from ward table (sub-region, not metro)
+3. ✅ **Municipality Code** is mapped from ward table (Local Municipality, not metro)
 4. ✅ **Membership Status** is set to 1 (Active/Good Standing)
 
 ---
@@ -108,7 +108,7 @@ The script will show:
 - ✅ Member details
 - ✅ Voter status (should be 1, 2, or 4)
 - ✅ Voting district code (IEC VD or special code)
-- ✅ Municipality code (sub-region format)
+- ✅ Municipality code (Local Municipality format)
 - ✅ Membership status (should be 1)
 - ✅ Validation checks (all should pass)
 
@@ -124,7 +124,7 @@ The script will show:
 ```
 Voter Status ID: 1 (Registered)
 Voting District Code: 32871326 (IEC VD number)
-Municipality Code: EKU004 (sub-region)
+Municipality Code: EKU004 (Local Municipality)
 Membership Status ID: 1 (Active)
 ```
 
@@ -141,7 +141,7 @@ python verify-approval.py 7808020703087
 ```
 Voter Status ID: 1 (Registered)
 Voting District Code: 222222222 (Special code)
-Municipality Code: <sub-region from ward>
+Municipality Code: <Local Municipality from ward>
 Membership Status ID: 1 (Active)
 ```
 
@@ -153,7 +153,7 @@ Membership Status ID: 1 (Active)
 ```
 Voter Status ID: 2 (Not Registered)
 Voting District Code: 999999999 (Special code)
-Municipality Code: <sub-region from ward>
+Municipality Code: <Local Municipality from ward>
 Membership Status ID: 1 (Active)
 ```
 
@@ -165,7 +165,7 @@ Membership Status ID: 1 (Active)
 ```
 Voter Status ID: 4 (Verification Failed)
 Voting District Code: 888888888 (Special code)
-Municipality Code: <sub-region from ward>
+Municipality Code: <Local Municipality from ward>
 Membership Status ID: 1 (Active)
 ```
 
@@ -192,7 +192,7 @@ After approving a member, verify:
 - [ ] **Voting District Code** is either:
   - [ ] Actual IEC VD number (8 digits)
   - [ ] Special code (222222222, 999999999, or 888888888)
-- [ ] **Municipality Code** is sub-region format (e.g., `EKU004`, `JHB001`)
+- [ ] **Municipality Code** is Local Municipality format (e.g., `EKU004`, `JHB001`)
 - [ ] **Municipality Code** is NOT metro-level (NOT `EKU`, `JHB`, etc.)
 - [ ] **Membership Status ID** is 1 (Active)
 
@@ -277,7 +277,7 @@ A successful test should show:
 ✅ PASS: Voter Status ID is set (1)
 ✅ PASS: Voter Status ID is valid (1, 2, or 4) (1)
 ✅ PASS: Voting District Code is set (32871326)
-✅ PASS: Municipality Code is sub-region (not metro) (EKU004)
+✅ PASS: Municipality Code is Local Municipality (not metro) (EKU004)
 ✅ PASS: Membership Status is Active (ID: 1) (1)
 
 ====================================================================================================

@@ -126,7 +126,7 @@ const recordIdSchema = Joi.object({
  * GET /api/v1/ward-audit/municipalities
  * Get municipalities/subregions by province for ward audit
  *
- * For metropolitan municipalities, only show sub-regions (not parent metros)
+ * For metropolitan municipalities, only show Local Municipalitys (not parent metros)
  * For regular districts, show local municipalities
  */
 router.get('/municipalities',
@@ -141,7 +141,7 @@ router.get('/municipalities',
 
     // Separate metros and their subregions
     const metroParents = municipalities.filter(m => m.municipality_type === 'Metropolitan');
-    const metroSubregions = municipalities.filter(m => m.municipality_type === 'Metro Sub-Region');
+    const metroSubregions = municipalities.filter(m => m.municipality_type === 'Metro Local Municipality');
     const regularMunicipalities = municipalities.filter(m =>
       m.municipality_type === 'Local' || m.municipality_type === 'District'
     );
@@ -155,9 +155,9 @@ router.get('/municipalities',
       ...regularMunicipalities.filter(m => !metroParentCodes.includes(m.municipality_code))
     ];
 
-    // Enhance sub-region names to show parent metro
+    // Enhance Local Municipality names to show parent metro
     filteredMunicipalities = filteredMunicipalities.map(m => {
-      if (m.municipality_type === 'Metro Sub-Region' && m.parent_municipality_code) {
+      if (m.municipality_type === 'Metro Local Municipality' && m.parent_municipality_code) {
         // Find parent metro name
         const parentMetro = metroParents.find(p => p.municipality_code === m.parent_municipality_code);
         if (parentMetro) {
@@ -175,8 +175,8 @@ router.get('/municipalities',
     // Sort: Metro subregions first, then regular municipalities
     filteredMunicipalities.sort((a, b) => {
       // Metro subregions first
-      if (a.municipality_type === 'Metro Sub-Region' && b.municipality_type !== 'Metro Sub-Region') return -1;
-      if (a.municipality_type !== 'Metro Sub-Region' && b.municipality_type === 'Metro Sub-Region') return 1;
+      if (a.municipality_type === 'Metro Local Municipality' && b.municipality_type !== 'Metro Local Municipality') return -1;
+      if (a.municipality_type !== 'Metro Local Municipality' && b.municipality_type === 'Metro Local Municipality') return 1;
       // Then alphabetically by name
       return a.municipality_name.localeCompare(b.municipality_name);
     });
@@ -195,9 +195,9 @@ router.get('/wards',
   validate({ query: municipalityCodeSchema }),
   asyncHandler(async (req: Request, res: Response) => {
     const { municipality_code } = req.query;
-    
+
     const wards = await WardAuditModel.getWardsByMunicipality(municipality_code as string);
-    
+
     sendSuccess(res, wards, 'Wards retrieved successfully');
   })
 );
@@ -216,13 +216,13 @@ router.get('/ward/:ward_code/compliance',
   validate({ params: wardCodeSchema }),
   asyncHandler(async (req: Request, res: Response) => {
     const { ward_code } = req.params;
-    
+
     const complianceSummary = await WardAuditModel.getWardComplianceSummary(ward_code);
-    
+
     if (!complianceSummary) {
       return sendError(res, 'Ward not found', 404);
     }
-    
+
     sendSuccess(res, complianceSummary, 'Ward compliance data retrieved successfully');
   })
 );
@@ -234,7 +234,7 @@ router.get('/ward/:ward_code/compliance',
 router.post('/ward/:ward_code/approve',
   authenticate,
   requirePermission('ward_audit.approve'),
-  validate({ 
+  validate({
     params: wardCodeSchema,
     body: approveComplianceSchema
   }),
@@ -242,25 +242,25 @@ router.post('/ward/:ward_code/approve',
     const { ward_code } = req.params;
     const { notes } = req.body;
     const userId = (req as any).user.id || (req as any).user.user_id;
-    
+
     // First check if ward meets compliance criteria
     const complianceSummary = await WardAuditModel.getWardComplianceSummary(ward_code);
-    
+
     if (!complianceSummary) {
       return sendError(res, 'Ward not found', 404);
     }
-    
+
     // Check criterion 1: >= 200 members AND all VDs have >= 5 members
     if (!complianceSummary.criterion_1_compliant) {
-      return sendError(res, 
+      return sendError(res,
         'Ward does not meet compliance criteria. Must have 200+ members and all voting districts must have 5+ members each.',
         400
       );
     }
-    
+
     // Approve the ward
     await WardAuditModel.approveWardCompliance(ward_code, userId, notes);
-    
+
     sendSuccess(res, { ward_code, approved: true }, 'Ward compliance approved successfully');
   })
 );
@@ -619,16 +619,16 @@ router.post('/delegates',
   requirePermission('ward_audit.manage_delegates'),
   validate({ body: assignDelegateSchema }),
   asyncHandler(async (req: Request, res: Response) => {
-    const { 
-      ward_code, 
-      member_id, 
-      assembly_code, 
-      selection_method, 
-      term_start_date, 
-      term_end_date, 
-      notes 
+    const {
+      ward_code,
+      member_id,
+      assembly_code,
+      selection_method,
+      term_start_date,
+      term_end_date,
+      notes
     } = req.body;
-    
+
     // Get user_id from authenticated user. The user object should have user_id from getUserById.
     // If not present, fall back to id field, then to null to avoid FK violation.
     console.log('🔍 DEBUG: req.user object:', JSON.stringify((req as any).user, null, 2));
@@ -673,7 +673,7 @@ router.post('/delegates',
       notes,
       selected_by: validatedUserId || undefined
     });
-    
+
     sendSuccess(res, { delegate_id: delegateId }, 'Delegate assigned successfully');
   })
 );
@@ -722,9 +722,9 @@ router.get('/municipality/:municipality_code/delegates',
   validate({ params: municipalityCodeSchema }),
   asyncHandler(async (req: Request, res: Response) => {
     const { municipality_code } = req.params;
-    
+
     const report = await WardAuditModel.getMunicipalityDelegateReport(municipality_code);
-    
+
     sendSuccess(res, report, 'Municipality delegate report retrieved successfully');
   })
 );
@@ -738,7 +738,7 @@ router.get('/assembly-types',
   requirePermission('ward_audit.read'),
   asyncHandler(async (req: Request, res: Response) => {
     const assemblyTypes = await WardAuditModel.getAllAssemblyTypes();
-    
+
     sendSuccess(res, assemblyTypes, 'Assembly types retrieved successfully');
   })
 );

@@ -23,7 +23,6 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import PublicHeader from '../../components/layout/PublicHeader';
 import { authApi } from '../../services/api';
 
 // Validation schema
@@ -69,12 +68,9 @@ const ForgotPasswordPage: React.FC = () => {
   if (isSuccess) {
     return (
       <Box>
-        {/* Sticky Header */}
-        <PublicHeader />
-
         <Box
           sx={{
-            minHeight: 'calc(100vh - 72px)',
+            minHeight: '100vh',
             background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
             display: 'flex',
             alignItems: 'center',
@@ -237,12 +233,9 @@ const ForgotPasswordPage: React.FC = () => {
 
   return (
     <Box>
-      {/* Sticky Header */}
-      <PublicHeader />
-
       <Box
         sx={{
-          minHeight: 'calc(100vh - 72px)',
+          minHeight: '100vh',
           background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
           display: 'flex',
           alignItems: 'center',

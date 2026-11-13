@@ -354,7 +354,7 @@ export const reportsApi = {
     try {
       const params = new URLSearchParams();
       if (filters.province_code) params.append('province_code', filters.province_code);
-      if (filters.run_id)        params.append('run_id', String(filters.run_id));
+      if (filters.run_id) params.append('run_id', String(filters.run_id));
 
       const response = await axios.get(
         `${API_BASE_URL}/reports/deceased-purge?${params.toString()}`,
@@ -484,7 +484,7 @@ export const reportsApi = {
       {
         id: 'srpa-delegates',
         name: 'SRPA Delegates Report',
-        description: 'Sub-Regional People\'s Assembly delegates organized by province with national summary',
+        description: 'Local Municipalityal People\'s Assembly delegates organized by province with national summary',
         sheets: 10,
         format: 'Excel',
         icon: 'Groups',

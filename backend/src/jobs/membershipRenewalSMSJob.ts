@@ -7,14 +7,14 @@ export class MembershipRenewalSMSJob {
 
     /**
      * Start the scheduled job for sending automated renewal SMS reminders.
-     * Runs every Friday between 7:00 - 8:00 AM (starts at 7:00 AM).
-     * Prioritises recently expired members first.
+     * Permanently DISABLED to prevent automated SMS messages from being sent to expired members.
      */
     static start() {
-        // ⛔ DISABLED: Membership expiry SMS sending is disabled as of 2026-08-14
-        logger.info('MembershipRenewalSMSJob is DISABLED. Skipping start.');
+        // ⛔ PERMANENTLY DISABLED: Automated membership renewal/expiry SMS sending is disabled.
+        logger.info('🛑 MembershipRenewalSMSJob is DISABLED. Automated renewal SMS will not be scheduled or sent.');
         return;
 
+        /* Cron scheduling disabled:
         if (this.job) {
             logger.warn('MembershipRenewalSMSJob is already running.');
             return;
@@ -22,7 +22,6 @@ export class MembershipRenewalSMSJob {
 
         logger.info('Starting MembershipRenewalSMSJob - Scheduled for Fridays at 07:00');
 
-        // Schedule to run every Friday at 07:00 server time (day 5 = Friday)
         this.job = cron.schedule('0 7 * * 5', async () => {
             logger.info('Executing scheduled MembershipRenewalSMSJob (Friday run)...');
 
@@ -42,6 +41,7 @@ export class MembershipRenewalSMSJob {
                 logger.error('Error during scheduled MembershipRenewalSMSJob execution:', { error: error.message });
             }
         });
+        */
     }
 
     /**

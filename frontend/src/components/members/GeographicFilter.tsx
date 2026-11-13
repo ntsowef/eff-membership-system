@@ -391,8 +391,8 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
   // Auto-select province for provincial admins
   useEffect(() => {
     if (provinceContext.shouldRestrictToProvince &&
-        provinceContext.assignedProvince &&
-        !filters.province) {
+      provinceContext.assignedProvince &&
+      !filters.province) {
       handleProvinceChange(provinceContext.assignedProvince.code);
     }
   }, [provinceContext, filters.province]);
@@ -1104,7 +1104,7 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
               {(provinceContext.shouldRestrictToProvince && provinceContext.assignedProvince) ||
-               (municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedProvince) ? (
+                (municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedProvince) ? (
                 // Provincial Admin or Municipality Admin - Show locked province
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -1191,10 +1191,10 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
             {filters.district && (
               <Grid item xs={12} sm={6} md={3}>
                 {municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedMunicipality ? (
-                  // Sub-Region Admin - Show locked sub-region
+                  // Local Municipality Admin - Show locked Local Municipality
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Sub-Region (Restricted)
+                      Local Municipality (Restricted)
                     </Typography>
                     <Alert
                       severity="info"
@@ -1213,13 +1213,13 @@ const GeographicFilter: React.FC<GeographicFilterProps> = ({ filters, onFiltersC
                   </Box>
                 ) : (
                   <FormControl fullWidth size="small">
-                    <InputLabel>Sub-Region</InputLabel>
+                    <InputLabel>Local Municipality</InputLabel>
                     <Select
                       value={filters.municipality || ''}
                       onChange={(e) => handleMunicipalityChange(e.target.value)}
-                      label="Sub-Region"
+                      label="Local Municipality"
                     >
-                      <MenuItem value="">All Sub-Regions</MenuItem>
+                      <MenuItem value="">All Local Municipalitys</MenuItem>
                       {Array.isArray(municipalities) && municipalities.map((municipality) => (
                         <MenuItem key={municipality.municipality_code} value={municipality.municipality_code}>
                           {municipality.municipality_name} ({municipality.member_count})

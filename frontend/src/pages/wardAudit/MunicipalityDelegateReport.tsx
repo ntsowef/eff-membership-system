@@ -35,27 +35,27 @@ import type { WardComplianceSummary } from '../../types/wardAudit';
 const MunicipalityDelegateReport: React.FC = () => {
   const { municipalityCode } = useParams<{ municipalityCode: string }>();
   const navigate = useNavigate();
-  
+
   // Fetch municipality delegate report
-  const { 
-    data: report, 
+  const {
+    data: report,
     isLoading,
-    error 
+    error
   } = useQuery({
     queryKey: ['municipality-delegate-report', municipalityCode],
     queryFn: () => wardAuditApi.getMunicipalityDelegateReport(municipalityCode!),
     enabled: !!municipalityCode,
   });
-  
+
   const handleViewWardDetails = (wardCode: string) => {
     navigate(`/admin/ward-audit/ward/${wardCode}`);
   };
-  
+
   const handleExportReport = () => {
     // TODO: Implement export functionality (CSV/PDF)
     console.log('Export report:', report);
   };
-  
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
@@ -63,7 +63,7 @@ const MunicipalityDelegateReport: React.FC = () => {
       </Box>
     );
   }
-  
+
   if (error || !report) {
     return (
       <Container maxWidth="xl" sx={{ mt: 4 }}>
@@ -73,7 +73,7 @@ const MunicipalityDelegateReport: React.FC = () => {
       </Container>
     );
   }
-  
+
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
@@ -100,7 +100,7 @@ const MunicipalityDelegateReport: React.FC = () => {
           Export Report
         </Button>
       </Box>
-      
+
       {/* Summary Statistics */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
@@ -115,7 +115,7 @@ const MunicipalityDelegateReport: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -126,9 +126,9 @@ const MunicipalityDelegateReport: React.FC = () => {
                 {report.compliant_wards}
               </Typography>
               <Box sx={{ mt: 2 }}>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={report.compliance_percentage} 
+                <LinearProgress
+                  variant="determinate"
+                  value={report.compliance_percentage}
                   color="success"
                   sx={{ height: 8, borderRadius: 4 }}
                 />
@@ -139,7 +139,7 @@ const MunicipalityDelegateReport: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -155,7 +155,7 @@ const MunicipalityDelegateReport: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -172,7 +172,7 @@ const MunicipalityDelegateReport: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
-      
+
       {/* Delegate Breakdown */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
@@ -185,12 +185,12 @@ const MunicipalityDelegateReport: React.FC = () => {
                 {report.total_srpa_delegates}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Sub-Regional People's Assembly
+                Local Municipalityal People's Assembly
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
@@ -206,7 +206,7 @@ const MunicipalityDelegateReport: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
@@ -223,7 +223,7 @@ const MunicipalityDelegateReport: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
-      
+
       {/* Ward-by-Ward Breakdown */}
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -305,7 +305,7 @@ const MunicipalityDelegateReport: React.FC = () => {
           </Table>
         </TableContainer>
       </Paper>
-      
+
       {/* Summary Notes */}
       <Paper sx={{ p: 3, mt: 3, bgcolor: 'info.light' }}>
         <Typography variant="h6" gutterBottom>
@@ -313,7 +313,7 @@ const MunicipalityDelegateReport: React.FC = () => {
         </Typography>
         <Typography variant="body2" paragraph>
           This municipality has <strong>{report.total_wards}</strong> wards, with{' '}
-          <strong>{report.compliant_wards}</strong> ({report.compliance_percentage.toFixed(1)}%) 
+          <strong>{report.compliant_wards}</strong> ({report.compliance_percentage.toFixed(1)}%)
           approved as compliant.
         </Typography>
         <Typography variant="body2" paragraph>
@@ -340,7 +340,7 @@ const MunicipalityDelegateReport: React.FC = () => {
         {report.non_compliant_wards > 0 && (
           <Alert severity="warning" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>{report.non_compliant_wards}</strong> ward(s) still require compliance approval. 
+              <strong>{report.non_compliant_wards}</strong> ward(s) still require compliance approval.
               Please review and address any outstanding issues.
             </Typography>
           </Alert>

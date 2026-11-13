@@ -193,7 +193,7 @@ This document outlines the comprehensive testing plan for the Multi-Factor Authe
 
 **Expected Result**:
 - ✅ Shows only province-specific statistics
-- ✅ Sub-regional breakdown visible
+- ✅ Local Municipalityal breakdown visible
 - ✅ Top wards within province displayed
 - ✅ No national-level data shown
 

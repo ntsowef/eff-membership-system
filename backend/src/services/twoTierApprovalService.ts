@@ -993,32 +993,60 @@ export class TwoTierApprovalService {
   static async getApplicationWithRoleAccess(applicationId: number, userId: number, userRole: string): Promise<any> {
     try {
       // Query with geographic joins to get location names
-      const result = await prisma.$queryRaw`
-        SELECT
-          ma.*,
-          w.ward_name,
-          m.municipality_name,
-          d.district_name,
-          p.province_name,
-          u1.name as financial_reviewer_name,
-          u2.name as final_reviewer_name,
-          l.language_name,
-          o.occupation_name,
-          q.qualification_name
-        FROM membership_applications ma
-        LEFT JOIN wards w ON ma.ward_code = w.ward_code
-        LEFT JOIN municipalities m ON ma.municipal_code = m.municipality_code
-        LEFT JOIN districts d ON ma.district_code = d.district_code
-        LEFT JOIN provinces p ON ma.province_code = p.province_code
-        LEFT JOIN users u1 ON ma.financial_reviewed_by = u1.user_id
-        LEFT JOIN users u2 ON ma.final_reviewed_by = u2.user_id
-        LEFT JOIN languages l ON ma.language_id = l.language_id
-        LEFT JOIN occupations o ON ma.occupation_id = o.occupation_id
-        LEFT JOIN qualifications q ON ma.qualification_id = q.qualification_id
-        WHERE ma.application_id = ${applicationId}
-      ` as any[];
-
-      const application = result[0] || null;
+      let application: any = null;
+      try {
+        const result = await prisma.$queryRaw`
+          SELECT
+            ma.*,
+            w.ward_name,
+            m.municipality_name,
+            d.district_name,
+            p.province_name,
+            u1.name as financial_reviewer_name,
+            u2.name as final_reviewer_name,
+            l.language_name,
+            o.occupation_name,
+            q.qualification_name
+          FROM membership_applications ma
+          LEFT JOIN wards w ON ma.ward_code = w.ward_code
+          LEFT JOIN municipalities m ON ma.municipal_code = m.municipality_code
+          LEFT JOIN districts d ON ma.district_code = d.district_code
+          LEFT JOIN provinces p ON ma.province_code = p.province_code
+          LEFT JOIN users u1 ON ma.financial_reviewed_by = u1.user_id
+          LEFT JOIN users u2 ON ma.final_reviewed_by = u2.user_id
+          LEFT JOIN languages l ON ma.language_id = l.language_id
+          LEFT JOIN occupations o ON ma.occupation_id = o.occupation_id
+          LEFT JOIN qualifications q ON ma.qualification_id = q.qualification_id
+          WHERE ma.application_id = ${applicationId}
+        ` as any[];
+        application = result[0] || null;
+      } catch (prismaErr) {
+        console.warn('Prisma query failed in getApplicationWithRoleAccess, falling back to executeQuerySingle:', prismaErr);
+        application = await executeQuerySingle(`
+          SELECT
+            ma.*,
+            w.ward_name,
+            m.municipality_name,
+            d.district_name,
+            p.province_name,
+            u1.name as financial_reviewer_name,
+            u2.name as final_reviewer_name,
+            l.language_name,
+            o.occupation_name,
+            q.qualification_name
+          FROM membership_applications ma
+          LEFT JOIN wards w ON ma.ward_code = w.ward_code
+          LEFT JOIN municipalities m ON ma.municipal_code = m.municipality_code
+          LEFT JOIN districts d ON ma.district_code = d.district_code
+          LEFT JOIN provinces p ON ma.province_code = p.province_code
+          LEFT JOIN users u1 ON ma.financial_reviewed_by = u1.user_id
+          LEFT JOIN users u2 ON ma.final_reviewed_by = u2.user_id
+          LEFT JOIN languages l ON ma.language_id = l.language_id
+          LEFT JOIN occupations o ON ma.occupation_id = o.occupation_id
+          LEFT JOIN qualifications q ON ma.qualification_id = q.qualification_id
+          WHERE ma.application_id = $1
+        `, [applicationId]);
+      }
 
       if (!application) {
         return null;
@@ -1039,6 +1067,14 @@ export class TwoTierApprovalService {
         if (application.financial_reviewed_by === userId) {
           return null;
         }
+      }
+
+      // Attach associated documents (including Proof of Payment)
+      try {
+        application.documents = await MembershipApplicationModel.getApplicationDocuments(applicationId);
+      } catch (docErr) {
+        console.warn(`Failed to fetch documents for application ${applicationId}:`, docErr);
+        application.documents = [];
       }
 
       return application;

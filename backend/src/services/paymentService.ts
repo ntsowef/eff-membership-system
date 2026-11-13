@@ -2,6 +2,8 @@ import { executeQuery, executeQuerySingle } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 import axios from 'axios';
 import { emailService } from './emailService';
+import { CacheInvalidationHooks } from './cacheInvalidationService';
+import { MemberRenewalLogService } from './memberRenewalLogService';
 
 // =============================================================================
 // Peach Payments Checkout Integration Service
@@ -338,8 +340,8 @@ export class PaymentService {
       console.log(`🔍 Payment verification for ${checkoutId}: code=${resultCode}, success=${isSuccess}`);
 
       // Update payment record in DB
-      const paymentRecord = await executeQuerySingle<{ payment_id: number }>(
-        `SELECT payment_id FROM payments WHERE gateway_reference = $1`,
+      const paymentRecord = await executeQuerySingle<{ payment_id: number; member_id: number; payment_type: string }>(
+        `SELECT payment_id, member_id, payment_type FROM payments WHERE gateway_reference = $1`,
         [checkoutId]
       );
 
@@ -351,12 +353,17 @@ export class PaymentService {
                gateway_transaction_id = $2,
                gateway_response = $3,
                processed_at = CURRENT_TIMESTAMP,
-               completed_at = CASE WHEN $1 = 'Completed' THEN CURRENT_TIMESTAMP ELSE NULL END,
+               completed_at = ${isSuccess ? 'CURRENT_TIMESTAMP' : 'NULL'},
                updated_at = CURRENT_TIMESTAMP
            WHERE payment_id = $4`,
           [newStatus, result.id, JSON.stringify(result), paymentRecord.payment_id]
         );
         console.log(`✅ Payment ${paymentRecord.payment_id} updated to ${newStatus}`);
+
+        // Complete renewal if applicable
+        if (isSuccess && paymentRecord.payment_type === 'Renewal' && paymentRecord.member_id) {
+          await this.completeRenewalPayment(paymentRecord.member_id, paymentRecord.payment_id);
+        }
       }
 
       return {
@@ -449,7 +456,7 @@ export class PaymentService {
            gateway_transaction_id = $2,
            gateway_response = $3,
            processed_at = CURRENT_TIMESTAMP,
-           completed_at = CASE WHEN $1 = 'Completed' THEN CURRENT_TIMESTAMP ELSE NULL END,
+           completed_at = ${isSuccess ? 'CURRENT_TIMESTAMP' : 'NULL'},
            updated_at = CURRENT_TIMESTAMP
        WHERE payment_id = $4`,
       [newStatus, transactionId, JSON.stringify(fullPayload), payment.payment_id]
@@ -472,29 +479,146 @@ export class PaymentService {
   // ---------------------------------------------------------------------------
 
   /**
-   * After a successful card payment for renewal, update the member's dates and status.
+   * After a successful card payment for renewal, update the member's dates, contact info, and status,
+   * invalidate caches, and log the renewal event — exactly like cash payment.
    */
-  private static async completeRenewalPayment(memberId: number, paymentId: number): Promise<void> {
+  static async completeRenewalPayment(memberId: number, paymentId: number): Promise<void> {
     try {
       const currentDate = new Date();
       const lastPaymentDate = currentDate.toISOString().split('T')[0];
       const expiryDate = new Date(currentDate);
-      expiryDate.setDate(expiryDate.getDate() + 730); // 24 months
+      expiryDate.setDate(expiryDate.getDate() + 730); // 24 months = 730 days
       const newExpiryDate = expiryDate.toISOString().split('T')[0];
+
+      // Check payment record for any updated_member_data in description
+      const payment = await executeQuerySingle<any>(
+        `SELECT payment_id, member_id, payment_reference, payment_method, amount, description FROM payments WHERE payment_id = $1`,
+        [paymentId]
+      );
+
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+      let paramIndex = 1;
+
+      let updatedData: any = null;
+      if (payment?.description) {
+        try {
+          const parsed = JSON.parse(payment.description);
+          updatedData = parsed.updated_member_data || parsed;
+        } catch (e) {
+          // description is plain text, ignore
+        }
+      }
+
+      if (updatedData) {
+        if (updatedData.email !== undefined && updatedData.email !== '') {
+          updateFields.push(`email = $${paramIndex++}`);
+          updateValues.push(updatedData.email);
+        }
+        if (updatedData.cell_number !== undefined && updatedData.cell_number !== '') {
+          updateFields.push(`cell_number = $${paramIndex++}`);
+          updateValues.push(updatedData.cell_number);
+        }
+        if (updatedData.landline_number !== undefined && updatedData.landline_number !== '') {
+          updateFields.push(`landline_number = $${paramIndex++}`);
+          updateValues.push(updatedData.landline_number);
+        }
+        if (updatedData.residential_address !== undefined && updatedData.residential_address !== '') {
+          updateFields.push(`residential_address = $${paramIndex++}`);
+          updateValues.push(updatedData.residential_address);
+        }
+        if (updatedData.postal_address !== undefined && updatedData.postal_address !== '') {
+          updateFields.push(`postal_address = $${paramIndex++}`);
+          updateValues.push(updatedData.postal_address);
+        }
+        if (updatedData.ward_code !== undefined && updatedData.ward_code !== '') {
+          updateFields.push(`ward_code = $${paramIndex++}`);
+          updateValues.push(updatedData.ward_code);
+        }
+      }
+
+      updateFields.push(`last_payment_date = $${paramIndex++}`);
+      updateValues.push(lastPaymentDate);
+      updateFields.push(`expiry_date = $${paramIndex++}`);
+      updateValues.push(newExpiryDate);
+      updateFields.push(`membership_status_id = $${paramIndex++}`);
+      updateValues.push(1);
+      updateFields.push(`payment_status = $${paramIndex++}`);
+      updateValues.push('Completed');
+      updateFields.push(`payment_method = $${paramIndex++}`);
+      updateValues.push(payment?.payment_method || 'Card');
+      if (payment?.payment_reference) {
+        updateFields.push(`payment_reference = $${paramIndex++}`);
+        updateValues.push(payment.payment_reference);
+      }
+      updateFields.push(`membership_number = COALESCE(membership_number, 'EFF' || EXTRACT(YEAR FROM CURRENT_DATE)::TEXT || member_id::TEXT)`);
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      updateValues.push(memberId);
 
       await executeQuery(
         `UPDATE members_consolidated
-         SET last_payment_date = $1,
-             expiry_date = $2,
-             membership_status_id = 1,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE member_id = $3`,
-        [lastPaymentDate, newExpiryDate, memberId]
+         SET ${updateFields.join(', ')}
+         WHERE member_id = $${paramIndex}`,
+        updateValues
       );
 
-      console.log(`✅ Renewal completed for member ${memberId}: expiry → ${newExpiryDate}`);
+      // Also update legacy memberships table if it exists
+      try {
+        await executeQuery(
+          `UPDATE memberships
+           SET status_id = 1,
+               last_payment_date = $1,
+               expiry_date = $2,
+               payment_status = 'Completed',
+               updated_at = CURRENT_TIMESTAMP
+           WHERE member_id = $3`,
+          [lastPaymentDate, newExpiryDate, memberId]
+        );
+      } catch (legacyErr) {
+        // Ignored if table doesn't exist
+      }
+
+      console.log(`✅ Renewal completed for member ${memberId}: expiry → ${newExpiryDate}, status → Active`);
+
+      // Invalidate caches
+      try {
+        await CacheInvalidationHooks.onMemberChange('update', memberId);
+      } catch (cacheErr) {
+        console.error('⚠️ Cache invalidation error (non-critical):', cacheErr);
+      }
+
+      // Log renewal to member_renewal_log
+      try {
+        const memberInfo = await executeQuerySingle<any>(
+          `SELECT province_code, province_name, district_code, municipality_code, ward_code, expiry_date FROM members_consolidated WHERE member_id = $1`,
+          [memberId]
+        );
+
+        await MemberRenewalLogService.logRenewal({
+          member_id: memberId,
+          renewal_year: new Date().getFullYear(),
+          renewal_type: 'Annual',
+          previous_expiry_date: memberInfo?.expiry_date || undefined,
+          new_expiry_date: newExpiryDate,
+          amount_paid: payment?.amount ? parseFloat(payment.amount) : 10.00,
+          payment_method: payment?.payment_method || 'Card',
+          payment_reference: payment?.payment_reference || `REN-${paymentId}`,
+          payment_status: 'Completed',
+          province_code: memberInfo?.province_code || undefined,
+          province_name: memberInfo?.province_name || undefined,
+          district_code: memberInfo?.district_code || undefined,
+          municipality_code: memberInfo?.municipality_code || undefined,
+          ward_code: memberInfo?.ward_code || undefined,
+          source: 'online',
+          source_reference: `PAY-${paymentId}`,
+          notes: 'Renewal card payment completed',
+          metadata: { payment_id: paymentId, last_payment_date: lastPaymentDate }
+        });
+      } catch (logErr) {
+        console.warn('Failed to log renewal to member_renewal_log:', logErr);
+      }
     } catch (error) {
-      console.error(`❌ Failed to complete renewal for member ${memberId}:`, error);
+      console.error(` Failed to complete renewal for member ${memberId}:`, error);
     }
   }
 
@@ -559,7 +683,8 @@ export class PaymentService {
     }
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const newStatus = verificationData.verification_status === 'approved' ? 'Completed' : 'Failed';
+      const isApproved = verificationData.verification_status === 'approved';
+      const newStatus = isApproved ? 'Completed' : 'Failed';
 
       await executeQuery(
         `UPDATE payments
@@ -567,7 +692,7 @@ export class PaymentService {
              verified_by = $2,
              verified_at = CURRENT_TIMESTAMP,
              verification_notes = $3,
-             completed_at = CASE WHEN $1 = 'Completed' THEN CURRENT_TIMESTAMP ELSE NULL END,
+             completed_at = ${isApproved ? 'CURRENT_TIMESTAMP' : 'NULL'},
              updated_at = CURRENT_TIMESTAMP
          WHERE payment_id = $4`,
         [newStatus, verifiedBy, verificationData.verification_notes || null, paymentId]
@@ -758,11 +883,11 @@ export class PaymentService {
       const maskedCard = cleanedCard.substring(0, 6) + '****' + cleanedCard.substring(cleanedCard.length - 4);
 
       console.log(`\n${'='.repeat(70)}`);
-      console.log(`💳 S2S CARD PAYMENT REQUEST`);
+      console.log(` S2S CARD PAYMENT REQUEST`);
       console.log(`${'='.repeat(70)}`);
-      console.log(`🌐 URL: ${this.peachConfig.cardUrl}`);
-      console.log(`🔑 Auth: Bearer ${token.substring(0, 20)}...`);
-      console.log(`📦 Payload:`);
+      console.log(` URL: ${this.peachConfig.cardUrl}`);
+      console.log(` Auth: Bearer ${token.substring(0, 20)}...`);
+      console.log(` Payload:`);
       console.log(`   entityId:              ${this.peachConfig.entityId}`);
       console.log(`   amount:                ${amount.toFixed(2)}`);
       console.log(`   currency:              ZAR`);
@@ -794,7 +919,7 @@ export class PaymentService {
       const transactionId = result.id;
 
       console.log(`\n${'='.repeat(70)}`);
-      console.log(`📨 S2S CARD PAYMENT RESPONSE`);
+      console.log(` S2S CARD PAYMENT RESPONSE`);
       console.log(`${'='.repeat(70)}`);
       console.log(`   HTTP Status:   ${response.status}`);
       console.log(`   Transaction:   ${transactionId}`);
@@ -807,7 +932,7 @@ export class PaymentService {
 
       // Check for 3DS redirect
       if (result.redirect) {
-        console.log(`🔐 3D Secure redirect required for payment ${paymentId}`);
+        console.log(` 3D Secure redirect required for payment ${paymentId}`);
         await executeQuery(
           `UPDATE payments SET gateway_transaction_id = $1, gateway_reference = $2, gateway_response = $3, updated_at = CURRENT_TIMESTAMP WHERE payment_id = $4`,
           [transactionId, transactionId, JSON.stringify(result), paymentId]
@@ -836,14 +961,14 @@ export class PaymentService {
              gateway_reference = $3,
              gateway_response = $4,
              processed_at = CURRENT_TIMESTAMP,
-             completed_at = CASE WHEN $1 = 'Completed' THEN CURRENT_TIMESTAMP ELSE NULL END,
+             completed_at = ${isSuccess ? 'CURRENT_TIMESTAMP' : 'NULL'},
              updated_at = CURRENT_TIMESTAMP
          WHERE payment_id = $5`,
         [newStatus, transactionId, transactionId, JSON.stringify(result), paymentId]
       );
 
       if (isSuccess) {
-        console.log(`✅ S2S card payment successful: txn=${transactionId}, code=${resultCode}`);
+        console.log(`S2S card payment successful: txn=${transactionId}, code=${resultCode}`);
 
         // If this is a renewal, complete the renewal
         if (paymentType === 'Renewal' && memberId) {
@@ -860,9 +985,9 @@ export class PaymentService {
           memberId,
           resultCode,
           status: 'success',
-        }).catch(err => console.error('⚠️ Failed to send payment notification email:', err));
+        }).catch(err => console.error(' Failed to send payment notification email:', err));
       } else {
-        console.log(`❌ S2S card payment failed: code=${resultCode}, desc=${result.result?.description}`);
+        console.log(` S2S card payment failed: code=${resultCode}, desc=${result.result?.description}`);
       }
 
       return {
@@ -876,7 +1001,7 @@ export class PaymentService {
         message: isSuccess ? 'Payment completed successfully' : (result.result?.description || 'Payment failed')
       };
     } catch (error: any) {
-      console.error('❌ S2S card payment error:', JSON.stringify(error?.response?.data, null, 2) || error.message);
+      console.error('S2S card payment error:', JSON.stringify(error?.response?.data, null, 2) || error.message);
       const errorDesc = error?.response?.data?.result?.description
         || error?.response?.data?.message
         || 'Payment processing failed. Please check your card details and try again.';
@@ -917,7 +1042,7 @@ export class PaymentService {
          SET payment_status = $1,
              gateway_response = $2,
              processed_at = CURRENT_TIMESTAMP,
-             completed_at = CASE WHEN $1 = 'Completed' THEN CURRENT_TIMESTAMP ELSE NULL END,
+             completed_at = ${isSuccess ? 'CURRENT_TIMESTAMP' : 'NULL'},
              updated_at = CURRENT_TIMESTAMP
          WHERE payment_id = $3`,
         [newStatus, JSON.stringify(result), paymentId]
@@ -945,7 +1070,7 @@ export class PaymentService {
         message: isSuccess ? 'Payment completed successfully' : (result.result?.description || 'Payment failed')
       };
     } catch (error: any) {
-      console.error('❌ Payment status check error:', error?.response?.data || error.message);
+      console.error('Payment status check error:', error?.response?.data || error.message);
       return {
         success: false,
         message: 'Unable to verify payment status. Please contact support.'

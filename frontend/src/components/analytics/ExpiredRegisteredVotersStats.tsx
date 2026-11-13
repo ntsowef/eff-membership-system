@@ -104,7 +104,7 @@ const ExpiredRegisteredVotersStats: React.FC<ExpiredRegisteredVotersStatsProps> 
   const getBreakdownLabel = () => {
     switch (breakdownType) {
       case 'province': return 'Province';
-      case 'municipality': return 'Sub-Region';
+      case 'municipality': return 'Local Municipality';
       case 'ward': return 'Ward';
       default: return 'Area';
     }

@@ -254,7 +254,7 @@ WHERE email = 'city-of-johannesburg-metropolitan-municipality.admin@eff.org.za';
 **Categories:**
 - 8 Metropolitan Municipalities (JHB, CPT, EKU, TSH, ETH, MAN, BUF, NMA)
 - 44 District Municipalities
-- 214 Local Municipalities (Sub-Regions)
+- 214 Local Municipalities (Local Municipalitys)
 
 **Provinces:**
 - Eastern Cape: 38 municipalities

@@ -43,7 +43,7 @@ export interface SRPADelegateConfigView {
 
 export class SRPADelegateConfigModel {
   /**
-   * Get delegate configuration for a specific sub-region
+   * Get delegate configuration for a specific Local Municipality
    */
   static async getConfigBySubRegion(subRegionCode: string): Promise<SRPADelegateConfig | null> {
     try {
@@ -96,7 +96,7 @@ export class SRPADelegateConfigModel {
   }
 
   /**
-   * Create or update delegate configuration for a municipality (Local or Metro Sub-Region)
+   * Create or update delegate configuration for a municipality (Local or Metro Local Municipality)
    */
   static async upsertConfig(data: {
     sub_region_code: string;
@@ -112,7 +112,7 @@ export class SRPADelegateConfigModel {
 
       // Get province_code for the municipality
       // For Local municipalities: get province from district
-      // For Metro Sub-Regions: get province from parent municipality's district
+      // For Metro Local Municipalitys: get province from parent municipality's district
       const municipalityQuery = `
         SELECT
           m.municipality_code,
@@ -123,7 +123,7 @@ export class SRPADelegateConfigModel {
         LEFT JOIN districts d ON m.district_code = d.district_code
         LEFT JOIN districts pd ON pm.district_code = pd.district_code
         WHERE m.municipality_code = $1
-          AND m.municipality_type IN ('Local', 'Local Municipality', 'Metro Sub-Region')
+          AND m.municipality_type IN ('Local', 'Local Municipality', 'Metro Local Municipality')
       `;
 
       const municipality = await executeQuerySingle<{

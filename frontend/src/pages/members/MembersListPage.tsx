@@ -328,9 +328,9 @@ const MembersListPage: React.FC = () => {
       // Check if the date is valid and not in the future
       const today = new Date();
       if (date.getFullYear() !== fullYear ||
-          date.getMonth() !== month - 1 ||
-          date.getDate() !== day ||
-          date > today) {
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day ||
+        date > today) {
         return null;
       }
 
@@ -688,265 +688,265 @@ const MembersListPage: React.FC = () => {
           </Grid>
         </Grid>
 
-      {/* Geographic Filter with Charts */}
-      <GeographicFilter
-        filters={geographicFilters}
-        onFiltersChange={(newFilters) => {
-          setGeographicFilters(newFilters);
-          setPage(0); // Reset to first page when filtering
-        }}
-        membershipStatus={filters.membership_status}
-      />
+        {/* Geographic Filter with Charts */}
+        <GeographicFilter
+          filters={geographicFilters}
+          onFiltersChange={(newFilters) => {
+            setGeographicFilters(newFilters);
+            setPage(0); // Reset to first page when filtering
+          }}
+          membershipStatus={filters.membership_status}
+        />
 
-      {/* Search and Filters */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-            <TextField
-              placeholder="Search members..."
-              value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ minWidth: 300 }}
-            />
+        {/* Search and Filters */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+              <TextField
+                placeholder="Search members..."
+                value={searchTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 300 }}
+              />
 
-            <ActionButton
-              icon={FilterList}
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) => setFilterAnchorEl(e.currentTarget)}
-              variant="outlined"
-              color="secondary"
-            >
-              Filters
-            </ActionButton>
-
-            {(filters.membershipType || filters.hierarchyLevel || filters.province || filters.membership_status) && (
               <ActionButton
-                onClick={clearFilters}
+                icon={FilterList}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => setFilterAnchorEl(e.currentTarget)}
                 variant="outlined"
-                color="warning"
-              >
-                Clear Filters
-              </ActionButton>
-            )}
-
-            <Box sx={{ flexGrow: 1 }} />
-
-            <ActionButton
-              icon={Download}
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) => setActionAnchorEl(e.currentTarget)}
-              variant="outlined"
-              color="info"
-            >
-              Export
-            </ActionButton>
-
-            {/* Ward Audit Export Button - only visible when ward is selected */}
-            {geographicFilters.ward && (
-              <ActionButton
-                icon={Assessment}
-                onClick={() => {
-                  setWardCodeInput(geographicFilters.ward!); // Pre-populate with selected ward
-                  setWardAuditDialog(true);
-                }}
-                variant="outlined"
-                color="warning"
-                disabled={auditExportLoading}
-              >
-                {auditExportLoading ? 'Downloading Attendance Register...' : `Download Ward ${geographicFilters.ward} Attendance Register`}
-              </ActionButton>
-            )}
-          </Box>
-
-          {/* Active Filters */}
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {filters.membershipType && (
-              <Chip
-                label={`Type: ${filters.membershipType}`}
-                onDelete={() => handleFilterChange('membershipType', '')}
-                size="small"
-              />
-            )}
-            {filters.hierarchyLevel && (
-              <Chip
-                label={`Level: ${filters.hierarchyLevel}`}
-                onDelete={() => handleFilterChange('hierarchyLevel', '')}
-                size="small"
-              />
-            )}
-            {filters.province && (
-              <Chip
-                label={`Province: ${filters.province}`}
-                onDelete={() => handleFilterChange('province', '')}
-                size="small"
-              />
-            )}
-            {filters.membership_status && (
-              <Chip
-                label={`Status: ${filters.membership_status === 'all' ? 'All Members' :
-                        filters.membership_status === 'active' ? 'Good Standing' :
-                        filters.membership_status === 'expired' ? 'Expired' : filters.membership_status}`}
-                onDelete={() => handleFilterChange('membership_status', '')}
-                size="small"
-                color="info"
-              />
-            )}
-            {(geographicFilters.votingDistrict || geographicFilters.voting_district_code) && (
-              <Chip
-                label={`Voting District: ${geographicFilters.votingDistrict || geographicFilters.voting_district_code}`}
-                onDelete={() => {
-                  setGeographicFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters.voting_district_code;
-                    delete newFilters.votingDistrict;
-                    return newFilters;
-                  });
-                  setPage(0);
-                }}
-                size="small"
-                color="primary"
-                icon={<HowToVote />}
-              />
-            )}
-            {geographicFilters.ward && (
-              <Chip
-                label={`Ward: ${geographicFilters.ward}`}
-                onDelete={() => {
-                  setGeographicFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters.ward;
-                    return newFilters;
-                  });
-                  setPage(0);
-                }}
-                size="small"
                 color="secondary"
-              />
-            )}
-            {geographicFilters.municipality && (
-              <Chip
-                label={`Municipality: ${geographicFilters.municipality}`}
-                onDelete={() => {
-                  setGeographicFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters.municipality;
-                    delete newFilters.subregion;
-                    return newFilters;
-                  });
-                  setPage(0);
-                }}
-                size="small"
-              />
-            )}
-            {geographicFilters.subregion && (
-              <Chip
-                label={`Sub-Region: ${geographicFilters.subregion}`}
-                onDelete={() => {
-                  setGeographicFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters.subregion;
-                    return newFilters;
-                  });
-                  setPage(0);
-                }}
-                size="small"
+              >
+                Filters
+              </ActionButton>
+
+              {(filters.membershipType || filters.hierarchyLevel || filters.province || filters.membership_status) && (
+                <ActionButton
+                  onClick={clearFilters}
+                  variant="outlined"
+                  color="warning"
+                >
+                  Clear Filters
+                </ActionButton>
+              )}
+
+              <Box sx={{ flexGrow: 1 }} />
+
+              <ActionButton
+                icon={Download}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => setActionAnchorEl(e.currentTarget)}
+                variant="outlined"
                 color="info"
-              />
-            )}
-            {geographicFilters.district && (
-              <Chip
-                label={`District: ${geographicFilters.district}`}
-                onDelete={() => {
-                  setGeographicFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters.district;
-                    return newFilters;
-                  });
-                  setPage(0);
-                }}
-                size="small"
-              />
-            )}
-            {geographicFilters.province && (
-              <Chip
-                label={`Province: ${geographicFilters.province}`}
-                onDelete={() => {
-                  setGeographicFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters.province;
-                    return newFilters;
-                  });
-                  setPage(0);
-                }}
-                size="small"
-              />
-            )}
-          </Box>
-        </CardContent>
-      </Card>
+              >
+                Export
+              </ActionButton>
 
-      {/* Bulk Actions Toolbar */}
-      {selectedMembers.length > 0 && (
-        <Paper sx={{ mb: 2 }}>
-          <Toolbar>
-            <Typography variant="h6" sx={{ flex: '1 1 100%' }}>
-              {selectedMembers.length} selected
-            </Typography>
-            <Tooltip title="Send Email">
-              <IconButton onClick={() => handleBulkAction('email')}>
-                <Email />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Send SMS">
-              <IconButton onClick={() => handleBulkAction('sms')}>
-                <Phone />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Update Status">
-              <IconButton onClick={() => handleBulkAction('status')}>
-                <Edit />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Export Selected">
-              <IconButton onClick={() => handleBulkAction('export')}>
-                <Download />
-              </IconButton>
-            </Tooltip>
-          </Toolbar>
-        </Paper>
-      )}
+              {/* Ward Audit Export Button - only visible when ward is selected */}
+              {geographicFilters.ward && (
+                <ActionButton
+                  icon={Assessment}
+                  onClick={() => {
+                    setWardCodeInput(geographicFilters.ward!); // Pre-populate with selected ward
+                    setWardAuditDialog(true);
+                  }}
+                  variant="outlined"
+                  color="warning"
+                  disabled={auditExportLoading}
+                >
+                  {auditExportLoading ? 'Downloading Attendance Register...' : `Download Ward ${geographicFilters.ward} Attendance Register`}
+                </ActionButton>
+              )}
+            </Box>
 
-      {/* Members Table */}
-      <Card>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    indeterminate={selectedMembers.length > 0 && selectedMembers.length < members.length}
-                    checked={members.length > 0 && selectedMembers.length === members.length}
-                    onChange={handleSelectAll}
-                  />
-                </TableCell>
-                <SortableTableCell sortKey="firstname">Member</SortableTableCell>
-                <SortableTableCell sortKey="id_number">ID Number</SortableTableCell>
-                <SortableTableCell sortKey="age">Age/DOB</SortableTableCell>
-                <SortableTableCell sortKey="gender_name">Gender</SortableTableCell>
-                <TableCell>Contact</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Ward Code</TableCell>
-                <SortableTableCell sortKey="created_at">Join Date</SortableTableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {members.map((member: Member) => (
+            {/* Active Filters */}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {filters.membershipType && (
+                <Chip
+                  label={`Type: ${filters.membershipType}`}
+                  onDelete={() => handleFilterChange('membershipType', '')}
+                  size="small"
+                />
+              )}
+              {filters.hierarchyLevel && (
+                <Chip
+                  label={`Level: ${filters.hierarchyLevel}`}
+                  onDelete={() => handleFilterChange('hierarchyLevel', '')}
+                  size="small"
+                />
+              )}
+              {filters.province && (
+                <Chip
+                  label={`Province: ${filters.province}`}
+                  onDelete={() => handleFilterChange('province', '')}
+                  size="small"
+                />
+              )}
+              {filters.membership_status && (
+                <Chip
+                  label={`Status: ${filters.membership_status === 'all' ? 'All Members' :
+                    filters.membership_status === 'active' ? 'Good Standing' :
+                      filters.membership_status === 'expired' ? 'Expired' : filters.membership_status}`}
+                  onDelete={() => handleFilterChange('membership_status', '')}
+                  size="small"
+                  color="info"
+                />
+              )}
+              {(geographicFilters.votingDistrict || geographicFilters.voting_district_code) && (
+                <Chip
+                  label={`Voting District: ${geographicFilters.votingDistrict || geographicFilters.voting_district_code}`}
+                  onDelete={() => {
+                    setGeographicFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.voting_district_code;
+                      delete newFilters.votingDistrict;
+                      return newFilters;
+                    });
+                    setPage(0);
+                  }}
+                  size="small"
+                  color="primary"
+                  icon={<HowToVote />}
+                />
+              )}
+              {geographicFilters.ward && (
+                <Chip
+                  label={`Ward: ${geographicFilters.ward}`}
+                  onDelete={() => {
+                    setGeographicFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.ward;
+                      return newFilters;
+                    });
+                    setPage(0);
+                  }}
+                  size="small"
+                  color="secondary"
+                />
+              )}
+              {geographicFilters.municipality && (
+                <Chip
+                  label={`Municipality: ${geographicFilters.municipality}`}
+                  onDelete={() => {
+                    setGeographicFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.municipality;
+                      delete newFilters.subregion;
+                      return newFilters;
+                    });
+                    setPage(0);
+                  }}
+                  size="small"
+                />
+              )}
+              {geographicFilters.subregion && (
+                <Chip
+                  label={`Local Municipality: ${geographicFilters.subregion}`}
+                  onDelete={() => {
+                    setGeographicFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.subregion;
+                      return newFilters;
+                    });
+                    setPage(0);
+                  }}
+                  size="small"
+                  color="info"
+                />
+              )}
+              {geographicFilters.district && (
+                <Chip
+                  label={`District: ${geographicFilters.district}`}
+                  onDelete={() => {
+                    setGeographicFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.district;
+                      return newFilters;
+                    });
+                    setPage(0);
+                  }}
+                  size="small"
+                />
+              )}
+              {geographicFilters.province && (
+                <Chip
+                  label={`Province: ${geographicFilters.province}`}
+                  onDelete={() => {
+                    setGeographicFilters(prev => {
+                      const newFilters = { ...prev };
+                      delete newFilters.province;
+                      return newFilters;
+                    });
+                    setPage(0);
+                  }}
+                  size="small"
+                />
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Bulk Actions Toolbar */}
+        {selectedMembers.length > 0 && (
+          <Paper sx={{ mb: 2 }}>
+            <Toolbar>
+              <Typography variant="h6" sx={{ flex: '1 1 100%' }}>
+                {selectedMembers.length} selected
+              </Typography>
+              <Tooltip title="Send Email">
+                <IconButton onClick={() => handleBulkAction('email')}>
+                  <Email />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Send SMS">
+                <IconButton onClick={() => handleBulkAction('sms')}>
+                  <Phone />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Update Status">
+                <IconButton onClick={() => handleBulkAction('status')}>
+                  <Edit />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Export Selected">
+                <IconButton onClick={() => handleBulkAction('export')}>
+                  <Download />
+                </IconButton>
+              </Tooltip>
+            </Toolbar>
+          </Paper>
+        )}
+
+        {/* Members Table */}
+        <Card>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={selectedMembers.length > 0 && selectedMembers.length < members.length}
+                      checked={members.length > 0 && selectedMembers.length === members.length}
+                      onChange={handleSelectAll}
+                    />
+                  </TableCell>
+                  <SortableTableCell sortKey="firstname">Member</SortableTableCell>
+                  <SortableTableCell sortKey="id_number">ID Number</SortableTableCell>
+                  <SortableTableCell sortKey="age">Age/DOB</SortableTableCell>
+                  <SortableTableCell sortKey="gender_name">Gender</SortableTableCell>
+                  <TableCell>Contact</TableCell>
+                  <TableCell>Location</TableCell>
+                  <TableCell>Ward Code</TableCell>
+                  <SortableTableCell sortKey="created_at">Join Date</SortableTableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {members.map((member: Member) => (
                   <TableRow
                     key={member.member_id}
                     hover
@@ -1102,251 +1102,251 @@ const MembersListPage: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={totalCount}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={(_: unknown, newPage: number) => setPage(newPage)}
-          onRowsPerPageChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            setRowsPerPage(parseInt(e.target.value, 10));
-            setPage(0);
-          }}
-        />
-      </Card>
-
-      {/* Filter Menu */}
-      <Menu
-        anchorEl={filterAnchorEl}
-        open={Boolean(filterAnchorEl)}
-        onClose={() => setFilterAnchorEl(null)}
-        PaperProps={{ sx: { width: 300, p: 2 } }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Membership Type</InputLabel>
-            <Select
-              value={filters.membershipType}
-              onChange={(e: any) => handleFilterChange('membershipType', e.target.value)}
-              label="Membership Type"
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="Regular">Regular</MenuItem>
-              <MenuItem value="Student">Student</MenuItem>
-              <MenuItem value="Senior">Senior</MenuItem>
-              <MenuItem value="Associate">Associate</MenuItem>
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth size="small">
-            <InputLabel>Hierarchy Level</InputLabel>
-            <Select
-              value={filters.hierarchyLevel}
-              onChange={(e: any) => handleFilterChange('hierarchyLevel', e.target.value)}
-              label="Hierarchy Level"
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="Ward">Ward</MenuItem>
-              <MenuItem value="Branch">Branch</MenuItem>
-              <MenuItem value="Regional">Regional</MenuItem>
-              <MenuItem value="Provincial">Provincial</MenuItem>
-              <MenuItem value="National">National</MenuItem>
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth size="small">
-            <InputLabel>Province</InputLabel>
-            <Select
-              value={filters.province}
-              onChange={(e: any) => handleFilterChange('province', e.target.value)}
-              label="Province"
-            >
-              <MenuItem value="">All Provinces</MenuItem>
-              <MenuItem value="Eastern Cape">Eastern Cape</MenuItem>
-              <MenuItem value="Free State">Free State</MenuItem>
-              <MenuItem value="Gauteng">Gauteng</MenuItem>
-              <MenuItem value="KwaZulu-Natal">KwaZulu-Natal</MenuItem>
-              <MenuItem value="Limpopo">Limpopo</MenuItem>
-              <MenuItem value="Mpumalanga">Mpumalanga</MenuItem>
-              <MenuItem value="Northern Cape">Northern Cape</MenuItem>
-              <MenuItem value="North West">North West</MenuItem>
-              <MenuItem value="Western Cape">Western Cape</MenuItem>
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth size="small">
-            <InputLabel>Membership Status</InputLabel>
-            <Select
-              value={filters.membership_status}
-              onChange={(e: any) => handleFilterChange('membership_status', e.target.value)}
-              label="Membership Status"
-            >
-              <MenuItem value="">Active Only (default)</MenuItem>
-              <MenuItem value="all">All Members</MenuItem>
-              <MenuItem value="active">Good Standing</MenuItem>
-              <MenuItem value="expired">Expired</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-      </Menu>
-
-      {/* Action Menu */}
-      <Menu
-        anchorEl={actionAnchorEl}
-        open={Boolean(actionAnchorEl)}
-        onClose={() => setActionAnchorEl(null)}
-      >
-        {selectedMemberId ? (
-          // Individual member actions
-          <>
-            <MenuItem onClick={() => navigate(`/admin/members/${selectedMemberId}`)}>
-              <Edit sx={{ mr: 1 }} /> View/Edit
-            </MenuItem>
-            <MenuItem onClick={() => devLog('Send email')}>
-              <Email sx={{ mr: 1 }} /> Send Email
-            </MenuItem>
-            <MenuItem onClick={() => devLog('Send SMS')}>
-              <Phone sx={{ mr: 1 }} /> Send SMS
-            </MenuItem>
-
-            <MenuItem onClick={() => devLog('Delete member')} sx={{ color: 'error.main' }}>
-              <Delete sx={{ mr: 1 }} /> Delete
-            </MenuItem>
-          </>
-        ) : (
-          // Export actions
-          <>
-            <MenuItem onClick={() => handleExport('csv')}>
-              Export as CSV
-            </MenuItem>
-            <MenuItem onClick={() => handleExport('excel')}>
-              Export as Excel
-            </MenuItem>
-            <MenuItem onClick={() => handleExport('pdf')}>
-              Export as PDF
-            </MenuItem>
-          </>
-        )}
-      </Menu>
-
-      {/* Bulk Action Dialog */}
-      <Dialog open={bulkActionDialog} onClose={() => setBulkActionDialog(false)}>
-        <DialogTitle>
-          Bulk Action: {bulkAction}
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            This action will be applied to {selectedMembers.length} selected members.
-          </Alert>
-          <Typography>
-            Are you sure you want to {bulkAction} the selected members?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBulkActionDialog(false)}>Cancel</Button>
-          <Button onClick={executeBulkAction} variant="contained">
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Ward Attendance Register Dialog */}
-      <Dialog open={wardAuditDialog} onClose={() => setWardAuditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Assessment color="warning" />
-            Download Ward Attendance Register
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            {geographicFilters.ward
-              ? `Confirm the ward code below to download the Attendance Register for all members in this ward.`
-              : `Enter a ward code to download the Attendance Register for all members in that ward.`
-            }
-          </Alert>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Ward Code"
-            placeholder="e.g., 12345678 or 5-1"
-            fullWidth
-            variant="outlined"
-            value={wardCodeInput}
-            onChange={(e) => setWardCodeInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleWardAuditDialogSubmit();
-              }
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            component="div"
+            count={totalCount}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_: unknown, newPage: number) => setPage(newPage)}
+            onRowsPerPageChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
             }}
-            helperText={geographicFilters.ward
-              ? "Ward code from your current filter (you can modify if needed)"
-              : "Enter the ward code for the Attendance Register"
-            }
-            sx={{ mb: 2 }}
           />
-          <FormControl fullWidth variant="outlined">
-            <InputLabel>Export Format</InputLabel>
-            <Select
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'excel' | 'word' | 'pdf' | 'both')}
-              label="Export Format"
-            >
-              <MenuItem value="pdf">PDF Attendance Register (Recommended)</MenuItem>
-              <MenuItem value="excel">Excel Only (.xlsx)</MenuItem>
-              <MenuItem value="word">Word Only (.docx)</MenuItem>
-              <MenuItem value="both">Both (Excel + Word in ZIP)</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setWardAuditDialog(false);
-            setWardCodeInput(''); // Clear input when cancelled
-          }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleWardAuditDialogSubmit}
-            variant="contained"
-            color="warning"
-            disabled={auditExportLoading || !wardCodeInput.trim()}
-            startIcon={<Assessment />}
-          >
-            {auditExportLoading ? 'Downloading...' : `Download Ward ${wardCodeInput} Attendance Register`}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Card>
 
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setSnackbarOpen(false)}
-          severity={snackbarSeverity}
-          sx={{ width: '100%' }}
+        {/* Filter Menu */}
+        <Menu
+          anchorEl={filterAnchorEl}
+          open={Boolean(filterAnchorEl)}
+          onClose={() => setFilterAnchorEl(null)}
+          PaperProps={{ sx: { width: 300, p: 2 } }}
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Membership Type</InputLabel>
+              <Select
+                value={filters.membershipType}
+                onChange={(e: any) => handleFilterChange('membershipType', e.target.value)}
+                label="Membership Type"
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="Regular">Regular</MenuItem>
+                <MenuItem value="Student">Student</MenuItem>
+                <MenuItem value="Senior">Senior</MenuItem>
+                <MenuItem value="Associate">Associate</MenuItem>
+              </Select>
+            </FormControl>
 
-      {/* File Processing Status Modal */}
-      <FileProcessingStatusModal
-        open={processingModalOpen}
-        onClose={() => setProcessingModalOpen(false)}
-        wardCode={processingWardCode}
-        wardName={processingWardName}
-        initialJobData={_processingJobData}
-      />
+            <FormControl fullWidth size="small">
+              <InputLabel>Hierarchy Level</InputLabel>
+              <Select
+                value={filters.hierarchyLevel}
+                onChange={(e: any) => handleFilterChange('hierarchyLevel', e.target.value)}
+                label="Hierarchy Level"
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="Ward">Ward</MenuItem>
+                <MenuItem value="Branch">Branch</MenuItem>
+                <MenuItem value="Regional">Regional</MenuItem>
+                <MenuItem value="Provincial">Provincial</MenuItem>
+                <MenuItem value="National">National</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth size="small">
+              <InputLabel>Province</InputLabel>
+              <Select
+                value={filters.province}
+                onChange={(e: any) => handleFilterChange('province', e.target.value)}
+                label="Province"
+              >
+                <MenuItem value="">All Provinces</MenuItem>
+                <MenuItem value="Eastern Cape">Eastern Cape</MenuItem>
+                <MenuItem value="Free State">Free State</MenuItem>
+                <MenuItem value="Gauteng">Gauteng</MenuItem>
+                <MenuItem value="KwaZulu-Natal">KwaZulu-Natal</MenuItem>
+                <MenuItem value="Limpopo">Limpopo</MenuItem>
+                <MenuItem value="Mpumalanga">Mpumalanga</MenuItem>
+                <MenuItem value="Northern Cape">Northern Cape</MenuItem>
+                <MenuItem value="North West">North West</MenuItem>
+                <MenuItem value="Western Cape">Western Cape</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth size="small">
+              <InputLabel>Membership Status</InputLabel>
+              <Select
+                value={filters.membership_status}
+                onChange={(e: any) => handleFilterChange('membership_status', e.target.value)}
+                label="Membership Status"
+              >
+                <MenuItem value="">Active Only (default)</MenuItem>
+                <MenuItem value="all">All Members</MenuItem>
+                <MenuItem value="active">Good Standing</MenuItem>
+                <MenuItem value="expired">Expired</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </Menu>
+
+        {/* Action Menu */}
+        <Menu
+          anchorEl={actionAnchorEl}
+          open={Boolean(actionAnchorEl)}
+          onClose={() => setActionAnchorEl(null)}
+        >
+          {selectedMemberId ? (
+            // Individual member actions
+            <>
+              <MenuItem onClick={() => navigate(`/admin/members/${selectedMemberId}`)}>
+                <Edit sx={{ mr: 1 }} /> View/Edit
+              </MenuItem>
+              <MenuItem onClick={() => devLog('Send email')}>
+                <Email sx={{ mr: 1 }} /> Send Email
+              </MenuItem>
+              <MenuItem onClick={() => devLog('Send SMS')}>
+                <Phone sx={{ mr: 1 }} /> Send SMS
+              </MenuItem>
+
+              <MenuItem onClick={() => devLog('Delete member')} sx={{ color: 'error.main' }}>
+                <Delete sx={{ mr: 1 }} /> Delete
+              </MenuItem>
+            </>
+          ) : (
+            // Export actions
+            <>
+              <MenuItem onClick={() => handleExport('csv')}>
+                Export as CSV
+              </MenuItem>
+              <MenuItem onClick={() => handleExport('excel')}>
+                Export as Excel
+              </MenuItem>
+              <MenuItem onClick={() => handleExport('pdf')}>
+                Export as PDF
+              </MenuItem>
+            </>
+          )}
+        </Menu>
+
+        {/* Bulk Action Dialog */}
+        <Dialog open={bulkActionDialog} onClose={() => setBulkActionDialog(false)}>
+          <DialogTitle>
+            Bulk Action: {bulkAction}
+          </DialogTitle>
+          <DialogContent>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This action will be applied to {selectedMembers.length} selected members.
+            </Alert>
+            <Typography>
+              Are you sure you want to {bulkAction} the selected members?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBulkActionDialog(false)}>Cancel</Button>
+            <Button onClick={executeBulkAction} variant="contained">
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Ward Attendance Register Dialog */}
+        <Dialog open={wardAuditDialog} onClose={() => setWardAuditDialog(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Assessment color="warning" />
+              Download Ward Attendance Register
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {geographicFilters.ward
+                ? `Confirm the ward code below to download the Attendance Register for all members in this ward.`
+                : `Enter a ward code to download the Attendance Register for all members in that ward.`
+              }
+            </Alert>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Ward Code"
+              placeholder="e.g., 12345678 or 5-1"
+              fullWidth
+              variant="outlined"
+              value={wardCodeInput}
+              onChange={(e) => setWardCodeInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleWardAuditDialogSubmit();
+                }
+              }}
+              helperText={geographicFilters.ward
+                ? "Ward code from your current filter (you can modify if needed)"
+                : "Enter the ward code for the Attendance Register"
+              }
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth variant="outlined">
+              <InputLabel>Export Format</InputLabel>
+              <Select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'excel' | 'word' | 'pdf' | 'both')}
+                label="Export Format"
+              >
+                <MenuItem value="pdf">PDF Attendance Register (Recommended)</MenuItem>
+                <MenuItem value="excel">Excel Only (.xlsx)</MenuItem>
+                <MenuItem value="word">Word Only (.docx)</MenuItem>
+                <MenuItem value="both">Both (Excel + Word in ZIP)</MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setWardAuditDialog(false);
+              setWardCodeInput(''); // Clear input when cancelled
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleWardAuditDialogSubmit}
+              variant="contained"
+              color="warning"
+              disabled={auditExportLoading || !wardCodeInput.trim()}
+              startIcon={<Assessment />}
+            >
+              {auditExportLoading ? 'Downloading...' : `Download Ward ${wardCodeInput} Attendance Register`}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={snackbarSeverity}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+
+        {/* File Processing Status Modal */}
+        <FileProcessingStatusModal
+          open={processingModalOpen}
+          onClose={() => setProcessingModalOpen(false)}
+          wardCode={processingWardCode}
+          wardName={processingWardName}
+          initialJobData={_processingJobData}
+        />
       </Container>
     </Box>
   );

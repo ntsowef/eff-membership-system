@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS assembly_types (
     assembly_type_id SERIAL PRIMARY KEY,
     assembly_code VARCHAR(10) NOT NULL UNIQUE,
     assembly_name VARCHAR(100) NOT NULL,
-    assembly_level VARCHAR(50) NOT NULL, -- 'Sub-Regional', 'Provincial', 'National'
+    assembly_level VARCHAR(50) NOT NULL, -- 'Local Municipalityal', 'Provincial', 'National'
     description TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS assembly_types (
 
 -- Insert default assembly types
 INSERT INTO assembly_types (assembly_code, assembly_name, assembly_level, description) VALUES
-('SRPA', 'Sub-Regional People''s Assembly', 'Sub-Regional', 'Sub-regional level people''s assembly'),
+('SRPA', 'Local Municipalityal People''s Assembly', 'Local Municipalityal', 'Local Municipalityal level people''s assembly'),
 ('PPA', 'Provincial People''s Assembly', 'Provincial', 'Provincial level people''s assembly'),
 ('NPA', 'National People''s Assembly', 'National', 'National level people''s assembly'),
 ('BPA', 'Branch People''s Assembly', 'Ward', 'Ward/Branch level people''s assembly'),

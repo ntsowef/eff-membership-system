@@ -35,6 +35,34 @@ export interface RenewalWorkflowStep {
   notes: string;
 }
 
+export interface RenewalTransactionFilters {
+  search?: string;
+  payment_method?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface RenewalTransactionRecord {
+  payment_id: number;
+  member_id: number;
+  first_name: string;
+  last_name: string;
+  id_number: string;
+  membership_number: string | null;
+  email: string | null;
+  phone_number: string | null;
+  province_name: string;
+  renewal_date: string;
+  status: string;
+  payment_method: string;
+  amount: number;
+  payment_reference: string;
+  verification_notes: string | null;
+  document_id: number | null;
+  proof_of_payment_filename: string | null;
+}
+
 export class MembershipRenewalModel {
   // Get comprehensive renewal dashboard data
   static async getRenewalDashboard(): Promise<{
@@ -53,44 +81,36 @@ export class MembershipRenewalModel {
     renewal_trends: any[];
   }> {
     try {
-      // Get renewal statistics for current month
+      // Get renewal statistics from real payments table
       const renewalStatsQuery = `
         SELECT
-          COALESCE(COUNT(*), 0) as total_renewals,
-          COALESCE(SUM(CASE WHEN renewal_status = 'pending' THEN 1 ELSE 0 END), 0) as pending_renewals,
-          COALESCE(SUM(CASE WHEN renewal_status = 'completed' THEN 1 ELSE 0 END), 0) as completed_renewals,
-          COALESCE(SUM(CASE WHEN renewal_status = 'expired' OR payment_status = 'failed' THEN 1 ELSE 0 END), 0) as failed_renewals,
-          COALESCE(SUM(CASE WHEN payment_status = 'completed' THEN renewal_amount ELSE 0 END), 0) as total_revenue,
-          COALESCE(AVG(CASE WHEN payment_status = 'completed' THEN renewal_amount ELSE NULL END), 0) as avg_amount
-        FROM membership_renewals
-        WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+          COUNT(*)::INTEGER as total_renewals,
+          COALESCE(SUM(CASE WHEN LOWER(payment_status) = 'pending' THEN 1 ELSE 0 END), 0)::INTEGER as pending_renewals,
+          COALESCE(SUM(CASE WHEN LOWER(payment_status) = 'completed' THEN 1 ELSE 0 END), 0)::INTEGER as completed_renewals,
+          COALESCE(SUM(CASE WHEN LOWER(payment_status) = 'failed' THEN 1 ELSE 0 END), 0)::INTEGER as failed_renewals,
+          COALESCE(SUM(CASE WHEN LOWER(payment_status) = 'completed' THEN amount ELSE 0 END), 0)::NUMERIC as total_revenue,
+          COALESCE(AVG(CASE WHEN LOWER(payment_status) = 'completed' THEN amount ELSE NULL END), 0)::NUMERIC as avg_amount
+        FROM payments
+        WHERE (payment_type = 'Renewal' OR payment_reference ILIKE 'REN%' OR description ILIKE '%Renewal%')
       `;
 
-      // Try to get real renewal statistics, fallback to calculated estimates
-      let renewalStats;
-      try {
-        renewalStats = await executeQuerySingle<{
-          total_renewals: number;
-          pending_renewals: number;
-          completed_renewals: number;
-          failed_renewals: number;
-          total_revenue: number;
-          avg_amount: number;
-        }>(renewalStatsQuery);
-      } catch (error) {
-        // Fallback: Calculate estimates based on member data
-        const memberCountQuery = `SELECT COUNT(*) as total_members FROM vw_member_details`;
-        const memberCount = await executeQuerySingle<{ total_members: number }>(memberCountQuery);
-        const totalMembers = memberCount?.total_members || 186328;
+      let renewalStats = await executeQuerySingle<{
+        total_renewals: number;
+        pending_renewals: number;
+        completed_renewals: number;
+        failed_renewals: number;
+        total_revenue: number;
+        avg_amount: number;
+      }>(renewalStatsQuery);
 
+      if (!renewalStats) {
         renewalStats = {
-          total_renewals: Math.floor(totalMembers * 0.08), // 8% monthly renewal rate
-          pending_renewals: Math.floor(totalMembers * 0.01),
-          completed_renewals: Math.floor(totalMembers * 0.07),
-          failed_renewals: Math.floor(totalMembers * 0.005),
-          total_revenue: Math.floor(totalMembers * 0.07 * 500),
-          avg_amount: 500.00
+          total_renewals: 0,
+          pending_renewals: 0,
+          completed_renewals: 0,
+          failed_renewals: 0,
+          total_revenue: 0,
+          avg_amount: 0
         };
       }
 
@@ -104,123 +124,121 @@ export class MembershipRenewalModel {
           COALESCE(cell_number, '') as phone_number,
           (member_created_at + INTERVAL '365 days') as expiry_date,
           EXTRACT(DAY FROM (member_created_at + INTERVAL '365 days') - CURRENT_DATE)::INTEGER as days_until_expiry,
-          province_name
+          COALESCE(province_name, 'National') as province_name
         FROM vw_member_details
         WHERE (member_created_at + INTERVAL '365 days') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '60 days')
         ORDER BY (member_created_at + INTERVAL '365 days') ASC
         LIMIT 50
       `;
       
-      const upcomingExpirations = await executeQuery<{
-        member_id: string;
-        first_name: string;
-        last_name: string;
-        email: string;
-        phone_number: string;
-        expiry_date: string;
-        days_until_expiry: number;
-        province_name: string;
-      }>(upcomingExpirationsQuery);
+      let upcomingExpirations: any[] = [];
+      try {
+        upcomingExpirations = await executeQuery(upcomingExpirationsQuery);
+      } catch (err) {
+        const fallbackUpcoming = `
+          SELECT
+            member_id,
+            firstname as first_name,
+            COALESCE(surname, '') as last_name,
+            email,
+            COALESCE(cell_number, '') as phone_number,
+            (created_at + INTERVAL '365 days') as expiry_date,
+            EXTRACT(DAY FROM (created_at + INTERVAL '365 days') - CURRENT_DATE)::INTEGER as days_until_expiry,
+            COALESCE(province_name, 'National') as province_name
+          FROM members_consolidated
+          WHERE (created_at + INTERVAL '365 days') BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '60 days')
+          ORDER BY (created_at + INTERVAL '365 days') ASC
+          LIMIT 50
+        `;
+        upcomingExpirations = await executeQuery(fallbackUpcoming);
+      }
 
-      // Get recent member registrations as proxy for renewals
+      // Get real recent renewals from payments joined with members_consolidated & documents (PoP)
       const recentRenewalsQuery = `
         SELECT
-          member_id,
-          firstname as first_name,
-          COALESCE(surname, '') as last_name,
-          email,
-          member_created_at as renewal_date,
-          province_name,
-          'completed' as renewal_status,
-          'online' as payment_method,
-          CAST(700.00 AS DECIMAL(10,2)) as amount_paid
-        FROM vw_member_details
-        WHERE member_created_at >= (CURRENT_DATE - INTERVAL '30 days')
-        ORDER BY member_created_at DESC
+          p.payment_id,
+          p.member_id,
+          m.firstname as first_name,
+          COALESCE(m.surname, '') as last_name,
+          m.id_number,
+          m.membership_number,
+          m.email,
+          m.cell_number as phone_number,
+          p.created_at as renewal_date,
+          COALESCE(m.province_name, 'National') as province_name,
+          p.payment_status as renewal_status,
+          COALESCE(p.payment_method, 'Cash') as payment_method,
+          CAST(p.amount AS DECIMAL(10,2)) as amount_paid,
+          p.payment_reference,
+          p.verification_notes,
+          d.document_id,
+          d.original_filename as proof_of_payment_filename
+        FROM payments p
+        LEFT JOIN members_consolidated m ON p.member_id = m.member_id
+        LEFT JOIN LATERAL (
+          SELECT document_id, file_path, original_filename
+          FROM documents
+          WHERE member_id = p.member_id AND document_type = 'Proof of Payment'
+          ORDER BY created_at DESC LIMIT 1
+        ) d ON true
+        WHERE (p.payment_type = 'Renewal' OR p.payment_reference ILIKE 'REN%' OR p.description ILIKE '%Renewal%')
+        ORDER BY p.created_at DESC
         LIMIT 20
       `;
       
-      const recentRenewals = await executeQuery<{
-        member_id: string;
-        first_name: string;
-        last_name: string;
-        email: string;
-        renewal_date: string;
-        province_name: string;
-        renewal_status: string;
-        payment_method: string;
-        amount_paid: number;
-      }>(recentRenewalsQuery);
+      const recentRenewals = await executeQuery<any>(recentRenewalsQuery);
 
-      // Get payment method breakdown from real data or provide realistic estimates
-      let paymentMethodBreakdown;
-      try {
-        const paymentMethodQuery = `
-          SELECT
-            payment_method as method,
-            COUNT(*) as count,
-            ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM membership_renewals WHERE payment_status = 'Completed')), 1) as percentage,
-            SUM(renewal_amount) as total_amount
-          FROM membership_renewals
-          WHERE payment_status = 'Completed'
-          AND payment_method IS NOT NULL
-          GROUP BY payment_method
-          ORDER BY count DESC
-        `;
-        paymentMethodBreakdown = await executeQuery(paymentMethodQuery);
-      } catch (error) {
-        // Fallback to realistic estimates based on member count
-        const totalRenewals = renewalStats.completed_renewals;
-        paymentMethodBreakdown = [
-          { method: 'online', count: Math.floor(totalRenewals * 0.45), percentage: 45.0, total_amount: Math.floor(totalRenewals * 0.45 * 500) },
-          { method: 'bank_transfer', count: Math.floor(totalRenewals * 0.30), percentage: 30.0, total_amount: Math.floor(totalRenewals * 0.30 * 500) },
-          { method: 'cash', count: Math.floor(totalRenewals * 0.20), percentage: 20.0, total_amount: Math.floor(totalRenewals * 0.20 * 500) },
-          { method: 'eft', count: Math.floor(totalRenewals * 0.05), percentage: 5.0, total_amount: Math.floor(totalRenewals * 0.05 * 500) }
-        ];
+      // Get payment method breakdown from real payments data
+      const paymentMethodQuery = `
+        SELECT
+          COALESCE(p.payment_method, 'Other') as method,
+          COUNT(*)::INTEGER as count,
+          ROUND((COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM payments WHERE (payment_type = 'Renewal' OR payment_reference ILIKE 'REN%' OR description ILIKE '%Renewal%')), 0)), 1)::FLOAT as percentage,
+          COALESCE(SUM(p.amount), 0)::NUMERIC as total_amount
+        FROM payments p
+        WHERE (p.payment_type = 'Renewal' OR p.payment_reference ILIKE 'REN%' OR p.description ILIKE '%Renewal%')
+        GROUP BY p.payment_method
+        ORDER BY count DESC
+      `;
+      const paymentMethodBreakdown = await executeQuery(paymentMethodQuery);
+
+      // Get renewal trends from real payments data
+      const trendsQuery = `
+        SELECT
+          TO_CHAR(p.created_at, 'Month YYYY') as month,
+          COUNT(*)::INTEGER as renewals,
+          COALESCE(SUM(CASE WHEN LOWER(p.payment_status) = 'completed' THEN p.amount ELSE 0 END), 0)::NUMERIC as revenue,
+          ROUND((COUNT(CASE WHEN LOWER(p.payment_status) = 'completed' THEN 1 END)::NUMERIC / NULLIF(COUNT(*), 0)) * 100, 1)::FLOAT as rate
+        FROM payments p
+        WHERE (p.payment_type = 'Renewal' OR p.payment_reference ILIKE 'REN%' OR p.description ILIKE '%Renewal%')
+          AND p.created_at >= (CURRENT_DATE - INTERVAL '6 months')
+        GROUP BY TO_CHAR(p.created_at, 'YYYY-MM'), TO_CHAR(p.created_at, 'Month YYYY')
+        ORDER BY MIN(p.created_at) ASC
+      `;
+      let renewalTrends = await executeQuery(trendsQuery);
+      if (!renewalTrends || renewalTrends.length === 0) {
+        const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        renewalTrends = [{
+          month: currentMonth,
+          renewals: renewalStats.total_renewals || 0,
+          revenue: Number(renewalStats.total_revenue) || 0,
+          rate: 100.0
+        }];
       }
 
-      // Get renewal trends from real data or generate realistic trends
-      let renewalTrends;
-      try {
-        const trendsQuery = `
-          SELECT
-            TO_CHAR(renewal_requested_date, 'Month YYYY') as month,
-            COUNT(*) as renewals,
-            SUM(CASE WHEN payment_status = 'Completed' THEN renewal_amount ELSE 0 END) as revenue,
-            ROUND((COUNT(CASE WHEN renewal_status = 'Completed' THEN 1 END)::NUMERIC / COUNT(*)) * 100, 1) as rate
-          FROM membership_renewals
-          WHERE renewal_requested_date >= (CURRENT_DATE - INTERVAL '6 months')
-          GROUP BY TO_CHAR(renewal_requested_date, 'YYYY-MM'), TO_CHAR(renewal_requested_date, 'Month YYYY')
-          ORDER BY MIN(renewal_requested_date) ASC
-        `;
-        renewalTrends = await executeQuery(trendsQuery);
-      } catch (error) {
-        // Generate realistic trends based on current data
-        renewalTrends = Array.from({ length: 6 }, (_, i) => {
-          const date = new Date();
-          date.setMonth(date.getMonth() - (5 - i));
-          const baseRenewals = renewalStats.total_renewals;
-          const variance = Math.floor(Math.random() * 200) - 100; // ±100 variance
-          return {
-            month: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-            renewals: Math.max(baseRenewals + variance, 100),
-            revenue: Math.max((baseRenewals + variance) * 500, 50000),
-            rate: 90 + Math.floor(Math.random() * 10) // 90-99% rate
-          };
-        });
-      }
-
-      const renewalRate = renewalStats.completed_renewals > 0 ?
-        (renewalStats.completed_renewals / (renewalStats.completed_renewals + renewalStats.failed_renewals) * 100) : 0;
+      const totalCompleted = Number(renewalStats.completed_renewals) || 0;
+      const totalFailed = Number(renewalStats.failed_renewals) || 0;
+      const totalCount = Number(renewalStats.total_renewals) || 0;
+      const renewalRate = totalCount > 0 ? (totalCompleted / totalCount * 100) : 100.0;
 
       return {
         renewal_statistics: {
-          total_renewals_this_month: renewalStats.total_renewals || 0,
-          pending_renewals: renewalStats.pending_renewals || 0,
-          completed_renewals: renewalStats.completed_renewals || 0,
-          failed_renewals: renewalStats.failed_renewals || 0,
-          total_revenue: renewalStats.total_revenue || 0,
-          average_renewal_amount: renewalStats.avg_amount || 0,
+          total_renewals_this_month: totalCount,
+          pending_renewals: Number(renewalStats.pending_renewals) || 0,
+          completed_renewals: totalCompleted,
+          failed_renewals: totalFailed,
+          total_revenue: parseFloat(Number(renewalStats.total_revenue || 0).toFixed(2)),
+          average_renewal_amount: parseFloat(Number(renewalStats.avg_amount || 0).toFixed(2)),
           renewal_rate: parseFloat(renewalRate.toFixed(1))
         },
         upcoming_expirations: upcomingExpirations || [],
@@ -230,6 +248,112 @@ export class MembershipRenewalModel {
       };
     } catch (error) {
       throw new DatabaseError('Failed to fetch renewal dashboard data', error);
+    }
+  }
+
+  // Get renewal transactions with search and filter
+  static async getRenewalTransactions(
+    limit: number = 20,
+    offset: number = 0,
+    filters: RenewalTransactionFilters = {}
+  ): Promise<{
+    transactions: RenewalTransactionRecord[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    try {
+      const conditions: string[] = [
+        "(p.payment_type = 'Renewal' OR p.payment_reference ILIKE 'REN%' OR p.description ILIKE '%Renewal%')"
+      ];
+      const params: any[] = [];
+      let paramIdx = 1;
+
+      if (filters.search && filters.search.trim()) {
+        const searchTerm = `%${filters.search.trim()}%`;
+        params.push(searchTerm);
+        conditions.push(`(
+          m.firstname ILIKE $${paramIdx} OR
+          m.surname ILIKE $${paramIdx} OR
+          m.id_number ILIKE $${paramIdx} OR
+          m.membership_number ILIKE $${paramIdx} OR
+          p.payment_reference ILIKE $${paramIdx} OR
+          m.cell_number ILIKE $${paramIdx}
+        )`);
+        paramIdx++;
+      }
+
+      if (filters.payment_method && filters.payment_method !== 'all') {
+        params.push(filters.payment_method);
+        conditions.push(`LOWER(p.payment_method) = LOWER($${paramIdx})`);
+        paramIdx++;
+      }
+
+      if (filters.status && filters.status !== 'all') {
+        params.push(filters.status);
+        conditions.push(`LOWER(p.payment_status) = LOWER($${paramIdx})`);
+        paramIdx++;
+      }
+
+      const whereClause = conditions.join(' AND ');
+
+      // Total count
+      const countQuery = `
+        SELECT COUNT(*)::INTEGER as total
+        FROM payments p
+        LEFT JOIN members_consolidated m ON p.member_id = m.member_id
+        WHERE ${whereClause}
+      `;
+      const countRes = await executeQuerySingle<{ total: number }>(countQuery, params);
+      const total = countRes?.total || 0;
+
+      // Transactions query
+      const dataParams = [...params, limit, offset];
+      const limitParam = `$${paramIdx}`;
+      const offsetParam = `$${paramIdx + 1}`;
+
+      const transactionsQuery = `
+        SELECT
+          p.payment_id,
+          p.member_id,
+          m.firstname as first_name,
+          COALESCE(m.surname, '') as last_name,
+          m.id_number,
+          m.membership_number,
+          m.email,
+          m.cell_number as phone_number,
+          COALESCE(m.province_name, 'National') as province_name,
+          p.created_at as renewal_date,
+          p.payment_status as status,
+          COALESCE(p.payment_method, 'Cash') as payment_method,
+          CAST(p.amount AS DECIMAL(10,2)) as amount,
+          p.payment_reference,
+          p.verification_notes,
+          d.document_id,
+          d.original_filename as proof_of_payment_filename
+        FROM payments p
+        LEFT JOIN members_consolidated m ON p.member_id = m.member_id
+        LEFT JOIN LATERAL (
+          SELECT document_id, file_path, original_filename
+          FROM documents
+          WHERE member_id = p.member_id AND document_type = 'Proof of Payment'
+          ORDER BY created_at DESC LIMIT 1
+        ) d ON true
+        WHERE ${whereClause}
+        ORDER BY p.created_at DESC
+        LIMIT ${limitParam} OFFSET ${offsetParam}
+      `;
+
+      const transactions = await executeQuery<RenewalTransactionRecord>(transactionsQuery, dataParams);
+
+      return {
+        transactions: transactions || [],
+        total,
+        limit,
+        offset
+      };
+    } catch (error) {
+      throw new DatabaseError('Failed to fetch renewal transactions', error);
     }
   }
 

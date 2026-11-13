@@ -67,7 +67,7 @@ INSERT INTO meeting_types (type_name, type_code, description, hierarchy_level, m
  JSON_OBJECT('scope', 'regional_coordination', 'region_specific', true)),
 
 -- Municipal Level Meetings
-('Sub-Regional Meeting', 'sub_regional', 'Municipal-level coordination meetings', 'Municipal', 'Regular', 90, TRUE, 5, 'Monthly', 
+('Local Municipalityal Meeting', 'sub_regional', 'Municipal-level coordination meetings', 'Municipal', 'Regular', 90, TRUE, 5, 'Monthly', 
  JSON_OBJECT('scope', 'municipal_coordination', 'municipality_specific', true)),
 
 -- Ward Level Meetings

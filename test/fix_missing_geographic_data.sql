@@ -16,12 +16,12 @@
 --
 -- 2. METRO MUNICIPALITIES (Category A)
 --    - These ARE districts themselves (they don't belong to a district)
---    - They create sub-regions for administrative purposes
---    - Example: City of Johannesburg (JHB) has sub-regions JHB001-JHB007
+--    - They create Local Municipalitys for administrative purposes
+--    - Example: City of Johannesburg (JHB) has Local Municipalitys JHB001-JHB007
 --    - In municipalities table:
 --      * Parent metro (JHB, TSH, EKU, etc.): district_code = their own code
---      * Sub-regions (JHB001, JHB005, etc.): district_code = NULL
---    - Hierarchy: Province → Metro (as district) → Sub-region → Ward → VD
+--      * Local Municipalitys (JHB001, JHB005, etc.): district_code = NULL
+--    - Hierarchy: Province → Metro (as district) → Local Municipality → Ward → VD
 --
 -- METRO MUNICIPALITIES IN SOUTH AFRICA:
 -- ======================================
@@ -40,14 +40,14 @@
 -- ============
 -- When members were imported, the geographic resolution failed for:
 -- 1. Regular municipalities where the JOIN to districts table failed
--- 2. Metro sub-regions where district_code is NULL in municipalities table
+-- 2. Metro Local Municipalitys where district_code is NULL in municipalities table
 -- 3. Members where municipality_code itself is NULL
 --
 -- THE SOLUTION:
 -- =============
 -- This script uses a three-step approach:
 -- Step 1: Fix regular municipalities (where district_code exists in municipalities table)
--- Step 2: Fix metro sub-regions (where municipality code matches metro patterns)
+-- Step 2: Fix metro Local Municipalitys (where municipality code matches metro patterns)
 -- Step 3: Final cleanup using direct ward_code lookup
 -- ============================================================================
 
@@ -119,9 +119,9 @@ WHERE municipality_code IS NULL
     OR province_code IS NULL;
 
 -- ============================================================================
--- STEP 2: Fix Metro Municipality Sub-Regions
+-- STEP 2: Fix Metro Municipality Local Municipalitys
 -- ============================================================================
--- This handles sub-regions of metro municipalities (JHB001, TSH003, EKU001, etc.)
+-- This handles Local Municipalitys of metro municipalities (JHB001, TSH003, EKU001, etc.)
 -- These municipalities have NULL district_code in the municipalities table because
 -- their parent metro (JHB, TSH, EKU) IS the district.
 --
@@ -317,7 +317,7 @@ SELECT
 FROM members_consolidated
 WHERE district_code = 'JHB';
 
--- Show Johannesburg by sub-region
+-- Show Johannesburg by Local Municipality
 SELECT
     municipality_code,
     municipality_name,

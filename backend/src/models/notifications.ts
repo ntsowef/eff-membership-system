@@ -107,7 +107,7 @@ export class NotificationModel {
           u.name as recipient_name,
           u.email as recipient_email
         FROM notifications n
-        LEFT JOIN users u ON n.user_id = u.id
+        LEFT JOIN users u ON (n.user_id = u.user_id OR n.user_id = u.id)
         LEFT JOIN members_consolidated m ON n.member_id = m.member_id
         WHERE n.notification_id = ?
       `;
@@ -188,7 +188,7 @@ export class NotificationModel {
           u.name as recipient_name,
           u.email as recipient_email
         FROM notifications n
-        LEFT JOIN users u ON n.user_id = u.id
+        LEFT JOIN users u ON (n.user_id = u.user_id OR n.user_id = u.id)
         LEFT JOIN members_consolidated m ON n.member_id = m.member_id
         ${whereClause}
         ORDER BY n.created_at DESC
@@ -422,9 +422,9 @@ export class NotificationModel {
           SELECT m.cell_number
           FROM users u
           LEFT JOIN members_consolidated m ON u.member_id = m.member_id
-          WHERE u.id = ?
+          WHERE (u.user_id = ? OR u.id = ?)
         `;
-        const userMember = await executeQuerySingle<{ cell_number: string }>(userMemberQuery, [notification.user_id]);
+        const userMember = await executeQuerySingle<{ cell_number: string }>(userMemberQuery, [notification.user_id, notification.user_id]);
         phoneNumber = userMember?.cell_number || null;
       }
 

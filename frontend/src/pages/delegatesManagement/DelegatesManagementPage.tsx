@@ -132,7 +132,7 @@ const DelegatesManagementPage: React.FC = () => {
                 </Typography>
                 <Typography variant="h4">{statistics.srpa_delegates}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Sub-Regional
+                  Local Municipalityal
                 </Typography>
               </CardContent>
             </Card>
@@ -217,7 +217,7 @@ const DelegatesManagementPage: React.FC = () => {
               onChange={(e) => setAssemblyFilter(e.target.value)}
             >
               <MenuItem value="">All Assemblies</MenuItem>
-              <MenuItem value="SRPA">SRPA (Sub-Regional)</MenuItem>
+              <MenuItem value="SRPA">SRPA (Local Municipalityal)</MenuItem>
               <MenuItem value="PPA">PPA (Provincial)</MenuItem>
               <MenuItem value="NPA">NPA (National)</MenuItem>
             </TextField>

@@ -45,7 +45,7 @@ import {
   Assignment,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiDelete } from '../../lib/api';
+import { apiGet, apiPost, apiDelete } from '../../lib/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { devLog } from '../../utils/logger';
 
@@ -88,6 +88,8 @@ const MeetingDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [inviteFeedback, setInviteFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
 
   // Validate meeting ID
   const isValidId = id && id !== 'undefined' && id !== 'null' && !isNaN(parseInt(id));
@@ -120,10 +122,34 @@ const MeetingDetailPage: React.FC = () => {
         return await apiGet(`/meetings/${id}/attendance`);
       } catch (error) {
         devLog('Failed to fetch attendance data:', error);
-        return { data: { attendance: [], summary: { total_attendees: 0, present: 0, absent: 0, excused: 0, late: 0 } } };
+        return { attendance: [], summary: { total_attendees: 0, present: 0, absent: 0, excused: 0, late: 0 } };
       }
     },
     enabled: isValidId as any,
+  });
+
+  // Send/sync automatic invitations mutation
+  const sendInvitationsMutation = useMutation({
+    mutationFn: () => apiPost(`/hierarchical-meetings/${id}/send-invitations`),
+    onSuccess: (result: any) => {
+      const count = result?.total_invitations_sent ?? 0;
+      setInviteFeedback({
+        severity: 'success',
+        message: `Successfully generated/updated ${count} meeting invitation${count === 1 ? '' : 's'}.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['meeting-attendance', id] });
+      queryClient.invalidateQueries({ queryKey: ['meeting', id] });
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
+    },
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to send invitations. Please try again.';
+      setInviteFeedback({ severity: 'error', message });
+    },
   });
 
   // Delete meeting mutation
@@ -131,7 +157,18 @@ const MeetingDetailPage: React.FC = () => {
     mutationFn: () => apiDelete(`/meetings/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
+      setDeleteDialogOpen(false);
+      setDeleteError(null);
       navigate('/admin/meetings');
+    },
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete meeting. Please try again.';
+      setDeleteError(message);
     },
   });
 
@@ -148,16 +185,19 @@ const MeetingDetailPage: React.FC = () => {
 
   // Delete handlers
   const handleDeleteClick = () => {
+    setDeleteError(null);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = () => {
+    setDeleteError(null);
     deleteMeetingMutation.mutate();
-    setDeleteDialogOpen(false);
   };
 
   const handleDeleteCancel = () => {
+    if (deleteMeetingMutation.isPending) return;
     setDeleteDialogOpen(false);
+    setDeleteError(null);
   };
 
   // Get meeting status color
@@ -180,8 +220,12 @@ const MeetingDetailPage: React.FC = () => {
 
   // Format date
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
+      const parsed = /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr))
+        ? new Date(`${dateStr}T00:00:00`)
+        : new Date(dateStr);
+      return parsed.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -248,8 +292,8 @@ const MeetingDetailPage: React.FC = () => {
     );
   }
 
-  const attendanceSummary = (attendanceData as any)?.data?.summary || {};
-  const attendanceList = (attendanceData as any)?.data?.attendance || [];
+  const attendanceSummary = (attendanceData as any)?.summary || (attendanceData as any)?.data?.summary || {};
+  const attendanceList = (attendanceData as any)?.attendance || (attendanceData as any)?.data?.attendance || [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -590,14 +634,28 @@ const MeetingDetailPage: React.FC = () => {
                   <Button
                     fullWidth
                     variant="outlined"
-                    startIcon={<PersonAdd />}
+                    startIcon={sendInvitationsMutation.isPending ? <CircularProgress size={16} /> : <PersonAdd />}
+                    disabled={sendInvitationsMutation.isPending}
                     onClick={() => {
-                      // TODO: Add invite members functionality
-                      devLog('Invite members clicked');
+                      if (meeting.meeting_type_id) {
+                        setInviteFeedback(null);
+                        sendInvitationsMutation.mutate();
+                      } else {
+                        navigate(`/admin/meetings/${meeting.meeting_id}/attendance`);
+                      }
                     }}
                   >
-                    Invite Members
+                    {sendInvitationsMutation.isPending ? 'Sending Invitations...' : 'Invite Members'}
                   </Button>
+                  {inviteFeedback && (
+                    <Alert
+                      severity={inviteFeedback.severity}
+                      onClose={() => setInviteFeedback(null)}
+                      sx={{ mt: 1 }}
+                    >
+                      {inviteFeedback.message}
+                    </Alert>
+                  )}
                 </Stack>
               </CardContent>
             </Card>
@@ -646,10 +704,10 @@ const MeetingDetailPage: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <Stack spacing={0.5}>
-                              {attendee.phone_number && (
+                              {(attendee.phone_number || attendee.phone) && (
                                 <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <Phone sx={{ fontSize: 12 }} />
-                                  {attendee.phone_number}
+                                  {attendee.phone_number || attendee.phone}
                                 </Typography>
                               )}
                               {attendee.email && (
@@ -697,13 +755,20 @@ const MeetingDetailPage: React.FC = () => {
       >
         <DialogTitle>Delete Meeting</DialogTitle>
         <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
           <Typography>
-            Are you sure you want to delete "{meeting.meeting_title}"?
+            Are you sure you want to delete "{meeting.meeting_title || 'this meeting'}"?
             This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteCancel} disabled={deleteMeetingMutation.isPending}>
+            Cancel
+          </Button>
           <Button
             onClick={handleDeleteConfirm}
             color="error"

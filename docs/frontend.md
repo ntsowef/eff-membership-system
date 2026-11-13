@@ -23,7 +23,7 @@
    - **National Leadership**: Manage CCT (Central Command Team) and NEC (National Executive Committee)
    - **Provincial Leadership**: Manage PEC (Provincial Executive Committee) and PCT (Provincial Command Team)
    - **Regional Leadership**: Manage REC (Regional Executive Committee) and RCT (Regional Command Team)
-   - **Municipal Leadership**: Manage SRCT (Sub-Regional Command Team)
+   - **Municipal Leadership**: Manage SRCT (Local Municipalityal Command Team)
    - **Ward Leadership**: Manage BEC (Branch Executive Committee) and BCT (Branch Command Team)
 9. **System Settings Page**: Allows administrators to configure system parameters and view key statistics about the largest entities.
 

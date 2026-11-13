@@ -2,19 +2,19 @@
 // Test component to verify geographic filtering works correctly
 
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Alert, 
-  Button, 
-  Card, 
-  CardContent, 
+import {
+  Box,
+  Typography,
+  Alert,
+  Button,
+  Card,
+  CardContent,
   TextField,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  CircularProgress 
+  CircularProgress
 } from '@mui/material';
 import { LocationOn, Search } from '@mui/icons-material';
 import { useUI } from '../../store';
@@ -28,7 +28,7 @@ const GeographicFilterTest: React.FC = () => {
   const { addNotification } = useUI();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
-  
+
   // Filter state
   const [filterLevel, setFilterLevel] = useState<string>('');
   const [geographicCode, setGeographicCode] = useState<string>('');
@@ -44,7 +44,7 @@ const GeographicFilterTest: React.FC = () => {
 
     setLoading(true);
     setResults(null);
-    
+
     try {
       // Build filters based on selected level
       const filters: MemberFilters = {
@@ -70,27 +70,27 @@ const GeographicFilterTest: React.FC = () => {
       devLog('Testing geographic filter:', { filterLevel, geographicCode, filters });
 
       const response = await LeadershipAPI.getMembers(filters);
-      
+
       setResults({
         success: true,
         data: response,
         message: `Found ${response.members?.length || 0} members in ${filterLevel}: ${geographicCode}`
       });
-      
+
       addNotification({
         type: 'success',
         message: `✅ Geographic filter test successful! Found ${response.members?.length || 0} members`
       });
-      
+
     } catch (error: any) {
       console.error('Geographic filter test error:', error);
-      
+
       setResults({
         success: false,
         error: error.message,
         details: error.response?.data || error
       });
-      
+
       addNotification({
         type: 'error',
         message: `❌ Geographic filter test failed: ${error.message}`
@@ -103,7 +103,7 @@ const GeographicFilterTest: React.FC = () => {
   const testCommonCodes = async () => {
     setLoading(true);
     setResults(null);
-    
+
     try {
       // Test with common South African province codes
       const testCases = [
@@ -113,7 +113,7 @@ const GeographicFilterTest: React.FC = () => {
       ];
 
       const testResults = [];
-      
+
       for (const testCase of testCases) {
         try {
           const filters: MemberFilters = {
@@ -121,7 +121,7 @@ const GeographicFilterTest: React.FC = () => {
             limit: 5,
             province_code: testCase.code
           };
-          
+
           const response = await LeadershipAPI.getMembers(filters);
           testResults.push({
             ...testCase,
@@ -136,28 +136,28 @@ const GeographicFilterTest: React.FC = () => {
           });
         }
       }
-      
+
       setResults({
         success: true,
         data: { testResults },
         message: `Tested ${testResults.length} common province codes`
       });
-      
+
       const successCount = testResults.filter(r => r.success).length;
       addNotification({
         type: successCount > 0 ? 'success' : 'warning',
         message: `✅ Common codes test: ${successCount}/${testResults.length} successful`
       });
-      
+
     } catch (error: any) {
       console.error('Common codes test error:', error);
-      
+
       setResults({
         success: false,
         error: error.message,
         details: error
       });
-      
+
       addNotification({
         type: 'error',
         message: `❌ Common codes test failed: ${error.message}`
@@ -172,7 +172,7 @@ const GeographicFilterTest: React.FC = () => {
       <Typography variant="h4" gutterBottom color="primary">
         🗺️ Geographic Filter Test
       </Typography>
-      
+
       <Alert severity="info" sx={{ mb: 3 }}>
         <Typography variant="body2">
           <strong>Testing geographic filtering implementation:</strong>
@@ -190,7 +190,7 @@ const GeographicFilterTest: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Manual Geographic Filter Test
           </Typography>
-          
+
           <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
             <FormControl sx={{ minWidth: 150 }}>
               <InputLabel>Filter Level</InputLabel>
@@ -201,11 +201,11 @@ const GeographicFilterTest: React.FC = () => {
               >
                 <MenuItem value="Province">Province</MenuItem>
                 <MenuItem value="District">Region</MenuItem>
-                <MenuItem value="Municipality">Sub-Region</MenuItem>
+                <MenuItem value="Municipality">Local Municipality</MenuItem>
                 <MenuItem value="Ward">Ward</MenuItem>
               </Select>
             </FormControl>
-            
+
             <TextField
               label="Geographic Code"
               value={geographicCode}
@@ -213,7 +213,7 @@ const GeographicFilterTest: React.FC = () => {
               placeholder="e.g., GP, WC, KZN"
               sx={{ minWidth: 200 }}
             />
-            
+
             <Button
               variant="contained"
               onClick={testGeographicFilter}
@@ -223,7 +223,7 @@ const GeographicFilterTest: React.FC = () => {
               Test Filter
             </Button>
           </Box>
-          
+
           <Typography variant="body2" color="text.secondary">
             <strong>Example codes:</strong> GP (Gauteng), WC (Western Cape), KZN (KwaZulu-Natal)
           </Typography>
@@ -235,7 +235,7 @@ const GeographicFilterTest: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Common Codes Test
           </Typography>
-          
+
           <Button
             variant="outlined"
             onClick={testCommonCodes}
@@ -245,7 +245,7 @@ const GeographicFilterTest: React.FC = () => {
           >
             Test Common Province Codes
           </Button>
-          
+
           <Typography variant="body2" color="text.secondary">
             Tests filtering with common South African province codes (GP, WC, KZN)
           </Typography>
@@ -258,7 +258,7 @@ const GeographicFilterTest: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Test Results
             </Typography>
-            
+
             {results.success ? (
               <Alert severity="success" sx={{ mb: 2 }}>
                 <Typography variant="body2">
@@ -272,11 +272,11 @@ const GeographicFilterTest: React.FC = () => {
                 </Typography>
               </Alert>
             )}
-            
-            <Box component="pre" sx={{ 
-              bgcolor: 'grey.100', 
-              p: 2, 
-              borderRadius: 1, 
+
+            <Box component="pre" sx={{
+              bgcolor: 'grey.100',
+              p: 2,
+              borderRadius: 1,
               overflow: 'auto',
               fontSize: '0.875rem',
               maxHeight: 400

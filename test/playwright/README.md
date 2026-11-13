@@ -3,7 +3,7 @@
 This directory contains Playwright tests for verifying the member approval process, specifically testing:
 - Voter status assignment (`voter_status_id`)
 - Voting district code assignment (`voting_district_code`)
-- Municipality code mapping (sub-region vs metro)
+- Municipality code mapping (Local Municipality vs metro)
 - Membership status assignment
 
 ---
@@ -126,7 +126,7 @@ npm run report
 
 ### ✅ Municipality Code
 - `municipality_code` is set
-- Code is sub-region format (e.g., `EKU004`, `JHB001`)
+- Code is Local Municipality format (e.g., `EKU004`, `JHB001`)
 - Code is NOT metro-level (e.g., NOT `EKU`, `JHB`)
 
 ### ✅ Membership Status
@@ -206,7 +206,7 @@ npx playwright install
 ✅ PASS: Voter Status ID is set (1)
 ✅ PASS: Voter Status ID is valid (1, 2, or 4) (1)
 ✅ PASS: Voting District Code is set (32871326)
-✅ PASS: Municipality Code is sub-region (not metro) (EKU004)
+✅ PASS: Municipality Code is Local Municipality (not metro) (EKU004)
 ✅ PASS: Membership Status is Active (ID: 1) (1)
 
 ====================================================================================================

@@ -407,14 +407,14 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
           </>
         )}
 
-        {/* Sub-Regional Breakdown - Only show for province admins */}
+        {/* Local Municipalityal Breakdown - Only show for province admins */}
         {filtered_by_province && !filtered_by_municipality && subregional_breakdown && subregional_breakdown.length > 0 && (
           <>
             <Divider sx={{ my: 2 }} />
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6" display="flex" alignItems="center" gap={1}>
                 <TrendingUpIcon color="primary" />
-                Sub-Regional Breakdown ({provinceContext.assignedProvince?.name})
+                Local Municipalityal Breakdown ({provinceContext.assignedProvince?.name})
               </Typography>
             </Box>
 
@@ -425,7 +425,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
                   const bTotal = (parseInt(String(b.expired_count), 10) || 0) + (parseInt(String(b.expiring_soon_count), 10) || 0);
                   return bTotal - aTotal;
                 })
-                .slice(0, 10) // Show top 10 sub-regions
+                .slice(0, 10) // Show top 10 Local Municipalitys
                 .map((subregion) => {
                   const totalAtRisk = (parseInt(String(subregion.expired_count), 10) || 0) + (parseInt(String(subregion.expiring_soon_count), 10) || 0);
                   const subregionTotalMembers = parseInt(String(subregion.total_members), 10) || 0;
@@ -498,7 +498,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
 
             {subregional_breakdown.length > 10 && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Showing top 10 sub-regions by expired/expiring members. {subregional_breakdown.length - 10} more sub-regions available.
+                Showing top 10 Local Municipalitys by expired/expiring members. {subregional_breakdown.length - 10} more Local Municipalitys available.
               </Typography>
             )}
           </>
@@ -603,7 +603,7 @@ const ExpiredMembersSection: React.FC<ExpiredMembersSectionProps> = ({
         {(expiredPercentage + expiringSoonPercentage) > 20 && (
           <Alert severity="warning" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>High Expiration Alert:</strong> {(expiredPercentage + expiringSoonPercentage).toFixed(1)}% of members 
+              <strong>High Expiration Alert:</strong> {(expiredPercentage + expiringSoonPercentage).toFixed(1)}% of members
               are expired or expiring soon. Consider implementing a renewal campaign.
             </Typography>
           </Alert>

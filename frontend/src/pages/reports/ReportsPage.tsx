@@ -422,7 +422,7 @@ const ReportsPage: React.FC = () => {
                   <Typography variant="h6">SRPA Delegates</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Sub-Regional People's Assembly delegates organized by province with national summary (10 sheets)
+                  Local Municipalityal People's Assembly delegates organized by province with national summary (10 sheets)
                 </Typography>
                 <Chip label="10 Worksheets" size="small" color="primary" sx={{ mb: 2 }} />
                 <Button

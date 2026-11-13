@@ -99,9 +99,9 @@ interface CreateMeetingData {
 }
 
 interface GeographicSelection {
-  province?: { province_code: string; province_name: string };
-  municipality?: { municipality_code: string; municipality_name: string };
-  ward?: { ward_code: string; ward_name: string };
+  province?: { province_id?: number; province_code: string; province_name: string };
+  municipality?: { municipality_id?: number; municipality_code: string; municipality_name: string };
+  ward?: { ward_id?: number; ward_code: string; ward_name: string };
 }
 
 const HierarchicalMeetingCreatePage: React.FC = () => {
@@ -173,12 +173,25 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
         const dateStr = meetingDateTime.toISOString().split('T')[0];
         const timeStr = meetingDateTime.toTimeString().slice(0, 5);
 
+        const uiHierarchyMap: Record<string, string> = {
+          National: 'National',
+          Province: 'Provincial',
+          Provincial: 'Provincial',
+          Region: 'Regional',
+          Regional: 'Regional',
+          Municipality: 'Municipal',
+          Municipal: 'Municipal',
+          Ward: 'Ward',
+          Branch: 'Ward',
+        };
+        const normalizedHierarchyLevel = uiHierarchyMap[meeting.hierarchy_level] || meeting.hierarchy_level || 'National';
+
         setFormData({
           meeting_title: meeting.meeting_title || '',
           meeting_type_id: meeting.meeting_type_id || '',
-          hierarchy_level: meeting.hierarchy_level || 'National',
+          hierarchy_level: normalizedHierarchyLevel,
           entity_id: meeting.entity_id,
-          entity_type: meeting.entity_type,
+          entity_type: meeting.entity_type || getEntityTypeFromHierarchy(normalizedHierarchyLevel),
           meeting_date: dateStr,
           meeting_time: timeStr,
           end_time: meeting.end_time || '',
@@ -293,12 +306,13 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
 
-    // Reset geographic selection when hierarchy level changes
+    // Reset geographic selection and meeting type when hierarchy level changes
     if (field === 'hierarchy_level') {
       setGeographicSelection({});
       setFormData(prev => ({
         ...prev,
         [field]: value,
+        meeting_type_id: '',
         province_code: undefined,
         municipality_code: undefined,
         ward_code: undefined,
@@ -344,15 +358,15 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
     }));
   };
 
-  // Helper function to get entity_id based on hierarchy level and selection
+  // Helper function to get entity_id based on hierarchy level and selection (backend resolves from codes when undefined)
   const getEntityIdFromSelection = (hierarchyLevel: string, selection: GeographicSelection): number | undefined => {
     switch (hierarchyLevel) {
       case 'Provincial':
-        return selection.province ? 1 : undefined; // Use province code hash or ID
+        return selection.province?.province_id || undefined;
       case 'Municipal':
-        return selection.municipality ? 1 : undefined; // Use municipality code hash or ID
+        return selection.municipality?.municipality_id || undefined;
       case 'Ward':
-        return selection.ward ? 1 : undefined; // Use ward code hash or ID
+        return selection.ward?.ward_id || undefined;
       default:
         return 1; // National level
     }
@@ -409,6 +423,19 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
       return;
     }
 
+    if (formData.hierarchy_level === 'Provincial' && !formData.province_code && !formData.entity_id) {
+      setErrors({ geographic: 'Please select a province before previewing invitations' });
+      return;
+    }
+    if (formData.hierarchy_level === 'Municipal' && !formData.municipality_code && !formData.entity_id) {
+      setErrors({ geographic: 'Please select a province and municipality before previewing invitations' });
+      return;
+    }
+    if (formData.hierarchy_level === 'Ward' && !formData.ward_code && !formData.entity_id) {
+      setErrors({ geographic: 'Please select a province, municipality, and ward before previewing invitations' });
+      return;
+    }
+
     setPreviewLoading(true);
     try {
       const requestData = {
@@ -416,6 +443,9 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
         hierarchy_level: formData.hierarchy_level,
         entity_id: formData.entity_id,
         entity_type: formData.entity_type,
+        province_code: formData.province_code,
+        municipality_code: formData.municipality_code,
+        ward_code: formData.ward_code,
       };
 
       console.log('🔍 Sending invitation preview request:', requestData);
@@ -543,7 +573,13 @@ const HierarchicalMeetingCreatePage: React.FC = () => {
                       </Typography>
 
                       <HierarchicalGeographicSelector
-                        adminLevel={formData.hierarchy_level === 'Ward' ? 'Ward' : 'Municipal'}
+                        adminLevel={
+                          formData.hierarchy_level === 'Provincial'
+                            ? 'Provincial'
+                            : formData.hierarchy_level === 'Ward'
+                              ? 'Ward'
+                              : 'Municipal'
+                        }
                         onSelectionChange={handleGeographicSelectionChange}
                         disabled={false}
                       />

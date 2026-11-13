@@ -1,7 +1,7 @@
 # Frontend Data Display Issue - Diagnosis Report
 
 **Date:** 2025-11-17  
-**Issue:** Members directory shows 0 members when filtering by Municipality/Sub-Region
+**Issue:** Members directory shows 0 members when filtering by Municipality/Local Municipality
 
 ---
 
@@ -10,7 +10,7 @@
 Using Playwright browser automation, I navigated through the members directory filtering hierarchy:
 1. **Province Selection:** Gauteng (273,287 members) ✅ Works
 2. **Region/District Selection:** West Rand (DC48) - Auto-selected, showed 0 members ❌ **FAILS HERE**
-3. **Municipality/Sub-Region Selection:** All show (0) members ❌ **FAILS HERE**
+3. **Municipality/Local Municipality Selection:** All show (0) members ❌ **FAILS HERE**
 
 ---
 
@@ -85,19 +85,19 @@ id_number       | province_code | district_code | municipality_code | ward_code
     "data": [
       {
         "municipality_code": "GT484",
-        "municipality_name": "Merafong City Sub-Region",
+        "municipality_name": "Merafong City Local Municipality",
         "municipality_type": "Local",
         "member_count": "0"  ← Correct! There are 0 members with district_code='DC48'
       },
       {
         "municipality_code": "GT481",
-        "municipality_name": "Mogale City Sub-Region",
+        "municipality_name": "Mogale City Local Municipality",
         "municipality_type": "Local",
         "member_count": "0"  ← Correct! There are 0 members with district_code='DC48'
       },
       {
         "municipality_code": "GT485",
-        "municipality_name": "Rand West City Sub-Region",
+        "municipality_name": "Rand West City Local Municipality",
         "municipality_type": "Local",
         "member_count": "0"  ← Correct! There are 0 members with district_code='DC48'
       }
@@ -148,9 +148,9 @@ This is a minor issue but should be fixed in the backend API to return numbers i
 After extensive investigation, here's what's happening:
 
 1. **Ward Mapping Issue:**
-   - Ward codes like `79800001` are mapped to **sub-region municipalities** (e.g., `JHB007`, `JHB004`)
-   - Sub-region municipalities have `district_code = NULL` in the database
-   - Sub-region municipalities have a `parent_municipality_id` pointing to the parent metro (e.g., JHB)
+   - Ward codes like `79800001` are mapped to **Local Municipality municipalities** (e.g., `JHB007`, `JHB004`)
+   - Local Municipality municipalities have `district_code = NULL` in the database
+   - Local Municipality municipalities have a `parent_municipality_id` pointing to the parent metro (e.g., JHB)
 
 2. **Database Structure:**
    ```
@@ -168,36 +168,36 @@ After extensive investigation, here's what's happening:
 
 The `resolve_geographic_hierarchy()` function (around line 413) needs to be updated to:
 
-1. **Check if the municipality is a sub-region** (has `parent_municipality_id`)
-2. **If it's a sub-region, look up the parent municipality** to get the district code
+1. **Check if the municipality is a Local Municipality** (has `parent_municipality_id`)
+2. **If it's a Local Municipality, look up the parent municipality** to get the district code
 3. **Use the parent's district code** for the member record
 
 ### **Specific Code Changes Needed:**
 
 In the `load_geographic_mappings()` method (around line 343-355), add logic to:
-- Load parent municipality information for sub-regions
+- Load parent municipality information for Local Municipalitys
 - Store parent municipality's district code in the mapping
 
 In the `resolve_geographic_hierarchy()` method (around line 413-452), add logic to:
 - Check if municipality has a parent
-- If yes, use parent's district code instead of the sub-region's NULL district code
+- If yes, use parent's district code instead of the Local Municipality's NULL district code
 
 ### **Alternative Solution (Simpler):**
 
-Update the `municipalities` table to populate `district_code` for all sub-regions:
+Update the `municipalities` table to populate `district_code` for all Local Municipalitys:
 
 ```sql
--- Update all JHB sub-regions to have district_code='JHB'
+-- Update all JHB Local Municipalitys to have district_code='JHB'
 UPDATE municipalities
 SET district_code = 'JHB'
 WHERE municipality_code LIKE 'JHB%' AND district_code IS NULL;
 
--- Update all TSH sub-regions to have district_code='TSH'
+-- Update all TSH Local Municipalitys to have district_code='TSH'
 UPDATE municipalities
 SET district_code = 'TSH'
 WHERE municipality_code LIKE 'TSH%' AND district_code IS NULL;
 
--- Update all EKU sub-regions to have district_code='EKU'
+-- Update all EKU Local Municipalitys to have district_code='EKU'
 UPDATE municipalities
 SET district_code = 'EKU'
 WHERE municipality_code LIKE 'EKU%' AND district_code IS NULL;

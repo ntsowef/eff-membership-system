@@ -538,9 +538,9 @@ const startServer = async (): Promise<void> => {
       BirthdayMessageJob.start();
       if (verbose) console.log(` Birthday Message Job: Active (daily at 08:00 SAST)`);
 
-      // Membership renewal SMS job disabled — credits must be managed manually
-      MembershipRenewalSMSJob.start();
-      if (verbose) console.log(` Membership Renewal SMS Job: Disabled (manual send only)`);
+      // Membership renewal SMS job permanently disabled
+      // MembershipRenewalSMSJob.start();
+      if (verbose) console.log(` Membership Renewal SMS Job: Disabled`);
 
       // Start ward audit materialized view refresh job (every 15 minutes)
       scheduleWardAuditViewRefresh();
@@ -626,8 +626,8 @@ const startServer = async (): Promise<void> => {
       // Stop birthday message job
       BirthdayMessageJob.stop();
 
-      // Membership renewal SMS job 
-      MembershipRenewalSMSJob.stop();
+      // Membership renewal SMS job (disabled)
+      // MembershipRenewalSMSJob.stop();
 
       // Stop monthly file archive job
       MonthlyFileArchiveJob.stop();

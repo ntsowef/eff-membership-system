@@ -628,7 +628,7 @@ const LeadershipPage: React.FC = () => {
                               SRCT - Municipal
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Sub-Regional Command Team
+                              Local Municipalityal Command Team
                             </Typography>
                           </Box>
                         </Box>

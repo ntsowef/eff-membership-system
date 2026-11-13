@@ -109,7 +109,7 @@ const ConferenceDelegatesTab: React.FC = () => {
 
       <Paper sx={{ mb: 3 }}>
         <Tabs value={activeConference} onChange={handleTabChange} aria-label="conference tabs">
-          <Tab label="SRPA (Sub-Regional)" />
+          <Tab label="SRPA (Local Municipalityal)" />
           <Tab label="PPA (Provincial)" />
           <Tab label="NPA (National)" />
         </Tabs>

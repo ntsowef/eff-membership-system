@@ -8,12 +8,11 @@ import {
   MenuItem,
   Typography,
   Box,
-  Alert,
   CircularProgress,
   Chip,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { CheckCircle, Error, Info, Lock, Edit } from '@mui/icons-material';
+import { CheckCircle, Error, Info, Lock } from '@mui/icons-material';
 import { useApplication } from '../../store';
 import { parseIdNumber } from '../../utils/idNumberParser';
 import { useQuery } from '@tanstack/react-query';
@@ -109,26 +108,9 @@ const IECPersonalInfoStep: React.FC<IECPersonalInfoStepProps> = ({ errors }) => 
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" sx={{ mb: 2.5 }}>
         Personal Information
       </Typography>
-      
-      {isRegisteredVoter ? (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <CheckCircle sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-            Your date of birth and gender have been verified from your voter registration.
-            Fields marked with <Lock sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} /> are pre-filled.
-          </Typography>
-        </Alert>
-      ) : (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <Edit sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-            This ID number is not registered to vote. Please complete all required fields manually.
-          </Typography>
-        </Alert>
-      )}
 
       <Grid container spacing={3}>
         {/* ID Number - Read Only Display */}
@@ -141,7 +123,6 @@ const IECPersonalInfoStep: React.FC<IECPersonalInfoStepProps> = ({ errors }) => 
               readOnly: true,
               endAdornment: <Lock color="action" sx={{ fontSize: 20 }} />,
             }}
-            helperText="Verified in previous step"
             sx={{ '& .MuiInputBase-input': { bgcolor: 'grey.50' } }}
           />
         </Grid>
@@ -194,7 +175,7 @@ const IECPersonalInfoStep: React.FC<IECPersonalInfoStepProps> = ({ errors }) => 
               textField: {
                 fullWidth: true,
                 error: !!errors.date_of_birth,
-                helperText: errors.date_of_birth || (isDobReadOnly ? 'Auto-populated from ID number' : 'Required'),
+                helperText: errors.date_of_birth,
                 required: true,
                 InputProps: {
                   endAdornment: isDobReadOnly ? <Lock color="action" sx={{ fontSize: 20, mr: 1 }} /> : undefined,
@@ -224,11 +205,6 @@ const IECPersonalInfoStep: React.FC<IECPersonalInfoStepProps> = ({ errors }) => 
             {errors.gender && (
               <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
                 {errors.gender}
-              </Typography>
-            )}
-            {isGenderReadOnly && (
-              <Typography variant="caption" color="success.main" sx={{ mt: 0.5, ml: 1.5 }}>
-                Auto-populated from ID number
               </Typography>
             )}
           </FormControl>

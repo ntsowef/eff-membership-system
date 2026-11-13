@@ -1,8 +1,8 @@
 -- Fix Metro Member Search Issue
--- This script fixes the vw_member_details view to properly include metro sub-region members
+-- This script fixes the vw_member_details view to properly include metro Local Municipality members
 -- when filtering by province, district, or municipality
 --
--- Issue: Metro sub-regions have NULL district_code because they link to parent metros
+-- Issue: Metro Local Municipalitys have NULL district_code because they link to parent metros
 -- Solution: Use COALESCE to get district_code from parent municipality when direct district_code is NULL
 
 BEGIN;
@@ -51,13 +51,13 @@ SELECT
     mu.municipality_name,
     mu.municipality_type,
     
-    -- District info (COALESCE to handle metro sub-regions)
-    -- For metro sub-regions: get district from parent municipality
+    -- District info (COALESCE to handle metro Local Municipalitys)
+    -- For metro Local Municipalitys: get district from parent municipality
     -- For regular municipalities: get district directly
     COALESCE(mu.district_code, pm.district_code) as district_code,
     COALESCE(d.district_name, pd.district_name) as district_name,
     
-    -- Province info (COALESCE to handle metro sub-regions)
+    -- Province info (COALESCE to handle metro Local Municipalitys)
     COALESCE(d.province_code, pd.province_code) as province_code,
     COALESCE(p.province_name, pp.province_name) as province_name,
 
@@ -103,7 +103,7 @@ FROM members m
 LEFT JOIN wards w ON m.ward_code = w.ward_code
 LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
 
--- Join to parent municipality (for metro sub-regions)
+-- Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
 -- Join to districts (both direct and through parent)
@@ -142,7 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_municipalities_type ON municipalities(municipalit
 COMMIT;
 
 -- Display success message
-SELECT 'vw_member_details view fixed for metro sub-regions!' as message;
+SELECT 'vw_member_details view fixed for metro Local Municipalitys!' as message;
 
 -- Verify the fix
 SELECT 
@@ -150,6 +150,6 @@ SELECT
     COUNT(*) as metro_members_with_province
 FROM vw_member_details vmd
 JOIN municipalities mu ON vmd.municipality_code = mu.municipality_code
-WHERE mu.municipality_type = 'Metro Sub-Region'
+WHERE mu.municipality_type = 'Metro Local Municipality'
   AND vmd.province_code IS NOT NULL;
 

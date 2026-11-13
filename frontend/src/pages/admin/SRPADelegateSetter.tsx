@@ -168,8 +168,8 @@ const SRPADelegateSetter: React.FC = () => {
         SRPA Delegate Setter
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Configure the maximum number of SRPA (Sub-Regional People's Assembly) delegates allowed for each municipality.
-        This includes Local Municipalities and Metro Sub-Regions across all provinces.
+        Configure the maximum number of SRPA (Local Municipalityal People's Assembly) delegates allowed for each municipality.
+        This includes Local Municipalities and Metro Local Municipalitys across all provinces.
       </Typography>
 
       {/* Province Selector */}
@@ -210,13 +210,13 @@ const SRPADelegateSetter: React.FC = () => {
         </Alert>
       )}
 
-      {/* Sub-Regions Table */}
+      {/* Local Municipalitys Table */}
       {selectedProvince && (
         <Card>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
-                Sub-Regions in {provinces?.find(p => p.province_code === selectedProvince)?.province_name}
+                Local Municipalitys in {provinces?.find(p => p.province_code === selectedProvince)?.province_name}
               </Typography>
               <Box>
                 <Tooltip title="Refresh data">
@@ -280,7 +280,7 @@ const SRPADelegateSetter: React.FC = () => {
                             <Chip
                               label={config.municipality_type}
                               size="small"
-                              color={config.municipality_type === 'Metro Sub-Region' ? 'primary' : 'default'}
+                              color={config.municipality_type === 'Metro Local Municipality' ? 'primary' : 'default'}
                               variant="outlined"
                             />
                           </TableCell>
@@ -324,7 +324,7 @@ const SRPADelegateSetter: React.FC = () => {
               </TableContainer>
             ) : (
               <Alert severity="info">
-                No sub-regions found for this province.
+                No Local Municipalitys found for this province.
               </Alert>
             )}
           </CardContent>

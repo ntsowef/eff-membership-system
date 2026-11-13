@@ -41,7 +41,7 @@
    - **National Level**: Central Command Team (CCT) or National Executive Committee (NEC)
    - **Provincial Level**: Provincial Executive Committee (PEC) or Provincial Command Team (PCT)
    - **Regional Level**: Regional Executive Committee (REC) or Regional Command Team (RCT)
-   - **Municipal Level**: Sub-Regional Command Team (SRCT)
+   - **Municipal Level**: Local Municipalityal Command Team (SRCT)
    - **Ward Level**: Branch Executive Committee (BEC) or Branch Command Team (BCT)
 3. **Step 3**: Admin views current leadership positions for the selected structure.
 4. **Step 4**: Admin can assign new leadership roles, update existing roles, or end leadership terms.

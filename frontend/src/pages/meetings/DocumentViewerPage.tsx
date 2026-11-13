@@ -108,8 +108,10 @@ const DocumentViewerPage: React.FC = () => {
     enabled: !!meetingId,
   });
 
-  const document: MeetingDocument | null = (documentData as any)?.data?.document || null;
-  const meeting = (meetingData as any)?.data?.meeting || null;
+  const document: MeetingDocument | null =
+    (documentData as any)?.document || (documentData as any)?.data?.document || null;
+  const meeting = (meetingData as any)?.meeting || (meetingData as any)?.data?.meeting || null;
+  const meetingDisplayTitle = meeting?.meeting_title || meeting?.title || '';
 
   // Approval form
   const { control, handleSubmit } = useForm<ApprovalFormData>({
@@ -178,12 +180,12 @@ const DocumentViewerPage: React.FC = () => {
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
       <PageHeader
         title={document.document_title}
-        subtitle={`${document.document_type.replace('_', ' ').toUpperCase()} • ${meeting?.title || 'Meeting Document'}`}
+        subtitle={`${document.document_type.replace('_', ' ').toUpperCase()} • ${meetingDisplayTitle || 'Meeting Document'}`}
         gradient={true}
         breadcrumbs={[
           { label: 'Dashboard', href: '/admin/dashboard' },
           { label: 'Meetings', href: '/admin/meetings' },
-          { label: meeting?.title || 'Meeting', href: `/admin/meetings/${meetingId}` },
+          { label: meetingDisplayTitle || 'Meeting', href: `/admin/meetings/${meetingId}` },
           { label: 'Documents', href: `/admin/meetings/${meetingId}/documents` },
           { label: document.document_title },
         ]}

@@ -65,7 +65,7 @@ const MembershipApplicationPage: React.FC = () => {
   }, [updateApplicationData]);
 
   const submitApplicationMutation = useMutation({
-    mutationFn: (data: any) => apiPost<{application: {id: number; application_number: string}}>('/membership-applications', data),
+    mutationFn: (data: any) => apiPost<{ application: { id: number; application_number: string } }>('/membership-applications', data),
     onSuccess: (response) => {
       const application = response.application;
       addNotification({
@@ -352,7 +352,7 @@ const MembershipApplicationPage: React.FC = () => {
                   )}
                   {duplicateData.application_details.municipality_name && (
                     <Typography variant="body2">
-                      <strong>Sub-Region:</strong> {duplicateData.application_details.municipality_name}
+                      <strong>Local Municipality:</strong> {duplicateData.application_details.municipality_name}
                     </Typography>
                   )}
                   {duplicateData.application_details.ward_code && (
@@ -420,28 +420,11 @@ const MembershipApplicationPage: React.FC = () => {
             fontSize: { xs: '2rem', md: '3.5rem' },
             textTransform: 'uppercase',
             letterSpacing: '-0.02em',
-            mb: 2,
+            mb: 4,
             lineHeight: 1
           }}
         >
           New Membership<br />Application
-        </Typography>
-
-        {/* Brand Subtitle */}
-        <Typography
-          variant="h6"
-          sx={{
-            color: '#FFFFFF',
-            textAlign: 'center',
-            fontFamily: '"Poppins", sans-serif',
-            maxWidth: '800px',
-            fontWeight: 400,
-            mb: 4,
-            opacity: 0.9,
-            fontSize: { xs: '1rem', md: '1.3rem' }
-          }}
-        >
-          Take your first step in the fight for economic freedom. Complete your application to join thousands of fighters across South Africa.
         </Typography>
 
         {/* Content Container (White Box) */}
@@ -504,8 +487,8 @@ const MembershipApplicationPage: React.FC = () => {
                           bgcolor: index < applicationStep
                             ? '#8B0000'
                             : index === applicationStep
-                            ? '#DC143C'
-                            : 'grey.300',
+                              ? '#DC143C'
+                              : 'grey.300',
                           color: index <= applicationStep ? 'white' : 'grey.600',
                           transition: 'all 0.3s ease',
                           '& svg': { fontSize: 18 }
@@ -535,59 +518,28 @@ const MembershipApplicationPage: React.FC = () => {
               ))}
             </Stepper>
 
-          {/* Step Content */}
-          <Box sx={{ mb: 4 }}>
-            {renderStepContent(applicationStep)}
-          </Box>
+            {/* Step Content */}
+            <Box sx={{ mb: 4 }}>
+              {renderStepContent(applicationStep)}
+            </Box>
 
-          {/* Error Display */}
-          {Object.keys(errors).length > 0 && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              Please correct the errors above before proceeding.
-            </Alert>
-          )}
+            {/* Error Display */}
+            {Object.keys(errors).length > 0 && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                Please correct the errors above before proceeding.
+              </Alert>
+            )}
 
-          {/* Navigation Buttons */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-            <Button
-              onClick={handleBack}
-              disabled={applicationStep === 0}
-              variant="outlined"
-              startIcon={<ArrowBack />}
-              sx={{
-                borderColor: 'rgba(220, 20, 60, 0.3)',
-                color: '#DC143C',
-                fontWeight: 600,
-                px: 3,
-                py: 1.5,
-                borderRadius: 3,
-                textTransform: 'none',
-                fontSize: '1rem',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  borderColor: '#DC143C',
-                  backgroundColor: 'rgba(220, 20, 60, 0.05)',
-                  transform: 'translateX(-3px)',
-                },
-                '&:disabled': {
-                  borderColor: 'rgba(0, 0, 0, 0.12)',
-                  color: 'rgba(0, 0, 0, 0.26)',
-                }
-              }}
-            >
-              Back
-            </Button>
-
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            {/* Navigation Buttons */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
               <Button
+                onClick={handleBack}
+                disabled={applicationStep === 0}
                 variant="outlined"
-                onClick={() => {
-                  resetApplication();
-                  navigate('/');
-                }}
+                startIcon={<ArrowBack />}
                 sx={{
-                  borderColor: 'rgba(0, 0, 0, 0.23)',
-                  color: 'text.secondary',
+                  borderColor: 'rgba(220, 20, 60, 0.3)',
+                  color: '#DC143C',
                   fontWeight: 600,
                   px: 3,
                   py: 1.5,
@@ -596,61 +548,92 @@ const MembershipApplicationPage: React.FC = () => {
                   fontSize: '1rem',
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    borderColor: 'rgba(0, 0, 0, 0.5)',
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    borderColor: '#DC143C',
+                    backgroundColor: 'rgba(220, 20, 60, 0.05)',
+                    transform: 'translateX(-3px)',
+                  },
+                  '&:disabled': {
+                    borderColor: 'rgba(0, 0, 0, 0.12)',
+                    color: 'rgba(0, 0, 0, 0.26)',
                   }
                 }}
               >
-                Cancel
+                Back
               </Button>
 
-              <Button
-                variant="contained"
-                size="large"
-                onClick={handleNext}
-                disabled={submitApplicationMutation.isPending || isCheckingId}
-                startIcon={isCheckingId ? <CircularProgress size={20} color="inherit" /> : null}
-                endIcon={!isCheckingId && <ArrowForward />}
-                sx={{
-                  background: applicationStep === steps.length - 1
-                    ? 'linear-gradient(135deg, #8B0000 0%, #6B0000 100%)'
-                    : 'linear-gradient(135deg, #DC143C 0%, #8B0000 100%)',
-                  color: 'white',
-                  fontWeight: 700,
-                  px: 4,
-                  py: 1.8,
-                  textTransform: 'none',
-                  borderRadius: 3,
-                  fontSize: '1.05rem',
-                  boxShadow: applicationStep === steps.length - 1
-                    ? '0 6px 20px rgba(139, 0, 0, 0.4)'
-                    : '0 6px 20px rgba(220, 20, 60, 0.4)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    resetApplication();
+                    navigate('/');
+                  }}
+                  sx={{
+                    borderColor: 'rgba(0, 0, 0, 0.23)',
+                    color: 'text.secondary',
+                    fontWeight: 600,
+                    px: 3,
+                    py: 1.5,
+                    borderRadius: 3,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: 'rgba(0, 0, 0, 0.5)',
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleNext}
+                  disabled={submitApplicationMutation.isPending || isCheckingId}
+                  startIcon={isCheckingId ? <CircularProgress size={20} color="inherit" /> : null}
+                  endIcon={!isCheckingId && <ArrowForward />}
+                  sx={{
                     background: applicationStep === steps.length - 1
-                      ? 'linear-gradient(135deg, #6B0000 0%, #4B0000 100%)'
-                      : 'linear-gradient(135deg, #B01030 0%, #6B0000 100%)',
-                    transform: 'translateY(-3px)',
+                      ? 'linear-gradient(135deg, #8B0000 0%, #6B0000 100%)'
+                      : 'linear-gradient(135deg, #DC143C 0%, #8B0000 100%)',
+                    color: 'white',
+                    fontWeight: 700,
+                    px: 4,
+                    py: 1.8,
+                    textTransform: 'none',
+                    borderRadius: 3,
+                    fontSize: '1.05rem',
                     boxShadow: applicationStep === steps.length - 1
-                      ? '0 8px 28px rgba(139, 0, 0, 0.5)'
-                      : '0 8px 28px rgba(220, 20, 60, 0.5)',
-                  },
-                  '&:disabled': {
-                    background: 'rgba(0, 0, 0, 0.12)',
-                    color: 'rgba(0, 0, 0, 0.26)',
-                    boxShadow: 'none',
-                  },
-                }}
-              >
-                {isCheckingId
-                  ? 'Verifying ID...'
-                  : applicationStep === steps.length - 1
-                  ? (submitApplicationMutation.isPending ? 'Submitting...' : 'Submit Application')
-                  : 'Next'
-                }
-              </Button>
+                      ? '0 6px 20px rgba(139, 0, 0, 0.4)'
+                      : '0 6px 20px rgba(220, 20, 60, 0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: applicationStep === steps.length - 1
+                        ? 'linear-gradient(135deg, #6B0000 0%, #4B0000 100%)'
+                        : 'linear-gradient(135deg, #B01030 0%, #6B0000 100%)',
+                      transform: 'translateY(-3px)',
+                      boxShadow: applicationStep === steps.length - 1
+                        ? '0 8px 28px rgba(139, 0, 0, 0.5)'
+                        : '0 8px 28px rgba(220, 20, 60, 0.5)',
+                    },
+                    '&:disabled': {
+                      background: 'rgba(0, 0, 0, 0.12)',
+                      color: 'rgba(0, 0, 0, 0.26)',
+                      boxShadow: 'none',
+                    },
+                  }}
+                >
+                  {isCheckingId
+                    ? 'Verifying ID...'
+                    : applicationStep === steps.length - 1
+                      ? (submitApplicationMutation.isPending ? 'Submitting...' : 'Submit Application')
+                      : 'Next'
+                  }
+                </Button>
+              </Box>
             </Box>
-          </Box>
           </Paper>
         </Container>
       </Box>

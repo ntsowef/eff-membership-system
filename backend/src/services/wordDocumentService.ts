@@ -221,195 +221,195 @@ export class WordDocumentService {
 
       // Two-column header information table
       const wardInfoTable = new Table({
-              width: {
-                size: 100,
-                type: WidthType.PERCENTAGE
-              },
-              borders: {
-                top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-              },
-              rows: [
-                // Row 1
-                new TableRow({
-                  children: [
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: `PROVINCE: ${wardInfo.province_name}`,
-                              bold: true,
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    }),
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: `SUB REGION: ${wardInfo.municipality_code} - ${wardInfo.municipality_name}`,
-                              bold: true,
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    })
-                  ]
-                }),
-                // Row 2
-                new TableRow({
-                  children: [
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: `TOTAL MEMBERSHIP IN GOOD STANDING: ${totalMembers}`,
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    }),
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: `WARD: ${wardInfo.ward_code}`,
-                              bold: true,
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    })
-                  ]
-                }),
-                // Row 3
-                new TableRow({
-                  children: [
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: `QUORUM: ${quorum}`,
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    }),
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: 'BPA: |_|  BGA: |_|',
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    })
-                  ]
-                }),
-                // Row 4
-                new TableRow({
-                  children: [
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: 'DATE OF BPA/BGA: _________________',
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    }),
-                    new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
-                      borders: {
-                        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-                        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-                      },
-                      children: [
-                        new Paragraph({
-                          children: [
-                            new TextRun({
-                              text: `TOTAL NUMBER OF VOTING STATIONS: ${totalVotingStations}`,
-                              size: 20
-                            })
-                          ]
-                        })
-                      ]
-                    })
-                  ]
-                })
-              ]
+        width: {
+          size: 100,
+          type: WidthType.PERCENTAGE
+        },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+        },
+        rows: [
+          // Row 1
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `PROVINCE: ${wardInfo.province_name}`,
+                        bold: true,
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `SUB REGION: ${wardInfo.municipality_code} - ${wardInfo.municipality_name}`,
+                        bold: true,
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          }),
+          // Row 2
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `TOTAL MEMBERSHIP IN GOOD STANDING: ${totalMembers}`,
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `WARD: ${wardInfo.ward_code}`,
+                        bold: true,
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          }),
+          // Row 3
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `QUORUM: ${quorum}`,
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'BPA: |_|  BGA: |_|',
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          }),
+          // Row 4
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'DATE OF BPA/BGA: _________________',
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+                },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `TOTAL NUMBER OF VOTING STATIONS: ${totalVotingStations}`,
+                        size: 20
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          })
+        ]
       });
 
       // Create attendance tables grouped by voting station
@@ -602,7 +602,7 @@ export class WordDocumentService {
             footers: {
               default: new Footer({
                 children: [
-                  // Footer with three sections: left (sub-region), center (page numbers), right (ward code)
+                  // Footer with three sections: left (Local Municipality), center (page numbers), right (ward code)
                   new Table({
                     width: {
                       size: 100,
@@ -619,7 +619,7 @@ export class WordDocumentService {
                     rows: [
                       new TableRow({
                         children: [
-                          // Left: Sub-Region
+                          // Left: Local Municipality
                           new TableCell({
                             width: {
                               size: 33,
@@ -635,7 +635,7 @@ export class WordDocumentService {
                               new Paragraph({
                                 children: [
                                   new TextRun({
-                                    text: `${wardInfo.municipality_name} Sub-Region`,
+                                    text: `${wardInfo.municipality_name} Local Municipality`,
                                     size: 18
                                   })
                                 ],

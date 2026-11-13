@@ -9,7 +9,7 @@ import * as ExcelJS from 'exceljs';
 
 async function testDailyReportMetroFix() {
   console.log('🧪 Testing Daily Report Metro Municipality Fix\n');
-  console.log('=' .repeat(80));
+  console.log('='.repeat(80));
 
   try {
     // Initialize database
@@ -77,23 +77,23 @@ async function testDailyReportMetroFix() {
     console.log('📊 TEST RESULTS');
     console.log('='.repeat(80));
 
-    console.log(`\n✅ Total municipalities/sub-regions found: ${municipalities.length}`);
-    console.log(`✅ Gauteng municipalities/sub-regions: ${gautengMunicipalities.length}`);
+    console.log(`\n✅ Total municipalities/Local Municipalitys found: ${municipalities.length}`);
+    console.log(`✅ Gauteng municipalities/Local Municipalitys: ${gautengMunicipalities.length}`);
 
     if (metroMunicipalities.length === 0) {
       console.log('\n✅ SUCCESS: No Metro Municipalities found in report');
       console.log('   Metro Municipalities are correctly excluded');
-      console.log('   Only sub-regions are shown');
+      console.log('   Only Local Municipalitys are shown');
     } else {
       console.log(`\n❌ FAILURE: Found ${metroMunicipalities.length} Metro Municipalities:`);
       metroMunicipalities.forEach(metro => {
         console.log(`   - ${metro}`);
       });
       console.log('\n   These should NOT appear in the report!');
-      console.log('   Only their sub-regions should be shown.');
+      console.log('   Only their Local Municipalitys should be shown.');
     }
 
-    console.log('\n📋 Gauteng Municipalities/Sub-Regions:');
+    console.log('\n📋 Gauteng Municipalities/Local Municipalitys:');
     gautengMunicipalities.forEach(muni => {
       console.log(`   - ${muni}`);
     });
@@ -106,13 +106,13 @@ async function testDailyReportMetroFix() {
     console.log('   - City of Tshwane Metropolitan Municipality');
     console.log('   - Ekurhuleni Metropolitan Municipality');
     console.log('\n✅ Should see:');
-    console.log('   - Emfuleni Sub-Region');
-    console.log('   - Lesedi Sub-Region');
-    console.log('   - Merafong City Sub-Region');
-    console.log('   - Midvaal Sub-Region');
-    console.log('   - Mogale City Sub-Region');
-    console.log('   - Rand West City Sub-Region');
-    console.log('   - (and other Gauteng sub-regions)');
+    console.log('   - Emfuleni Local Municipality');
+    console.log('   - Lesedi Local Municipality');
+    console.log('   - Merafong City Local Municipality');
+    console.log('   - Midvaal Local Municipality');
+    console.log('   - Mogale City Local Municipality');
+    console.log('   - Rand West City Local Municipality');
+    console.log('   - (and other Gauteng Local Municipalitys)');
 
     console.log('\n' + '='.repeat(80));
 

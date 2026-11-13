@@ -7,7 +7,7 @@ import {
   Alert,
   Chip,
 } from '@mui/material';
-import { CheckCircle, Warning, LocationOn, Lock } from '@mui/icons-material';
+import { CheckCircle, LocationOn } from '@mui/icons-material';
 import { useApplication } from '../../store';
 import GeographicSelector from '../common/GeographicSelector';
 import { devLog } from '../../utils/logger';
@@ -26,7 +26,6 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
   // Check if user is a registered voter (from IEC verification)
   const isRegisteredVoter = (applicationData as any).is_registered_voter === true;
   const iecData = (applicationData as any).iec_verification;
-  const hasIecData = iecData && iecData.is_registered && iecData.province_code;
 
   // Auto-populate geographic fields from IEC verification data
   useEffect(() => {
@@ -72,16 +71,11 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" sx={{ mb: 2.5 }}>
         Contact Information
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please provide your current contact details. This information will be used
-        to communicate with you regarding your application and membership.
-      </Typography>
 
-      {/* Status Banner */}
-      {isRegisteredVoter ? (
+      {isRegisteredVoter && (
         <Alert
           severity="success"
           icon={<CheckCircle />}
@@ -97,24 +91,9 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
           }
         >
           <Typography variant="body2">
-            Your geographic information has been pre-filled from your IEC voter registration.
-            Fields marked with <Lock sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} /> are pre-filled but can be modified if needed.
-          </Typography>
-          {iecData?.voting_station_name && (
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              <strong>Voting Station:</strong> {iecData.voting_station_name}
-            </Typography>
-          )}
-        </Alert>
-      ) : (
-        <Alert
-          severity="warning"
-          icon={<Warning />}
-          sx={{ mb: 3 }}
-        >
-          <Typography variant="body2">
-            Please enter your contact and geographic information manually.
-            Ensure all required fields are completed accurately.
+            {iecData?.voting_station_name
+              ? `Voting Station: ${iecData.voting_station_name}`
+              : 'Voter registration location pre-filled.'}
           </Typography>
         </Alert>
       )}
@@ -128,7 +107,7 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             value={applicationData.email || ''}
             onChange={(e) => handleChange('email', e.target.value)}
             error={!!errors.email}
-            helperText={errors.email || 'Optional — we will use this email for communications if provided'}
+            helperText={errors.email}
           />
         </Grid>
 
@@ -139,7 +118,8 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             value={applicationData.phone || ''}
             onChange={(e) => handleChange('phone', e.target.value)}
             error={!!errors.phone}
-            helperText={errors.phone || 'Include country code (e.g., +27123456789)'}
+            helperText={errors.phone}
+            placeholder="+27123456789"
             required
           />
         </Grid>
@@ -153,7 +133,7 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             value={applicationData.address || ''}
             onChange={(e) => handleChange('address', e.target.value)}
             error={!!errors.address}
-            helperText={errors.address || 'Street address, apartment/unit number'}
+            helperText={errors.address}
             required
           />
         </Grid>
@@ -221,7 +201,6 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             label="Postal Code"
             value={applicationData.postal_code || ''}
             onChange={(e) => handleChange('postal_code', e.target.value)}
-            helperText="Optional"
           />
         </Grid>
 
@@ -231,7 +210,6 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             label="Country"
             value={applicationData.country || 'South Africa'}
             onChange={(e) => handleChange('country', e.target.value)}
-            helperText="Optional"
           />
         </Grid>
 
@@ -241,7 +219,6 @@ const ContactInfoStep: React.FC<ContactInfoStepProps> = ({ errors }) => {
             label="WhatsApp Number"
             value={applicationData.alternative_phone || ''}
             onChange={(e) => handleChange('alternative_phone', e.target.value)}
-            helperText="Optional - WhatsApp number"
           />
         </Grid>
       </Grid>

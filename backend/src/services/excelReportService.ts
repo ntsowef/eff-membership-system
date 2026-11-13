@@ -192,7 +192,7 @@ export class ExcelReportService {
       }
     }
   }
-  
+
   /**
    * Generate Ward Audit Report matching Audit.xlsx format exactly.
    * Sheet4: Municipality/District Detail with Excel formulas
@@ -787,7 +787,7 @@ export class ExcelReportService {
             d.district_name,
             mu.municipality_name,
             mu.municipality_type,
-            -- Handle Metro Sub-Regions: get province from parent municipality
+            -- Handle Metro Local Municipalitys: get province from parent municipality
             COALESCE(p.province_code, parent_p.province_code) as province_code,
             COALESCE(p.province_name, parent_p.province_name) as province_name,
             COUNT(DISTINCT m.member_id) FILTER (
@@ -798,13 +798,13 @@ export class ExcelReportService {
           LEFT JOIN municipalities mu ON w.municipality_code = mu.municipality_code
           LEFT JOIN districts d ON mu.district_code = d.district_code
           LEFT JOIN provinces p ON d.province_code = p.province_code
-          -- Join parent municipality for Metro Sub-Regions
+          -- Join parent municipality for Metro Local Municipalitys
           LEFT JOIN municipalities parent_mu ON mu.parent_municipality_id = parent_mu.municipality_id
           LEFT JOIN districts parent_d ON parent_mu.district_code = parent_d.district_code
           LEFT JOIN provinces parent_p ON parent_d.province_code = parent_p.province_code
           LEFT JOIN members_consolidated m ON m.ward_code = w.ward_code
           WHERE COALESCE(w.is_active, TRUE) = TRUE
-            -- Exclude Metropolitan municipalities (only show sub-regions)
+            -- Exclude Metropolitan municipalities (only show Local Municipalitys)
             AND COALESCE(mu.municipality_type, 'Local') != 'Metropolitan'
           GROUP BY w.ward_code, w.municipality_code, d.district_name, mu.municipality_name, mu.municipality_type,
                    COALESCE(p.province_code, parent_p.province_code), COALESCE(p.province_name, parent_p.province_name)
@@ -1495,15 +1495,15 @@ export class ExcelReportService {
     // ── Sheet 1: Run Summary ───────────────────────────────────────────────
     const summarySheet = workbook.addWorksheet('Run Summary');
     summarySheet.columns = [
-      { header: 'Run #',           key: 'run_id',          width: 10 },
-      { header: 'Run Date',        key: 'run_date',         width: 15 },
-      { header: 'Status',          key: 'status',           width: 14 },
-      { header: 'Total Scanned',   key: 'total_scanned',    width: 16 },
-      { header: 'Deceased Found',  key: 'deceased_found',   width: 16 },
-      { header: 'Records Deleted', key: 'records_deleted',  width: 17 },
-      { header: 'Errors',          key: 'errors_count',     width: 10 },
-      { header: 'Started At',      key: 'started_at',       width: 22 },
-      { header: 'Completed At',    key: 'completed_at',     width: 22 },
+      { header: 'Run #', key: 'run_id', width: 10 },
+      { header: 'Run Date', key: 'run_date', width: 15 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Total Scanned', key: 'total_scanned', width: 16 },
+      { header: 'Deceased Found', key: 'deceased_found', width: 16 },
+      { header: 'Records Deleted', key: 'records_deleted', width: 17 },
+      { header: 'Errors', key: 'errors_count', width: 10 },
+      { header: 'Started At', key: 'started_at', width: 22 },
+      { header: 'Completed At', key: 'completed_at', width: 22 },
     ];
 
     const runsConditions: string[] = [];
@@ -1521,15 +1521,15 @@ export class ExcelReportService {
 
     runs.forEach((r: any) => {
       summarySheet.addRow({
-        run_id:          r.run_id,
-        run_date:        r.run_date ? new Date(r.run_date).toISOString().split('T')[0] : '',
-        status:          r.status,
-        total_scanned:   r.total_scanned,
-        deceased_found:  r.deceased_found,
+        run_id: r.run_id,
+        run_date: r.run_date ? new Date(r.run_date).toISOString().split('T')[0] : '',
+        status: r.status,
+        total_scanned: r.total_scanned,
+        deceased_found: r.deceased_found,
         records_deleted: r.records_deleted,
-        errors_count:    r.errors_count,
-        started_at:      r.started_at ? new Date(r.started_at).toLocaleString('en-ZA') : '',
-        completed_at:    r.completed_at ? new Date(r.completed_at).toLocaleString('en-ZA') : '',
+        errors_count: r.errors_count,
+        started_at: r.started_at ? new Date(r.started_at).toLocaleString('en-ZA') : '',
+        completed_at: r.completed_at ? new Date(r.completed_at).toLocaleString('en-ZA') : '',
       });
     });
     this.styleExcelJSSheet(summarySheet, runs.length, 9);
@@ -1538,16 +1538,16 @@ export class ExcelReportService {
     const provinceSheet = workbook.addWorksheet('Province Breakdown');
     provinceSheet.columns = [
       { header: 'Province Code', key: 'province_code', width: 16 },
-      { header: 'Province',      key: 'province_name', width: 22 },
+      { header: 'Province', key: 'province_name', width: 22 },
       { header: 'Total Deceased', key: 'total_deceased', width: 17 },
-      { header: 'Total Deleted',  key: 'total_deleted',  width: 16 },
-      { header: 'Last Detected',  key: 'last_detected',  width: 22 },
+      { header: 'Total Deleted', key: 'total_deleted', width: 16 },
+      { header: 'Last Detected', key: 'last_detected', width: 22 },
     ];
 
     const provinceConditions: string[] = [];
     const provinceParams: unknown[] = [];
     if (province_code) { provinceConditions.push(`province_code = $${provinceParams.length + 1}`); provinceParams.push(province_code); }
-    if (run_id)        { provinceConditions.push(`purge_run_id = $${provinceParams.length + 1}`);  provinceParams.push(run_id); }
+    if (run_id) { provinceConditions.push(`purge_run_id = $${provinceParams.length + 1}`); provinceParams.push(run_id); }
     const provinceWhere = provinceConditions.length ? `WHERE ${provinceConditions.join(' AND ')}` : '';
 
     const provinceSummary = await executeQuery(
@@ -1571,11 +1571,11 @@ export class ExcelReportService {
 
     provinceSummary.forEach((r: any) => {
       provinceSheet.addRow({
-        province_code:   r.province_code,
-        province_name:   PROVINCE_NAMES[r.province_code] ?? r.province_code,
-        total_deceased:  parseInt(r.total_deceased, 10),
-        total_deleted:   parseInt(r.total_deleted, 10),
-        last_detected:   r.last_detected ? new Date(r.last_detected).toLocaleString('en-ZA') : '',
+        province_code: r.province_code,
+        province_name: PROVINCE_NAMES[r.province_code] ?? r.province_code,
+        total_deceased: parseInt(r.total_deceased, 10),
+        total_deleted: parseInt(r.total_deleted, 10),
+        last_detected: r.last_detected ? new Date(r.last_detected).toLocaleString('en-ZA') : '',
       });
     });
     this.styleExcelJSSheet(provinceSheet, provinceSummary.length, 5);
@@ -1583,25 +1583,25 @@ export class ExcelReportService {
     // ── Sheet 3: Individual Records ────────────────────────────────────────
     const recordsSheet = workbook.addWorksheet('Individual Records');
     recordsSheet.columns = [
-      { header: 'Archive ID',      key: 'archive_id',       width: 12 },
-      { header: 'Run #',           key: 'purge_run_id',     width: 8 },
-      { header: 'ID Number',       key: 'id_number',        width: 16 },
-      { header: 'First Name',      key: 'firstname',        width: 20 },
-      { header: 'Surname',         key: 'surname',          width: 20 },
-      { header: 'Province',        key: 'province_name',    width: 20 },
-      { header: 'Municipality',    key: 'municipality_code', width: 18 },
-      { header: 'Ward',            key: 'ward_code',        width: 12 },
-      { header: 'Membership #',    key: 'membership_number', width: 16 },
-      { header: 'Cell Number',     key: 'cell_number',      width: 16 },
-      { header: 'Date Joined',     key: 'date_joined',      width: 14 },
+      { header: 'Archive ID', key: 'archive_id', width: 12 },
+      { header: 'Run #', key: 'purge_run_id', width: 8 },
+      { header: 'ID Number', key: 'id_number', width: 16 },
+      { header: 'First Name', key: 'firstname', width: 20 },
+      { header: 'Surname', key: 'surname', width: 20 },
+      { header: 'Province', key: 'province_name', width: 20 },
+      { header: 'Municipality', key: 'municipality_code', width: 18 },
+      { header: 'Ward', key: 'ward_code', width: 12 },
+      { header: 'Membership #', key: 'membership_number', width: 16 },
+      { header: 'Cell Number', key: 'cell_number', width: 16 },
+      { header: 'Date Joined', key: 'date_joined', width: 14 },
       { header: 'IEC Voter Status', key: 'iec_voter_status', width: 20 },
-      { header: 'Detected Date',   key: 'detected_date',    width: 22 },
+      { header: 'Detected Date', key: 'detected_date', width: 22 },
     ];
 
     const recordConditions: string[] = [];
     const recordParams: unknown[] = [];
     if (province_code) { recordConditions.push(`province_code = $${recordParams.length + 1}`); recordParams.push(province_code); }
-    if (run_id)        { recordConditions.push(`purge_run_id = $${recordParams.length + 1}`);  recordParams.push(run_id); }
+    if (run_id) { recordConditions.push(`purge_run_id = $${recordParams.length + 1}`); recordParams.push(run_id); }
     const recordWhere = recordConditions.length ? `WHERE ${recordConditions.join(' AND ')}` : '';
 
     const records = await executeQuery(
@@ -1617,19 +1617,19 @@ export class ExcelReportService {
 
     records.forEach((r: any) => {
       recordsSheet.addRow({
-        archive_id:        r.archive_id,
-        purge_run_id:      r.purge_run_id,
-        id_number:         r.id_number,
-        firstname:         r.firstname,
-        surname:           r.surname,
-        province_name:     PROVINCE_NAMES[r.province_code] ?? r.province_code,
+        archive_id: r.archive_id,
+        purge_run_id: r.purge_run_id,
+        id_number: r.id_number,
+        firstname: r.firstname,
+        surname: r.surname,
+        province_name: PROVINCE_NAMES[r.province_code] ?? r.province_code,
         municipality_code: r.municipality_code,
-        ward_code:         r.ward_code,
+        ward_code: r.ward_code,
         membership_number: r.membership_number,
-        cell_number:       r.cell_number,
-        date_joined:       r.date_joined ? new Date(r.date_joined).toISOString().split('T')[0] : '',
-        iec_voter_status:  r.iec_voter_status,
-        detected_date:     r.detected_date ? new Date(r.detected_date).toLocaleString('en-ZA') : '',
+        cell_number: r.cell_number,
+        date_joined: r.date_joined ? new Date(r.date_joined).toISOString().split('T')[0] : '',
+        iec_voter_status: r.iec_voter_status,
+        detected_date: r.detected_date ? new Date(r.detected_date).toLocaleString('en-ZA') : '',
       });
     });
     this.styleExcelJSSheet(recordsSheet, records.length, 13);
@@ -1641,7 +1641,7 @@ export class ExcelReportService {
   static async saveReportToFile(buffer: Buffer, fileName: string): Promise<string> {
     try {
       const reportsDir = path.join(process.cwd(), 'reports');
-      
+
       // Ensure reports directory exists
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });

@@ -195,13 +195,9 @@ const IdVerificationStep: React.FC<IdVerificationStepProps> = ({ errors, onVerif
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
         <HowToVote color="primary" />
         ID Number Verification
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Enter your South African ID number to verify your voter registration status.
-        This helps us pre-fill your application with your registered voter information.
       </Typography>
 
       <Grid container spacing={3}>
@@ -225,11 +221,7 @@ const IdVerificationStep: React.FC<IdVerificationStepProps> = ({ errors, onVerif
                     value={applicationData.id_number || ''}
                     onChange={(e) => handleIdNumberChange(e.target.value)}
                     error={!!errors.id_number || !!idValidationError}
-                    helperText={
-                      errors.id_number ||
-                      idValidationError ||
-                      'Enter your 13-digit South African ID number'
-                    }
+                    helperText={errors.id_number || idValidationError}
                     required
                     inputProps={{ maxLength: 13 }}
                     disabled={verificationStatus === 'verifying'}
@@ -342,25 +334,6 @@ const IdVerificationStep: React.FC<IdVerificationStepProps> = ({ errors, onVerif
             )}
           </Collapse>
         </Grid>
-
-        {/* Info Card */}
-        {verificationStatus === 'idle' && (
-          <Grid item xs={12}>
-            <Alert severity="info" icon={<Info />}>
-              <Typography variant="body2">
-                <strong>Why do we verify your ID?</strong>
-              </Typography>
-              <Typography variant="body2">
-                Verifying your ID with the Independent Electoral Commission (IEC) helps us:
-              </Typography>
-              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                <li><Typography variant="body2">Pre-fill your voter registration details</Typography></li>
-                <li><Typography variant="body2">Ensure accurate geographic assignment</Typography></li>
-                <li><Typography variant="body2">Speed up your application process</Typography></li>
-              </ul>
-            </Alert>
-          </Grid>
-        )}
       </Grid>
     </Box>
   );

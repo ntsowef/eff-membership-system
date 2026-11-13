@@ -382,7 +382,7 @@ export class VotingDistrictReportService {
 
         // Header row
         const headers = [
-            'NO', 'PROVINCE', 'MUNICIPALITY / SUB-REGION',
+            'NO', 'PROVINCE', 'MUNICIPALITY / Local Municipality',
             'WARD CODE', 'VD NAME', 'VD CODE',
             'SURNAME', 'FIRST NAME', 'ID NUMBER', 'CELL NUMBER', 'EMAIL',
         ];

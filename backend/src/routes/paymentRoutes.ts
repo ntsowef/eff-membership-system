@@ -384,4 +384,73 @@ router.post('/bulk-approve', async (req, res) => {
   }
 });
 
+/**
+ * GET /application/:applicationId/payments
+ * Get payment transactions for an application.
+ */
+router.get('/application/:applicationId/payments', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.applicationId);
+    if (isNaN(applicationId)) {
+      return res.status(400).json({ success: false, message: 'Invalid applicationId parameter' });
+    }
+
+    // 1. Check payments table (by payment_reference or matching member)
+    try {
+      const memberPayments = await require('../config/database').executeQuery(
+        `SELECT p.payment_id as id, p.payment_method, p.amount, p.currency,
+                p.payment_status as status, p.payment_status as verification_status,
+                p.payment_reference, p.receipt_number, p.gateway_transaction_id as transaction_id,
+                p.created_at, p.updated_at
+         FROM payments p
+         INNER JOIN membership_applications ma ON (
+           (ma.payment_reference IS NOT NULL AND p.payment_reference = ma.payment_reference)
+           OR ma.id_number = (
+             SELECT mc.id_number FROM members_consolidated mc WHERE mc.member_id = p.member_id LIMIT 1
+           )
+         )
+         WHERE ma.application_id = $1
+         ORDER BY p.created_at DESC`,
+        [applicationId]
+      );
+      if (memberPayments && memberPayments.length > 0) {
+        return res.json({ success: true, data: memberPayments });
+      }
+    } catch (e) {
+      // Ignore join error
+    }
+
+    // 2. Fallback: check membership_applications table for payment information
+    const app = await require('../config/database').executeQuerySingle(
+      `SELECT application_id, payment_method, payment_amount, payment_reference,
+              payment_status, last_payment_date, created_at, financial_status
+       FROM membership_applications
+       WHERE application_id = $1`,
+      [applicationId]
+    );
+
+    if (app && (app.payment_method || app.payment_amount)) {
+      const isVerified = app.payment_status === 'Completed' || app.financial_status === 'Approved';
+      const fallbackPayment = [{
+        id: app.application_id,
+        application_id: app.application_id,
+        payment_method: app.payment_method || 'Cash',
+        amount: app.payment_amount ? Number(app.payment_amount) : 10.00,
+        currency: 'ZAR',
+        status: isVerified ? 'completed' : 'pending',
+        verification_status: isVerified ? 'verified' : 'pending',
+        payment_reference: app.payment_reference || '',
+        created_at: app.last_payment_date || app.created_at
+      }];
+      return res.json({ success: true, data: fallbackPayment });
+    }
+
+    // Return empty array
+    return res.json({ success: true, data: [] });
+  } catch (error) {
+    const dbError = createDatabaseError('Failed to get application payments', error);
+    res.status(500).json({ success: false, message: dbError.message });
+  }
+});
+
 export default router;

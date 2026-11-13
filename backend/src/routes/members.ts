@@ -991,7 +991,7 @@ router.get('/id-number/:idNumber',
   })
 );
 
-// Download sub-region members as Excel
+// Download Local Municipality members as Excel
 router.get('/subregion/:municipalityCode/download',
   authenticate,
   requirePermission('members.read'),
@@ -1010,7 +1010,7 @@ router.get('/subregion/:municipalityCode/download',
     const { municipalityCode } = req.params;
     const { search = '', membership_status = 'all' } = req.query;
 
-    console.log(`📥 Sub-region download request: municipalityCode=${municipalityCode}, search=${search}, membership_status=${membership_status}`);
+    console.log(`📥 Local Municipality download request: municipalityCode=${municipalityCode}, search=${search}, membership_status=${membership_status}`);
 
     // Build WHERE clause with PostgreSQL parameter placeholders
     let whereClause = 'WHERE m.municipality_code = $1';
@@ -1080,7 +1080,7 @@ router.get('/subregion/:municipalityCode/download',
     // Create Excel workbook
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Sub-Region Members');
+    const worksheet = workbook.addWorksheet('Local Municipality Members');
 
     // Add headers
     worksheet.columns = [
@@ -1090,7 +1090,7 @@ router.get('/subregion/:municipalityCode/download',
       { header: 'ID Number', key: 'id_number', width: 15 },
       { header: 'Cell Number', key: 'cell_number', width: 15 },
       { header: 'Email', key: 'email', width: 30 },
-      { header: 'Sub-Region', key: 'municipality_name', width: 30 },
+      { header: 'Local Municipality', key: 'municipality_name', width: 30 },
       { header: 'Ward', key: 'ward_name', width: 30 },
       { header: 'District', key: 'district_name', width: 25 },
       { header: 'Province', key: 'province_name', width: 20 },
@@ -1331,7 +1331,7 @@ router.get('/ward/:wardCode/download',
   })
 );
 
-// Get members by sub-region (municipality) with pagination
+// Get members by Local Municipality (municipality) with pagination
 router.get('/subregion/:municipalityCode',
   authenticate,
   requirePermission('members.read'),
@@ -1448,7 +1448,7 @@ router.get('/subregion/:municipalityCode',
       limit: limitNum,
       total,
       totalPages
-    }, 'Sub-region members retrieved successfully');
+    }, 'Local Municipality members retrieved successfully');
   })
 );
 
@@ -1803,15 +1803,15 @@ router.post('/bulk-delete',
 router.get('/check/id-number/:idNumber',
   asyncHandler(async (req, res) => {
     const { idNumber } = req.params;
-    
+
     // Validate ID number format
     if (!/^\d{13}$/.test(idNumber)) {
       throw new ValidationError('ID number must be exactly 13 digits');
     }
 
     const exists = await MemberModel.idNumberExists(idNumber);
-    
-    sendSuccess(res, { 
+
+    sendSuccess(res, {
       id_number: idNumber,
       exists,
       available: !exists
@@ -1990,7 +1990,7 @@ router.get('/stats/municipalities',
         , 0) as member_count
       FROM municipalities mu
       WHERE mu.district_code = ?
-        AND mu.municipality_type != 'Metro Sub-Region'  -- Exclude subregions from top-level results
+        AND mu.municipality_type != 'Metro Local Municipality'  -- Exclude subregions from top-level results
       GROUP BY mu.municipality_code, mu.municipality_name, mu.municipality_type, mu.municipality_id
       ORDER BY member_count DESC
     `;
@@ -2076,7 +2076,7 @@ router.get('/stats/subregions',
       LEFT JOIN wards w ON sr.municipality_code = w.municipality_code
       LEFT JOIN members_consolidated m ON w.ward_code = m.ward_code
       WHERE pm.municipality_code = ?
-        AND sr.municipality_type = 'Metro Sub-Region'
+        AND sr.municipality_type = 'Metro Local Municipality'
         ${statusFilter}
       GROUP BY sr.municipality_code, sr.municipality_name, sr.municipality_type,
                pm.municipality_code, pm.municipality_name
@@ -2242,9 +2242,9 @@ router.post('/bulk-action',
 
             const personalizedMessage = emailType === 'html'
               ? emailMessage.replace(/\{name\}/g, fullName)
-                           .replace(/\{membership_number\}/g, membershipNumber)
+                .replace(/\{membership_number\}/g, membershipNumber)
               : emailMessage.replace(/\{name\}/g, fullName)
-                           .replace(/\{membership_number\}/g, membershipNumber);
+                .replace(/\{membership_number\}/g, membershipNumber);
 
             const emailSent = await emailService.sendEmail({
               to: member.email,

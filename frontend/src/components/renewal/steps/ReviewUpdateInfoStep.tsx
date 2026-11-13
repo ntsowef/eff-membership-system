@@ -30,11 +30,19 @@ import {
   Phone,
   Home,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useRenewalStore } from '../../../store/renewalStore';
 import { formatDate, calculateDaysUntilExpiry, isMembershipExpired } from '../../../services/renewalApi';
+import {
+  sectionCardSx,
+  backButtonSx,
+  cancelButtonSx,
+  primaryActionSx,
+} from '../renewalWizardStyles';
 
 const ReviewUpdateInfoStep: React.FC = () => {
-  const { memberData, updateFormData, setCurrentStep, goToPreviousStep } = useRenewalStore();
+  const navigate = useNavigate();
+  const { memberData, updateFormData, setCurrentStep, goToPreviousStep, resetRenewal } = useRenewalStore();
 
   const [editableData, setEditableData] = useState({
     email: memberData?.email || '',
@@ -126,19 +134,28 @@ const ReviewUpdateInfoStep: React.FC = () => {
   return (
     <Box>
       {/* Membership Status Card */}
-      <Card sx={{ mb: 3, bgcolor: isExpired ? 'error.light' : 'success.light' }}>
+      <Card
+        elevation={0}
+        sx={{
+          mb: 3,
+          borderRadius: 2.5,
+          border: '2px solid',
+          borderColor: isExpired ? '#DC143C' : 'success.main',
+          bgcolor: isExpired ? 'rgba(220, 20, 60, 0.05)' : 'rgba(46, 125, 50, 0.06)',
+        }}
+      >
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             {isExpired ? (
-              <Warning sx={{ fontSize: 40, color: 'error.dark' }} />
+              <Warning sx={{ fontSize: 40, color: '#DC143C' }} />
             ) : (
               <CheckCircle sx={{ fontSize: 40, color: 'success.dark' }} />
             )}
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h6" gutterBottom>
+            <Box sx={{ flex: 1, minWidth: 200 }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
                 Membership Status: {memberData.membership_status_name || 'Unknown'}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant="body2" color="text.secondary">
                 {isExpired ? (
                   <>Your membership expired {Math.abs(daysUntilExpiry)} days ago</>
                 ) : (
@@ -155,16 +172,17 @@ const ReviewUpdateInfoStep: React.FC = () => {
               label={isExpired ? 'EXPIRED' : 'ACTIVE'}
               color={isExpired ? 'error' : 'success'}
               size="medium"
+              sx={{ fontWeight: 700 }}
             />
           </Box>
         </CardContent>
       </Card>
 
       {/* Personal Information (Read-Only) */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={0} sx={sectionCardSx}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <Person color="primary" />
-          <Typography variant="h6">Personal Information</Typography>
+          <Person sx={{ color: '#DC143C' }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Personal Information</Typography>
           <Chip label="Read-Only" size="small" sx={{ ml: 'auto' }} />
         </Box>
         <Divider sx={{ mb: 2 }} />
@@ -232,11 +250,21 @@ const ReviewUpdateInfoStep: React.FC = () => {
       </Paper>
 
       {/* Contact Information (Editable) */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={0} sx={sectionCardSx}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <Email color="primary" />
-          <Typography variant="h6">Contact Information</Typography>
-          <Chip label="Editable" size="small" color="primary" icon={<Edit />} sx={{ ml: 'auto' }} />
+          <Email sx={{ color: '#DC143C' }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Contact Information</Typography>
+          <Chip
+            label="Editable"
+            size="small"
+            icon={<Edit sx={{ color: '#8B0000 !important' }} />}
+            sx={{
+              ml: 'auto',
+              bgcolor: 'rgba(220, 20, 60, 0.1)',
+              color: '#8B0000',
+              fontWeight: 600,
+            }}
+          />
         </Box>
         <Divider sx={{ mb: 3 }} />
 
@@ -248,7 +276,7 @@ const ReviewUpdateInfoStep: React.FC = () => {
               value={editableData.email}
               onChange={(e) => handleFieldChange('email', e.target.value)}
               error={!!errors.email}
-              helperText={errors.email || 'Update your email address if needed'}
+              helperText={errors.email}
               InputProps={{
                 startAdornment: <Email sx={{ mr: 1, color: 'action.active' }} />,
               }}
@@ -261,7 +289,8 @@ const ReviewUpdateInfoStep: React.FC = () => {
               value={editableData.cell_number}
               onChange={(e) => handleFieldChange('cell_number', e.target.value)}
               error={!!errors.cell_number}
-              helperText={errors.cell_number || 'Format: 0123456789'}
+              helperText={errors.cell_number}
+              placeholder="0123456789"
               InputProps={{
                 startAdornment: <Phone sx={{ mr: 1, color: 'action.active' }} />,
               }}
@@ -274,7 +303,8 @@ const ReviewUpdateInfoStep: React.FC = () => {
               value={editableData.landline_number}
               onChange={(e) => handleFieldChange('landline_number', e.target.value)}
               error={!!errors.landline_number}
-              helperText={errors.landline_number || 'Format: 0123456789'}
+              helperText={errors.landline_number}
+              placeholder="0123456789"
               InputProps={{
                 startAdornment: <Phone sx={{ mr: 1, color: 'action.active' }} />,
               }}
@@ -284,11 +314,21 @@ const ReviewUpdateInfoStep: React.FC = () => {
       </Paper>
 
       {/* Address Information (Editable) */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={0} sx={sectionCardSx}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <Home color="primary" />
-          <Typography variant="h6">Address Information</Typography>
-          <Chip label="Editable" size="small" color="primary" icon={<Edit />} sx={{ ml: 'auto' }} />
+          <Home sx={{ color: '#DC143C' }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Address Information</Typography>
+          <Chip
+            label="Editable"
+            size="small"
+            icon={<Edit sx={{ color: '#8B0000 !important' }} />}
+            sx={{
+              ml: 'auto',
+              bgcolor: 'rgba(220, 20, 60, 0.1)',
+              color: '#8B0000',
+              fontWeight: 600,
+            }}
+          />
         </Box>
         <Divider sx={{ mb: 3 }} />
 
@@ -301,7 +341,6 @@ const ReviewUpdateInfoStep: React.FC = () => {
               onChange={(e) => handleFieldChange('residential_address', e.target.value)}
               multiline
               rows={2}
-              helperText="Your current residential address"
             />
           </Grid>
           <Grid item xs={12}>
@@ -312,17 +351,16 @@ const ReviewUpdateInfoStep: React.FC = () => {
               onChange={(e) => handleFieldChange('postal_address', e.target.value)}
               multiline
               rows={2}
-              helperText="Leave blank if same as residential address"
             />
           </Grid>
         </Grid>
       </Paper>
 
       {/* Geographic Information (Read-Only) */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={0} sx={sectionCardSx}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <LocationOn color="primary" />
-          <Typography variant="h6">Geographic Information</Typography>
+          <LocationOn sx={{ color: '#DC143C' }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Geographic Information</Typography>
           <Chip label="Read-Only" size="small" sx={{ ml: 'auto' }} />
         </Box>
         <Divider sx={{ mb: 2 }} />
@@ -358,10 +396,10 @@ const ReviewUpdateInfoStep: React.FC = () => {
       </Paper>
 
       {/* Membership Details (Read-Only) */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={0} sx={sectionCardSx}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <CalendarToday color="primary" />
-          <Typography variant="h6">Membership Details</Typography>
+          <CalendarToday sx={{ color: '#DC143C' }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Membership Details</Typography>
           <Chip label="Read-Only" size="small" sx={{ ml: 'auto' }} />
         </Box>
         <Divider sx={{ mb: 2 }} />
@@ -398,36 +436,50 @@ const ReviewUpdateInfoStep: React.FC = () => {
         </Grid>
       </Paper>
 
-      {/* Navigation Buttons */}
-      <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+      {/* Navigation Buttons aligned with /apply */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+          mt: 2,
+        }}
+      >
         <Button
           variant="outlined"
-          size="large"
           startIcon={<ArrowBack />}
           onClick={goToPreviousStep}
+          sx={backButtonSx}
         >
           Back
         </Button>
-        <Button
-          variant="contained"
-          size="large"
-          fullWidth
-          endIcon={<ArrowForward />}
-          onClick={handleNext}
-        >
-          Continue to Payment
-        </Button>
-      </Box>
 
-      {/* Information Notice */}
-      <Alert severity="info" sx={{ mt: 3 }}>
-        <Typography variant="body2">
-          <strong>Note:</strong> Only the fields marked as "Editable" can be updated. If you need to change other information, please contact your branch office.
-        </Typography>
-      </Alert>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              resetRenewal();
+              navigate('/');
+            }}
+            sx={cancelButtonSx}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            endIcon={<ArrowForward />}
+            onClick={handleNext}
+            sx={primaryActionSx}
+          >
+            Continue to Payment
+          </Button>
+        </Box>
+      </Box>
     </Box>
   );
 };
 
 export default ReviewUpdateInfoStep;
-

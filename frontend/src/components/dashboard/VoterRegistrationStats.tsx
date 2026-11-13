@@ -245,7 +245,7 @@ const VoterRegistrationStats: React.FC<VoterRegistrationStatsProps> = ({
       )}
 
       {chartData.length > 0 && breakdownType !== 'province' && (
-        /* Horizontal Bar Chart - For Province/Municipality Admin (Sub-region/Ward breakdown) */
+        /* Horizontal Bar Chart - For Province/Municipality Admin (Local Municipality/Ward breakdown) */
         <Card sx={{ mb: 4 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>

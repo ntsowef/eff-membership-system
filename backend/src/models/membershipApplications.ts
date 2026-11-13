@@ -1,6 +1,8 @@
 import { executeQuery, executeQuerySingle } from '../config/database';
 import { executeUpdate } from '../config/database-hybrid';
 import { createDatabaseError } from '../middleware/errorHandler';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Membership Application interfaces
 export interface MembershipApplication {
@@ -43,7 +45,7 @@ export interface MembershipApplicationDetails extends MembershipApplication {
 
 export interface ApplicationDocument {
   id: number;
-  document_type: 'ID Copy' | 'Proof of Address' | 'Profile Photo' | 'Supporting Document';
+  document_type: 'ID Copy' | 'Proof of Address' | 'Profile Photo' | 'Supporting Document' | 'Proof of Payment';
   original_filename: string;
   stored_filename: string;
   file_path: string;
@@ -89,6 +91,13 @@ export interface CreateApplicationData {
   last_payment_date?: string;
   payment_amount?: number;
   payment_notes?: string;
+  // Proof of Payment
+  proof_of_payment?: {
+    filename: string;
+    mime_type: string;
+    file_size?: number;
+    file_data: string;
+  };
   // Geographic fields
   province_code?: string;
   district_code?: string;
@@ -264,8 +273,44 @@ export class MembershipApplicationModel {
 
       // PostgreSQL returns the inserted row with RETURNING clause
       if (result && result.length > 0 && result[0].application_id) {
-        console.log('✅ DEBUG: Application ID retrieved:', result[0].application_id);
-        return result[0].application_id;
+        const applicationId = result[0].application_id;
+        console.log('✅ DEBUG: Application ID retrieved:', applicationId);
+
+        // Process Proof of Payment if provided (e.g. for cash payments)
+        if (applicationData.proof_of_payment && applicationData.proof_of_payment.file_data) {
+          try {
+            const pop = applicationData.proof_of_payment;
+            const uploadDir = path.join(process.cwd(), 'uploads', 'documents', 'proof-of-payment');
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true });
+            }
+
+            // Clean base64 data
+            const base64Data = pop.file_data.replace(/^data:[^;]+;base64,/, '');
+            const fileBuffer = Buffer.from(base64Data, 'base64');
+            const sanitizedOriginalName = path.basename(pop.filename || 'receipt.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storedFilename = `pop-${applicationId}-${Date.now()}-${sanitizedOriginalName}`;
+            const relativeFilePath = path.join('uploads', 'documents', 'proof-of-payment', storedFilename);
+            const absoluteFilePath = path.join(uploadDir, storedFilename);
+
+            fs.writeFileSync(absoluteFilePath, fileBuffer);
+
+            await this.addApplicationDocument(
+              applicationId,
+              'Proof of Payment',
+              pop.filename || 'proof_of_payment',
+              storedFilename,
+              relativeFilePath,
+              pop.file_size || fileBuffer.length,
+              pop.mime_type || 'image/jpeg'
+            );
+            console.log(`✅ Stored Proof of Payment for application ${applicationId}: ${storedFilename}`);
+          } catch (docErr) {
+            console.error(`⚠️ Failed to store Proof of Payment for application ${applicationId}:`, docErr);
+          }
+        }
+
+        return applicationId;
       }
 
       console.error('❌ DEBUG: Failed to get application ID. Result:', result);
@@ -509,7 +554,7 @@ export class MembershipApplicationModel {
   ): Promise<{ id: number; email: string; name: string }[]> {
     try {
       const query = `
-        SELECT u.id, u.email, u.name
+        SELECT COALESCE(u.user_id, u.id) as id, u.email, u.name
         FROM users u
         WHERE u.admin_level = 'province'
           AND u.province_code = $1
@@ -583,6 +628,57 @@ export class MembershipApplicationModel {
       return await executeQuery<ApplicationDocument>(query, [applicationId]);
     } catch (error) {
       throw createDatabaseError('Failed to fetch application documents', error);
+    }
+  }
+
+  // Add document to application
+  static async addApplicationDocument(
+    applicationId: number,
+    documentType: string,
+    originalFilename: string,
+    storedFilename: string,
+    filePath: string,
+    fileSize: number,
+    mimeType: string,
+    uploadedBy?: number
+  ): Promise<number> {
+    try {
+      const query = `
+        INSERT INTO documents (
+          application_id, document_type, original_filename, stored_filename,
+          file_path, file_size, mime_type, status, uploaded_by, uploaded_at, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active', $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING document_id
+      `;
+      const result = await executeQuery<{ document_id: number }>(query, [
+        applicationId,
+        documentType,
+        originalFilename,
+        storedFilename,
+        filePath,
+        fileSize,
+        mimeType,
+        uploadedBy ?? 0
+      ]);
+      return result[0].document_id;
+    } catch (error) {
+      throw createDatabaseError('Failed to add application document', error);
+    }
+  }
+
+  // Get single application document
+  static async getApplicationDocumentById(applicationId: number, documentId: number): Promise<ApplicationDocument | null> {
+    try {
+      const query = `
+        SELECT
+          document_id as id, document_type, original_filename, stored_filename,
+          file_path, file_size, mime_type, status, uploaded_at
+        FROM documents
+        WHERE application_id = $1 AND document_id = $2 AND status = 'Active'
+      `;
+      return await executeQuerySingle<ApplicationDocument>(query, [applicationId, documentId]);
+    } catch (error) {
+      throw createDatabaseError('Failed to fetch application document', error);
     }
   }
 

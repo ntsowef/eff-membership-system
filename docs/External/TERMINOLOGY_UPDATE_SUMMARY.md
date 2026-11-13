@@ -4,8 +4,8 @@
 
 Updated organizational terminology across the EFF Membership Management System to align with new naming conventions:
 - **"District" → "Region"**
-- **"Municipality" → "Sub-Region"**
-- **"Local Municipality" → "Sub-Region"**
+- **"Municipality" → "Local Municipality"**
+- **"Local Municipality" → "Local Municipality"**
 
 ---
 
@@ -21,71 +21,71 @@ All user-facing text in React components was updated to use the new terminology.
 
 1. **`frontend/src/components/common/GeographicSelector.tsx`**
    - Changed "District" → "Region" in all labels and tooltips
-   - Changed "Municipality" → "Sub-Region" in all labels and tooltips
+   - Changed "Municipality" → "Local Municipality" in all labels and tooltips
    - Updated InputLabel: "District *" → "Region *"
-   - Updated InputLabel: "Municipality *" → "Sub-Region *"
+   - Updated InputLabel: "Municipality *" → "Local Municipality *"
    - Updated placeholder text: "Select a district..." → "Select a region..."
-   - Updated placeholder text: "Select a municipality..." → "Select a sub-region..."
+   - Updated placeholder text: "Select a municipality..." → "Select a Local Municipality..."
    - Updated loading messages: "Loading districts..." → "Loading regions..."
-   - Updated loading messages: "Loading municipalities..." → "Loading sub-regions..."
+   - Updated loading messages: "Loading municipalities..." → "Loading Local Municipalitys..."
    - Updated error messages: "No districts available" → "No regions available"
-   - Updated error messages: "No municipalities available" → "No sub-regions available"
+   - Updated error messages: "No municipalities available" → "No Local Municipalitys available"
    - Updated restricted labels: "District (Restricted)" → "Region (Restricted)"
-   - Updated restricted labels: "Municipality (Restricted)" → "Sub-Region (Restricted)"
-   - Updated tooltip: "District selection is restricted for Municipality Admins" → "Region selection is restricted for Sub-Region Admins"
-   - Updated tooltip: "Municipality selection is restricted for Municipality Admins" → "Sub-Region selection is restricted for Sub-Region Admins"
-   - Updated ward selection placeholder: "Select a municipality first..." → "Select a sub-region first..."
-   - Updated ward availability message: "No wards available for this municipality" → "No wards available for this sub-region"
+   - Updated restricted labels: "Municipality (Restricted)" → "Local Municipality (Restricted)"
+   - Updated tooltip: "District selection is restricted for Municipality Admins" → "Region selection is restricted for Local Municipality Admins"
+   - Updated tooltip: "Municipality selection is restricted for Municipality Admins" → "Local Municipality selection is restricted for Local Municipality Admins"
+   - Updated ward selection placeholder: "Select a municipality first..." → "Select a Local Municipality first..."
+   - Updated ward availability message: "No wards available for this municipality" → "No wards available for this Local Municipality"
 
 2. **`frontend/src/components/audit/MunicipalityFilter.tsx`**
-   - Changed default label prop: `label = 'Municipality'` → `label = 'Sub-Region'`
-   - Updated MenuItem text: "All Municipalities" → "All Sub-Regions"
-   - Updated Chip label: "X municipalities" → "X sub-regions"
+   - Changed default label prop: `label = 'Municipality'` → `label = 'Local Municipality'`
+   - Updated MenuItem text: "All Municipalities" → "All Local Municipalitys"
+   - Updated Chip label: "X municipalities" → "X Local Municipalitys"
 
 3. **`frontend/src/components/members/GeographicFilter.tsx`**
    - Changed InputLabel: "District" → "Region"
    - Changed MenuItem: "All Districts" → "All Regions"
-   - Changed InputLabel: "Municipality" → "Sub-Region"
-   - Changed MenuItem: "All Municipalities" → "All Sub-Regions"
-   - Updated restricted label: "Municipality (Restricted)" → "Sub-Region (Restricted)"
-   - Updated comment: "Municipality Admin" → "Sub-Region Admin"
+   - Changed InputLabel: "Municipality" → "Local Municipality"
+   - Changed MenuItem: "All Municipalities" → "All Local Municipalitys"
+   - Updated restricted label: "Municipality (Restricted)" → "Local Municipality (Restricted)"
+   - Updated comment: "Municipality Admin" → "Local Municipality Admin"
 
 **B. Dashboard Pages**
 
 4. **`frontend/src/pages/dashboard/DashboardPage.tsx`**
    - Stats card title: "Districts" → "Regions"
-   - Stats card title: "Municipalities" → "Sub-Regions"
-   - Page subtitle: "Municipality Management System" → "Sub-Region Management System"
-   - Page subtitle: "your municipality" → "your sub-region"
-   - System overview text: "your municipality" → "your sub-region"
-   - Ward section title: "in Municipality" → "in Sub-Region"
+   - Stats card title: "Municipalities" → "Local Municipalitys"
+   - Page subtitle: "Municipality Management System" → "Local Municipality Management System"
+   - Page subtitle: "your municipality" → "your Local Municipality"
+   - System overview text: "your municipality" → "your Local Municipality"
+   - Ward section title: "in Municipality" → "in Local Municipality"
 
 5. **`frontend/src/components/reports/PerformanceDashboard.tsx`**
    - Interface property: `districts` → `regions`
    - Interface property: `municipalities` → `subRegions`
    - Display label: "Districts" → "Regions"
-   - Display label: "Municipalities" → "Sub-Regions"
+   - Display label: "Municipalities" → "Local Municipalitys"
    - Updated data binding: `dashboardData.geographicDistribution.districts` → `dashboardData.geographicDistribution.regions`
    - Updated data binding: `dashboardData.geographicDistribution.municipalities` → `dashboardData.geographicDistribution.subRegions`
 
 **C. Context Banners**
 
 6. **`frontend/src/components/common/MunicipalityContextBanner.tsx`**
-   - Chip label: "Municipality" → "Sub-Region"
-   - Header title: "Municipality Dashboard" → "Sub-Region Dashboard"
-   - Banner title: "Municipality" → "Sub-Region"
-   - Description text: "Municipality" → "Sub-Region"
-   - Description text: "this municipality" → "this sub-region"
-   - Admin label: "Municipality Admin" → "Sub-Region Admin"
+   - Chip label: "Municipality" → "Local Municipality"
+   - Header title: "Municipality Dashboard" → "Local Municipality Dashboard"
+   - Banner title: "Municipality" → "Local Municipality"
+   - Description text: "Municipality" → "Local Municipality"
+   - Description text: "this municipality" → "this Local Municipality"
+   - Admin label: "Municipality Admin" → "Local Municipality Admin"
 
 **D. Other Components**
 
 7. **`frontend/src/components/leadership/GeographicSelector.tsx`**
-   - Breadcrumb icon: `getHierarchyIcon('Municipality')` → `getHierarchyIcon('Sub-Region')`
+   - Breadcrumb icon: `getHierarchyIcon('Municipality')` → `getHierarchyIcon('Local Municipality')`
 
 8. **`frontend/src/components/leadership/GeographicFilterTest.tsx`**
    - MenuItem label: "District" → "Region"
-   - MenuItem label: "Municipality" → "Sub-Region"
+   - MenuItem label: "Municipality" → "Local Municipality"
 
 ---
 
@@ -101,8 +101,8 @@ All user-facing text in React components was updated to use the new terminology.
 
 2. **Updates Municipality Names**
    - Finds all records where `municipality_name` contains "Local Municipality"
-   - Replaces "Local Municipality" with "Sub-Region"
-   - Example: "City of Mbombela Local Municipality" → "City of Mbombela Sub-Region"
+   - Replaces "Local Municipality" with "Local Municipality"
+   - Example: "City of Mbombela Local Municipality" → "City of Mbombela Local Municipality"
 
 3. **Logging and Verification**
    - Logs the number of records found before update
@@ -113,7 +113,7 @@ All user-facing text in React components was updated to use the new terminology.
 4. **Rollback Instructions**
    - Includes commented rollback script
    - Two rollback options:
-     - Replace "Sub-Region" back to "Local Municipality"
+     - Replace "Local Municipality" back to "Local Municipality"
      - Restore from backup table
 
 #### Important Notes:
@@ -154,24 +154,24 @@ To maintain backward compatibility and avoid breaking changes:
 
 - [ ] **Geographic Selector Component**
   - [ ] Verify "Region" label displays instead of "District"
-  - [ ] Verify "Sub-Region" label displays instead of "Municipality"
+  - [ ] Verify "Local Municipality" label displays instead of "Municipality"
   - [ ] Test dropdown selections work correctly
-  - [ ] Test cascading filters (Province → Region → Sub-Region → Ward)
-  - [ ] Verify restricted labels for Sub-Region Admins
+  - [ ] Test cascading filters (Province → Region → Local Municipality → Ward)
+  - [ ] Verify restricted labels for Local Municipality Admins
 
 - [ ] **Dashboard Pages**
-  - [ ] Verify stats cards show "Regions" and "Sub-Regions"
+  - [ ] Verify stats cards show "Regions" and "Local Municipalitys"
   - [ ] Verify page subtitles use new terminology
   - [ ] Verify system overview text uses new terminology
 
 - [ ] **Context Banners**
-  - [ ] Verify Sub-Region Admin banner displays correctly
-  - [ ] Verify chip labels use "Sub-Region"
+  - [ ] Verify Local Municipality Admin banner displays correctly
+  - [ ] Verify chip labels use "Local Municipality"
 
 - [ ] **Member Directory**
   - [ ] Verify geographic filters use new terminology
   - [ ] Verify member listings display correctly
-  - [ ] Test filtering by Region and Sub-Region
+  - [ ] Test filtering by Region and Local Municipality
 
 ### Database Testing
 
@@ -188,7 +188,7 @@ To maintain backward compatibility and avoid breaking changes:
 
 - [ ] **After Migration**
   - [ ] Verify no "Local Municipality" references remain
-  - [ ] Verify "Sub-Region" appears in municipality names
+  - [ ] Verify "Local Municipality" appears in municipality names
   - [ ] Test API endpoints return updated names
   - [ ] Verify frontend displays updated names correctly
 
@@ -226,7 +226,7 @@ psql -h localhost -U eff_admin -d eff_membership_db
 \i backend/migrations/update_municipality_terminology.sql
 
 # Verify results
-SELECT COUNT(*) FROM municipalities WHERE municipality_name LIKE '%Sub-Region%';
+SELECT COUNT(*) FROM municipalities WHERE municipality_name LIKE '%Local Municipality%';
 SELECT COUNT(*) FROM municipalities WHERE municipality_name LIKE '%Local Municipality%';
 ```
 
@@ -256,8 +256,8 @@ BEGIN;
 
 -- Option 1: Replace text back
 UPDATE municipalities
-SET municipality_name = REPLACE(municipality_name, 'Sub-Region', 'Local Municipality')
-WHERE municipality_name LIKE '%Sub-Region%';
+SET municipality_name = REPLACE(municipality_name, 'Local Municipality', 'Local Municipality')
+WHERE municipality_name LIKE '%Local Municipality%';
 
 -- Option 2: Restore from backup
 -- TRUNCATE TABLE municipalities;
@@ -300,7 +300,7 @@ npm run build
 
 - **Table**: `municipalities`
 - **Column**: `municipality_name`
-- **Change**: Replace "Local Municipality" with "Sub-Region" in data values
+- **Change**: Replace "Local Municipality" with "Local Municipality" in data values
 - **Backup**: `municipalities_backup_20251001` table created
 
 ---

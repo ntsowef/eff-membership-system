@@ -6,6 +6,7 @@ import path from 'path';
 import PDFDocument from 'pdfkit';
 import { config } from '../config/config';
 import { iecElectoralEventsService, ElectoralEvent } from './iecElectoralEventsService';
+import { buildIecVoterUrl } from './iecApiService';
 
 export interface VoterData {
   id: string;
@@ -119,7 +120,7 @@ export class VoterVerificationService {
     try {
       // Route the voter lookup through the IECProxy service. The proxy handles
       // authentication / Cloudflare bypass and returns the raw IEC payload.
-      const url = `${config.iec.proxyUrl}/api/voters/${idNumber}`;
+      const url = buildIecVoterUrl(config.iec.proxyUrl, idNumber);
 
       const response : AxiosResponse = await axios.get(url, {
         headers: {
@@ -140,16 +141,19 @@ export class VoterVerificationService {
           electoralEvent = await this.getCurrentElectoralEventContext();
         }
 
+        const delimitation = response.data.VotingStation?.Delimitation;
+        const location = response.data.VotingStation?.Location;
+
         const voterData: VoterData = {
           id: idNumber,
           bRegistered: response.data.bRegistered || false,
-          ward_id: response.data.VotingStation?.Delimitation?.WardID || null,
-          province: response.data.VotingStation?.Delimitation.Province || '',
-          municipality : response.data.VotingStation.Delimitation.Municipality || '',
+          ward_id: delimitation?.WardID || null,
+          province: delimitation?.Province || '',
+          municipality : delimitation?.Municipality || '',
           voting_station: response.data.VotingStation?.Name || '',
-          vd_number : response.data.VotingStation.Delimitation.VDNumber || '',
-          suburb: response.data.VotingStation?.Location.Suburb || '',
-          street : response.data.VotingStation.Location.Street || ''
+          vd_number : delimitation?.VDNumber ? String(delimitation.VDNumber) : '',
+          suburb: location?.Suburb || '',
+          street : location?.Street || ''
         };
 
         // Add electoral event context if available
@@ -167,16 +171,15 @@ export class VoterVerificationService {
 
       return null;
     } catch (error) {
-      console.error('❌ Error fetching voter data for ID ${idNumber} with electoral event ' + electoralEventId + ':', error);
+      console.error(`❌ Error fetching voter data for ID ${idNumber} with electoral event ${electoralEventId}:`, error);
       return null;
     }
   }
 
   static async fetchVoterData(idNumber: string): Promise<VoterData | null> {
     try {
-      // Route the voter lookup through the IECProxy service. The proxy handles
-      // authentication / Cloudflare bypass and returns the raw IEC payload.
-      const url = `${config.iec.proxyUrl}/api/voters/${idNumber}`;
+      // Route the voter lookup through the IECProxy service.
+      const url = buildIecVoterUrl(config.iec.proxyUrl, idNumber);
 
       const response: AxiosResponse = await axios.get(url, {
         headers: {
@@ -190,16 +193,19 @@ export class VoterVerificationService {
         // Get current electoral event context
         const electoralEvent = await this.getCurrentElectoralEventContext();
 
+        const delimitation = response.data.VotingStation?.Delimitation;
+        const location = response.data.VotingStation?.Location;
+
         const voterData: VoterData = {
           id: idNumber,
           bRegistered: response.data.bRegistered || false,
-          ward_id: response.data.VotingStation?.Delimitation?.WardID || null,
-          province: response.data.VotingStation?.Delimitation.Province || '',
-          municipality : response.data.VotingStation.Delimitation.Municipality || '',
+          ward_id: delimitation?.WardID || null,
+          province: delimitation?.Province || '',
+          municipality : delimitation?.Municipality || '',
           voting_station: response.data.VotingStation?.Name || '',
-          vd_number : response.data.VotingStation.Delimitation.VDNumber || '',
-          suburb: response.data.VotingStation?.Location.Suburb || '',
-          street : response.data.VotingStation.Location.Street || ''
+          vd_number : delimitation?.VDNumber ? String(delimitation.VDNumber) : '',
+          suburb: location?.Suburb || '',
+          street : location?.Street || ''
         };
 
         // Add electoral event context if available

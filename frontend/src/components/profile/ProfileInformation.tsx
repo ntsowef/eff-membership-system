@@ -58,7 +58,7 @@ const ProfileInformation: React.FC = () => {
       setErrorMessage('');
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      
+
       // Clear success message after 5 seconds
       setTimeout(() => setSuccessMessage(''), 5000);
     },
@@ -91,7 +91,7 @@ const ProfileInformation: React.FC = () => {
       national: 'National Admin',
       province: 'Province Admin',
       district: 'Region Admin',
-      municipality: 'Sub-Region Admin',
+      municipality: 'Local Municipality Admin',
       ward: 'Ward Admin',
       none: 'No Admin Access',
     };
@@ -314,7 +314,7 @@ const ProfileInformation: React.FC = () => {
                   <Grid item xs={12} sm={6} md={3}>
                     <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                       <Typography variant="caption" color="text.secondary">
-                        Sub-Region
+                        Local Municipality
                       </Typography>
                       <Typography variant="body1" fontWeight="medium">
                         {user.municipal_code}

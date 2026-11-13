@@ -9,35 +9,23 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  // DialogActions,
-  // Alert,
   Breadcrumbs,
   Link,
   Chip,
 } from '@mui/material';
 import {
   Dashboard,
-  Analytics,
+  Receipt,
   GroupAdd,
   Refresh,
   Home,
   Business,
   TrendingUp,
-  CloudUpload,
-  History,
-  Warning,
-  Gavel,
-  Timeline,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import RenewalDashboard from '../../components/renewal/RenewalDashboard';
-import RenewalAnalytics from '../../components/renewal/RenewalAnalytics';
+import RenewalTransactionsTab from '../../components/renewal/RenewalTransactionsTab';
 import BulkRenewalProcessor from '../../components/renewal/BulkRenewalProcessor';
-import BulkUploadManager from '../../components/renewal/BulkUploadManager';
-import UploadHistoryTab from '../../components/renewal/UploadHistoryTab';
-import FraudCasesTab from '../../components/renewal/FraudCasesTab';
-import ApprovalQueueTab from '../../components/renewal/ApprovalQueueTab';
-import AuditTrailTab from '../../components/renewal/AuditTrailTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -83,14 +71,12 @@ const RenewalManagement: React.FC = () => {
   };
 
   const handleProcessRenewal = (memberId: string) => {
-    // Set selected member and open bulk processor
     setSelectedMembers([{ member_id: memberId }]);
     setShowBulkProcessor(true);
   };
 
   const handleSendReminder = async (memberId: string) => {
     try {
-      // In a real implementation, this would call the API to send reminders
       alert(`Renewal reminder sent to member ${memberId}`);
     } catch (error) {
       console.error('Failed to send reminder:', error);
@@ -98,16 +84,10 @@ const RenewalManagement: React.FC = () => {
     }
   };
 
-  const handleViewAnalytics = () => {
-    setActiveTab(1); // Switch to analytics tab
-  };
-
   const handleBulkProcessorComplete = (result: any) => {
     console.log('Bulk renewal completed:', result);
     setShowBulkProcessor(false);
     setSelectedMembers([]);
-    
-    // Show success message
     alert(`Bulk renewal completed: ${result.successful_renewals} successful, ${result.failed_renewals} failed`);
   };
 
@@ -156,7 +136,7 @@ const RenewalManagement: React.FC = () => {
               Membership Renewal Management
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Comprehensive renewal workflow system with automated processing, analytics, and member communication
+              Overview of membership renewals, revenue metrics, and real-time transaction records
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
@@ -177,17 +157,11 @@ const RenewalManagement: React.FC = () => {
           </Box>
         </Box>
 
-        {/* System Status */}
+        {/* System Status Chips */}
         <Box sx={{ mt: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Chip
             label="Real Data Integration: Active"
             color="success"
-            variant="outlined"
-            size="small"
-          />
-          <Chip
-            label="186,328 Members"
-            color="primary"
             variant="outlined"
             size="small"
           />
@@ -198,14 +172,14 @@ const RenewalManagement: React.FC = () => {
             size="small"
           />
           <Chip
-            label="SMS Notifications: Ready"
-            color="success"
+            label="Direct & Self-Service Renewals"
+            color="primary"
             variant="outlined"
             size="small"
           />
           <Chip
-            label="PDF Reports: Available"
-            color="success"
+            label="Proof of Payment Verification"
+            color="secondary"
             variant="outlined"
             size="small"
           />
@@ -214,14 +188,12 @@ const RenewalManagement: React.FC = () => {
 
       {/* Main Content */}
       <Paper sx={{ mx: 3, mb: 3 }}>
-        {/* Tabs */}
+        {/* Simplified Tabs: Dashboard & Transactions */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
             aria-label="renewal management tabs"
-            variant="scrollable"
-            scrollButtons="auto"
           >
             <Tab
               label="Dashboard"
@@ -230,40 +202,10 @@ const RenewalManagement: React.FC = () => {
               {...a11yProps(0)}
             />
             <Tab
-              label="Analytics"
-              icon={<Analytics />}
+              label="Transactions"
+              icon={<Receipt />}
               iconPosition="start"
               {...a11yProps(1)}
-            />
-            <Tab
-              label="Bulk Upload"
-              icon={<CloudUpload />}
-              iconPosition="start"
-              {...a11yProps(2)}
-            />
-            <Tab
-              label="Upload History"
-              icon={<History />}
-              iconPosition="start"
-              {...a11yProps(3)}
-            />
-            <Tab
-              label="Fraud Cases"
-              icon={<Warning />}
-              iconPosition="start"
-              {...a11yProps(4)}
-            />
-            <Tab
-              label="Approval Queue"
-              icon={<Gavel />}
-              iconPosition="start"
-              {...a11yProps(5)}
-            />
-            <Tab
-              label="Audit Trail"
-              icon={<Timeline />}
-              iconPosition="start"
-              {...a11yProps(6)}
             />
           </Tabs>
         </Box>
@@ -273,32 +215,12 @@ const RenewalManagement: React.FC = () => {
           <RenewalDashboard
             onProcessRenewal={handleProcessRenewal}
             onSendReminder={handleSendReminder}
-            onViewAnalytics={handleViewAnalytics}
+            onViewTransactions={() => setActiveTab(1)}
           />
         </TabPanel>
 
         <TabPanel value={activeTab} index={1}>
-          <RenewalAnalytics />
-        </TabPanel>
-
-        <TabPanel value={activeTab} index={2}>
-          <BulkUploadManager />
-        </TabPanel>
-
-        <TabPanel value={activeTab} index={3}>
-          <UploadHistoryTab />
-        </TabPanel>
-
-        <TabPanel value={activeTab} index={4}>
-          <FraudCasesTab />
-        </TabPanel>
-
-        <TabPanel value={activeTab} index={5}>
-          <ApprovalQueueTab />
-        </TabPanel>
-
-        <TabPanel value={activeTab} index={6}>
-          <AuditTrailTab />
+          <RenewalTransactionsTab />
         </TabPanel>
       </Paper>
 

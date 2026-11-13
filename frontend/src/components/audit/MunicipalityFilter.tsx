@@ -39,7 +39,7 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
   selectedProvince,
   selectedMunicipality,
   onMunicipalityChange,
-  label = 'Sub-Region',
+  label = 'Local Municipality',
   showAllOption = true,
   disabled = false,
   size = 'medium',
@@ -54,12 +54,12 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
     if (municipalityContext.isMunicipalityAdmin && municipalityContext.assignedProvince) {
       return municipalityContext.assignedProvince.code;
     }
-    
+
     // Provincial Admin: Use their assigned province
     if (provinceContext.isProvincialAdmin && provinceContext.assignedProvince) {
       return provinceContext.assignedProvince.code;
     }
-    
+
     // National Admin: Use selected province
     return selectedProvince;
   };
@@ -181,8 +181,8 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
 
   return (
     <Box>
-      <FormControl 
-        fullWidth={fullWidth} 
+      <FormControl
+        fullWidth={fullWidth}
         size={size}
         disabled={disabled}
       >
@@ -206,9 +206,9 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
           {showAllOption && (
             <MenuItem value="">
               <Box display="flex" alignItems="center" gap={1}>
-                <Typography>All Sub-Regions</Typography>
+                <Typography>All Local Municipalitys</Typography>
                 <Chip
-                  label={`${availableMunicipalities.length} sub-regions`}
+                  label={`${availableMunicipalities.length} Local Municipalitys`}
                   size="small"
                   variant="outlined"
                 />
@@ -219,9 +219,9 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
             <MenuItem key={municipality.municipality_code} value={municipality.municipality_code}>
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography>{municipality.municipality_name}</Typography>
-                <Chip 
-                  label={municipality.municipality_type} 
-                  size="small" 
+                <Chip
+                  label={municipality.municipality_type}
+                  size="small"
                   variant="outlined"
                   color={municipality.municipality_type === 'Metropolitan' ? 'primary' : 'default'}
                 />
@@ -235,10 +235,10 @@ const MunicipalityFilter: React.FC<MunicipalityFilterProps> = ({
       {process.env.NODE_ENV === 'development' && (
         <Box mt={1}>
           <Typography variant="caption" color="text.secondary">
-            Province: {getProvinceForFetch()} | 
-            Context: {municipalityContext.isMunicipalityAdmin ? 'Municipal Admin' : 
-                     provinceContext.isProvincialAdmin ? 'Provincial Admin' : 
-                     'National Admin'}
+            Province: {getProvinceForFetch()} |
+            Context: {municipalityContext.isMunicipalityAdmin ? 'Municipal Admin' :
+              provinceContext.isProvincialAdmin ? 'Provincial Admin' :
+                'National Admin'}
           </Typography>
         </Box>
       )}

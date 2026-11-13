@@ -35,6 +35,7 @@ import {
   Receipt,
   Analytics,
   PictureAsPdf,
+  ArrowForward,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -60,12 +61,14 @@ interface RenewalDashboardProps {
   onProcessRenewal?: (memberId: string) => void;
   onSendReminder?: (memberId: string) => void;
   onViewAnalytics?: () => void;
+  onViewTransactions?: () => void;
 }
 
 const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
-
+  onProcessRenewal,
   onSendReminder,
-  onViewAnalytics
+  onViewAnalytics,
+  onViewTransactions,
 }) => {
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -149,7 +152,8 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
   } = dashboardData;
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const s = (status || '').toLowerCase();
+    switch (s) {
       case 'completed': return 'success';
       case 'pending': return 'warning';
       case 'failed': return 'error';
@@ -158,13 +162,12 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
   };
 
   const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case 'online': return '💳';
-      case 'bank_transfer': return '🏦';
-      case 'cash': return '💵';
-      case 'eft': return '📱';
-      default: return '💰';
-    }
+    const m = (method || '').toLowerCase();
+    if (m.includes('online') || m.includes('card')) return '💳';
+    if (m.includes('bank') || m.includes('transfer')) return '🏦';
+    if (m.includes('cash')) return '💵';
+    if (m.includes('eft')) return '📱';
+    return '💰';
   };
 
   const formatCurrency = (amount: any): string => {
@@ -196,13 +199,15 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
               <Refresh />
             </IconButton>
           </Tooltip>
-          <Button
-            variant="outlined"
-            startIcon={<Analytics />}
-            onClick={onViewAnalytics}
-          >
-            View Analytics
-          </Button>
+          {onViewTransactions && (
+            <Button
+              variant="outlined"
+              startIcon={<Receipt />}
+              onClick={onViewTransactions}
+            >
+              View Transactions
+            </Button>
+          )}
           <Button
             variant="contained"
             startIcon={<PictureAsPdf />}
@@ -413,12 +418,19 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CheckCircle color="success" />
-                Recent Renewals
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CheckCircle color="success" />
+                  Recent Renewals
+                </Typography>
+                {onViewTransactions && (
+                  <Button size="small" onClick={onViewTransactions} endIcon={<ArrowForward />}>
+                    All Transactions
+                  </Button>
+                )}
+              </Box>
               
-              <TableContainer sx={{ maxHeight: 300 }}>
+              <TableContainer sx={{ maxHeight: 320 }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -429,35 +441,58 @@ const RenewalDashboard: React.FC<RenewalDashboardProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {recent_renewals.slice(0, 8).map((renewal) => (
-                      <TableRow key={renewal.member_id} hover>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="medium">
-                            {renewal.first_name} {renewal.last_name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {new Date(renewal.renewal_date).toLocaleDateString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {getPaymentMethodIcon(renewal.payment_method)} {renewal.payment_method.replace('_', ' ')}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(renewal.amount_paid)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip 
-                            label={renewal.renewal_status}
-                            color={getStatusColor(renewal.renewal_status)}
-                            size="small"
-                          />
+                    {recent_renewals.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                          No recent renewals recorded
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      recent_renewals.slice(0, 8).map((renewal, idx) => (
+                        <TableRow key={renewal.payment_id || renewal.member_id || idx} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium">
+                              {renewal.first_name} {renewal.last_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {new Date(renewal.renewal_date).toLocaleDateString()}
+                              {renewal.id_number ? ` • ID: ${renewal.id_number}` : ''}
+                            </Typography>
+                            {renewal.proof_of_payment_filename && (
+                              <Chip
+                                label="PoP Attached"
+                                size="small"
+                                color="info"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: '0.65rem', mt: 0.5 }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {getPaymentMethodIcon(renewal.payment_method)} {renewal.payment_method?.replace('_', ' ')}
+                            </Typography>
+                            {renewal.payment_reference && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                                {renewal.payment_reference.length > 15 ? renewal.payment_reference.slice(0, 15) + '...' : renewal.payment_reference}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="medium">
+                              {formatCurrency(renewal.amount_paid)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip 
+                              label={renewal.renewal_status}
+                              color={getStatusColor(renewal.renewal_status)}
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>

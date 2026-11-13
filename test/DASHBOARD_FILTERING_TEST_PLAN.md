@@ -23,7 +23,7 @@ This document outlines the testing plan for geographic filtering on admin dashbo
 **Expected Result**:
 - ✅ Total members: Shows ALL members nationwide
 - ✅ Provinces card: Shows "9" provinces
-- ✅ Sub-Regions card: Shows total municipalities nationwide
+- ✅ Local Municipalitys card: Shows total municipalities nationwide
 - ✅ Wards card: Shows total wards nationwide
 - ✅ Province breakdown: Shows all 9 provinces
 - ✅ Top wards: Shows top wards from all provinces
@@ -51,9 +51,9 @@ SELECT COUNT(*) FROM members_consolidated;
 - ✅ Province context banner visible: "Viewing: Gauteng Province"
 - ✅ Total members: Shows ONLY Gauteng members
 - ✅ No "Provinces" card shown
-- ✅ Sub-Regions card: Shows municipalities in Gauteng only
+- ✅ Local Municipalitys card: Shows municipalities in Gauteng only
 - ✅ Wards card: Shows wards in Gauteng only
-- ✅ Sub-regional breakdown: Shows Gauteng municipalities only
+- ✅ Local Municipalityal breakdown: Shows Gauteng municipalities only
 - ✅ Top wards: Shows top wards from Gauteng only
 - ✅ Expired members: Shows Gauteng data only
 - ✅ Cannot see other provinces' data
@@ -64,7 +64,7 @@ SELECT COUNT(*) FROM members_consolidated;
 SELECT COUNT(*) FROM members_consolidated 
 WHERE province_code = 'GP';
 
--- Should match sub-regions count
+-- Should match Local Municipalitys count
 SELECT COUNT(DISTINCT municipality_code) 
 FROM municipalities 
 WHERE province_code = 'GP';
@@ -81,11 +81,11 @@ WHERE province_code = 'GP';
 3. Verify displayed statistics
 
 **Expected Result**:
-- ✅ Page title: "City of Tshwane Sub-Region Dashboard"
+- ✅ Page title: "City of Tshwane Local Municipality Dashboard"
 - ✅ Municipality context banner visible: "Viewing: City of Tshwane"
 - ✅ Total members: Shows ONLY Tshwane members
 - ✅ No "Provinces" card shown
-- ✅ No "Sub-Regions" card shown
+- ✅ No "Local Municipalitys" card shown
 - ✅ Wards card: Shows wards in Tshwane only
 - ✅ Ward breakdown: Shows Tshwane wards only
 - ✅ Municipality overview section visible
@@ -155,8 +155,8 @@ WHERE ward_code = '12345678';
 **Expected Result**:
 - ✅ Summary shows ONLY Gauteng expired members
 - ✅ Province breakdown shows ONLY Gauteng
-- ✅ Sub-regional breakdown shows Gauteng municipalities
-- ✅ Shows top 10 sub-regions by expired members
+- ✅ Local Municipalityal breakdown shows Gauteng municipalities
+- ✅ Shows top 10 Local Municipalitys by expired members
 - ✅ No other provinces visible
 
 **Verification Query**:
@@ -291,5 +291,5 @@ curl -X GET "http://localhost:5000/api/v1/statistics/expired-members" \
 - ❌ Ward admin seeing other wards
 - ❌ Missing geographic context in API responses
 - ❌ Incorrect member counts
-- ❌ Missing sub-regional/ward breakdowns
+- ❌ Missing Local Municipalityal/ward breakdowns
 

@@ -64,28 +64,28 @@ def test_daily_report_metro_fix():
         print('📊 TEST RESULTS')
         print('=' * 80)
 
-        print(f'\n✅ Total municipalities/sub-regions found: {len(municipalities)}')
-        print(f'✅ Gauteng municipalities/sub-regions: {len(gauteng_municipalities)}')
+        print(f'\n✅ Total municipalities/Local Municipalitys found: {len(municipalities)}')
+        print(f'✅ Gauteng municipalities/Local Municipalitys: {len(gauteng_municipalities)}')
 
         if len(metro_municipalities) == 0:
             print('\n✅ SUCCESS: No Metro Municipalities found in report')
             print('   Metro Municipalities are correctly excluded')
-            print('   Only sub-regions are shown')
+            print('   Only Local Municipalitys are shown')
         else:
             print(f'\n❌ FAILURE: Found {len(metro_municipalities)} Metro Municipalities:')
             for metro in metro_municipalities:
                 print(f'   - {metro["name"]} (Province: {metro["province"]}, Wards: {metro["wards"]})')
             print('\n   These should NOT appear in the report!')
-            print('   Only their sub-regions should be shown.')
+            print('   Only their Local Municipalitys should be shown.')
 
-        print('\n📋 Gauteng Municipalities/Sub-Regions:')
+        print('\n📋 Gauteng Municipalities/Local Municipalitys:')
         for muni in gauteng_municipalities:
             print(f'   - {muni}')
 
         print('\n📊 Province Summary:')
         for province, munis in province_data.items():
             if province:
-                print(f'   {province}: {len(munis)} municipalities/sub-regions')
+                print(f'   {province}: {len(munis)} municipalities/Local Municipalitys')
 
         print('\n' + '=' * 80)
         print('🎯 EXPECTED BEHAVIOR:')
@@ -95,19 +95,19 @@ def test_daily_report_metro_fix():
         print('   - City of Tshwane Metropolitan Municipality')
         print('   - Ekurhuleni Metropolitan Municipality')
         print('\n✅ Should see:')
-        print('   - Emfuleni Sub-Region')
-        print('   - Lesedi Sub-Region')
-        print('   - Merafong City Sub-Region')
-        print('   - Midvaal Sub-Region')
-        print('   - Mogale City Sub-Region')
-        print('   - Rand West City Sub-Region')
-        print('   - (and other Gauteng sub-regions)')
+        print('   - Emfuleni Local Municipality')
+        print('   - Lesedi Local Municipality')
+        print('   - Merafong City Local Municipality')
+        print('   - Midvaal Local Municipality')
+        print('   - Mogale City Local Municipality')
+        print('   - Rand West City Local Municipality')
+        print('   - (and other Gauteng Local Municipalitys)')
 
         print('\n' + '=' * 80)
 
         if len(metro_municipalities) == 0:
             print('✅ TEST PASSED: Metro Municipality fix is working correctly!')
-            print('\n💡 The report correctly shows only sub-regions, not metro municipalities.')
+            print('\n💡 The report correctly shows only Local Municipalitys, not metro municipalities.')
             return True
         else:
             print('❌ TEST FAILED: Metro Municipalities still appearing in report')

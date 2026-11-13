@@ -58,11 +58,8 @@ import StatsCard from '../../components/ui/StatsCard';
 import ActionButton from '../../components/ui/ActionButton';
 import PageHeader from '../../components/ui/PageHeader';
 import ExpiredMembersSection from '../../components/dashboard/ExpiredMembersSection';
-import MembershipFilterBar from '../../components/dashboard/MembershipFilterBar';
-import MembershipAnalyticsCards from '../../components/dashboard/MembershipAnalyticsCards';
 import VoterRegistrationStats from '../../components/dashboard/VoterRegistrationStats';
 import { useProvinceContext, useProvincePageTitle } from '../../hooks/useProvinceContext';
-import type { MembershipFilterType } from '../../types/membership';
 import { useMunicipalityContext, applyMunicipalityFilter } from '../../hooks/useMunicipalityContext';
 import ProvinceContextBanner from '../../components/common/ProvinceContextBanner';
 import MunicipalityContextBanner from '../../components/common/MunicipalityContextBanner';
@@ -93,9 +90,6 @@ const DashboardPage: React.FC = () => {
   // Add refresh timestamp to force cache invalidation
   const [refreshTimestamp, setRefreshTimestamp] = React.useState(Date.now());
 
-  // Membership status filter state
-  const [membershipFilter, setMembershipFilter] = useState<MembershipFilterType>('all');
-
   // Time period filter state for line charts
   const [timePeriod, setTimePeriod] = useState<string>('30d');
   const [customDateFrom, setCustomDateFrom] = useState<string>('');
@@ -123,18 +117,13 @@ const DashboardPage: React.FC = () => {
       baseParams.province_code = provinceFilter;
     }
 
-    // Apply membership status filter
-    if (membershipFilter !== 'all') {
-      baseParams.membership_status = membershipFilter;
-    }
-
     // Apply municipality filtering for municipality admin
     return applyMunicipalityFilter(baseParams, municipalityContext);
   };
 
   // Fetch comprehensive dashboard statistics with geographic filtering
   const { data: dashboardData, isLoading: statsLoading, error: statsError, refetch: refetchDashboard } = useQuery({
-    queryKey: ['dashboard-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter(), membershipFilter],
+    queryKey: ['dashboard-stats', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
     queryFn: async () => {
       devLog('🔍 Dashboard API Call - Making request to /statistics/dashboard');
       devLog('🔍 Filter params:', getFilterParams());
@@ -151,13 +140,7 @@ const DashboardPage: React.FC = () => {
     refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes - reduced from 1 minute
   });
 
-  // Fetch membership status breakdown analytics
-  const { data: membershipBreakdownData, isLoading: breakdownLoading, refetch: refetchBreakdown } = useQuery({
-    queryKey: ['membership-status-breakdown', refreshTimestamp, provinceFilter, municipalityContext.getMunicipalityFilter()],
-    queryFn: () => secureGet('/statistics/membership-status-breakdown', getFilterParams()),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
-  });
+
 
   // Fetch analytics data for additional metrics with geographic filtering
   const { data: _analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
@@ -252,7 +235,6 @@ const DashboardPage: React.FC = () => {
     setRefreshTimestamp(Date.now());
     refetchDashboard();
     refetchAnalytics();
-    refetchBreakdown();
     refetchVoterRegistration();
     refetchTimeSeries();
     if (isNationalAdmin) {
@@ -368,7 +350,7 @@ const DashboardPage: React.FC = () => {
       color: 'secondary',
     }] : []),
     {
-      title: 'Sub-Regions',
+      title: 'Local Municipalitys',
       value: totals.municipalities?.toLocaleString() || '0',
       change: 'local governments',
       icon: HowToVote,
@@ -418,10 +400,10 @@ const DashboardPage: React.FC = () => {
         title={pageTitle}
         subtitle={
           municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedMunicipality
-            ? `Welcome to the ${municipalityContext.assignedMunicipality.name} Sub-Region Management System - Monitor your sub-region's growth and activities`
+            ? `Welcome to the ${municipalityContext.assignedMunicipality.name} Local Municipality Management System - Monitor your Local Municipality's growth and activities`
             : provinceContext.isProvincialAdmin && provinceContext.assignedProvince
-            ? `Welcome to the ${provinceContext.assignedProvince.name} Province Management System - Monitor your province's growth and activities`
-            : "Welcome to the EFF Membership Management System - Monitor your organization's growth and activities"
+              ? `Welcome to the ${provinceContext.assignedProvince.name} Province Management System - Monitor your province's growth and activities`
+              : "Welcome to the EFF Membership Management System - Monitor your organization's growth and activities"
         }
         gradient={true}
         breadcrumbs={[
@@ -429,7 +411,7 @@ const DashboardPage: React.FC = () => {
         ]}
         badge={{
           label: municipalityContext.shouldRestrictToMunicipality ? 'Municipality Data' :
-                 provinceContext.isProvincialAdmin ? 'Provincial Data' : 'Live Data',
+            provinceContext.isProvincialAdmin ? 'Provincial Data' : 'Live Data',
           color: municipalityContext.shouldRestrictToMunicipality || provinceContext.isProvincialAdmin ? 'primary' : 'success',
         }}
         actions={
@@ -477,35 +459,7 @@ const DashboardPage: React.FC = () => {
         <MunicipalityContextBanner variant="banner" sx={{ mb: 3 }} />
         <ProvinceContextBanner variant="banner" sx={{ mb: 3 }} />
 
-        {/* Membership Filter Bar */}
-        <MembershipFilterBar
-          value={membershipFilter}
-          onChange={setMembershipFilter}
-        />
 
-        {/* Membership Analytics Cards */}
-        <Box sx={{ mb: 4 }}>
-          <MembershipAnalyticsCards
-            data={(membershipBreakdownData as any)?.data || membershipBreakdownData as any}
-            isLoading={breakdownLoading}
-          />
-        </Box>
-
-        {/* Quick Insights */}
-      {!isLoading && totals.members && (
-        <Alert severity="info" sx={{ mb: 4 }}>
-          <Typography variant="body2">
-            <strong>System Overview:</strong> {totals.members?.toLocaleString()} total members{' '}
-            {municipalityContext.shouldRestrictToMunicipality
-              ? `in ${municipalityContext.assignedMunicipality?.name || 'your sub-region'}`
-              : provinceContext.isNationalAdmin
-              ? 'nationwide'
-              : `in ${provinceContext.assignedProvince?.name || 'your province'}`}.{' '}
-            {totals.active_memberships?.toLocaleString()} active memberships across {totals.provinces} provinces.{' '}
-            Monthly growth: {growth.members_this_month?.toLocaleString() || 0} new registrations.
-          </Typography>
-        </Alert>
-      )}
 
         {/* Enhanced Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -800,59 +754,59 @@ const DashboardPage: React.FC = () => {
             <Typography variant="h6">Voter Registration Statistics</Typography>
           </AccordionSummary>
           <AccordionDetails>
-              <VoterRegistrationStats
-                summary={(voterRegistrationData as any)?.summary || null}
-                geographicBreakdown={(voterRegistrationData as any)?.geographic_breakdown || []}
-                breakdownType={(voterRegistrationData as any)?.breakdown_type || 'province'}
-                isLoading={voterRegistrationLoading}
-                error={voterRegistrationError as Error | null}
-                onExport={async (format) => {
-                  try {
-                    const response = await secureGet('/statistics/voter-registration/export', {
-                      ...getFilterParams(),
-                      format
-                    });
-                    if (format === 'csv' && response) {
-                      // For CSV, the backend returns the file directly
-                      const blob = new Blob([response as any], { type: 'text/csv' });
-                      const url = window.URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `voter-registration-statistics-${new Date().toISOString().split('T')[0]}.csv`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      window.URL.revokeObjectURL(url);
-                    }
-                  } catch (error) {
-                    console.error('Export failed:', error);
+            <VoterRegistrationStats
+              summary={(voterRegistrationData as any)?.summary || null}
+              geographicBreakdown={(voterRegistrationData as any)?.geographic_breakdown || []}
+              breakdownType={(voterRegistrationData as any)?.breakdown_type || 'province'}
+              isLoading={voterRegistrationLoading}
+              error={voterRegistrationError as Error | null}
+              onExport={async (format) => {
+                try {
+                  const response = await secureGet('/statistics/voter-registration/export', {
+                    ...getFilterParams(),
+                    format
+                  });
+                  if (format === 'csv' && response) {
+                    // For CSV, the backend returns the file directly
+                    const blob = new Blob([response as any], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `voter-registration-statistics-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
                   }
-                }}
-                contextLabel={
-                  municipalityContext.shouldRestrictToMunicipality
-                    ? municipalityContext.assignedMunicipality?.name
-                    : provinceContext.isProvincialAdmin
+                } catch (error) {
+                  console.error('Export failed:', error);
+                }
+              }}
+              contextLabel={
+                municipalityContext.shouldRestrictToMunicipality
+                  ? municipalityContext.assignedMunicipality?.name
+                  : provinceContext.isProvincialAdmin
                     ? provinceContext.assignedProvince?.name
                     : undefined
-                }
-              />
+              }
+            />
           </AccordionDetails>
         </Accordion>
 
         {/* Provincial Admin Performance Leaderboard - National Admin Only */}
         {isNationalAdmin && (
-        <Accordion defaultExpanded sx={{ mb: 3 }}>
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Leaderboard color="primary" />
-              <Typography variant="h6">Provincial Admin Performance Leaderboard</Typography>
-              <Chip label="National Admin" size="small" color="error" sx={{ ml: 1, fontSize: '0.65rem', height: 20 }} />
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <AdminPerformanceLeaderboard />
-          </AccordionDetails>
-        </Accordion>
+          <Accordion defaultExpanded sx={{ mb: 3 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Leaderboard color="primary" />
+                <Typography variant="h6">Provincial Admin Performance Leaderboard</Typography>
+                <Chip label="National Admin" size="small" color="error" sx={{ ml: 1, fontSize: '0.65rem', height: 20 }} />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              <AdminPerformanceLeaderboard />
+            </AccordionDetails>
+          </Accordion>
         )}
 
         {/* Recent Activity Section */}
@@ -861,101 +815,101 @@ const DashboardPage: React.FC = () => {
             <Typography variant="h6">Recent Activity</Typography>
           </AccordionSummary>
           <AccordionDetails>
-      <Grid container spacing={3}>
-        {/* Recent Applications */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Recent Applications
-            </Typography>
-            {recentApplications.length > 0 ? (
-              <List>
-                {recentApplications.map((app: any, index: number) => (
-                  <ListItem key={app.id} divider={index < recentApplications.length - 1}>
-                    <ListItemIcon>
-                      <Assignment />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={`${app.first_name} ${app.last_name || ''}`}
-                      secondary={
-                        <>
-                          <span style={{ display: 'block', fontSize: '0.75rem' }}>
-                            ID: {app.id} • {app.membership_type || 'Regular'} Membership
-                          </span>
-                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                            Submitted {new Date(app.created_at).toLocaleDateString()}
-                          </span>
-                        </>
-                      }
-                    />
-                    <Chip
-                      label={app.status.replace('_', ' ')}
-                      color={getStatusColor(app.status) as any}
-                      size="small"
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                No recent applications
-              </Typography>
-            )}
-          </Paper>
-        </Grid>
+            <Grid container spacing={3}>
+              {/* Recent Applications */}
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Recent Applications
+                  </Typography>
+                  {recentApplications.length > 0 ? (
+                    <List>
+                      {recentApplications.map((app: any, index: number) => (
+                        <ListItem key={app.id} divider={index < recentApplications.length - 1}>
+                          <ListItemIcon>
+                            <Assignment />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={`${app.first_name} ${app.last_name || ''}`}
+                            secondary={
+                              <>
+                                <span style={{ display: 'block', fontSize: '0.75rem' }}>
+                                  ID: {app.id} • {app.membership_type || 'Regular'} Membership
+                                </span>
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                  Submitted {new Date(app.created_at).toLocaleDateString()}
+                                </span>
+                              </>
+                            }
+                          />
+                          <Chip
+                            label={app.status.replace('_', ' ')}
+                            color={getStatusColor(app.status) as any}
+                            size="small"
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                      No recent applications
+                    </Typography>
+                  )}
+                </Paper>
+              </Grid>
 
-        {/* Upcoming Meetings */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Upcoming Meetings
-            </Typography>
-            {upcomingMeetings.length > 0 ? (
-              <List>
-                {upcomingMeetings.map((meeting: any, index: number) => (
-                  <ListItem key={meeting.id} divider={index < upcomingMeetings.length - 1}>
-                    <ListItemIcon>
-                      <Event />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={meeting.meeting_title}
-                      secondary={
-                        <>
-                          <span style={{ display: 'block', fontSize: '0.75rem' }}>
-                            {new Date(meeting.start_datetime).toLocaleDateString()} at {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
-                            {meeting.hierarchy_level} • {meeting.entity_name || 'National'}
-                          </span>
-                        </>
-                      }
-                    />
-                    <Chip
-                      label={meeting.meeting_status}
-                      color={meeting.meeting_status === 'Scheduled' ? 'info' : 'default'}
-                      size="small"
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                No upcoming meetings
-              </Typography>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
+              {/* Upcoming Meetings */}
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Upcoming Meetings
+                  </Typography>
+                  {upcomingMeetings.length > 0 ? (
+                    <List>
+                      {upcomingMeetings.map((meeting: any, index: number) => (
+                        <ListItem key={meeting.id} divider={index < upcomingMeetings.length - 1}>
+                          <ListItemIcon>
+                            <Event />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={meeting.meeting_title}
+                            secondary={
+                              <>
+                                <span style={{ display: 'block', fontSize: '0.75rem' }}>
+                                  {new Date(meeting.start_datetime).toLocaleDateString()} at {new Date(meeting.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
+                                  {meeting.hierarchy_level} • {meeting.entity_name || 'National'}
+                                </span>
+                              </>
+                            }
+                          />
+                          <Chip
+                            label={meeting.meeting_status}
+                            color={meeting.meeting_status === 'Scheduled' ? 'info' : 'default'}
+                            size="small"
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                      No upcoming meetings
+                    </Typography>
+                  )}
+                </Paper>
+              </Grid>
+            </Grid>
           </AccordionDetails>
         </Accordion>
 
         {/* Municipality Statistics - Municipality Admin Only */}
         {municipalityContext.shouldRestrictToMunicipality && (
-        <Accordion defaultExpanded sx={{ mb: 3 }}>
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Typography variant="h6">{municipalityContext.assignedMunicipality?.name || 'Municipality'} Overview</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
+          <Accordion defaultExpanded sx={{ mb: 3 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Typography variant="h6">{municipalityContext.assignedMunicipality?.name || 'Municipality'} Overview</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
               {municipalityOverviewLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                   <CircularProgress />
@@ -1032,8 +986,8 @@ const DashboardPage: React.FC = () => {
                   Municipality overview data not available
                 </Typography>
               )}
-          </AccordionDetails>
-        </Accordion>
+            </AccordionDetails>
+          </Accordion>
         )}
 
         {/* Top Performing Wards */}
@@ -1041,10 +995,10 @@ const DashboardPage: React.FC = () => {
           <AccordionSummary expandIcon={<ExpandMore />}>
             <Typography variant="h6">
               {municipalityContext.shouldRestrictToMunicipality
-                ? `Top 5 Performing Wards in ${municipalityContext.assignedMunicipality?.name || 'Sub-Region'}`
+                ? `Top 5 Performing Wards in ${municipalityContext.assignedMunicipality?.name || 'Local Municipality'}`
                 : provinceContext.isProvincialAdmin && provinceContext.assignedProvince
-                ? `Top Performing Wards in ${provinceContext.assignedProvince.name}`
-                : 'Top Performing Wards'}
+                  ? `Top Performing Wards in ${provinceContext.assignedProvince.name}`
+                  : 'Top Performing Wards'}
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -1118,8 +1072,8 @@ const DashboardPage: React.FC = () => {
                   {municipalityContext.shouldRestrictToMunicipality
                     ? `No ward performance data available for ${municipalityContext.assignedMunicipality?.name || 'your municipality'}`
                     : provinceContext.isProvincialAdmin
-                    ? `No ward performance data available for ${provinceContext.assignedProvince?.name || 'your province'}`
-                    : 'No ward performance data available'}
+                      ? `No ward performance data available for ${provinceContext.assignedProvince?.name || 'your province'}`
+                      : 'No ward performance data available'}
                 </Typography>
               )
             )}

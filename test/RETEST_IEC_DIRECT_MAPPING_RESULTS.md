@@ -84,7 +84,7 @@ Verify that the simplified IEC direct mapping is working correctly:
 |-------|----------------|-------------------|--------|
 | Province | `GP` | ✅ "Gauteng" | **WORKING** |
 | Region (District) | `JHB` | ✅ "City of Johannesburg" | **WORKING** |
-| Sub-Region (Municipality) | `JHB` | ❌ "Select a sub-region..." | **NOT DISPLAYED** |
+| Local Municipality (Municipality) | `JHB` | ❌ "Select a Local Municipality..." | **NOT DISPLAYED** |
 | Ward | `79800135` | ❌ Disabled | **BLOCKED** |
 | Voting District | `32871326` | ❌ Disabled | **BLOCKED** |
 
@@ -101,7 +101,7 @@ These warnings indicate that the values `79800135` and `32871326` are not in the
 
 ## 🔍 ROOT CAUSE ANALYSIS
 
-### Issue 1: Sub-Region (Municipality) Not Displaying
+### Issue 1: Local Municipality (Municipality) Not Displaying
 - **State**: `municipal_code: "JHB"` is set correctly
 - **Problem**: The GeographicSelector component is not displaying it
 - **Impact**: Blocks Ward and Voting District from being enabled

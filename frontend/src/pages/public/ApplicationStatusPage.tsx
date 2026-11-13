@@ -27,7 +27,6 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../../lib/api';
-import PublicHeader from '../../components/layout/PublicHeader';
 
 const ApplicationStatusPage: React.FC = () => {
   const location = useLocation();
@@ -101,9 +100,6 @@ const ApplicationStatusPage: React.FC = () => {
 
   return (
     <Box>
-      {/* Sticky Header */}
-      <PublicHeader />
-
       {/* Hero Header */}
       <Box
         sx={{

@@ -94,6 +94,12 @@ export interface RenewalFormData {
   payment_method: 'Card' | 'Cash' | 'EFT' | 'Mobile' | 'Other';
   payment_reference?: string;
   amount_paid: number;
+  proof_of_payment?: {
+    file_data: string;
+    filename: string;
+    mime_type: string;
+    file_size: number;
+  };
 }
 
 export interface RenewalProcessRequest {
@@ -102,6 +108,12 @@ export interface RenewalProcessRequest {
   payment_reference?: string;
   amount_paid: number;
   shopperResultUrl?: string;
+  proof_of_payment?: {
+    file_data: string;
+    filename: string;
+    mime_type: string;
+    file_size: number;
+  };
   updated_member_data?: {
     email?: string;
     cell_number?: string;

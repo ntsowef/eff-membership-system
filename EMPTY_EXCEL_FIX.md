@@ -1,19 +1,19 @@
-# Empty Excel File Fix - Sub-Region Download
+# Empty Excel File Fix - Local Municipality Download
 
 ## Problem
-When downloading sub-region members as Excel, the file was empty (no member data rows, only headers).
+When downloading Local Municipality members as Excel, the file was empty (no member data rows, only headers).
 
 ## Root Cause
-The frontend was passing the municipality label (e.g., "Rand West City Sub-Region (GT485)") as the `search` parameter to the backend. The backend was treating this as a member search filter, trying to match it against member names, ID numbers, etc.
+The frontend was passing the municipality label (e.g., "Rand West City Local Municipality (GT485)") as the `search` parameter to the backend. The backend was treating this as a member search filter, trying to match it against member names, ID numbers, etc.
 
-Since no members have "Rand West City Sub-Region (GT485)" in their name or ID, the query returned 0 results, creating an empty Excel file.
+Since no members have "Rand West City Local Municipality (GT485)" in their name or ID, the query returned 0 results, creating an empty Excel file.
 
 ## The Bug
 
 **Frontend Code (GeographicSearchPage.tsx, line 185):**
 ```typescript
 blob = await membersApi.exportSubregionMembers(filters.municipal_code, {
-  search: searchInput,  // ❌ BUG: searchInput = "Rand West City Sub-Region (GT485)"
+  search: searchInput,  // ❌ BUG: searchInput = "Rand West City Local Municipality (GT485)"
   membership_status: membershipStatus
 });
 ```
@@ -37,10 +37,10 @@ if (search) {
 ```sql
 WHERE m.municipality_code = 'GT485'
   AND (
-    m.firstname LIKE '%Rand West City Sub-Region (GT485)%' OR
-    m.surname LIKE '%Rand West City Sub-Region (GT485)%' OR
-    m.id_number LIKE '%Rand West City Sub-Region (GT485)%' OR
-    CONCAT('MEM', LPAD(m.member_id, 6, '0')) LIKE '%Rand West City Sub-Region (GT485)%'
+    m.firstname LIKE '%Rand West City Local Municipality (GT485)%' OR
+    m.surname LIKE '%Rand West City Local Municipality (GT485)%' OR
+    m.id_number LIKE '%Rand West City Local Municipality (GT485)%' OR
+    CONCAT('MEM', LPAD(m.member_id, 6, '0')) LIKE '%Rand West City Local Municipality (GT485)%'
   )
 ```
 
@@ -48,7 +48,7 @@ This query returns 0 rows because no member has that municipality label in their
 
 ## Solution
 
-Changed the frontend to pass an empty string for the `search` parameter when downloading sub-region members, since the search is for selecting the municipality, not for filtering members within that municipality.
+Changed the frontend to pass an empty string for the `search` parameter when downloading Local Municipality members, since the search is for selecting the municipality, not for filtering members within that municipality.
 
 **Fixed Frontend Code:**
 ```typescript
@@ -93,14 +93,14 @@ search: Joi.string().allow('').optional(), // Allow empty string
 
 **Change 2: Added Logging (for debugging)**
 ```typescript
-console.log(`📥 Sub-region download request: municipalityCode=${municipalityCode}, search=${search}, membership_status=${membership_status}`);
+console.log(`📥 Local Municipality download request: municipalityCode=${municipalityCode}, search=${search}, membership_status=${membership_status}`);
 console.log(`📝 Executing query with params:`, params);
 console.log(`✅ Found ${members.length} members for municipality ${municipalityCode}`);
 ```
 
 ## How It Works Now
 
-1. **User selects municipality** from autocomplete: "Rand West City Sub-Region (GT485)"
+1. **User selects municipality** from autocomplete: "Rand West City Local Municipality (GT485)"
 2. **Frontend stores** `municipal_code = 'GT485'` in filters
 3. **User clicks download**
 4. **Frontend calls API:**
@@ -122,11 +122,11 @@ console.log(`✅ Found ${members.length} members for municipality ${municipality
 
 **Test the fix:**
 1. Go to: `http://localhost:3000/admin/search/geographic`
-2. Click "Sub-Region" tab
+2. Click "Local Municipality" tab
 3. Search for a municipality (e.g., "Rand West")
 4. Select "Rand West City (GT485)"
 5. Verify members display in the table
-6. Click "Download Sub-Region Members"
+6. Click "Download Local Municipality Members"
 7. **Verify Excel file contains member data** ✅
 
 **Expected Excel Content:**
@@ -136,14 +136,14 @@ console.log(`✅ Found ${members.length} members for municipality ${municipality
 
 **Check Backend Logs:**
 ```
-📥 Sub-region download request: municipalityCode=GT485, search=, membership_status=active
+📥 Local Municipality download request: municipalityCode=GT485, search=, membership_status=active
 📝 Executing query with params: [ 'GT485' ]
 ✅ Found 150 members for municipality GT485
 ```
 
 ## Future Enhancement
 
-If you want to add a separate member search feature within the sub-region view:
+If you want to add a separate member search feature within the Local Municipality view:
 1. Add a separate search input field in the UI (not the municipality selector)
 2. Pass that search term to the download endpoint
 3. This would allow filtering like "Show me all members named 'John' in this municipality"
@@ -152,7 +152,7 @@ But for now, the download exports ALL members in the selected municipality, whic
 
 ## Summary
 
-**Problem:** Empty Excel file when downloading sub-region members
+**Problem:** Empty Excel file when downloading Local Municipality members
 **Root Cause:** Municipality label being used as member search filter
 **Solution:** Pass empty string for search parameter
 **Result:** Excel file now contains all members from the selected municipality ✅

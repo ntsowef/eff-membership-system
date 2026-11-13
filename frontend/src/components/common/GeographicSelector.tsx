@@ -105,9 +105,9 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   // Auto-select province for provincial admins
   useEffect(() => {
     if (provinceContext.shouldRestrictToProvince &&
-        provinceContext.assignedProvince &&
-        !selectedProvince &&
-        onProvinceChange) {
+      provinceContext.assignedProvince &&
+      !selectedProvince &&
+      onProvinceChange) {
       onProvinceChange(provinceContext.assignedProvince.code);
     }
   }, [provinceContext, selectedProvince, onProvinceChange]);
@@ -261,12 +261,12 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
       <Typography variant="h6" gutterBottom>
         Geographic Location
       </Typography>
-      
+
       <Grid container spacing={2}>
         {/* Province Selection */}
         <Grid item xs={12} md={6}>
           {(provinceContext.shouldRestrictToProvince && provinceContext.assignedProvince) ||
-           (municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedProvince) ? (
+            (municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedProvince) ? (
             // Provincial Admin or Municipality Admin - Show locked province
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -288,7 +288,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {provinceContext.assignedProvince?.name || municipalityContext.assignedProvince?.name}
                 </Typography>
-                <Tooltip title={`Province selection is restricted for ${municipalityContext.shouldRestrictToMunicipality ? 'Sub-Region' : 'Provincial'} Admins`}>
+                <Tooltip title={`Province selection is restricted for ${municipalityContext.shouldRestrictToMunicipality ? 'Local Municipality' : 'Provincial'} Admins`}>
                   <Lock color="action" fontSize="small" />
                 </Tooltip>
               </Box>
@@ -333,7 +333,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
         {/* Region Selection */}
         <Grid item xs={12} md={6}>
           {municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedDistrict ? (
-            // Sub-Region Admin - Show locked region
+            // Local Municipality Admin - Show locked region
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Region (Restricted)
@@ -354,7 +354,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {municipalityContext.assignedDistrict.name}
                 </Typography>
-                <Tooltip title="Region selection is restricted for Sub-Region Admins">
+                <Tooltip title="Region selection is restricted for Local Municipality Admins">
                   <Lock color="action" fontSize="small" />
                 </Tooltip>
               </Box>
@@ -399,13 +399,13 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
           )}
         </Grid>
 
-        {/* Sub-Region Selection */}
+        {/* Local Municipality Selection */}
         <Grid item xs={12} md={6}>
           {municipalityContext.shouldRestrictToMunicipality && municipalityContext.assignedMunicipality ? (
-            // Sub-Region Admin - Show locked sub-region
+            // Local Municipality Admin - Show locked Local Municipality
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Sub-Region (Restricted)
+                Local Municipality (Restricted)
               </Typography>
               <Box
                 sx={{
@@ -423,38 +423,38 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {municipalityContext.assignedMunicipality.name}
                 </Typography>
-                <Tooltip title="Sub-Region selection is restricted for Sub-Region Admins">
+                <Tooltip title="Local Municipality selection is restricted for Local Municipality Admins">
                   <Lock color="action" fontSize="small" />
                 </Tooltip>
               </Box>
             </Box>
           ) : (
             <FormControl fullWidth variant={variant} size={size} required={required}>
-              <InputLabel>Sub-Region *</InputLabel>
+              <InputLabel>Local Municipality *</InputLabel>
               <Select
                 value={selectedMunicipality || ''}
                 onChange={(e) => onMunicipalityChange?.(e.target.value)}
                 disabled={disabled || !selectedDistrict || municipalitiesLoading}
-                label="Sub-Region *"
+                label="Local Municipality *"
                 displayEmpty
               >
                 <MenuItem value="">
-                  <em>{!selectedDistrict ? 'Select a region first...' : 'Select a sub-region...'}</em>
+                  <em>{!selectedDistrict ? 'Select a region first...' : 'Select a Local Municipality...'}</em>
                 </MenuItem>
                 {municipalitiesLoading ? (
                   <MenuItem disabled>
                     <Box display="flex" alignItems="center" gap={1}>
                       <CircularProgress size={16} />
-                      <span>Loading sub-regions...</span>
+                      <span>Loading Local Municipalitys...</span>
                     </Box>
                   </MenuItem>
                 ) : municipalitiesError ? (
                   <MenuItem disabled>
-                    <em>Error loading sub-regions</em>
+                    <em>Error loading Local Municipalitys</em>
                   </MenuItem>
                 ) : municipalities?.data?.length === 0 ? (
                   <MenuItem disabled>
-                    <em>No sub-regions available for this region</em>
+                    <em>No Local Municipalitys available for this region</em>
                   </MenuItem>
                 ) : (
                   municipalities?.data?.map((municipality: Municipality) => (
@@ -482,7 +482,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
               <MenuItem value="">
                 <em>
                   {!selectedMunicipality
-                    ? 'Select a sub-region first...'
+                    ? 'Select a Local Municipality first...'
                     : isMetro
                       ? 'Select a ward...'
                       : 'Select a ward...'}
@@ -501,7 +501,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 </MenuItem>
               ) : wards?.data?.length === 0 ? (
                 <MenuItem disabled>
-                  <em>No wards available for this sub-region</em>
+                  <em>No wards available for this Local Municipality</em>
                 </MenuItem>
               ) : (
                 wards?.data?.map((ward: Ward) => (

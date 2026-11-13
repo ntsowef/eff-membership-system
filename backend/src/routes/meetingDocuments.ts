@@ -1,10 +1,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { MeetingDocumentModel } from '../models/meetingDocuments';
-import { ValidationError } from '../middleware/errorHandler';
+import { ValidationError, NotFoundError } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
 import Joi from 'joi';
 
 const router = Router();
+
+const resolveActorUserId = (req: Request): number => {
+  const user: any = (req as any).user;
+  return user?.user_id || user?.id || 8571;
+};
 
 // Validation schemas for meeting documents
 const createDocumentSchema = Joi.object({
@@ -12,31 +17,33 @@ const createDocumentSchema = Joi.object({
   document_type: Joi.string().valid('agenda', 'minutes', 'action_items', 'attendance', 'other').required(),
   document_title: Joi.string().min(1).max(200).required(),
   document_content: Joi.object().required(),
-  template_id: Joi.number().integer().positive().optional(),
-  document_status: Joi.string().valid('draft', 'review', 'approved', 'published').default('draft')
+  template_id: Joi.number().integer().positive().allow(null).optional(),
+  version_number: Joi.number().integer().positive().optional(),
+  document_status: Joi.string().valid('draft', 'review', 'approved', 'published').default('draft'),
 });
 
 const createActionItemSchema = Joi.object({
   meeting_id: Joi.number().integer().positive().required(),
-  document_id: Joi.number().integer().positive().optional(),
+  document_id: Joi.number().integer().positive().allow(null).optional(),
   action_title: Joi.string().min(1).max(200).required(),
-  action_description: Joi.string().optional(),
-  assigned_to: Joi.number().integer().positive().optional(),
-  assigned_role: Joi.string().max(100).optional(),
-  due_date: Joi.date().optional(),
-  priority: Joi.string().valid('low', 'medium', 'high', 'urgent').default('medium')
+  action_description: Joi.string().allow('', null).optional(),
+  assigned_to: Joi.number().integer().positive().allow(null).optional(),
+  assigned_role: Joi.string().max(100).allow('', null).optional(),
+  due_date: Joi.date().allow(null).optional(),
+  priority: Joi.string().valid('low', 'medium', 'high', 'urgent').default('medium'),
+  status: Joi.string().valid('pending', 'in_progress', 'completed', 'cancelled', 'overdue').default('pending'),
 });
 
 const createDecisionSchema = Joi.object({
   meeting_id: Joi.number().integer().positive().required(),
-  document_id: Joi.number().integer().positive().optional(),
+  document_id: Joi.number().integer().positive().allow(null).optional(),
   decision_title: Joi.string().min(1).max(200).required(),
   decision_description: Joi.string().required(),
   decision_type: Joi.string().valid('resolution', 'motion', 'policy', 'appointment', 'other').required(),
-  voting_result: Joi.object().optional(),
+  voting_result: Joi.object().allow(null).optional(),
   decision_status: Joi.string().valid('proposed', 'approved', 'rejected', 'deferred').required(),
-  proposed_by: Joi.number().integer().positive().optional(),
-  seconded_by: Joi.number().integer().positive().optional()
+  proposed_by: Joi.number().integer().positive().allow(null).optional(),
+  seconded_by: Joi.number().integer().positive().allow(null).optional(),
 });
 
 /**
@@ -49,7 +56,7 @@ router.get('/templates', async (req: Request, res: Response, next: NextFunction)
       template_type: req.query.template_type as string,
       hierarchy_level: req.query.hierarchy_level as string,
       meeting_type_id: req.query.meeting_type_id ? parseInt(req.query.meeting_type_id as string) : undefined,
-      is_active: req.query.is_active ? req.query.is_active === 'true' : undefined
+      is_active: req.query.is_active ? req.query.is_active === 'true' : undefined,
     };
 
     const templates = await MeetingDocumentModel.getTemplates(filters);
@@ -59,9 +66,9 @@ router.get('/templates', async (req: Request, res: Response, next: NextFunction)
       message: 'Document templates retrieved successfully',
       data: {
         templates,
-        total: templates.length
+        total: templates.length,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     next(error);
@@ -84,7 +91,7 @@ router.get('/templates/:id', async (req: Request, res: Response, next: NextFunct
       return res.status(404).json({
         success: false,
         message: 'Document template not found',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -92,7 +99,7 @@ router.get('/templates/:id', async (req: Request, res: Response, next: NextFunct
       success: true,
       message: 'Document template retrieved successfully',
       data: { template },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     return next(error);
@@ -112,7 +119,7 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
 
     const documentData = {
       ...value,
-      created_by: (req as any).user?.id || (req as any).user?.user_id
+      created_by: resolveActorUserId(req),
     };
 
     const documentId = await MeetingDocumentModel.createDocument(documentData);
@@ -121,11 +128,163 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       success: true,
       message: 'Meeting document created successfully',
       data: {
+        id: documentId,
         document_id: documentId,
         document_type: value.document_type,
-        document_title: value.document_title
+        document_title: value.document_title,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get documents by meeting ID
+ * GET /meeting-documents/meeting/:meetingId
+ */
+router.get('/meeting/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.meetingId);
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    const documents = await MeetingDocumentModel.getDocumentsByMeeting(meetingId);
+
+    res.json({
+      success: true,
+      message: 'Meeting documents retrieved successfully',
+      data: {
+        meeting_id: meetingId,
+        documents,
+        total: documents.length,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Create action item
+ * POST /meeting-documents/action-items
+ */
+router.post('/action-items', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { error, value } = createActionItemSchema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    const actionData = {
+      ...value,
+      created_by: resolveActorUserId(req),
+    };
+
+    const actionId = await MeetingDocumentModel.createActionItem(actionData);
+
+    res.status(201).json({
+      success: true,
+      message: 'Action item created successfully',
+      data: {
+        id: actionId,
+        action_id: actionId,
+        action_item_id: actionId,
+        action_title: value.action_title,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get action items by meeting ID
+ * GET /meeting-documents/action-items/meeting/:meetingId
+ */
+router.get('/action-items/meeting/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.meetingId);
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    const actionItems = await MeetingDocumentModel.getActionItemsByMeeting(meetingId);
+
+    res.json({
+      success: true,
+      message: 'Action items retrieved successfully',
+      data: {
+        meeting_id: meetingId,
+        action_items: actionItems,
+        total: actionItems.length,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Create meeting decision
+ * POST /meeting-documents/decisions
+ */
+router.post('/decisions', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { error, value } = createDecisionSchema.validate(req.body);
+    if (error) {
+      throw new ValidationError(error.details[0].message);
+    }
+
+    const decisionData = {
+      ...value,
+      created_by: resolveActorUserId(req),
+    };
+
+    const decisionId = await MeetingDocumentModel.createDecision(decisionData);
+
+    res.status(201).json({
+      success: true,
+      message: 'Meeting decision created successfully',
+      data: {
+        id: decisionId,
+        decision_id: decisionId,
+        decision_title: value.decision_title,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get decisions by meeting ID
+ * GET /meeting-documents/decisions/meeting/:meetingId
+ */
+router.get('/decisions/meeting/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const meetingId = parseInt(req.params.meetingId);
+    if (isNaN(meetingId)) {
+      throw new ValidationError('Invalid meeting ID');
+    }
+
+    const decisions = await MeetingDocumentModel.getDecisionsByMeeting(meetingId);
+
+    res.json({
+      success: true,
+      message: 'Meeting decisions retrieved successfully',
+      data: {
+        meeting_id: meetingId,
+        decisions,
+        total: decisions.length,
+      },
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     next(error);
@@ -153,8 +312,8 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
           message: 'Document not found',
           timestamp: new Date().toISOString(),
           path: req.path,
-          method: req.method
-        }
+          method: req.method,
+        },
       });
     }
 
@@ -162,39 +321,12 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       success: true,
       message: 'Document retrieved successfully',
       data: {
-        document
+        document,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     return next(error);
-  }
-});
-
-/**
- * Get documents by meeting ID
- * GET /meeting-documents/meeting/:meetingId
- */
-router.get('/meeting/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const meetingId = parseInt(req.params.meetingId);
-    if (isNaN(meetingId)) {
-      throw new ValidationError('Invalid meeting ID');
-    }
-
-    const documents = await MeetingDocumentModel.getDocumentsByMeeting(meetingId);
-
-    res.json({
-      success: true,
-      message: 'Meeting documents retrieved successfully',
-      data: {
-        meeting_id: meetingId,
-        documents,
-        total: documents.length
-      }
-    });
-  } catch (error) {
-    next(error);
   }
 });
 
@@ -209,26 +341,46 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       throw new ValidationError('Invalid document ID');
     }
 
-    const allowedUpdates = ['document_title', 'document_content', 'document_status', 'approved_by', 'approved_at'];
+    const allowedUpdates = [
+      'document_title',
+      'document_type',
+      'document_content',
+      'template_id',
+      'document_status',
+      'approved_by',
+      'approved_at',
+    ];
     const updates: any = {};
 
-    Object.keys(req.body).forEach(key => {
+    Object.keys(req.body).forEach((key) => {
       if (allowedUpdates.includes(key)) {
         updates[key] = req.body[key];
       }
     });
 
+    if (updates.document_status === 'approved') {
+      if (updates.approved_by === undefined && (req as any).user) {
+        updates.approved_by = resolveActorUserId(req);
+      }
+      if (updates.approved_at === undefined) {
+        updates.approved_at = new Date().toISOString();
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       throw new ValidationError('No valid fields to update');
     }
 
-    await MeetingDocumentModel.updateDocument(documentId, updates);
+    const updated = await MeetingDocumentModel.updateDocument(documentId, updates);
+    if (!updated) {
+      throw new NotFoundError('Document not found');
+    }
 
     res.json({
       success: true,
       message: 'Meeting document updated successfully',
-      data: { document_id: documentId },
-      timestamp: new Date().toISOString()
+      data: { id: documentId, document_id: documentId },
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     next(error);
@@ -236,119 +388,30 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 /**
- * Create action item
- * POST /meeting-documents/action-items
+ * Delete meeting document
+ * DELETE /meeting-documents/:id
  */
-router.post('/action-items', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { error, value } = createActionItemSchema.validate(req.body);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
+    const documentId = parseInt(req.params.id);
+    if (isNaN(documentId)) {
+      throw new ValidationError('Invalid document ID');
     }
 
-    const actionData = {
-      ...value,
-      created_by: (req as any).user?.id || (req as any).user?.user_id
-    };
-
-    const actionId = await MeetingDocumentModel.createActionItem(actionData);
-
-    res.status(201).json({
-      success: true,
-      message: 'Action item created successfully',
-      data: {
-        action_id: actionId,
-        action_title: value.action_title
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Get action items by meeting ID
- * GET /meeting-documents/action-items/meeting/:meetingId
- */
-router.get('/action-items/meeting/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const meetingId = parseInt(req.params.meetingId);
-    if (isNaN(meetingId)) {
-      throw new ValidationError('Invalid meeting ID');
+    const deleted = await MeetingDocumentModel.deleteDocument(documentId);
+    if (!deleted) {
+      throw new NotFoundError('Document not found');
     }
-
-    const actionItems = await MeetingDocumentModel.getActionItemsByMeeting(meetingId);
 
     res.json({
       success: true,
-      message: 'Action items retrieved successfully',
+      message: 'Meeting document deleted successfully',
       data: {
-        meeting_id: meetingId,
-        action_items: actionItems,
-        total: actionItems.length
+        deleted: true,
+        id: documentId,
+        document_id: documentId,
       },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Create meeting decision
- * POST /meeting-documents/decisions
- */
-router.post('/decisions', authenticate, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { error, value } = createDecisionSchema.validate(req.body);
-    if (error) {
-      throw new ValidationError(error.details[0].message);
-    }
-
-    const decisionData = {
-      ...value,
-      created_by: (req as any).user?.id || (req as any).user?.user_id
-    };
-
-    const decisionId = await MeetingDocumentModel.createDecision(decisionData);
-
-    res.status(201).json({
-      success: true,
-      message: 'Meeting decision created successfully',
-      data: {
-        decision_id: decisionId,
-        decision_title: value.decision_title
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Get decisions by meeting ID
- * GET /meeting-documents/decisions/meeting/:meetingId
- */
-router.get('/decisions/meeting/:meetingId', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const meetingId = parseInt(req.params.meetingId);
-    if (isNaN(meetingId)) {
-      throw new ValidationError('Invalid meeting ID');
-    }
-
-    const decisions = await MeetingDocumentModel.getDecisionsByMeeting(meetingId);
-
-    res.json({
-      success: true,
-      message: 'Meeting decisions retrieved successfully',
-      data: {
-        meeting_id: meetingId,
-        decisions,
-        total: decisions.length
-      },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     next(error);

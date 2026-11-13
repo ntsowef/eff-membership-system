@@ -8,6 +8,8 @@ import { logAudit } from '../middleware/auditLogger';
 import { AuditAction, EntityType } from '../models/auditLogs';
 import { executeQuery } from '../config/database';
 import Joi from 'joi';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const router = Router();
 
@@ -79,6 +81,13 @@ const createApplicationSchema = Joi.object({
   last_payment_date: Joi.date().max('now').optional(),
   payment_amount: Joi.number().positive().precision(2).optional(),
   payment_notes: Joi.string().max(1000).optional(),
+  // Proof of Payment field
+  proof_of_payment: Joi.object({
+    filename: Joi.string().required(),
+    mime_type: Joi.string().required(),
+    file_size: Joi.number().optional(),
+    file_data: Joi.string().required()
+  }).optional(),
   // Geographic fields
   province_code: Joi.string().max(10).allow('', null).optional(),
   district_code: Joi.string().max(10).allow('', null).optional(),
@@ -201,6 +210,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       last_payment_date: value.last_payment_date,
       payment_amount: value.payment_amount,
       payment_notes: value.payment_notes,
+      // Proof of Payment
+      proof_of_payment: value.proof_of_payment,
       // Geographic fields
       province_code: value.province_code,
       district_code: value.district_code,
@@ -1105,6 +1116,84 @@ router.get('/approval/statistics', authenticate, requirePermission('applications
       },
       timestamp: new Date().toISOString()
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get application documents
+router.get('/:id/documents', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    if (isNaN(applicationId)) {
+      throw new ValidationError('Invalid application ID');
+    }
+
+    const documents = await MembershipApplicationModel.getApplicationDocuments(applicationId);
+    res.json({
+      success: true,
+      data: { documents }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// View application document (inline preview for images / PDFs)
+router.get('/:id/documents/:docId/view', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const documentId = parseInt(req.params.docId);
+    if (isNaN(applicationId) || isNaN(documentId)) {
+      throw new ValidationError('Invalid application or document ID');
+    }
+
+    const doc = await MembershipApplicationModel.getApplicationDocumentById(applicationId, documentId);
+    if (!doc) {
+      throw new NotFoundError('Document not found');
+    }
+
+    const filePath = path.isAbsolute(doc.file_path)
+      ? doc.file_path
+      : path.join(process.cwd(), doc.file_path);
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundError('Document file not found on disk');
+    }
+
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${doc.original_filename}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Download application document
+router.get('/:id/documents/:docId/download', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const documentId = parseInt(req.params.docId);
+    if (isNaN(applicationId) || isNaN(documentId)) {
+      throw new ValidationError('Invalid application or document ID');
+    }
+
+    const doc = await MembershipApplicationModel.getApplicationDocumentById(applicationId, documentId);
+    if (!doc) {
+      throw new NotFoundError('Document not found');
+    }
+
+    const filePath = path.isAbsolute(doc.file_path)
+      ? doc.file_path
+      : path.join(process.cwd(), doc.file_path);
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundError('Document file not found on disk');
+    }
+
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.original_filename}"`);
+    fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     next(error);
   }

@@ -75,7 +75,7 @@ router.get('/ward-membership',
   asyncHandler(async (req, res) => {
     const { ward_code } = req.query;
     const stats = await StatisticsModel.getWardMembershipStats(ward_code as string);
-    
+
     sendSuccess(res, {
       statistics: stats,
       count: stats.length,
@@ -97,7 +97,7 @@ router.get('/demographics',
   }),
   asyncHandler(async (req, res) => {
     const { ward_code, municipality_code, district_code, province_code } = req.query;
-    
+
     const filters = {
       ward_code: ward_code as string,
       municipality_code: municipality_code as string,
@@ -106,7 +106,7 @@ router.get('/demographics',
     };
 
     const demographics = await StatisticsModel.getDemographicBreakdown(filters);
-    
+
     sendSuccess(res, {
       demographics,
       filters: Object.fromEntries(Object.entries(filters).filter(([_, v]) => v))
@@ -120,7 +120,7 @@ router.get('/demographics/ward/:wardCode',
   asyncHandler(async (req, res) => {
     const { wardCode } = req.params;
     const demographics = await StatisticsModel.getDemographicBreakdown({ ward_code: wardCode });
-    
+
     sendSuccess(res, {
       demographics,
       ward_code: wardCode
@@ -134,7 +134,7 @@ router.get('/demographics/municipality/:municipalityCode',
   asyncHandler(async (req, res) => {
     const { municipalityCode } = req.params;
     const demographics = await StatisticsModel.getDemographicBreakdown({ municipality_code: municipalityCode });
-    
+
     sendSuccess(res, {
       demographics,
       municipality_code: municipalityCode
@@ -148,7 +148,7 @@ router.get('/demographics/district/:districtCode',
   asyncHandler(async (req, res) => {
     const { districtCode } = req.params;
     const demographics = await StatisticsModel.getDemographicBreakdown({ district_code: districtCode });
-    
+
     sendSuccess(res, {
       demographics,
       district_code: districtCode
@@ -261,7 +261,7 @@ router.get('/membership-trends',
   asyncHandler(async (req, res) => {
     const { months = 12 } = req.query;
     const trends = await StatisticsModel.getMembershipTrends(parseInt(months as string));
-    
+
     sendSuccess(res, {
       trends,
       period_months: parseInt(months as string)
@@ -1254,12 +1254,12 @@ router.get('/compare',
   asyncHandler(async (req, res) => {
     const { areas, type = 'ward' } = req.query;
     const areaCodes = (areas as string).split(',');
-    
+
     const comparisons = await Promise.all(
       areaCodes.map(async (code) => {
         const filterKey = `${type}_code` as 'ward_code' | 'municipality_code' | 'district_code' | 'province_code';
         const demographics = await StatisticsModel.getDemographicBreakdown({ [filterKey]: code.trim() });
-        
+
         return {
           code: code.trim(),
           type,
@@ -1267,7 +1267,7 @@ router.get('/compare',
         };
       })
     );
-    
+
     sendSuccess(res, {
       comparisons,
       summary: {
@@ -1291,7 +1291,7 @@ router.get('/export',
   }),
   asyncHandler(async (req, res) => {
     const { format = 'summary', ward_code, municipality_code, district_code, province_code } = req.query;
-    
+
     const filters = {
       ward_code: ward_code as string,
       municipality_code: municipality_code as string,
@@ -1300,14 +1300,14 @@ router.get('/export',
     };
 
     let exportData;
-    
+
     if (format === 'detailed') {
       const [demographics, wardStats, trends] = await Promise.all([
         StatisticsModel.getDemographicBreakdown(filters),
         StatisticsModel.getWardMembershipStats(ward_code as string),
         StatisticsModel.getMembershipTrends(12)
       ]);
-      
+
       exportData = {
         demographics,
         ward_statistics: wardStats,
@@ -1320,7 +1320,7 @@ router.get('/export',
         StatisticsModel.getSystemStatistics(),
         StatisticsModel.getDemographicBreakdown(filters)
       ]);
-      
+
       exportData = {
         system_totals: systemStats.totals,
         growth: systemStats.growth,
@@ -1334,7 +1334,7 @@ router.get('/export',
         filters: Object.fromEntries(Object.entries(filters).filter(([_, v]) => v))
       };
     }
-    
+
     sendSuccess(res, exportData, `Statistics export (${format}) generated successfully`);
   })
 );
@@ -1609,7 +1609,7 @@ router.get('/monthly-summary/report/pdf',
 
     // Determine report title
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
+      'July', 'August', 'September', 'October', 'November', 'December'];
     const reportTitle = title as string || `Monthly Summary Report - ${monthNames[parseInt(month as string) - 1]} ${year}`;
 
     // Generate PDF
@@ -1662,7 +1662,7 @@ router.get('/monthly-summary',
     });
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
+      'July', 'August', 'September', 'October', 'November', 'December'];
 
     sendSuccess(res, {
       monthly_summary: summaryData,
@@ -2039,7 +2039,7 @@ router.get('/voter-registration',
         `;
         geographicBreakdown = await executeQuery(wardBreakdownQuery, [municipalCode]);
       } else if (provinceCode) {
-        // Province admin - breakdown by municipality (sub-region)
+        // Province admin - breakdown by municipality (Local Municipality)
         const municipalityBreakdownQuery = `
           SELECT
             municipality_code,
@@ -2199,7 +2199,7 @@ router.get('/expired-registered-voters',
         `;
         geographicBreakdown = await executeQuery(wardBreakdownQuery, [municipalCode]);
       } else if (provinceCode) {
-        // Province admin - breakdown by municipality/sub-region
+        // Province admin - breakdown by municipality/Local Municipality
         const municipalityBreakdownQuery = `
           SELECT
             municipality_code,

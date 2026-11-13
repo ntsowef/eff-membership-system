@@ -1,4 +1,4 @@
-import { executeQuery, executeQuerySingle } from '../config/database';
+import { executeQuery, executeQuerySingle, executeTransaction } from '../config/database';
 import { createDatabaseError } from '../middleware/errorHandler';
 
 // Enhanced Meeting interfaces for hierarchical system
@@ -7,7 +7,7 @@ export interface MeetingType {
   type_name: string;
   type_code: string;
   description?: string;
-  hierarchy_level: 'National' | 'Provincial' | 'Regional' | 'Municipal' | 'Ward';
+  hierarchy_level: 'National' | 'Provincial' | 'Province' | 'Regional' | 'Region' | 'Municipal' | 'Municipality' | 'Ward' | 'Branch';
   meeting_category: 'Regular' | 'Assembly' | 'Conference' | 'Special' | 'Emergency';
   default_duration_minutes: number;
   requires_quorum: boolean;
@@ -50,9 +50,9 @@ export interface Meeting {
   meeting_id: number;
   meeting_title: string;
   meeting_type_id: number;
-  hierarchy_level: 'National' | 'Provincial' | 'Regional' | 'Municipal' | 'Ward';
+  hierarchy_level: 'National' | 'Provincial' | 'Province' | 'Regional' | 'Region' | 'Municipal' | 'Municipality' | 'Ward' | 'Branch';
   entity_id?: number;
-  entity_type?: 'Province' | 'Region' | 'Municipality' | 'Ward';
+  entity_type?: 'National' | 'Province' | 'Region' | 'Municipality' | 'Ward' | 'Branch';
   meeting_date: string;
   meeting_time: string;
   end_time?: string;
@@ -86,6 +86,9 @@ export interface MeetingDetails extends Meeting {
   secretary_name?: string;
   created_by_name: string;
   entity_name?: string;
+  province_code?: string;
+  municipality_code?: string;
+  ward_code?: string;
   attendance_summary?: {
     total_invited: number;
     total_attended: number;
@@ -98,9 +101,9 @@ export interface MeetingDetails extends Meeting {
 export interface CreateMeetingData {
   title: string; // Changed from meeting_title to title
   meeting_type_id: number;
-  hierarchy_level: 'National' | 'Provincial' | 'Regional' | 'Municipal' | 'Ward';
+  hierarchy_level: 'National' | 'Provincial' | 'Province' | 'Regional' | 'Region' | 'Municipal' | 'Municipality' | 'Ward' | 'Branch' | string;
   entity_id?: number;
-  entity_type?: 'Province' | 'Region' | 'Municipality' | 'Ward';
+  entity_type?: 'National' | 'Province' | 'Region' | 'Municipality' | 'Ward' | 'Branch' | string;
   meeting_date: string;
   meeting_time: string;
   end_time?: string;
@@ -120,6 +123,9 @@ export interface CreateMeetingData {
 
 export interface UpdateMeetingData {
   meeting_title?: string;
+  meeting_type_id?: number;
+  hierarchy_level?: string;
+  entity_id?: number;
   meeting_date?: string;
   meeting_time?: string;
   end_time?: string;
@@ -197,6 +203,10 @@ export interface AutoInvitationRequest {
 
 export interface InvitationTarget {
   member_id: number;
+  member_name?: string;
+  member_email?: string;
+  member_phone?: string;
+  membership_number?: string;
   attendance_type: 'Required' | 'Optional' | 'Observer' | 'Guest' | 'Delegate';
   role_in_meeting?: string;
   voting_rights: boolean;
@@ -271,10 +281,21 @@ export class MeetingModel {
   // Create new hierarchical meeting (adapted to work with existing database schema)
   static async createMeeting(meetingData: CreateMeetingData): Promise<number> {
     try {
-      // Format date properly - extract just the date part if it's an ISO string
-      let dateStr = String(meetingData.meeting_date);
-      if (dateStr.includes('T')) {
-        dateStr = dateStr.split('T')[0]; // Extract YYYY-MM-DD from ISO string
+      // Format date properly - handle Date instances (from Joi.date()) and ISO strings
+      let dateStr: string;
+      const rawDate: any = meetingData.meeting_date;
+      if (rawDate instanceof Date) {
+        dateStr = rawDate.toISOString().split('T')[0];
+      } else {
+        dateStr = String(rawDate);
+        if (/^\d{4}-\d{2}-\d{2}T/.test(dateStr)) {
+          dateStr = dateStr.split('T')[0];
+        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          const parsed = new Date(dateStr);
+          if (!isNaN(parsed.getTime())) {
+            dateStr = parsed.toISOString().split('T')[0];
+          }
+        }
       }
       const timeStr = String(meetingData.meeting_time);
       const endTimeStr = meetingData.end_time ? String(meetingData.end_time) : null;
@@ -305,7 +326,7 @@ export class MeetingModel {
         meetingData.description || null,
         meetingData.objectives || null,
         meetingData.quorum_required || 0,
-        meetingData.created_by || 1
+        meetingData.created_by || 8571
       ];
 
       const result = await executeQuery(query, params);
@@ -320,26 +341,25 @@ export class MeetingModel {
     try {
       const query = `
         INSERT INTO meeting_invitations (
-          meeting_id, member_id, invitation_status, attendance_type,
-          role_in_meeting, voting_rights, invitation_method, invitation_sent_at,
-          invitation_priority
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          meeting_id, invitee_type, invitee_id, invitee_email,
+          invitee_name, invitation_status, response_message, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING invitation_id
       `;
 
       const params = [
         invitationData.meeting_id,
-        invitationData.member_id,
-        invitationData.invitation_status || 'Pending',
-        invitationData.attendance_type || 'Required',
-        invitationData.role_in_meeting || null,
-        invitationData.voting_rights || true,
-        invitationData.invitation_method || 'System',
-        invitationData.invitation_sent_at || null,
-        invitationData.invitation_priority || 1
+        invitationData.invitee_type || 'Member',
+        invitationData.member_id || invitationData.invitee_id || null,
+        invitationData.invitee_email || invitationData.member_email || null,
+        invitationData.invitee_name || invitationData.member_name || invitationData.role_in_meeting || null,
+        invitationData.invitation_status || 'Sent',
+        invitationData.response_message || null,
+        invitationData.created_by || 8571
       ];
 
       const result = await executeQuery(query, params);
-      return result.insertId;
+      return result[0]?.invitation_id;
     } catch (error) {
       throw createDatabaseError('Failed to create invitation record', error);
     }
@@ -374,7 +394,7 @@ export class MeetingModel {
     try {
       const query = `
         SELECT * FROM meeting_invitations
-        WHERE meeting_id = ? AND member_id = ?
+        WHERE meeting_id = ? AND invitee_id = ?
       `;
       const result = await executeQuerySingle(query, [meetingId, memberId]);
       return result;
@@ -393,21 +413,22 @@ export class MeetingModel {
         fields.push('invitation_status = ?');
         params.push(updateData.invitation_status);
       }
-      if (updateData.attendance_type !== undefined) {
-        fields.push('attendance_type = ?');
-        params.push(updateData.attendance_type);
-      }
-      if (updateData.role_in_meeting !== undefined) {
-        fields.push('role_in_meeting = ?');
+      const resolvedName = updateData.invitee_name ?? updateData.member_name;
+      if (resolvedName !== undefined) {
+        fields.push('invitee_name = ?');
+        params.push(resolvedName);
+      } else if (updateData.role_in_meeting !== undefined) {
+        fields.push('invitee_name = ?');
         params.push(updateData.role_in_meeting);
       }
-      if (updateData.voting_rights !== undefined) {
-        fields.push('voting_rights = ?');
-        params.push(updateData.voting_rights);
+      const resolvedEmail = updateData.invitee_email ?? updateData.member_email;
+      if (resolvedEmail !== undefined) {
+        fields.push('invitee_email = ?');
+        params.push(resolvedEmail);
       }
-      if (updateData.invitation_priority !== undefined) {
-        fields.push('invitation_priority = ?');
-        params.push(updateData.invitation_priority);
+      if (updateData.response_message !== undefined) {
+        fields.push('response_message = ?');
+        params.push(updateData.response_message);
       }
 
       if (fields.length === 0) return;
@@ -415,7 +436,7 @@ export class MeetingModel {
       fields.push('updated_at = CURRENT_TIMESTAMP');
       params.push(invitationId);
 
-      const query = `UPDATE meeting_invitations SET ${fields.join(', ')} WHERE id = ?`;
+      const query = `UPDATE meeting_invitations SET ${fields.join(', ')} WHERE invitation_id = ?`;
       await executeQuery(query, params);
     } catch (error) {
       throw createDatabaseError('Failed to update invitation record', error);
@@ -444,34 +465,100 @@ export class MeetingModel {
     return await executeQuery(query, params);
   }
 
+  // Normalize meeting row to include both DB fields and UI compatibility fields
+  private static normalizeMeetingRow(row: any): MeetingDetails {
+    if (!row) return row;
+
+    let dateStr = '';
+    if (typeof row.meeting_date_str === 'string' && row.meeting_date_str) {
+      dateStr = row.meeting_date_str.split('T')[0];
+    } else if (row.meeting_date instanceof Date) {
+      const y = row.meeting_date.getFullYear();
+      const m = String(row.meeting_date.getMonth() + 1).padStart(2, '0');
+      const d = String(row.meeting_date.getDate()).padStart(2, '0');
+      dateStr = `${y}-${m}-${d}`;
+    } else if (row.meeting_date) {
+      dateStr = String(row.meeting_date).split('T')[0];
+    }
+
+    const rawStartTime = row.meeting_time ? String(row.meeting_time) : '00:00:00';
+    const startTimeFull = rawStartTime.length === 5 ? `${rawStartTime}:00` : rawStartTime;
+
+    let endTimeFull = '';
+    if (row.end_time) {
+      const rawEnd = String(row.end_time);
+      endTimeFull = rawEnd.length === 5 ? `${rawEnd}:00` : rawEnd;
+    } else if (dateStr && rawStartTime) {
+      const durationMins = Number(row.duration_minutes) || 60;
+      const [h, m, s = 0] = startTimeFull.split(':').map(Number);
+      const startObj = new Date(2000, 0, 1, h || 0, m || 0, s || 0);
+      const endObj = new Date(startObj.getTime() + durationMins * 60000);
+      const eh = String(endObj.getHours()).padStart(2, '0');
+      const em = String(endObj.getMinutes()).padStart(2, '0');
+      const es = String(endObj.getSeconds()).padStart(2, '0');
+      endTimeFull = `${eh}:${em}:${es}`;
+    }
+
+    const startDatetime = row.start_datetime || (dateStr ? `${dateStr}T${startTimeFull}` : null);
+    const endDatetime = row.end_datetime || (dateStr && endTimeFull ? `${dateStr}T${endTimeFull}` : startDatetime);
+
+    return {
+      ...row,
+      id: row.id ?? row.meeting_id,
+      meeting_id: row.meeting_id ?? row.id,
+      title: row.title || row.meeting_title,
+      meeting_title: row.meeting_title || row.title,
+      meeting_date: dateStr || row.meeting_date,
+      meeting_time: row.meeting_time,
+      end_time: row.end_time || (endTimeFull ? endTimeFull.slice(0, 5) : null),
+      start_datetime: startDatetime,
+      end_datetime: endDatetime,
+      meeting_type: row.meeting_type || row.type_name || row.meeting_category || 'Regular',
+      type_name: row.type_name || row.meeting_type || 'Regular',
+      max_attendees: Number(row.max_attendees ?? row.total_invited ?? row.quorum_required ?? 0),
+      present_count: Number(row.present_count ?? row.total_attendees ?? 0)
+    };
+  }
+
   // Get meeting by ID with details
   static async getMeetingById(id: number): Promise<MeetingDetails | null> {
     try {
       const query = `
         SELECT
           m.*,
+          m.meeting_id as id,
+          m.meeting_title as title,
+          m.meeting_date::text as meeting_date_str,
+          mt.type_name,
+          mt.type_code,
+          mt.meeting_category,
+          mt.type_name as meeting_type,
           u.name as creator_name,
           CASE
             WHEN m.hierarchy_level = 'National' THEN 'National'
-            WHEN m.hierarchy_level = 'Provincial' THEN p.province_name
-            WHEN m.hierarchy_level = 'Province' THEN p.province_name
-            WHEN m.hierarchy_level = 'Region' THEN d.district_name
-            WHEN m.hierarchy_level = 'Municipal' THEN mu.municipality_name
-            WHEN m.hierarchy_level = 'Municipality' THEN mu.municipality_name
-            WHEN m.hierarchy_level = 'Ward' THEN w.ward_name
+            WHEN m.hierarchy_level = 'Provincial' OR m.hierarchy_level = 'Province' THEN p.province_name
+            WHEN m.hierarchy_level = 'Region' OR m.hierarchy_level = 'Regional' THEN d.district_name
+            WHEN m.hierarchy_level = 'Municipal' OR m.hierarchy_level = 'Municipality' THEN mu.municipality_name
+            WHEN m.hierarchy_level = 'Ward' OR m.hierarchy_level = 'Branch' THEN w.ward_name
             ELSE 'Unknown'
           END as entity_name,
+          COALESCE(p.province_code, mu.province_code, wm.province_code) as province_code,
+          COALESCE(mu.municipality_code, w.municipality_code) as municipality_code,
+          w.ward_code as ward_code,
+          (SELECT COUNT(*) FROM meeting_invitations mi WHERE mi.meeting_id = m.meeting_id) as total_invited,
           COALESCE(attendance_stats.attendee_count, 0) as attendee_count,
           COALESCE(attendance_stats.present_count, 0) as present_count,
           COALESCE(attendance_stats.absent_count, 0) as absent_count,
           COALESCE(attendance_stats.excused_count, 0) as excused_count,
           COALESCE(attendance_stats.late_count, 0) as late_count
         FROM meetings m
+        LEFT JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
         LEFT JOIN users u ON m.created_by = u.user_id
         LEFT JOIN provinces p ON (m.hierarchy_level = 'Province' OR m.hierarchy_level = 'Provincial') AND m.entity_id = p.province_id
-        LEFT JOIN districts d ON m.hierarchy_level = 'Region' AND m.entity_id = d.district_id
+        LEFT JOIN districts d ON (m.hierarchy_level = 'Region' OR m.hierarchy_level = 'Regional') AND m.entity_id = d.district_id
         LEFT JOIN municipalities mu ON (m.hierarchy_level = 'Municipality' OR m.hierarchy_level = 'Municipal') AND m.entity_id = mu.municipality_id
-        LEFT JOIN wards w ON m.hierarchy_level = 'Ward' AND m.entity_id = w.ward_id
+        LEFT JOIN wards w ON (m.hierarchy_level = 'Ward' OR m.hierarchy_level = 'Branch') AND m.entity_id = w.ward_id
+        LEFT JOIN municipalities wm ON w.municipality_code = wm.municipality_code
         LEFT JOIN (
           SELECT
             meeting_id,
@@ -486,7 +573,8 @@ export class MeetingModel {
         WHERE m.meeting_id = $1
       `;
 
-      return await executeQuerySingle<MeetingDetails>(query, [id]);
+      const row = await executeQuerySingle<MeetingDetails>(query, [id]);
+      return row ? this.normalizeMeetingRow(row) : null;
     } catch (error) {
       throw createDatabaseError('Failed to fetch meeting', error);
     }
@@ -556,25 +644,34 @@ export class MeetingModel {
       const query = `
         SELECT 
           m.*,
+          m.meeting_id as id,
+          m.meeting_title as title,
+          m.meeting_date::text as meeting_date_str,
+          mt.type_name,
+          mt.type_code,
+          mt.meeting_category,
+          mt.type_name as meeting_type,
           u.name as creator_name,
           CASE 
-            WHEN m.hierarchy_level = 'Province' THEN p.province_name
-            WHEN m.hierarchy_level = 'Region' THEN d.district_name
-            WHEN m.hierarchy_level = 'Municipality' THEN mu.municipality_name
-            WHEN m.hierarchy_level = 'Ward' THEN w.ward_name
+            WHEN m.hierarchy_level = 'Province' OR m.hierarchy_level = 'Provincial' THEN p.province_name
+            WHEN m.hierarchy_level = 'Region' OR m.hierarchy_level = 'Regional' THEN d.district_name
+            WHEN m.hierarchy_level = 'Municipality' OR m.hierarchy_level = 'Municipal' THEN mu.municipality_name
+            WHEN m.hierarchy_level = 'Ward' OR m.hierarchy_level = 'Branch' THEN w.ward_name
             ELSE 'National'
           END as entity_name,
+          (SELECT COUNT(*) FROM meeting_invitations mi WHERE mi.meeting_id = m.meeting_id) as total_invited,
           COALESCE(attendance_stats.attendee_count, 0) as attendee_count,
           COALESCE(attendance_stats.present_count, 0) as present_count,
           COALESCE(attendance_stats.absent_count, 0) as absent_count,
           COALESCE(attendance_stats.excused_count, 0) as excused_count,
           COALESCE(attendance_stats.late_count, 0) as late_count
         FROM meetings m
+        LEFT JOIN meeting_types mt ON m.meeting_type_id = mt.type_id
         LEFT JOIN users u ON m.created_by = u.user_id
-        LEFT JOIN provinces p ON m.hierarchy_level = 'Province' AND m.entity_id = p.province_id
-        LEFT JOIN districts d ON m.hierarchy_level = 'Region' AND m.entity_id = d.district_id
-        LEFT JOIN municipalities mu ON m.hierarchy_level = 'Municipality' AND m.entity_id = mu.municipality_id
-        LEFT JOIN wards w ON m.hierarchy_level = 'Ward' AND m.entity_id = w.ward_id
+        LEFT JOIN provinces p ON (m.hierarchy_level = 'Province' OR m.hierarchy_level = 'Provincial') AND m.entity_id = p.province_id
+        LEFT JOIN districts d ON (m.hierarchy_level = 'Region' OR m.hierarchy_level = 'Regional') AND m.entity_id = d.district_id
+        LEFT JOIN municipalities mu ON (m.hierarchy_level = 'Municipality' OR m.hierarchy_level = 'Municipal') AND m.entity_id = mu.municipality_id
+        LEFT JOIN wards w ON (m.hierarchy_level = 'Ward' OR m.hierarchy_level = 'Branch') AND m.entity_id = w.ward_id
         LEFT JOIN (
           SELECT 
             meeting_id,
@@ -592,7 +689,8 @@ export class MeetingModel {
       `;
 
       params.push(limit, offset);
-      return await executeQuery<MeetingDetails>(query, params);
+      const rows = await executeQuery<MeetingDetails>(query, params);
+      return rows.map(row => this.normalizeMeetingRow(row));
     } catch (error) {
       throw createDatabaseError('Failed to fetch meetings', error);
     }
@@ -656,11 +754,32 @@ export class MeetingModel {
   // Update meeting
   static async updateMeeting(id: number, updateData: UpdateMeetingData): Promise<boolean> {
     try {
+      const validColumns = new Set([
+        'meeting_title',
+        'meeting_type_id',
+        'hierarchy_level',
+        'entity_id',
+        'meeting_date',
+        'meeting_time',
+        'end_time',
+        'duration_minutes',
+        'location',
+        'virtual_meeting_link',
+        'meeting_platform',
+        'meeting_status',
+        'description',
+        'objectives',
+        'quorum_required',
+        'quorum_achieved',
+        'total_attendees',
+        'meeting_chair_id',
+        'meeting_secretary_id',
+      ]);
       const fields: string[] = [];
       const params: any[] = [];
 
       Object.entries(updateData).forEach(([key, value]) => {
-        if (value !== undefined) {
+        if (value !== undefined && validColumns.has(key)) {
           fields.push(`${key} = ?`);
           params.push(value);
         }
@@ -673,26 +792,34 @@ export class MeetingModel {
       fields.push('updated_at = CURRENT_TIMESTAMP');
       params.push(id);
 
-      const query = `UPDATE meetings SET ${fields.join(', ')} WHERE id = ?`;
+      const query = `UPDATE meetings SET ${fields.join(', ')} WHERE meeting_id = ? RETURNING meeting_id`;
       const result = await executeQuery(query, params);
 
-      return result.affectedRows > 0;
+      return Array.isArray(result) && result.length > 0;
     } catch (error) {
       throw createDatabaseError('Failed to update meeting', error);
     }
   }
 
-  // Delete meeting
+  // Delete meeting and all dependent records atomically
   static async deleteMeeting(id: number): Promise<boolean> {
     try {
-      // First delete all attendance records
-      await executeQuery('DELETE FROM meeting_attendance WHERE meeting_id = ?', [id]);
+      const results = await executeTransaction([
+        { query: 'UPDATE ward_compliance_audit_log SET last_meeting_id = NULL WHERE last_meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_action_items WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_decisions WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_documents WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_minutes WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_agenda_items WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_invitations WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_attendance WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meeting_status_history WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM ward_meeting_records WHERE meeting_id = $1', params: [id] },
+        { query: 'DELETE FROM meetings WHERE meeting_id = $1 RETURNING meeting_id', params: [id] },
+      ]);
 
-      // Then delete the meeting
-      const query = 'DELETE FROM meetings WHERE id = ?';
-      const result = await executeQuery(query, [id]);
-
-      return result.affectedRows > 0;
+      const deletedRows = results[results.length - 1];
+      return Array.isArray(deletedRows) && deletedRows.length > 0;
     } catch (error) {
       throw createDatabaseError('Failed to delete meeting', error);
     }

@@ -182,8 +182,8 @@ export class MeetingInvitationService {
           mi.invitation_id,
           mi.meeting_id,
           mi.invitee_id as member_id,
-          mi.invitee_name as member_name,
-          mi.invitee_email as email,
+          COALESCE(NULLIF(TRIM(mi.invitee_name), ''), TRIM(COALESCE(m.firstname, '') || ' ' || COALESCE(m.surname, ''))) as member_name,
+          COALESCE(NULLIF(TRIM(mi.invitee_email), ''), m.email) as email,
           mi.invitation_status,
           mi.sent_at,
           mi.delivered_at,
@@ -193,14 +193,15 @@ export class MeetingInvitationService {
           mi.created_at,
           mi.updated_at,
           m.cell_number as phone,
-          'MEM' || LPAD(CAST(mi.invitee_id AS TEXT), 6, '0') as member_number,
-          creator.firstname || ' ' || creator.surname as created_by_name
+          m.cell_number as phone_number,
+          COALESCE(NULLIF(m.membership_number, ''), 'MEM' || LPAD(CAST(mi.invitee_id AS TEXT), GREATEST(LENGTH(CAST(mi.invitee_id AS TEXT)), 6), '0')) as member_number,
+          COALESCE(NULLIF(TRIM(u.name), ''), 'System') as created_by_name
         FROM meeting_invitations mi
         LEFT JOIN members_consolidated m ON mi.invitee_id = m.member_id
-        LEFT JOIN members_consolidated creator ON mi.created_by = creator.member_id
+        LEFT JOIN users u ON mi.created_by = u.user_id
         WHERE mi.meeting_id = $1
         AND LOWER(mi.invitee_type) = 'member'
-        ORDER BY mi.created_at ASC
+        ORDER BY mi.created_at ASC, mi.invitation_id ASC
       `;
 
       const attendance = await executeQuery(query, [meetingId]);

@@ -80,9 +80,9 @@ async function generateMappings() {
         match = internalMunis.find(m => {
           const internalName = m.municipality_name.toLowerCase();
           const iecLower = iecFullName.toLowerCase();
-          // Check if names match (allowing for "Sub-Region" suffix)
+          // Check if names match (allowing for "Local Municipality" suffix)
           return internalName.includes(iecLower) ||
-                 iecLower.includes(internalName.replace(' sub-region', '').replace('sub-region of ', ''));
+            iecLower.includes(internalName.replace(' Local Municipality', '').replace('Local Municipality of ', ''));
         });
       }
 

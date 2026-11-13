@@ -49,7 +49,7 @@ export interface VotingDistrict {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  
+
   // Related data (when joined)
   ward_name?: string;
   ward_number?: string;
@@ -96,7 +96,7 @@ export interface Municipality {
   municipality_name: string;
   district_code: string;
   province_code: string;
-  municipality_type: 'Local' | 'Metropolitan' | 'District' | 'Metro Sub-Region';
+  municipality_type: 'Local' | 'Metropolitan' | 'District' | 'Metro Local Municipality';
   parent_municipality_id?: number | null;
   parent_municipality_code?: string | null;
   parent_municipality_name?: string | null;

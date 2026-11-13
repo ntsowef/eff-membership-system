@@ -3,21 +3,21 @@
 ## 🐛 Problem Identified
 
 ### Issue Description
-Members from metro sub-regions like "ETH - Central", "JHB - A", "CPT - Zone 1" were not getting their **province** inserted into the database during ingestion.
+Members from metro Local Municipalitys like "ETH - Central", "JHB - A", "CPT - Zone 1" were not getting their **province** inserted into the database during ingestion.
 
 ### Affected Municipalities
-- **53 metro sub-regions** across 8 metropolitan municipalities:
-  - **ETH** (eThekwini): ETH001-ETH010 (10 sub-regions) - KwaZulu-Natal
-  - **JHB** (Johannesburg): JHB001-JHB007 (7 sub-regions) - Gauteng
-  - **CPT** (Cape Town): CPT001-CPT010 (10 sub-regions) - Western Cape
-  - **EKU** (Ekurhuleni): EKU001-EKU005 (5 sub-regions) - Gauteng
-  - **TSH** (Tshwane): TSH001-TSH006 (6 sub-regions) - Gauteng
-  - **MAN** (Mangaung): MAN001-MAN004 (4 sub-regions) - Free State
-  - **BUF** (Buffalo City): BUF001-BUF004 (4 sub-regions) - Eastern Cape
-  - **NMA** (Nelson Mandela Bay): NMA001-NMA007 (7 sub-regions) - Eastern Cape
+- **53 metro Local Municipalitys** across 8 metropolitan municipalities:
+  - **ETH** (eThekwini): ETH001-ETH010 (10 Local Municipalitys) - KwaZulu-Natal
+  - **JHB** (Johannesburg): JHB001-JHB007 (7 Local Municipalitys) - Gauteng
+  - **CPT** (Cape Town): CPT001-CPT010 (10 Local Municipalitys) - Western Cape
+  - **EKU** (Ekurhuleni): EKU001-EKU005 (5 Local Municipalitys) - Gauteng
+  - **TSH** (Tshwane): TSH001-TSH006 (6 Local Municipalitys) - Gauteng
+  - **MAN** (Mangaung): MAN001-MAN004 (4 Local Municipalitys) - Free State
+  - **BUF** (Buffalo City): BUF001-BUF004 (4 Local Municipalitys) - Eastern Cape
+  - **NMA** (Nelson Mandela Bay): NMA001-NMA007 (7 Local Municipalitys) - Eastern Cape
 
 ### Root Cause
-1. Metro sub-regions have **NO `district_code`** (it's NULL in the database)
+1. Metro Local Municipalitys have **NO `district_code`** (it's NULL in the database)
 2. The ingestion script's `resolve_geographic_hierarchy()` function tried to resolve province through:
    ```
    ward → municipality → district → province
@@ -33,10 +33,10 @@ Members from metro sub-regions like "ETH - Central", "JHB - A", "CPT - Zone 1" w
 ### Changes Made to `flexible_membership_ingestionV2.py`
 
 #### 1. Added Municipality-to-Province Mapping (Lines 382-410)
-Created a new pre-loaded mapping that handles both regular municipalities and metro sub-regions:
+Created a new pre-loaded mapping that handles both regular municipalities and metro Local Municipalitys:
 
 ```python
-# Load municipality -> province mapping (for metros and sub-regions)
+# Load municipality -> province mapping (for metros and Local Municipalitys)
 self.cursor.execute("""
     SELECT 
         m.municipality_code,
@@ -54,14 +54,14 @@ self.cursor.execute("""
 
 **How it works:**
 - For regular municipalities: Gets province from their district
-- For metro sub-regions: Gets province from parent metro's district using `parent_municipality_id`
+- For metro Local Municipalitys: Gets province from parent metro's district using `parent_municipality_id`
 - Uses `COALESCE` to try direct district first, then parent's district
 
 #### 2. Updated `resolve_geographic_hierarchy()` Function (Lines 448-452)
 Added fallback to use the new mapping:
 
 ```python
-# Try to get province from municipality_to_province mapping (for metros and sub-regions)
+# Try to get province from municipality_to_province mapping (for metros and Local Municipalitys)
 if not result['province_code'] and muni_code in self.municipality_to_province:
     prov_code, prov_name = self.municipality_to_province[muni_code]
     result['province_code'] = prov_code
@@ -81,7 +81,7 @@ self.municipality_to_province = {}  # municipality_code -> (province_code, provi
 
 **Results:**
 ```
-✅ All 10 test metro sub-regions resolved correctly:
+✅ All 10 test metro Local Municipalitys resolved correctly:
    ✓ ETH001: KZN - KwaZulu-Natal
    ✓ ETH002: KZN - KwaZulu-Natal
    ✓ JHB001: GP - Gauteng
@@ -94,7 +94,7 @@ self.municipality_to_province = {}  # municipality_code -> (province_code, provi
    ✓ NMA001: EC - Eastern Cape
 
 ✅ Total municipalities with province mapping: 266
-✅ Metro sub-regions with province mapping: 53
+✅ Metro Local Municipalitys with province mapping: 53
 ✅ Ward-based geographic resolution: WORKING
 ```
 
@@ -120,9 +120,9 @@ parent_municipality_id (FK) → municipalities.municipality_id
 Municipality → District → Province
 ```
 
-**Metro Sub-Regions:**
+**Metro Local Municipalitys:**
 ```
-Metro Sub-Region → Parent Metro → District → Province
+Metro Local Municipality → Parent Metro → District → Province
 ```
 
 **Example:**
@@ -141,13 +141,13 @@ Province 'KZN' (KwaZulu-Natal)
 ## 🎯 Impact
 
 ### Before Fix
-- **53 metro sub-regions** had NULL province values
+- **53 metro Local Municipalitys** had NULL province values
 - Members from Gauteng, KwaZulu-Natal, Western Cape, Eastern Cape, and Free State metros were missing province data
 - Geographic analysis and reporting was incomplete
 
 ### After Fix
 - **All 266 municipalities** now have province mappings
-- **100% coverage** for metro sub-regions
+- **100% coverage** for metro Local Municipalitys
 - Province data correctly inserted during ingestion
 - Geographic hierarchy resolution working for all municipalities
 
@@ -200,7 +200,7 @@ To verify the fix is working:
 
 **FIXED** ✓
 
-All metro sub-regions now correctly resolve their province during ingestion.
+All metro Local Municipalitys now correctly resolve their province during ingestion.
 
 ---
 

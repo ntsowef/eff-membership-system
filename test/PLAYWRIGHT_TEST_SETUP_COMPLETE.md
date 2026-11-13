@@ -67,7 +67,7 @@ python verify-approval.py 7808020703087
 ✅ PASS: Voter Status ID is set (1)
 ✅ PASS: Voter Status ID is valid (1, 2, or 4) (1)
 ✅ PASS: Voting District Code is set (32871326)
-✅ PASS: Municipality Code is sub-region (not metro) (EKU004)
+✅ PASS: Municipality Code is Local Municipality (not metro) (EKU004)
 ✅ PASS: Membership Status is Active (ID: 1) (1)
 
 🎉 ALL CHECKS PASSED!
@@ -111,7 +111,7 @@ The tests verify these critical fields:
 |-------|----------|------------|
 | **voter_status_id** | 1, 2, or 4 | ✅ Must be set and valid |
 | **voting_district_code** | IEC VD or special code | ✅ Must be set (8 digits or special) |
-| **municipality_code** | Sub-region format | ✅ Must be sub-region, not metro |
+| **municipality_code** | Local Municipality format | ✅ Must be Local Municipality, not metro |
 | **membership_status_id** | 1 (Active) | ✅ Must be Active/Good Standing |
 
 ---
@@ -153,7 +153,7 @@ test/playwright/
 ✅ PASS: Voter Status ID is set (1)
 ✅ PASS: Voter Status ID is valid (1, 2, or 4) (1)
 ✅ PASS: Voting District Code is set (32871326)
-✅ PASS: Municipality Code is sub-region (not metro) (EKU004)
+✅ PASS: Municipality Code is Local Municipality (not metro) (EKU004)
 ✅ PASS: Membership Status is Active (ID: 1) (1)
 
 🎉 ALL CHECKS PASSED!

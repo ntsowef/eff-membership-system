@@ -22,9 +22,9 @@ The leadership assignment "Select Member" functionality **already includes metro
 ### Test 1: Eligible Leadership Members
 ```
 ✅ Found 10 eligible members (showing first 10):
-  🏙️  ABEL SHAI - Municipality: EKU - South (Metro Sub-Region)
-  🏙️  ANDISILE - Municipality: EKU - East (Metro Sub-Region)
-  🏙️  Anna Mathabatha - Municipality: EKU - Central (Metro Sub-Region)
+  🏙️  ABEL SHAI - Municipality: EKU - South (Metro Local Municipality)
+  🏙️  ANDISILE - Municipality: EKU - East (Metro Local Municipality)
+  🏙️  Anna Mathabatha - Municipality: EKU - Central (Metro Local Municipality)
   ...
 
 Metro members: 10, Regular members: 0
@@ -33,7 +33,7 @@ Metro members: 10, Regular members: 0
 ### Test 2: Members by Province (Gauteng)
 ```
 ✅ Found 10 eligible members in Gauteng (showing first 10):
-All 10 members shown are from metro sub-regions ✅
+All 10 members shown are from metro Local Municipalitys ✅
 ```
 
 ### Test 3: Total Eligible Members
@@ -118,8 +118,8 @@ All leadership features now properly include metro members:
 ### 1. General Leadership Assignments ✅
 - **National positions** - Can select from all members including metros
 - **Provincial positions** - Can select from province including metro members
-- **District positions** - Can select from district including metro sub-regions
-- **Municipal positions** - Can select from municipality including metro sub-regions
+- **District positions** - Can select from district including metro Local Municipalitys
+- **Municipal positions** - Can select from municipality including metro Local Municipalitys
 
 ### 2. War Council Assignments ✅
 - **National positions** (President, Deputy President, etc.) - Can select from all members
@@ -129,8 +129,8 @@ All leadership features now properly include metro members:
 ### 3. Member Eligibility Checks ✅
 - **Geographic filtering** - Works correctly for metro members
 - **Province-based filtering** - Includes metro members
-- **District-based filtering** - Includes metro sub-regions
-- **Municipality-based filtering** - Includes metro sub-regions
+- **District-based filtering** - Includes metro Local Municipalitys
+- **Municipality-based filtering** - Includes metro Local Municipalitys
 
 ---
 
@@ -139,9 +139,9 @@ All leadership features now properly include metro members:
 All South African metropolitan municipalities are now properly available for leadership selection:
 
 ### Gauteng (GP) - 73,279 members
-- **City of Johannesburg (JHB)** - 7 sub-regions, 26,069 members
-- **City of Tshwane (TSH)** - 7 sub-regions
-- **Ekurhuleni (EKU)** - 5 sub-regions, 23,719 members
+- **City of Johannesburg (JHB)** - 7 Local Municipalitys, 26,069 members
+- **City of Tshwane (TSH)** - 7 Local Municipalitys
+- **Ekurhuleni (EKU)** - 5 Local Municipalitys, 23,719 members
 
 ### Other Provinces
 - **Western Cape**: City of Cape Town (CPT)
@@ -229,8 +229,8 @@ When we fixed `vw_member_details` for the member search issue, it automatically 
 
 - [x] Leadership member search includes metro members
 - [x] Province filtering includes metro members
-- [x] District filtering includes metro sub-regions
-- [x] Municipality filtering includes metro sub-regions
+- [x] District filtering includes metro Local Municipalitys
+- [x] Municipality filtering includes metro Local Municipalitys
 - [x] War Council assignments can select metro members
 - [x] Province-specific positions can select metro members
 - [x] All 73,279 Gauteng metro members are available
@@ -264,7 +264,7 @@ When we fixed `vw_member_details` for the member search issue, it automatically 
 1. **Check the view is working**:
    ```sql
    SELECT COUNT(*) FROM vw_member_details 
-   WHERE municipality_type = 'Metro Sub-Region' 
+   WHERE municipality_type = 'Metro Local Municipality' 
    AND province_code IS NOT NULL;
    ```
    Expected: 73,279

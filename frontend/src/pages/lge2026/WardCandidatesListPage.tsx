@@ -180,7 +180,7 @@ const WardCandidatesListPage: React.FC = () => {
                   <MenuItem disabled><CircularProgress size={20} sx={{ mr: 1 }} />Loading...</MenuItem>
                 ) : municipalities.map((m: Municipality) => (
                   <MenuItem key={m.municipality_code} value={m.municipality_code}>
-                    {m.municipality_name}{m.municipality_type === 'Metro Sub-Region' && ' (Sub-Region)'}
+                    {m.municipality_name}{m.municipality_type === 'Metro Local Municipality' && ' (Local Municipality)'}
                   </MenuItem>
                 ))}
               </Select>

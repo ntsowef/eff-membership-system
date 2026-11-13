@@ -123,7 +123,11 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [selectedMeeting, setSelectedMeeting] = useState<HierarchicalMeeting | null>(null);
+  const [detailsMeeting, setDetailsMeeting] = useState<HierarchicalMeeting | null>(null);
+  const [meetingToDelete, setMeetingToDelete] = useState<HierarchicalMeeting | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // Fetch hierarchical meetings
@@ -166,7 +170,20 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
     mutationFn: (meetingId: number) => apiDelete(`/hierarchical-meetings/${meetingId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hierarchical-meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      setDeleteDialogOpen(false);
+      setMeetingToDelete(null);
+      setSelectedMeeting(null);
+      setDeleteError(null);
       setAnchorEl(null);
+    },
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete meeting. Please try again.';
+      setDeleteError(message);
     },
   });
 
@@ -186,21 +203,52 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
 
   const handleViewDetails = () => {
     if (selectedMeeting) {
+      setDetailsMeeting(selectedMeeting);
       setDetailsDialogOpen(true);
-      handleMenuClose();
     }
+    handleMenuClose();
   };
 
   const handleEditMeeting = () => {
     if (selectedMeeting) {
-      navigate(`/admin/meetings/hierarchical/${selectedMeeting.meeting_id}/edit`);
+      const meetingId = selectedMeeting.meeting_id;
       handleMenuClose();
+      navigate(`/admin/meetings/hierarchical/${meetingId}/edit`);
+    }
+  };
+
+  const handleManageAttendance = () => {
+    if (selectedMeeting) {
+      const meetingId = selectedMeeting.meeting_id;
+      handleMenuClose();
+      navigate(`/admin/meetings/${meetingId}/attendance`);
     }
   };
 
   const handleDeleteMeeting = () => {
-    if (selectedMeeting && window.confirm('Are you sure you want to delete this meeting?')) {
-      deleteMeetingMutation.mutate(selectedMeeting.meeting_id);
+    if (selectedMeeting) {
+      setMeetingToDelete(selectedMeeting);
+      setDeleteError(null);
+      setDeleteDialogOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteCancel = () => {
+    if (deleteMeetingMutation.isPending) return;
+    setDeleteDialogOpen(false);
+    setMeetingToDelete(null);
+    setDeleteError(null);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!meetingToDelete) return;
+    const meetingId = Number(meetingToDelete.meeting_id);
+    if (!isNaN(meetingId) && meetingId > 0) {
+      setDeleteError(null);
+      deleteMeetingMutation.mutate(meetingId);
+    } else {
+      setDeleteError('Invalid meeting ID.');
     }
   };
 
@@ -610,10 +658,17 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              {new Date(meeting.meeting_date).toLocaleDateString()}
+                              {(/^\d{4}-\d{2}-\d{2}$/.test(String(meeting.meeting_date))
+                                ? new Date(`${meeting.meeting_date}T00:00:00`)
+                                : new Date(meeting.meeting_date)
+                              ).toLocaleDateString('en-ZA', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {meeting.meeting_time} ({meeting.duration_minutes}m)
+                              {String(meeting.meeting_time || '').slice(0, 5)} ({meeting.duration_minutes}m)
                             </Typography>
                           </Box>
                         </TableCell>
@@ -646,6 +701,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
                         
                         <TableCell align="right">
                           <IconButton
+                            aria-label={`Actions for ${meeting.meeting_title || 'meeting'}`}
                             onClick={(e) => handleMenuClick(e, meeting)}
                             size="small"
                           >
@@ -676,7 +732,7 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           <Edit sx={{ mr: 1 }} />
           Edit Meeting
         </MenuItem>
-        <MenuItem onClick={() => navigate(`/admin/meetings/${selectedMeeting?.meeting_id}/attendance`)}>
+        <MenuItem onClick={handleManageAttendance}>
           <People sx={{ mr: 1 }} />
           Manage Attendance
         </MenuItem>
@@ -690,7 +746,10 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
       {/* Meeting Details Dialog */}
       <Dialog
         open={detailsDialogOpen}
-        onClose={() => setDetailsDialogOpen(false)}
+        onClose={() => {
+          setDetailsDialogOpen(false);
+          setDetailsMeeting(null);
+        }}
         maxWidth="md"
         fullWidth
       >
@@ -698,50 +757,50 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           Meeting Details
         </DialogTitle>
         <DialogContent>
-          {selectedMeeting && (
+          {detailsMeeting && (
             <Box>
               <Typography variant="h6" gutterBottom>
-                {selectedMeeting.meeting_title}
+                {detailsMeeting.meeting_title}
               </Typography>
               
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary">Type</Typography>
-                  <Typography variant="body2">{selectedMeeting.type_name}</Typography>
+                  <Typography variant="body2">{detailsMeeting.type_name}</Typography>
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary">Hierarchy Level</Typography>
-                  <Typography variant="body2">{selectedMeeting.hierarchy_level}</Typography>
+                  <Typography variant="body2">{detailsMeeting.hierarchy_level}</Typography>
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary">Date & Time</Typography>
                   <Typography variant="body2">
-                    {new Date(selectedMeeting.meeting_date).toLocaleDateString()} at {selectedMeeting.meeting_time}
+                    {new Date(detailsMeeting.meeting_date).toLocaleDateString()} at {detailsMeeting.meeting_time}
                   </Typography>
                 </Grid>
                 
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary">Duration</Typography>
-                  <Typography variant="body2">{selectedMeeting.duration_minutes} minutes</Typography>
+                  <Typography variant="body2">{detailsMeeting.duration_minutes} minutes</Typography>
                 </Grid>
                 
-                {selectedMeeting.description && (
+                {detailsMeeting.description && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" color="text.secondary">Description</Typography>
-                    <Typography variant="body2">{selectedMeeting.description}</Typography>
+                    <Typography variant="body2">{detailsMeeting.description}</Typography>
                   </Grid>
                 )}
                 
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">Attendance Summary</Typography>
                   <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                    <Chip label={`Invited: ${selectedMeeting.total_invited || 0}`} size="small" />
-                    <Chip label={`Attended: ${selectedMeeting.total_attendees || 0}`} size="small" color="success" />
-                    {selectedMeeting.attendance_summary && (
+                    <Chip label={`Invited: ${detailsMeeting.total_invited || 0}`} size="small" />
+                    <Chip label={`Attended: ${detailsMeeting.total_attendees || 0}`} size="small" color="success" />
+                    {detailsMeeting.attendance_summary && (
                       <Chip 
-                        label={`${selectedMeeting.attendance_summary.attendance_percentage}% attendance`} 
+                        label={`${detailsMeeting.attendance_summary.attendance_percentage}% attendance`} 
                         size="small" 
                         color="info" 
                       />
@@ -753,15 +812,56 @@ const HierarchicalMeetingsDashboard: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
-          {selectedMeeting && (
+          <Button
+            onClick={() => {
+              setDetailsDialogOpen(false);
+              setDetailsMeeting(null);
+            }}
+          >
+            Close
+          </Button>
+          {detailsMeeting && (
             <Button 
               variant="contained" 
-              onClick={() => navigate(`/admin/meetings/${selectedMeeting.meeting_id}`)}
+              onClick={() => navigate(`/admin/meetings/${detailsMeeting.meeting_id}`)}
             >
               View Full Details
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Meeting</DialogTitle>
+        <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+          <Typography>
+            Are you sure you want to delete "{meetingToDelete?.meeting_title || 'this meeting'}"?
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleteMeetingMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleteMeetingMutation.isPending}
+          >
+            {deleteMeetingMutation.isPending ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

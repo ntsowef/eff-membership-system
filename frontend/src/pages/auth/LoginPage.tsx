@@ -35,7 +35,6 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useAuth, useUI } from '../../store';
 import { UserManagementAPI } from '../../lib/userManagementApi';
-import PublicHeader from '../../components/layout/PublicHeader';
 // OTP verification removed — OTP/MFA globally disabled
 import { devLog } from '../../utils/logger';
 
@@ -163,12 +162,9 @@ const LoginPage: React.FC = () => {
 
   return (
     <Box>
-      {/* Sticky Header */}
-      <PublicHeader />
-
       <Box
         sx={{
-          minHeight: 'calc(100vh - 72px)',
+          minHeight: '100vh',
           background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #8B0000 100%)',
           display: 'flex',
           alignItems: 'center',

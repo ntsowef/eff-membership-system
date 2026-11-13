@@ -28,7 +28,8 @@ import {
   Paper,
   Tooltip,
   IconButton,
-  Collapse
+  Collapse,
+  CircularProgress,
 } from '@mui/material';
 import {
   AccountBalance,
@@ -43,10 +44,14 @@ import {
   ExpandLess,
   Info,
   Timeline,
-  Assessment
+  Assessment,
+  Visibility,
+  Download,
+  PictureAsPdf,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { twoTierApprovalApi, financialTransactionApi } from '../../services/api';
+import { api, twoTierApprovalApi, financialTransactionApi } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
 
 interface EnhancedFinancialReviewPanelProps {
@@ -99,6 +104,64 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
     financial_rejection_reason: '',
     financial_admin_notes: ''
   });
+
+  // Proof of Payment state & document detection
+  const [popPreviewOpen, setPopPreviewOpen] = useState(false);
+  const [popBlobUrl, setPopBlobUrl] = useState<string | null>(null);
+  const [popLoading, setPopLoading] = useState(false);
+
+  const proofOfPaymentDoc = (entity?.documents || []).find(
+    (d: any) =>
+      d.document_type === 'Proof of Payment' ||
+      d.document_name === 'Proof of Payment' ||
+      (d.original_filename && d.original_filename.toLowerCase().includes('pop'))
+  );
+
+  const isCashPayment = ((entity?.payment_method || '').toLowerCase().includes('cash')) ||
+    (payments && payments.length > 0 && (payments[0].payment_method || '').toLowerCase().includes('cash'));
+
+  const handleOpenPoPPreview = async () => {
+    if (!proofOfPaymentDoc) return;
+    setPopPreviewOpen(true);
+    if (!popBlobUrl) {
+      setPopLoading(true);
+      try {
+        const appId = entity.application_id || entity.id;
+        const docId = proofOfPaymentDoc.id || proofOfPaymentDoc.document_id;
+        const res = await api.get(`/membership-applications/${appId}/documents/${docId}/view`, {
+          responseType: 'blob'
+        });
+        const url = URL.createObjectURL(res.data);
+        setPopBlobUrl(url);
+      } catch (err) {
+        showNotification('Failed to load Proof of Payment preview', 'error');
+      } finally {
+        setPopLoading(false);
+      }
+    }
+  };
+
+  const handleDownloadPoP = async () => {
+    if (!proofOfPaymentDoc) return;
+    try {
+      const appId = entity.application_id || entity.id;
+      const docId = proofOfPaymentDoc.id || proofOfPaymentDoc.document_id;
+      const res = await api.get(`/membership-applications/${appId}/documents/${docId}/download`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data], { type: proofOfPaymentDoc.mime_type || 'application/octet-stream' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = proofOfPaymentDoc.original_filename || 'proof_of_payment';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      showNotification('Download started', 'success');
+    } catch (err) {
+      showNotification('Failed to download document', 'error');
+    }
+  };
 
   // Fetch comprehensive transaction data for the member
   const { data: memberTransactions, isLoading: transactionsLoading } = useQuery({
@@ -356,6 +419,89 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
             </Grid>
             
             <Grid item xs={12} md={6}>
+              {/* Proof of Payment (PoP) Card */}
+              <Card variant="outlined" sx={{ mb: 3 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '1.1rem' }}>
+                      <Receipt color="primary" />
+                      Proof of Payment (PoP)
+                    </Typography>
+                    {proofOfPaymentDoc ? (
+                      <Chip label="Attached" color="success" size="small" icon={<CheckCircle />} />
+                    ) : (
+                      <Chip
+                        label={isCashPayment ? "No PoP Uploaded" : "Not Required"}
+                        color={isCashPayment ? "warning" : "default"}
+                        size="small"
+                      />
+                    )}
+                  </Box>
+
+                  {proofOfPaymentDoc ? (
+                    <Box>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: 'background.default',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          mb: 2
+                        }}
+                      >
+                        {proofOfPaymentDoc.mime_type === 'application/pdf' ? (
+                          <PictureAsPdf sx={{ fontSize: 44, color: '#d32f2f' }} />
+                        ) : (
+                          <ImageIcon sx={{ fontSize: 44, color: '#1976d2' }} />
+                        )}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
+                            {proofOfPaymentDoc.original_filename || 'proof_of_payment'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {proofOfPaymentDoc.file_size ? `${(proofOfPaymentDoc.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Attached file'}
+                            {proofOfPaymentDoc.uploaded_at ? ` • ${formatDate(proofOfPaymentDoc.uploaded_at)}` : ''}
+                          </Typography>
+                        </Box>
+                      </Paper>
+
+                      <Box sx={{ display: 'flex', gap: 1.5 }}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<Visibility />}
+                          onClick={handleOpenPoPPreview}
+                        >
+                          View / Preview
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<Download />}
+                          onClick={handleDownloadPoP}
+                        >
+                          Download
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : isCashPayment ? (
+                    <Alert severity="warning">
+                      <Typography variant="body2">
+                        No Proof of Payment document was uploaded with this cash application.
+                      </Typography>
+                    </Alert>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No proof of payment document was uploaded for this application.
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Payment Transactions */}
               {payments && payments.length > 0 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
@@ -646,6 +792,70 @@ const EnhancedFinancialReviewPanel: React.FC<EnhancedFinancialReviewPanelProps> 
           >
             {completeReviewMutation.isPending ? 'Processing...' : `${reviewDialog.action === 'approve' ? 'Approve' : 'Reject'} Payment`}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Proof of Payment Preview Dialog */}
+      <Dialog
+        open={popPreviewOpen}
+        onClose={() => setPopPreviewOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Receipt color="primary" />
+            <Typography variant="h6">
+              Proof of Payment: {proofOfPaymentDoc?.original_filename || 'Receipt'}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadPoP}
+            >
+              Download
+            </Button>
+            <IconButton size="small" onClick={() => setPopPreviewOpen(false)}>
+              <Cancel />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 2, textAlign: 'center', minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f5f5f5' }}>
+          {popLoading ? (
+            <Box sx={{ py: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <CircularProgress />
+              <Typography variant="body2" color="text.secondary">Loading document preview...</Typography>
+            </Box>
+          ) : popBlobUrl ? (
+            proofOfPaymentDoc?.mime_type === 'application/pdf' ? (
+              <iframe
+                src={popBlobUrl}
+                title="Proof of Payment PDF Preview"
+                style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 4 }}
+              />
+            ) : (
+              <Box
+                component="img"
+                src={popBlobUrl}
+                alt="Proof of Payment Preview"
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: 1,
+                  boxShadow: 2
+                }}
+              />
+            )
+          ) : (
+            <Alert severity="error">Unable to load document preview. Please use the download button to view the file.</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPopPreviewOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

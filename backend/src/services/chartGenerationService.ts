@@ -21,11 +21,11 @@ export class ChartGenerationService {
   private static readonly AGE_COLORS = ['#50E3C2', '#4A90E2', '#F5A623', '#D0021B'];
   private static readonly RACE_COLORS = ['#9013FE', '#4A90E2', '#F5A623', '#50E3C2', '#D0021B'];
   private static readonly LANGUAGE_COLORS = [
-    '#4A90E2', '#F5A623', '#7ED321', '#50E3C2', '#D0021B', 
+    '#4A90E2', '#F5A623', '#7ED321', '#50E3C2', '#D0021B',
     '#9013FE', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'
   ];
   private static readonly OCCUPATION_COLORS = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', 
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
     '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43'
   ];
 
@@ -52,7 +52,7 @@ export class ChartGenerationService {
   // Generate Gender Distribution Pie Chart
   static async generateGenderPieChart(genderData: any): Promise<Buffer> {
     const chartCanvas = this.createChartCanvas();
-    
+
     const configuration: ChartConfiguration = {
       type: 'pie',
       data: {
@@ -155,7 +155,7 @@ export class ChartGenerationService {
               label: (context) => {
                 const value = context.parsed.y;
                 if (value === null || value === undefined) return '';
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(1)  : '0.0';
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
                 return '${context.label}: ${value.toLocaleString()} (' + percentage + '%)';
               }
             }
@@ -165,7 +165,7 @@ export class ChartGenerationService {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -190,10 +190,10 @@ export class ChartGenerationService {
   // Generate Race Demographics Pie Chart
   static async generateRacePieChart(raceData: any[]): Promise<Buffer> {
     const chartCanvas = this.createChartCanvas();
-    
+
     // Take top 5 races for better visibility
     const topRaces = raceData.slice(0, 5);
-    
+
     const configuration: ChartConfiguration = {
       type: 'pie',
       data: {
@@ -239,10 +239,10 @@ export class ChartGenerationService {
   // Generate Top Languages Bar Chart
   static async generateLanguagesBarChart(languageData: any[]): Promise<Buffer> {
     const chartCanvas = this.createChartCanvas();
-    
+
     // Take top 8 languages for better visibility
     const topLanguages = languageData.slice(0, 8);
-    
+
     const configuration: ChartConfiguration = {
       type: 'bar',
       data: {
@@ -280,7 +280,7 @@ export class ChartGenerationService {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -309,10 +309,10 @@ export class ChartGenerationService {
   // Generate Occupation Categories Horizontal Bar Chart
   static async generateOccupationHorizontalBarChart(occupationData: any[]): Promise<Buffer> {
     const chartCanvas = this.createChartCanvas();
-    
+
     // Take top 8 occupations for better visibility
     const topOccupations = occupationData.slice(0, 8);
-    
+
     const configuration: ChartConfiguration = {
       type: 'bar',
       data: {
@@ -351,7 +351,7 @@ export class ChartGenerationService {
           x: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -481,7 +481,7 @@ export class ChartGenerationService {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -573,7 +573,7 @@ export class ChartGenerationService {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -653,7 +653,7 @@ export class ChartGenerationService {
               label: (context) => {
                 if (context.datasetIndex === 0) {
                   const region = regions[context.dataIndex];
-                  const status = region.above_average ? 'Above Average'  : 'Below Average';
+                  const status = region.above_average ? 'Above Average' : 'Below Average';
                   return '${region.region_name}: ${region.member_count.toLocaleString()} (' + status + ')';
                 } else {
                   return 'Average: ' + averageLine.toLocaleString() + '';
@@ -666,7 +666,7 @@ export class ChartGenerationService {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -777,7 +777,7 @@ export class ChartGenerationService {
           y: {
             beginAtZero: false,
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             },
@@ -1029,7 +1029,7 @@ export class ChartGenerationService {
             beginAtZero: true,
             title: { display: true, text: 'Number of Members' },
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             }
@@ -1169,7 +1169,7 @@ export class ChartGenerationService {
     return await chartCanvas.renderToBuffer(configuration);
   }
 
-  // Generate Regional Breakdown Bar Chart (for sub-regions)
+  // Generate Regional Breakdown Bar Chart (for Local Municipalitys)
   static async generateVoterRegistrationRegionalBarChart(regions: any[], regionType: string, parentRegionName: string): Promise<Buffer> {
     const chartCanvas = new ChartJSNodeCanvas({
       width: 800,
@@ -1245,7 +1245,7 @@ export class ChartGenerationService {
             beginAtZero: true,
             title: { display: true, text: 'Members' },
             ticks: {
-              callback: function(value) {
+              callback: function (value) {
                 return (value as number).toLocaleString();
               }
             }

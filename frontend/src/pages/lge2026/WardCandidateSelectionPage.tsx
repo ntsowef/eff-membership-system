@@ -163,14 +163,14 @@ const WardCandidateSelectionPage: React.FC = () => {
           </Grid>
           <Grid item xs={12} md={4}>
             <FormControl fullWidth disabled={!province}>
-              <InputLabel>Municipality / Sub-Region</InputLabel>
-              <Select value={municipality} onChange={(e) => handleMunicipalityChange(e.target.value)} label="Municipality / Sub-Region">
+              <InputLabel>Municipality / Local Municipality</InputLabel>
+              <Select value={municipality} onChange={(e) => handleMunicipalityChange(e.target.value)} label="Municipality / Local Municipality">
                 <MenuItem value=""><em>Select Municipality</em></MenuItem>
                 {muniLoading ? (
                   <MenuItem disabled><CircularProgress size={20} sx={{ mr: 1 }} />Loading...</MenuItem>
                 ) : municipalities.map((m: Municipality) => (
                   <MenuItem key={m.municipality_code} value={m.municipality_code}>
-                    {m.municipality_name}{m.municipality_type === 'Metro Sub-Region' && ' (Sub-Region)'}
+                    {m.municipality_name}{m.municipality_type === 'Metro Local Municipality' && ' (Local Municipality)'}
                   </MenuItem>
                 ))}
               </Select>

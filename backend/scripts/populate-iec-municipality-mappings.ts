@@ -71,8 +71,8 @@ async function populateMappings() {
         match = internalMunis.find(m => {
           const internalName = m.municipality_name.toLowerCase();
           const iecLower = iecFullName.toLowerCase();
-          return internalName.includes(iecLower) || 
-                 iecLower.includes(internalName.replace(' sub-region', '').replace('sub-region of ', ''));
+          return internalName.includes(iecLower) ||
+            iecLower.includes(internalName.replace(' Local Municipality', '').replace('Local Municipality of ', ''));
         });
       }
 

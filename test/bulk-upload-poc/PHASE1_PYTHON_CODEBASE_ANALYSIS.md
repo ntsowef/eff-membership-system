@@ -257,14 +257,14 @@ WHERE id_number = ANY($1)
 - Registered voters without VD → VD code = `222222222`
 - Non-registered voters → VD code = `999999999`
 - All approved members → `membership_status_id = 1`
-- Metro municipality codes → Map to sub-region codes
+- Metro municipality codes → Map to Local Municipality codes
 - Expiry date = Last Payment Date + 24 months (if missing)
 
 **Database Tables:**
 - `members_consolidated` - Main member table
 - `provinces` - Province lookup
 - `municipalities` - Municipality lookup
-- `sub_regions` - Sub-region lookup
+- `sub_regions` - Local Municipality lookup
 - `wards` - Ward lookup
 - `voting_districts` - Voting district lookup
 - `membership_statuses` - Status lookup

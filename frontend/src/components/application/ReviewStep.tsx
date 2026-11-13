@@ -14,6 +14,7 @@ import {
   Checkbox,
   Alert,
 } from '@mui/material';
+import { CheckCircle } from '@mui/icons-material';
 import { useApplication } from '../../store';
 
 const ReviewStep: React.FC = () => {
@@ -30,12 +31,8 @@ const ReviewStep: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" sx={{ mb: 2.5 }}>
         Review Your Application
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please review all the information below carefully before submitting your application.
-        You can go back to previous steps to make any changes if needed.
       </Typography>
 
       {/* Personal Information */}
@@ -200,6 +197,20 @@ const ReviewStep: React.FC = () => {
                   <Typography variant="body1">{applicationData.payment_notes}</Typography>
                 </Grid>
               )}
+              {applicationData.proof_of_payment && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Proof of Payment</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                    <Chip
+                      icon={<CheckCircle fontSize="small" />}
+                      label={`${applicationData.proof_of_payment.filename} (${((applicationData.proof_of_payment.file_size || 0) / (1024 * 1024)).toFixed(2)} MB)`}
+                      color="success"
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Box>
+                </Grid>
+              )}
             </Grid>
           ) : (
             <Alert severity="info">
@@ -234,7 +245,7 @@ const ReviewStep: React.FC = () => {
       )}
 
       {/* Terms and Conditions */}
-      <Card sx={{ mb: 3 }}>
+      <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom color="primary">
             Terms and Conditions
@@ -285,25 +296,6 @@ const ReviewStep: React.FC = () => {
           />
         </CardContent>
       </Card>
-
-      {/* Submission Notice */}
-      <Alert severity="info">
-        <Typography variant="body2">
-          <strong>What happens next?</strong>
-        </Typography>
-        <Typography variant="body2" sx={{ mt: 1 }}>
-          • Your application will be reviewed by our membership committee
-        </Typography>
-        <Typography variant="body2">
-          • You will receive an email confirmation with your application reference number
-        </Typography>
-        <Typography variant="body2">
-          • The review process typically takes 5-10 business days
-        </Typography>
-        <Typography variant="body2">
-          • You will be notified of the decision via email and SMS
-        </Typography>
-      </Alert>
     </Box>
   );
 };

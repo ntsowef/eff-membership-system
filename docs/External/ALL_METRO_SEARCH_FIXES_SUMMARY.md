@@ -11,7 +11,7 @@
 ## 🎯 Issues Fixed
 
 ### Issue #1: Province-Level Member Search ✅
-**Problem**: Members in metropolitan sub-regions were excluded from province-filtered searches in the main member search.
+**Problem**: Members in metropolitan Local Municipalitys were excluded from province-filtered searches in the main member search.
 
 **Impact**: 73,279 members (72.7% of Gauteng) were invisible
 
@@ -22,7 +22,7 @@
 ---
 
 ### Issue #2: Membership Directory Search ✅
-**Problem**: The membership directory search returned no results for metro sub-region members.
+**Problem**: The membership directory search returned no results for metro Local Municipality members.
 
 **Impact**: Same 73,279 members were invisible in directory
 
@@ -85,7 +85,7 @@
 
 **Key Changes**:
 ```sql
--- Join to parent municipality (for metro sub-regions)
+-- Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
 -- Join to districts (both direct and through parent)
@@ -110,7 +110,7 @@ COALESCE(p.province_name, pp.province_name) as province_name
 
 **Key Changes**:
 ```typescript
-// Join to parent municipality (for metro sub-regions)
+// Join to parent municipality (for metro Local Municipalitys)
 LEFT JOIN municipalities pm ON mu.parent_municipality_id = pm.municipality_id
 
 // Join to districts (both direct and through parent)
@@ -128,22 +128,22 @@ WHERE COALESCE(d.province_code, pd.province_code) = ?
 All South African metropolitan municipalities are now properly searchable:
 
 ### Gauteng (GP) - 72,676 members
-- **City of Johannesburg (JHB)** - Sub-regions: JHB-A through JHB-G
-- **City of Tshwane (TSH)** - Sub-regions: TSH-1 through TSH-7
-- **Ekurhuleni (EKU)** - Sub-regions: EKU-Central, EKU-East, EKU-Far East, EKU-North, EKU-South
+- **City of Johannesburg (JHB)** - Local Municipalitys: JHB-A through JHB-G
+- **City of Tshwane (TSH)** - Local Municipalitys: TSH-1 through TSH-7
+- **Ekurhuleni (EKU)** - Local Municipalitys: EKU-Central, EKU-East, EKU-Far East, EKU-North, EKU-South
 
 ### Western Cape (WC)
-- **City of Cape Town (CPT)** - Sub-regions: CPT001-CPT008
+- **City of Cape Town (CPT)** - Local Municipalitys: CPT001-CPT008
 
 ### KwaZulu-Natal (KZN)
-- **eThekwini (ETH)** - Sub-regions: ETH001-ETH008
+- **eThekwini (ETH)** - Local Municipalitys: ETH001-ETH008
 
 ### Eastern Cape (EC)
-- **Buffalo City (BUF)** - Sub-regions: BUF001-BUF004
-- **Nelson Mandela Bay (NMB)** - Sub-regions: NMB001-NMB004
+- **Buffalo City (BUF)** - Local Municipalitys: BUF001-BUF004
+- **Nelson Mandela Bay (NMB)** - Local Municipalitys: NMB001-NMB004
 
 ### Free State (FS)
-- **Mangaung (MAN)** - Sub-regions: MAN001-MAN004
+- **Mangaung (MAN)** - Local Municipalitys: MAN001-MAN004
 
 ---
 
@@ -207,8 +207,8 @@ node test/database/test-leadership-member-search.js
 
 - [x] Database view `vw_member_details` updated
 - [x] Ward audit `getMembersByProvince` method updated
-- [x] Metro sub-region members have province_code populated
-- [x] Metro sub-region members have district_code populated
+- [x] Metro Local Municipality members have province_code populated
+- [x] Metro Local Municipality members have district_code populated
 - [x] Province filtering includes all metro members
 - [x] District filtering includes all metro members
 - [x] Membership directory search works for metro members
@@ -342,11 +342,11 @@ Updated `vw_ward_compliance_summary` view to include parent municipality joins w
 ## 🎓 Root Cause Analysis
 
 ### The Problem
-Metro sub-regions have a special hierarchical structure:
+Metro Local Municipalitys have a special hierarchical structure:
 - **Regular municipalities**: `ward → municipality → district → province`
-- **Metro sub-regions**: `ward → metro sub-region → parent metro → district → province`
+- **Metro Local Municipalitys**: `ward → metro Local Municipality → parent metro → district → province`
 
-Metro sub-regions have `district_code = NULL` because they link through their parent metro. Direct joins to districts fail, resulting in `province_code = NULL`.
+Metro Local Municipalitys have `district_code = NULL` because they link through their parent metro. Direct joins to districts fail, resulting in `province_code = NULL`.
 
 ### The Solution
 Use `COALESCE` to resolve geographic codes through parent relationships:
@@ -355,7 +355,7 @@ COALESCE(mu.district_code, pm.district_code) -- Try direct, then parent
 COALESCE(d.province_code, pd.province_code)  -- Try direct, then parent
 ```
 
-This pattern works for both regular municipalities (direct codes) and metro sub-regions (parent codes).
+This pattern works for both regular municipalities (direct codes) and metro Local Municipalitys (parent codes).
 
 ---
 
@@ -382,7 +382,7 @@ This pattern works for both regular municipalities (direct codes) and metro sub-
 1. **Check view is updated**:
    ```sql
    SELECT COUNT(*) FROM vw_member_details 
-   WHERE municipality_type = 'Metro Sub-Region' 
+   WHERE municipality_type = 'Metro Local Municipality' 
    AND province_code IS NOT NULL;
    ```
    Expected: 73,279
@@ -396,7 +396,7 @@ This pattern works for both regular municipalities (direct codes) and metro sub-
 3. **Check for NULL parent relationships**:
    ```sql
    SELECT COUNT(*) FROM municipalities 
-   WHERE municipality_type = 'Metro Sub-Region' 
+   WHERE municipality_type = 'Metro Local Municipality' 
    AND parent_municipality_id IS NULL;
    ```
    Expected: 0

@@ -307,7 +307,7 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
                           size="small"
                           color={
                             delegate.assembly_code === 'SRPA' ? 'primary' :
-                            delegate.assembly_code === 'PPA' ? 'secondary' : 'default'
+                              delegate.assembly_code === 'PPA' ? 'secondary' : 'default'
                           }
                         />
                       </TableCell>
@@ -384,7 +384,7 @@ const WardDelegateManagement: React.FC<WardDelegateManagementProps> = ({ wardCod
                 required
               >
                 <MenuItem value="SRPA">
-                  SRPA (Sub-Regional) - {srpaDelegates}/{srpaLimit} assigned
+                  SRPA (Local Municipalityal) - {srpaDelegates}/{srpaLimit} assigned
                 </MenuItem>
                 <MenuItem value="PPA">
                   PPA (Provincial) - {ppaDelegates}/{ppaLimit} assigned

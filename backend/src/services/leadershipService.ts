@@ -73,7 +73,7 @@ export class LeadershipService {
 
   // Terminate leadership appointment
   static async terminateAppointment(
-    appointmentId : number,
+    appointmentId: number,
     terminatedBy: number,
     terminationReason: string,
     endDate?: string
@@ -246,7 +246,7 @@ export class LeadershipService {
   }
 
   // Cast vote in election
-  static async castVote(electionId : number, candidateId: number, voterMemberId: number): Promise<boolean> {
+  static async castVote(electionId: number, candidateId: number, voterMemberId: number): Promise<boolean> {
     try {
       // Validate election is in voting phase
       const election = await ElectionModel.getElectionById(electionId);
@@ -287,7 +287,7 @@ export class LeadershipService {
 
   // Finalize election and create appointment for winner
   static async finalizeElectionAndCreateAppointment(
-    electionId : number,
+    electionId: number,
     appointmentData: AppointmentFromElectionData
   ): Promise<{ appointmentId: number; electionFinalized: boolean }> {
     try {
@@ -321,7 +321,7 @@ export class LeadershipService {
       }
 
       // Create appointment for the winner
-      const appointmentCreateData : CreateAppointmentData = {
+      const appointmentCreateData: CreateAppointmentData = {
         position_id: winner.position_id,
         member_id: winner.member_id,
         hierarchy_level: winner.hierarchy_level,
@@ -406,14 +406,14 @@ export class LeadershipService {
           query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND province_id = ? ';
           params = [entityId];
           break;
-        case 'Region' : query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND region_id = $1';
+        case 'Region': query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND region_id = $1';
           params = [entityId];
           break;
         case 'Municipality':
           query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND municipality_id = ? ';
           params = [entityId];
           break;
-        case 'Ward' : query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND ward_id = $1';
+        case 'Ward': query = 'SELECT COUNT(*) as count FROM members_consolidated WHERE membership_status = "Active" AND ward_id = $1';
           params = [entityId];
           break;
         default:
@@ -569,13 +569,13 @@ export class LeadershipService {
             params.push(filters.entity_id);
             break;
           case 'Municipality':
-            // FIXED: Include both the selected municipality AND all its sub-regions (for metros)
+            // FIXED: Include both the selected municipality AND all its Local Municipalitys (for metros)
             // This handles parent-child municipality relationships via parent_municipality_id
             query += ` AND m.municipality_code IN (
               -- Include the selected municipality itself
               SELECT municipality_code FROM municipalities WHERE municipality_id = ?
               UNION
-              -- Include all sub-regions if this is a parent municipality
+              -- Include all Local Municipalitys if this is a parent municipality
               SELECT municipality_code FROM municipalities WHERE parent_municipality_id = ?
             )`;
             params.push(filters.entity_id, filters.entity_id);
@@ -619,12 +619,12 @@ export class LeadershipService {
             countParams.push(filters.entity_id);
             break;
           case 'Municipality':
-            // FIXED: Use same logic as main query - include sub-regions
+            // FIXED: Use same logic as main query - include Local Municipalitys
             countQuery += ` AND m.municipality_code IN (
               -- Include the selected municipality itself
               SELECT municipality_code FROM municipalities WHERE municipality_id = ?
               UNION
-              -- Include all sub-regions if this is a parent municipality
+              -- Include all Local Municipalitys if this is a parent municipality
               SELECT municipality_code FROM municipalities WHERE parent_municipality_id = ?
             )`;
             countParams.push(filters.entity_id, filters.entity_id);
@@ -697,7 +697,7 @@ export class LeadershipService {
       }
 
       // Use raw SQL to include both regular municipalities (via district_code)
-      // and metro sub-regions (via parent_municipality_id -> parent metro -> district -> province)
+      // and metro Local Municipalitys (via parent_municipality_id -> parent metro -> district -> province)
       const query = `
         SELECT
           m.municipality_id,
@@ -722,10 +722,10 @@ export class LeadershipService {
   }
 
   // Get municipalities by province CODE
-  static async getMunicipalitiesByProvinceCode(provinceCode : string): Promise<any[]> {
+  static async getMunicipalitiesByProvinceCode(provinceCode: string): Promise<any[]> {
     try {
       // Use raw SQL to include both regular municipalities (via district_code)
-      // and metro sub-regions (via parent_municipality_id -> parent metro -> district -> province)
+      // and metro Local Municipalitys (via parent_municipality_id -> parent metro -> district -> province)
       const query = `
         SELECT
           m.municipality_id,
@@ -750,7 +750,7 @@ export class LeadershipService {
   }
 
   // Get wards by municipality
-  static async getWardsByMunicipality(municipalityId : number): Promise<any[]> {
+  static async getWardsByMunicipality(municipalityId: number): Promise<any[]> {
     try {
       const query = `
         SELECT DISTINCT
@@ -790,7 +790,7 @@ export class LeadershipService {
   // ==================== WAR COUNCIL STRUCTURE METHODS ====================
 
   // Get War Council Structure with all positions and appointments
-  static async getWarCouncilStructure() : Promise<any> {
+  static async getWarCouncilStructure(): Promise<any> {
     try {
       const structure = await LeadershipModel.getWarCouncilStructure();
 
@@ -953,7 +953,7 @@ export class LeadershipService {
       );
 
       return {
-        structure : structure.structure,
+        structure: structure.structure,
         statistics: structure.statistics,
         recent_appointments: warCouncilAppointments.slice(0, 5),
         vacant_positions: structure.structure.all_positions.filter(pos => pos.position_status === 'Vacant')

@@ -3018,7 +3018,7 @@ const SMSManagement: React.FC = () => {
                               <MenuItem value="">All Levels</MenuItem>
                               <MenuItem value="Branch">Branch</MenuItem>
                               <MenuItem value="Ward">Ward</MenuItem>
-                              <MenuItem value="Sub-Region">Sub-Region</MenuItem>
+                              <MenuItem value="Local Municipality">Local Municipality</MenuItem>
                               <MenuItem value="Region">Region</MenuItem>
                               <MenuItem value="Province">Province</MenuItem>
                               <MenuItem value="National">National</MenuItem>

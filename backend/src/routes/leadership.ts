@@ -573,7 +573,7 @@ router.get('/directory/pct/:provinceId', async (req: Request, res: Response, nex
   }
 });
 
-// Get SRCT (Sub-Regional Command Team) roster for a municipality
+// Get SRCT (Local Municipalityal Command Team) roster for a municipality
 router.get('/directory/srct/:municipalityId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const municipalityId = validateDirectoryIdParam(req.params.municipalityId, 'municipality ID');

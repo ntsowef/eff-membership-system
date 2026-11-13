@@ -24,7 +24,7 @@ UPDATE members_consolidated
 SET 
   voter_status_id = 1,                    -- Registered to vote
   voting_district_code = '32871326',      -- IEC VD number
-  municipality_code = 'EKU004',           -- Correct sub-region code from ward table
+  municipality_code = 'EKU004',           -- Correct Local Municipality code from ward table
   updated_at = CURRENT_TIMESTAMP
 WHERE member_id = 772468;
 

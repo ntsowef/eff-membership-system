@@ -39,11 +39,11 @@ import type { WardComplianceSummary, Municipality } from '../../types/wardAudit'
 
 const WardAuditDashboard: React.FC = () => {
   const navigate = useNavigate();
-  
+
   // State for cascading filters
   const [selectedProvince, setSelectedProvince] = useState<string>('');
   const [selectedMunicipality, setSelectedMunicipality] = useState<string>('');
-  
+
   // Hardcoded provinces (you can fetch from API if needed)
   const provinces = [
     { code: 'EC', name: 'Eastern Cape' },
@@ -56,25 +56,25 @@ const WardAuditDashboard: React.FC = () => {
     { code: 'NW', name: 'North West' },
     { code: 'WC', name: 'Western Cape' },
   ];
-  
+
   // Fetch municipalities when province is selected
   const { data: municipalities = [], isLoading: municipalitiesLoading } = useQuery({
     queryKey: ['ward-audit-municipalities', selectedProvince],
     queryFn: () => wardAuditApi.getMunicipalitiesByProvince(selectedProvince),
     enabled: !!selectedProvince,
   });
-  
+
   // Fetch wards when municipality is selected
-  const { 
-    data: wards = [], 
+  const {
+    data: wards = [],
     isLoading: wardsLoading,
-    error: wardsError 
+    error: wardsError
   } = useQuery({
     queryKey: ['ward-audit-wards', selectedMunicipality],
     queryFn: () => wardAuditApi.getWardsByMunicipality(selectedMunicipality),
     enabled: !!selectedMunicipality,
   });
-  
+
   // Calculate statistics
   const stats = {
     totalWards: wards.length,
@@ -84,30 +84,30 @@ const WardAuditDashboard: React.FC = () => {
     // LGE2026 Criterion 5: wards with an active Ward Councillor Candidate
     wardsWithCandidate: wards.filter(w => w.has_active_candidate).length,
   };
-  
-  const compliancePercentage = stats.totalWards > 0 
-    ? Math.round((stats.compliantWards / stats.totalWards) * 100) 
+
+  const compliancePercentage = stats.totalWards > 0
+    ? Math.round((stats.compliantWards / stats.totalWards) * 100)
     : 0;
-  
+
   const handleProvinceChange = (provinceCode: string) => {
     setSelectedProvince(provinceCode);
     setSelectedMunicipality(''); // Reset municipality when province changes
   };
-  
+
   const handleMunicipalityChange = (municipalityCode: string) => {
     setSelectedMunicipality(municipalityCode);
   };
-  
+
   const handleViewWardDetails = (wardCode: string) => {
     navigate(`/admin/ward-audit/ward/${wardCode}`);
   };
-  
+
   const handleViewMunicipalityReport = () => {
     if (selectedMunicipality) {
       navigate(`/admin/ward-audit/municipality/${selectedMunicipality}`);
     }
   };
-  
+
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
@@ -118,7 +118,7 @@ const WardAuditDashboard: React.FC = () => {
           Comprehensive ward compliance tracking and delegate management
         </Typography>
       </Box>
-      
+
       {/* Cascading Filters */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -144,14 +144,14 @@ const WardAuditDashboard: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={4}>
             <FormControl fullWidth disabled={!selectedProvince}>
-              <InputLabel>Municipality / Sub-Region</InputLabel>
+              <InputLabel>Municipality / Local Municipality</InputLabel>
               <Select
                 value={selectedMunicipality}
                 onChange={(e) => handleMunicipalityChange(e.target.value)}
-                label="Municipality / Sub-Region"
+                label="Municipality / Local Municipality"
               >
                 <MenuItem value="">
                   <em>Select Municipality</em>
@@ -165,14 +165,14 @@ const WardAuditDashboard: React.FC = () => {
                   municipalities.map((municipality: Municipality) => (
                     <MenuItem key={municipality.municipality_code} value={municipality.municipality_code}>
                       {municipality.municipality_name}
-                      {municipality.municipality_type === 'Metro Sub-Region' && ' (Sub-Region)'}
+                      {municipality.municipality_type === 'Metro Local Municipality' && ' (Local Municipality)'}
                     </MenuItem>
                   ))
                 )}
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={4} sx={{ display: 'flex', alignItems: 'center' }}>
             <Button
               variant="contained"
@@ -186,7 +186,7 @@ const WardAuditDashboard: React.FC = () => {
           </Grid>
         </Grid>
       </Paper>
-      
+
       {/* Statistics Cards */}
       {selectedMunicipality && wards.length > 0 && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -200,7 +200,7 @@ const WardAuditDashboard: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -216,7 +216,7 @@ const WardAuditDashboard: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -232,7 +232,7 @@ const WardAuditDashboard: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -250,14 +250,14 @@ const WardAuditDashboard: React.FC = () => {
           </Grid>
         </Grid>
       )}
-      
+
       {/* Wards Table */}
       {selectedMunicipality && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Wards in {municipalities.find(m => m.municipality_code === selectedMunicipality)?.municipality_name}
           </Typography>
-          
+
           {wardsLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress />
@@ -347,7 +347,7 @@ const WardAuditDashboard: React.FC = () => {
           )}
         </Paper>
       )}
-      
+
       {/* Empty State */}
       {!selectedProvince && (
         <Paper sx={{ p: 6, textAlign: 'center' }}>

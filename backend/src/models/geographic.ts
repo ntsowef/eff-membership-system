@@ -20,7 +20,7 @@ export interface Municipality {
   municipality_name: string;
   district_code: string | null;
   province_code: string;
-  municipality_type: 'Local' | 'Metropolitan' | 'District' | 'Metro Sub-Region';
+  municipality_type: 'Local' | 'Metropolitan' | 'District' | 'Metro Local Municipality';
   parent_municipality_id?: number | null;
   parent_municipality_code?: string | null;
   parent_municipality_name?: string | null;
@@ -312,7 +312,7 @@ export class GeographicModel {
         [municipalityCode]
       );
 
-      // If it's a Metropolitan municipality, get wards from all its sub-regions
+      // If it's a Metropolitan municipality, get wards from all its Local Municipalitys
       if (municipality && municipality.municipality_type === 'Metropolitan') {
         const query = `
           SELECT
@@ -397,7 +397,7 @@ export class GeographicModel {
         LEFT JOIN districts d ON pm.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
         WHERE pm.municipality_code = ?
-          AND sr.municipality_type = 'Metro Sub-Region'
+          AND sr.municipality_type = 'Metro Local Municipality'
         ORDER BY sr.municipality_name
       `;
 
@@ -425,7 +425,7 @@ export class GeographicModel {
         LEFT JOIN districts d ON pm.district_code = d.district_code
         LEFT JOIN provinces p ON d.province_code = p.province_code
         WHERE sr.municipality_code = ?
-          AND sr.municipality_type = 'Metro Sub-Region'
+          AND sr.municipality_type = 'Metro Local Municipality'
       `;
 
       return await executeQuerySingle<Subregion>(query, [subregionCode]);

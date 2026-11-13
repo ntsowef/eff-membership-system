@@ -35,7 +35,7 @@ type GeographicEntity = LeadershipService.GeographicEntity;
 // =====================================================
 
 export interface GeographicSelection {
-  hierarchyLevel: 'National' | 'Province' | 'Municipality' | 'Ward' | 'District' | 'Region' | 'Sub-Region' | 'Branch';
+  hierarchyLevel: 'National' | 'Province' | 'Municipality' | 'Ward' | 'District' | 'Region' | 'Local Municipality' | 'Branch';
   entityId: number | null;
   provinceId?: number;
   province?: GeographicEntity;
@@ -279,7 +279,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
                 onClick={() => handleMunicipalityChange(selectedMunicipality)}
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
-                {getHierarchyIcon('Sub-Region')}
+                {getHierarchyIcon('Local Municipality')}
                 {selectedMunicipality.municipality_name}
               </Link>
             )}

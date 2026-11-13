@@ -51,7 +51,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -76,7 +76,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -101,7 +101,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -126,7 +126,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -151,7 +151,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -176,7 +176,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -201,7 +201,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -226,7 +226,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -251,7 +251,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 ),
@@ -276,7 +276,7 @@ INSERT INTO members (
     '938',
     'City of Johannesburg',
     '93805',
-    'Johannesburg Sub-Region 5',
+    'Johannesburg Local Municipality 5',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 );

@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { queryClient, queryKeys } from '../../lib/queryClient';
 
 const PaymentResultPage: React.FC = () => {
   const navigate = useNavigate();
@@ -48,6 +49,12 @@ const PaymentResultPage: React.FC = () => {
       try {
         const response = await api.get(`/payments/payment-status/${paymentId}`);
         setResult(response.data);
+        if (response.data?.success) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.members.all });
+          queryClient.invalidateQueries({ queryKey: ['renewals'] });
+          queryClient.invalidateQueries({ queryKey: ['analytics'] });
+          queryClient.invalidateQueries({ queryKey: ['statistics'] });
+        }
       } catch (err: any) {
         console.error('Payment verification error:', err);
         setError(err.response?.data?.message || 'Unable to verify payment status. Please contact support.');

@@ -32,7 +32,7 @@ The Ward Audit System is a comprehensive tool designed to help EFF administrator
 3. Use the geographic filters to select:
    - **Province** (e.g., Gauteng, Western Cape)
    - **Region** (formerly District)
-   - **Sub-Region** (formerly Municipality)
+   - **Local Municipality** (formerly Municipality)
    - **Ward**
 
 ### Dashboard Features
@@ -430,7 +430,7 @@ If you encounter issues not covered in this guide:
 
 - **BPA**: Branch People's Assembly
 - **BGA**: Branch General Assembly
-- **SRPA**: Sub-Regional People's Assembly
+- **SRPA**: Local Municipalityal People's Assembly
 - **PPA**: Provincial People's Assembly
 - **NPA**: National People's Assembly
 - **Quorum**: Minimum number of members required for valid meeting

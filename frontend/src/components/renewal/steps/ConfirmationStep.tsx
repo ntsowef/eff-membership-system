@@ -34,16 +34,24 @@ import {
   CreditCard,
   Lock,
   Person as PersonIcon,
+  PictureAsPdf,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRenewalStore } from '../../../store/renewalStore';
-import { processRenewal, verifyRenewalPayment } from '../../../services/renewalApi';
+import { processRenewal, formatCurrency, formatDate } from '../../../services/renewalApi';
 import { devLog } from '../../../utils/logger';
-import { formatCurrency, formatDate } from '../../../services/renewalApi';
 import { queryKeys } from '../../../lib/queryClient';
 import { showSuccess } from '../../../utils/sweetAlert';
 import { api } from '../../../lib/api';
+import {
+  sectionCardSx,
+  summaryBannerSx,
+  backButtonSx,
+  cancelButtonSx,
+  primaryActionSx,
+  finalSubmitActionSx,
+} from '../renewalWizardStyles';
 
 // Card number formatting
 const formatCardNumber = (value: string): string => {
@@ -148,7 +156,7 @@ const ConfirmationStep: React.FC = () => {
           // Process the renewal data update (without card payment again)
           await api.post('/renewals/process', {
             ...renewalData,
-            payment_method: 'Other', // Use Other to skip card flow, we already paid
+            payment_method: 'Card',
             payment_reference: result.transactionId || `PP-${result.paymentId}`,
           });
         } catch (updateErr) {
@@ -180,8 +188,8 @@ const ConfirmationStep: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Card payment → show the card form instead of processing immediately
-      if (isCardPayment) {
+      // Card payment → show card form only if not already paid on the payment step
+      if (isCardPayment && !formData.payment_reference) {
         setShowCardForm(true);
         setIsProcessing(false);
         return;
@@ -194,6 +202,7 @@ const ConfirmationStep: React.FC = () => {
         payment_reference: formData.payment_reference,
         amount_paid: formData.amount_paid,
         shopperResultUrl: `${window.location.origin}/renewal/payment-result`,
+        proof_of_payment: formData.proof_of_payment,
         updated_member_data: {
           email: formData.email,
           cell_number: formData.cell_number,
@@ -230,14 +239,16 @@ const ConfirmationStep: React.FC = () => {
     formData.residential_address !== memberData.residential_address ||
     formData.postal_address !== memberData.postal_address;
 
-  // Processing overlay
+  // Processing overlay (remains inside the white card & outer red shell)
   if (isProcessing) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-        <CircularProgress size={60} />
-        <Typography variant="h6" sx={{ mt: 3 }}>Processing your payment...</Typography>
+        <CircularProgress size={60} sx={{ color: '#DC143C' }} />
+        <Typography variant="h6" sx={{ mt: 3, fontWeight: 600 }}>
+          Processing your renewal...
+        </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Please wait while we process your card payment. Do not close this page.
+          Please wait while we process your renewal. Do not close this page.
         </Typography>
       </Box>
     );
@@ -246,20 +257,13 @@ const ConfirmationStep: React.FC = () => {
   return (
     <Box>
       {/* Summary Header */}
-      <Card sx={{ mb: 3, bgcolor: 'primary.light' }}>
+      <Card elevation={0} sx={summaryBannerSx}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CheckCircle sx={{ fontSize: 40, color: 'primary.dark' }} />
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h5" gutterBottom>
-                {showCardForm ? 'Complete Your Payment' : 'Review Your Renewal'}
-              </Typography>
-              <Typography variant="body2">
-                {showCardForm
-                  ? 'Enter your card details below to complete the payment'
-                  : 'Please review all information before confirming your renewal'}
-              </Typography>
-            </Box>
+            <CheckCircle sx={{ fontSize: 36, color: '#DC143C' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              {showCardForm ? 'Complete Your Payment' : 'Review Your Renewal'}
+            </Typography>
           </Box>
         </CardContent>
       </Card>
@@ -267,7 +271,7 @@ const ConfirmationStep: React.FC = () => {
       {/* Card Payment Form (S2S) */}
       {showCardForm && (
         <Paper
-          elevation={3}
+          elevation={0}
           sx={{
             p: 3,
             mb: 3,
@@ -317,7 +321,7 @@ const ConfirmationStep: React.FC = () => {
                   '& .MuiOutlinedInput-root': {
                     fontSize: '1.1rem',
                     letterSpacing: '0.1em',
-                  }
+                  },
                 }}
               />
             </Grid>
@@ -402,27 +406,7 @@ const ConfirmationStep: React.FC = () => {
             onClick={handleCardPayment}
             disabled={!isCardFormValid || isProcessing}
             startIcon={isProcessing ? <CircularProgress size={20} color="inherit" /> : <Lock />}
-            sx={{
-              mt: 3,
-              background: 'linear-gradient(135deg, #DC143C 0%, #8B0000 100%)',
-              color: 'white',
-              fontWeight: 700,
-              py: 1.5,
-              borderRadius: 3,
-              fontSize: '1rem',
-              textTransform: 'none',
-              boxShadow: '0 6px 20px rgba(220, 20, 60, 0.4)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B01030 0%, #6B0000 100%)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 8px 28px rgba(220, 20, 60, 0.5)',
-              },
-              '&:disabled': {
-                background: 'rgba(0, 0, 0, 0.12)',
-                color: 'rgba(0, 0, 0, 0.26)',
-                boxShadow: 'none',
-              },
-            }}
+            sx={{ ...primaryActionSx, mt: 3 }}
           >
             {isProcessing
               ? 'Processing Payment...'
@@ -435,22 +419,16 @@ const ConfirmationStep: React.FC = () => {
               256-bit SSL encryption • Powered by Peach Payments
             </Typography>
           </Box>
-
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              Your payment is processed securely by Peach Payments. Card details are transmitted directly to the payment gateway.
-            </Typography>
-          </Alert>
         </Paper>
       )}
 
       {/* Personal Information Summary (hidden during card form) */}
       {!showCardForm && (
         <>
-          <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+          <Paper elevation={0} sx={sectionCardSx}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Person color="primary" />
-              <Typography variant="h6">Personal Information</Typography>
+              <Person sx={{ color: '#DC143C' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Personal Information</Typography>
             </Box>
             <Divider sx={{ mb: 2 }} />
 
@@ -478,10 +456,17 @@ const ConfirmationStep: React.FC = () => {
 
           {/* Updated Contact Information */}
           {hasUpdates && (
-            <Paper elevation={2} sx={{ p: 3, mb: 3, border: '2px solid', borderColor: 'warning.main' }}>
+            <Paper
+              elevation={0}
+              sx={{
+                ...sectionCardSx,
+                border: '2px solid',
+                borderColor: 'warning.main',
+              }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <Warning color="warning" />
-                <Typography variant="h6">Updated Information</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>Updated Information</Typography>
                 <Chip label="Changes Detected" color="warning" size="small" sx={{ ml: 'auto' }} />
               </Box>
               <Divider sx={{ mb: 2 }} />
@@ -528,10 +513,10 @@ const ConfirmationStep: React.FC = () => {
           )}
 
           {/* Payment Summary */}
-          <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+          <Paper elevation={0} sx={sectionCardSx}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Payment color="primary" />
-              <Typography variant="h6">Payment Details</Typography>
+              <Payment sx={{ color: '#DC143C' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Payment Details</Typography>
             </Box>
             <Divider sx={{ mb: 2 }} />
 
@@ -542,7 +527,7 @@ const ConfirmationStep: React.FC = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">Amount</Typography>
-                <Typography variant="h6" color="primary.main">
+                <Typography variant="h6" sx={{ color: '#8B0000', fontWeight: 700 }}>
                   {formatCurrency(formData.amount_paid)}
                 </Typography>
               </Grid>
@@ -552,16 +537,49 @@ const ConfirmationStep: React.FC = () => {
                   <Typography variant="body1">{formData.payment_reference}</Typography>
                 </Grid>
               )}
-              <Grid item xs={12}>
-                <Alert severity={isCardPayment ? 'info' : 'success'} icon={isCardPayment ? <CreditCard /> : <CheckCircle />}>
-                  <Typography variant="body2">
-                    {isCardPayment
-                      ? 'You will enter your card details on the next screen to complete your payment securely.'
-                      : <>Your membership will be renewed for <strong>24 months</strong> from the payment date.</>
-                    }
-                  </Typography>
-                </Alert>
-              </Grid>
+              {formData.proof_of_payment && (
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">Attached Proof of Payment</Typography>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      p: 1.5,
+                      mt: 0.5,
+                      border: '1px solid',
+                      borderColor: 'success.light',
+                      borderRadius: 2,
+                      bgcolor: 'rgba(46, 125, 50, 0.04)',
+                    }}
+                  >
+                    {formData.proof_of_payment.mime_type === 'application/pdf' ? (
+                      <PictureAsPdf sx={{ fontSize: 32, color: '#d32f2f' }} />
+                    ) : (
+                      <Box
+                        component="img"
+                        src={formData.proof_of_payment.file_data}
+                        alt="PoP Preview"
+                        sx={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 1 }}
+                      />
+                    )}
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {formData.proof_of_payment.filename}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {((formData.proof_of_payment.file_size || 0) / (1024 * 1024)).toFixed(2)} MB
+                      </Typography>
+                    </Box>
+                    <Chip
+                      icon={<CheckCircle fontSize="small" />}
+                      label="Verified Attachment"
+                      color="success"
+                      size="small"
+                    />
+                  </Box>
+                </Grid>
+              )}
             </Grid>
           </Paper>
         </>
@@ -576,31 +594,57 @@ const ConfirmationStep: React.FC = () => {
 
       {/* Navigation Buttons (hidden during card form) */}
       {!showCardForm && (
-        <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 2,
+            mt: 2,
+          }}
+        >
           <Button
             variant="outlined"
-            size="large"
             startIcon={<ArrowBack />}
             onClick={goToPreviousStep}
             disabled={isProcessing}
+            sx={backButtonSx}
           >
             Back
           </Button>
-          <Button
-            variant="contained"
-            size="large"
-            fullWidth
-            endIcon={isProcessing ? <CircularProgress size={20} /> : (isCardPayment ? <CreditCard /> : <CheckCircle />)}
-            onClick={handleSubmit}
-            disabled={isProcessing}
-            color={isCardPayment ? 'primary' : 'success'}
-          >
-            {isProcessing
-              ? 'Processing...'
-              : isCardPayment
-                ? 'Proceed to Payment'
-                : 'Confirm Renewal'}
-          </Button>
+
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                resetRenewal();
+                navigate('/');
+              }}
+              disabled={isProcessing}
+              sx={cancelButtonSx}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              size="large"
+              endIcon={
+                isProcessing
+                  ? <CircularProgress size={20} color="inherit" />
+                  : (isCardPayment && !formData.payment_reference ? <CreditCard /> : <CheckCircle />)
+              }
+              onClick={handleSubmit}
+              disabled={isProcessing}
+              sx={isCardPayment && !formData.payment_reference ? primaryActionSx : finalSubmitActionSx}
+            >
+              {isProcessing
+                ? 'Processing...'
+                : isCardPayment && !formData.payment_reference
+                  ? 'Proceed to Payment'
+                  : 'Confirm Renewal'}
+            </Button>
+          </Box>
         </Box>
       )}
 
@@ -608,10 +652,11 @@ const ConfirmationStep: React.FC = () => {
       {showCardForm && (
         <Box sx={{ mt: 2 }}>
           <Button
-            variant="text"
+            variant="outlined"
             startIcon={<ArrowBack />}
             onClick={() => setShowCardForm(false)}
             disabled={isProcessing}
+            sx={backButtonSx}
           >
             Back to Review
           </Button>

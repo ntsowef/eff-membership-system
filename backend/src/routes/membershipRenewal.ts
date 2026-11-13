@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import Joi from 'joi';
+import path from 'path';
+import fs from 'fs';
+import { executeQuerySingle } from '../config/database';
 import { validate } from '../middleware/validation';
 import { asyncHandler, sendSuccess } from '../middleware/errorHandler';
 import { MembershipRenewalModel } from '../models/membershipRenewal';
@@ -25,6 +28,105 @@ router.get('/dashboard',
         renewal_rate: dashboardData.renewal_statistics.renewal_rate
       }
     }, 'Renewal dashboard data retrieved successfully');
+  })
+);
+
+// Get Renewal Transactions (with search, filter, pagination)
+router.get('/transactions',
+  asyncHandler(async (req, res) => {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const offset = (page - 1) * limit;
+
+    const filters = {
+      search: req.query.search ? String(req.query.search).trim() : undefined,
+      payment_method: req.query.payment_method ? String(req.query.payment_method) : undefined,
+      status: req.query.status ? String(req.query.status) : undefined,
+    };
+
+    const result = await MembershipRenewalModel.getRenewalTransactions(limit, offset, filters);
+
+    sendSuccess(res, {
+      transactions: result.transactions,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        total_pages: Math.ceil(result.total / limit)
+      }
+    }, 'Renewal transactions retrieved successfully');
+  })
+);
+
+// View Renewal Document (inline preview for images/PDF)
+router.get('/documents/:docId/view',
+  asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.params.docId);
+    if (isNaN(documentId)) {
+      res.status(400).json({ success: false, message: 'Invalid document ID' });
+      return;
+    }
+
+    const doc = await executeQuerySingle<{
+      document_id: number;
+      file_path: string;
+      original_filename: string;
+      mime_type: string;
+    }>('SELECT document_id, file_path, original_filename, mime_type FROM documents WHERE document_id = $1', [documentId]);
+
+    if (!doc) {
+      res.status(404).json({ success: false, message: 'Document not found' });
+      return;
+    }
+
+    const filePath = path.isAbsolute(doc.file_path)
+      ? doc.file_path
+      : path.join(process.cwd(), doc.file_path);
+
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, message: 'Document file not found on disk' });
+      return;
+    }
+
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${doc.original_filename}"`);
+    fs.createReadStream(filePath).pipe(res);
+  })
+);
+
+// Download Renewal Document
+router.get('/documents/:docId/download',
+  asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.params.docId);
+    if (isNaN(documentId)) {
+      res.status(400).json({ success: false, message: 'Invalid document ID' });
+      return;
+    }
+
+    const doc = await executeQuerySingle<{
+      document_id: number;
+      file_path: string;
+      original_filename: string;
+      mime_type: string;
+    }>('SELECT document_id, file_path, original_filename, mime_type FROM documents WHERE document_id = $1', [documentId]);
+
+    if (!doc) {
+      res.status(404).json({ success: false, message: 'Document not found' });
+      return;
+    }
+
+    const filePath = path.isAbsolute(doc.file_path)
+      ? doc.file_path
+      : path.join(process.cwd(), doc.file_path);
+
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, message: 'Document file not found on disk' });
+      return;
+    }
+
+    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.original_filename}"`);
+    fs.createReadStream(filePath).pipe(res);
   })
 );
 
