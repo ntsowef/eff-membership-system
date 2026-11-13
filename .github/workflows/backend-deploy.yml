@@ -1,51 +1,322 @@
-name: Deploy Backend
+name: Deploy Backend (Production)
 
 on:
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: 'Run pending PostgreSQL SQL migrations (051+) after pg_dump backup'
+        type: boolean
+        default: true
+      rollback_snapshot:
+        description: 'Optional existing folder name under .rollback/ to restore instead of deploying HEAD'
+        type: string
+        default: ''
   push:
-    branches: [ "main" ]
+    branches: [main]
     paths:
       - 'backend/**'
-  workflow_dispatch:
+      - '.github/workflows/backend-deploy.yml'
+
+concurrency:
+  group: deploy-backend-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  ci-check:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build Backend Release Artifact
+    needs: ci-check
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Copy Files to Server
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.BACKEND_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || '22' }}
-        source: "backend/*"
-        target: "/var/www/api.effmemberportal.org/backend"
-        # exclude node_modules to save time, install on server
-        rm: false
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
-    - name: Install & Reload via SSH
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.BACKEND_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || '22' }}
-        script: |
-          cd /var/www/api.effmemberportal.org/backend
-          
-          # Install Dependencies
-          npm install --production
-          
-          # Database Migrations (Assumes Docker container is up)
-          # Ensure DATABASE_URL in .env points to the Docker container
-          npx prisma migrate deploy
-          
-          # Build TypeScript
+      - name: Install dependencies and build backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eff_membership_database
+        run: |
+          npm ci
+          npx prisma generate
           npm run build
-          
-          # Restart PM2
-          pm2 reload ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
+          test -f dist/app.js
+          test -f dist/scripts/run-sql-migrations.js
+
+      - name: Package release archive
+        working-directory: backend
+        run: |
+          tar -czf ../backend-release.tar.gz \
+            dist \
+            package.json \
+            package-lock.json \
+            prisma/schema.prisma \
+            migrations
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-release
+          path: backend-release.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to Production Backend VPS
+    needs: [ci-check, build]
+    if: ${{ !cancelled() && ( (github.event_name == 'workflow_dispatch' && inputs.rollback_snapshot != '') || (needs.ci-check.result == 'success' && needs.build.result == 'success') ) }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.effmemberportal.org/api/v1/health/detailed
+
+    steps:
+      - name: Validate required production secrets
+        env:
+          HAS_KEY: ${{ secrets.PROD_SSH_KEY != '' }}
+          HAS_KH: ${{ secrets.SSH_KNOWN_HOSTS != '' }}
+          HAS_HOST: ${{ secrets.BACKEND_SSH_HOST != '' }}
+          HAS_USER: ${{ secrets.BACKEND_SSH_USER != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ] || [ "$HAS_KH" != "true" ] || [ "$HAS_HOST" != "true" ] || [ "$HAS_USER" != "true" ]; then
+            echo "::error::Missing required Environment 'production' secrets (PROD_SSH_KEY, SSH_KNOWN_HOSTS, BACKEND_SSH_HOST, BACKEND_SSH_USER)."
+            exit 1
+          fi
+
+      - name: Download release artifact
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-release
+
+      - name: Configure SSH client with pinned known_hosts
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Rollback to requested snapshot
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback_snapshot != '' }}
+        env:
+          SSH_HOST: ${{ secrets.BACKEND_SSH_HOST }}
+          SSH_USER: ${{ secrets.BACKEND_SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          BACKEND_DIR: ${{ vars.DEPLOY_BACKEND_PATH || '/var/www/eff-membership-system/backend' }}
+          PM2_APP: ${{ vars.PM2_APP_NAME || 'eff-backend' }}
+          ROLLBACK_ID: ${{ inputs.rollback_snapshot }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "BACKEND_DIR='$BACKEND_DIR' PM2_APP='$PM2_APP' ROLLBACK_ID='$ROLLBACK_ID' bash -s" <<'EOF'
+          set -euo pipefail
+          SNAP="$BACKEND_DIR/.rollback/$ROLLBACK_ID"
+          if [ ! -d "$SNAP/dist" ]; then
+            echo "::error::Rollback snapshot not found: $SNAP"
+            exit 1
+          fi
+          rm -rf "$BACKEND_DIR/dist.prev"
+          [ -d "$BACKEND_DIR/dist" ] && mv "$BACKEND_DIR/dist" "$BACKEND_DIR/dist.prev"
+          cp -a "$SNAP/dist" "$BACKEND_DIR/dist"
+          cp -a "$SNAP/package.json" "$BACKEND_DIR/package.json"
+          cp -a "$SNAP/package-lock.json" "$BACKEND_DIR/package-lock.json"
+          rm -rf "$BACKEND_DIR/dist.prev"
+          pm2 reload "$PM2_APP" --update-env
           pm2 save
+          for i in $(seq 1 6); do
+            if curl -fsS --max-time 5 http://127.0.0.1:5000/api/v1/health/detailed | grep -q '"healthy"'; then
+              echo "Rollback health check passed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Health check failed after rollback!"
+          exit 1
+          EOF
+
+      - name: Upload tarball and deploy atomically with pre-migration backup
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
+        env:
+          SSH_HOST: ${{ secrets.BACKEND_SSH_HOST }}
+          SSH_USER: ${{ secrets.BACKEND_SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          BACKEND_DIR: ${{ vars.DEPLOY_BACKEND_PATH || '/var/www/eff-membership-system/backend' }}
+          PM2_APP: ${{ vars.PM2_APP_NAME || 'eff-backend' }}
+          RUN_MIGRATIONS: ${{ inputs.run_migrations == false && 'false' || 'true' }}
+          RELEASE_ID: ${{ github.run_id }}_${{ github.run_attempt }}_${{ github.sha }}
+        run: |
+          RELEASE_ID="$(printf '%s' "$RELEASE_ID" | cut -c1-36)"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
+            backend-release.tar.gz "$SSH_USER@$SSH_HOST:/tmp/backend-release-${RELEASE_ID}.tar.gz"
+
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "BACKEND_DIR='$BACKEND_DIR' PM2_APP='$PM2_APP' RUN_MIGRATIONS='$RUN_MIGRATIONS' RELEASE_ID='$RELEASE_ID' bash -s" <<'EOF'
+          set -euo pipefail
+
+          STAGE_DIR="$BACKEND_DIR/.staging/$RELEASE_ID"
+          ROLLBACK_DIR="$BACKEND_DIR/.rollback/$RELEASE_ID"
+          BACKUP_DIR="$BACKEND_DIR/.backups"
+          TAR_FILE="/tmp/backend-release-${RELEASE_ID}.tar.gz"
+
+          cleanup_staging() {
+            rm -f "$TAR_FILE"
+            rm -rf "$STAGE_DIR"
+          }
+          trap cleanup_staging EXIT
+
+          mkdir -p "$STAGE_DIR" "$ROLLBACK_DIR" "$BACKUP_DIR" "$BACKEND_DIR/.npm-cache"
+          chmod 700 "$BACKUP_DIR"
+          tar -xzf "$TAR_FILE" -C "$STAGE_DIR"
+
+          # Snapshot live code before installing/migrating/swapping
+          for item in dist package.json package-lock.json migrations; do
+            if [ -e "$BACKEND_DIR/$item" ]; then
+              cp -a "$BACKEND_DIR/$item" "$ROLLBACK_DIR/$item"
+            fi
+          done
+
+          # Build production node_modules cleanly in staging without disturbing running process
+          LOCK_CHANGED="true"
+          if [ -f "$BACKEND_DIR/package-lock.json" ] && cmp -s "$STAGE_DIR/package-lock.json" "$BACKEND_DIR/package-lock.json" && [ -d "$BACKEND_DIR/node_modules" ]; then
+            LOCK_CHANGED="false"
+            cp -a "$BACKEND_DIR/node_modules" "$STAGE_DIR/node_modules"
+          else
+            cd "$STAGE_DIR"
+            npm ci --omit=dev --prefer-offline --cache "$BACKEND_DIR/.npm-cache"
+            npx prisma generate
+          fi
+
+          # Pre-migration pg_dump + tracked 051+ SQL migrations
+          MIGRATIONS_RAN="false"
+          if [ "$RUN_MIGRATIONS" = "true" ] && [ -f "$BACKEND_DIR/.env" ]; then
+            PENDING_COUNT=$(NODE_ENV=production node "$STAGE_DIR/dist/scripts/run-sql-migrations.js" status --env-file "$BACKEND_DIR/.env" --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(d.pendingCount||0)")
+            echo "Pending managed SQL migrations (051+): $PENDING_COUNT"
+            if [ "$PENDING_COUNT" -gt 0 ]; then
+              DUMP_FILE="$BACKUP_DIR/pre_${RELEASE_ID}.dump"
+              (
+                set -a
+                source "$BACKEND_DIR/.env"
+                set +a
+                PGPASSWORD="$DB_PASSWORD" pg_dump \
+                  --format=custom --no-owner \
+                  -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" \
+                  -d "$DB_NAME" -f "$DUMP_FILE"
+              )
+              test -s "$DUMP_FILE"
+              echo "Pre-migration backup created: $DUMP_FILE"
+              NODE_ENV=production node "$STAGE_DIR/dist/scripts/run-sql-migrations.js" run --env-file "$BACKEND_DIR/.env"
+              MIGRATIONS_RAN="true"
+            fi
+          fi
+
+          # Millisecond swap on same filesystem
+          rm -rf "$BACKEND_DIR/dist.swap"
+          mv "$STAGE_DIR/dist" "$BACKEND_DIR/dist.swap"
+          rm -rf "$BACKEND_DIR/dist"
+          mv "$BACKEND_DIR/dist.swap" "$BACKEND_DIR/dist"
+
+          cp -a "$STAGE_DIR/package.json" "$BACKEND_DIR/package.json"
+          cp -a "$STAGE_DIR/package-lock.json" "$BACKEND_DIR/package-lock.json"
+          mkdir -p "$BACKEND_DIR/prisma"
+          cp -a "$STAGE_DIR/prisma/schema.prisma" "$BACKEND_DIR/prisma/schema.prisma"
+          rm -rf "$BACKEND_DIR/migrations"
+          mv "$STAGE_DIR/migrations" "$BACKEND_DIR/migrations"
+
+          if [ "$LOCK_CHANGED" = "true" ]; then
+            rm -rf "$BACKEND_DIR/node_modules.prev"
+            [ -d "$BACKEND_DIR/node_modules" ] && mv "$BACKEND_DIR/node_modules" "$BACKEND_DIR/node_modules.prev"
+            mv "$STAGE_DIR/node_modules" "$BACKEND_DIR/node_modules"
+          fi
+
+          # Reload or start PM2 app cleanly
+          cd "$BACKEND_DIR"
+          if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
+            pm2 reload "$PM2_APP" --update-env
+          else
+            NODE_ENV=production PORT=5000 pm2 start "$BACKEND_DIR/dist/app.js" --name "$PM2_APP"
+          fi
+
+          # Verify health locally; automatically roll back code if unhealthy
+          HEALTH_OK="false"
+          for i in $(seq 1 6); do
+            if curl -fsS --max-time 5 http://127.0.0.1:5000/api/v1/health/detailed | grep -q '"healthy"'; then
+              HEALTH_OK="true"
+              break
+            fi
+            sleep 5
+          done
+
+          if [ "$HEALTH_OK" != "true" ]; then
+            echo "::error::Backend health check failed! Rolling back dist & dependencies..."
+            pm2 logs "$PM2_APP" --lines 80 --nostream || true
+            rm -rf "$BACKEND_DIR/dist"
+            cp -a "$ROLLBACK_DIR/dist" "$BACKEND_DIR/dist"
+            cp -a "$ROLLBACK_DIR/package.json" "$BACKEND_DIR/package.json"
+            cp -a "$ROLLBACK_DIR/package-lock.json" "$BACKEND_DIR/package-lock.json"
+            if [ -d "$BACKEND_DIR/node_modules.prev" ]; then
+              rm -rf "$BACKEND_DIR/node_modules"
+              mv "$BACKEND_DIR/node_modules.prev" "$BACKEND_DIR/node_modules"
+            fi
+            pm2 reload "$PM2_APP" --update-env || true
+            if [ "$MIGRATIONS_RAN" = "true" ]; then
+              echo "::warning::SQL migrations ran before health check failure. Review backup at $BACKUP_DIR/pre_${RELEASE_ID}.dump."
+            fi
+            exit 1
+          fi
+
+          rm -rf "$BACKEND_DIR/node_modules.prev"
+          pm2 save
+
+          # Retain newest 5 rollback snapshots and 10 pg_dump backups
+          ls -1dt "$BACKEND_DIR/.rollback"/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+          ls -1t "$BACKUP_DIR"/pre_*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
+          echo "Backend deploy $RELEASE_ID completed cleanly."
+          EOF
+
+      - name: External public API health verification
+        run: |
+          for i in 1 2 3; do
+            if curl -fsS --max-time 10 https://api.effmemberportal.org/api/v1/health/detailed | grep -q '"healthy"'; then
+              echo "Public API health check passed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Public API health verification failed."
+          exit 1
+
+      - name: Remove temporary SSH files
+        if: always()
+        run: rm -rf ~/.ssh/deploy_key ~/.ssh/known_hosts

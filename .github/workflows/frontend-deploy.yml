@@ -1,44 +1,235 @@
-name: Deploy Frontend
+name: Deploy Frontend (Production)
 
 on:
+  workflow_dispatch:
+    inputs:
+      rollback_snapshot:
+        description: 'Optional existing folder name under .rollback/ to restore instead of deploying HEAD'
+        type: string
+        default: ''
   push:
-    branches: [ "main" ]
+    branches: [main]
     paths:
       - 'frontend/**'
-  workflow_dispatch:
+      - '.github/workflows/frontend-deploy.yml'
+
+concurrency:
+  group: deploy-frontend-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-deploy:
+  ci-check:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build Frontend Production Bundle
+    needs: ci-check
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
     runs-on: ubuntu-latest
-    
+    environment:
+      name: production
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Install Dependencies
-      working-directory: ./frontend
-      run: npm ci
+      - name: Install dependencies and build Vite bundle
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.effmemberportal.org' }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.effmemberportal.org/api/v1' }}
+          VITE_WS_URL: ${{ vars.VITE_WS_URL || 'https://api.effmemberportal.org' }}
+          VITE_WS_PATH: ${{ vars.VITE_WS_PATH || '/socket.io' }}
+          VITE_APP_NAME: ${{ vars.VITE_APP_NAME || 'EFF Membership Portal' }}
+        run: |
+          npm ci
+          npx tsc -b
+          npm test
+          npm run build
+          test -f dist/index.html
+          PROD_HOST=$(printf '%s' "${VITE_API_BASE_URL}" | sed -E 's|^https?://([^/:]+).*|\1|')
+          grep -rq "$PROD_HOST" dist/assets/*.js
 
-    - name: Build
-      working-directory: ./frontend
-      run: npm run build
-      env:
-        # Ensure this points to your BACKEND SERVER
-        VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.effmemberportal.org/api/v1' }}
+      - name: Package built dist archive
+        working-directory: frontend
+        run: tar -czf ../frontend-dist.tar.gz dist
 
-    - name: CMS/Asset Copy via SCP
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.FRONTEND_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || '22' }}
-        source: "frontend/dist/*"
-        target: "/var/www/effmemberportal.org/html"
-        strip_components: 2 # Removes 'frontend/dist' from path
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to Production Frontend VPS
+    needs: [ci-check, build]
+    if: ${{ !cancelled() && ( (github.event_name == 'workflow_dispatch' && inputs.rollback_snapshot != '') || (needs.ci-check.result == 'success' && needs.build.result == 'success') ) }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://effmemberportal.org
+
+    steps:
+      - name: Validate required production secrets
+        env:
+          HAS_KEY: ${{ secrets.PROD_SSH_KEY != '' }}
+          HAS_KH: ${{ secrets.SSH_KNOWN_HOSTS != '' }}
+          HAS_HOST: ${{ secrets.FRONTEND_SSH_HOST != '' }}
+          HAS_USER: ${{ secrets.FRONTEND_SSH_USER != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ] || [ "$HAS_KH" != "true" ] || [ "$HAS_HOST" != "true" ] || [ "$HAS_USER" != "true" ]; then
+            echo "::error::Missing required Environment 'production' secrets (PROD_SSH_KEY, SSH_KNOWN_HOSTS, FRONTEND_SSH_HOST, FRONTEND_SSH_USER)."
+            exit 1
+          fi
+
+      - name: Download frontend artifact
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+
+      - name: Configure SSH client with pinned known_hosts
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Rollback frontend snapshot
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback_snapshot != '' }}
+        env:
+          SSH_HOST: ${{ secrets.FRONTEND_SSH_HOST }}
+          SSH_USER: ${{ secrets.FRONTEND_SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          FRONTEND_DIR: ${{ vars.DEPLOY_FRONTEND_PATH || '/var/www/eff-membership-system/frontend' }}
+          ROLLBACK_ID: ${{ inputs.rollback_snapshot }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "FRONTEND_DIR='$FRONTEND_DIR' ROLLBACK_ID='$ROLLBACK_ID' bash -s" <<'EOF'
+          set -euo pipefail
+          SNAP="$FRONTEND_DIR/.rollback/$ROLLBACK_ID/dist"
+          if [ ! -f "$SNAP/index.html" ]; then
+            echo "::error::Rollback snapshot not found: $SNAP"
+            exit 1
+          fi
+          rm -rf "$FRONTEND_DIR/dist.prev"
+          [ -d "$FRONTEND_DIR/dist" ] && mv "$FRONTEND_DIR/dist" "$FRONTEND_DIR/dist.prev"
+          cp -a "$SNAP" "$FRONTEND_DIR/dist"
+          rm -rf "$FRONTEND_DIR/dist.prev"
+          if [ "$(id -u)" -eq 0 ]; then
+            nginx -t && systemctl reload nginx
+          else
+            sudo nginx -t && sudo systemctl reload nginx
+          fi
+          echo "Frontend rollback $ROLLBACK_ID completed."
+          EOF
+
+      - name: Upload bundle, swap dist, and reload Nginx
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.rollback_snapshot == '' }}
+        env:
+          SSH_HOST: ${{ secrets.FRONTEND_SSH_HOST }}
+          SSH_USER: ${{ secrets.FRONTEND_SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          FRONTEND_DIR: ${{ vars.DEPLOY_FRONTEND_PATH || '/var/www/eff-membership-system/frontend' }}
+          RELEASE_ID: ${{ github.run_id }}_${{ github.run_attempt }}_${{ github.sha }}
+        run: |
+          RELEASE_ID="$(printf '%s' "$RELEASE_ID" | cut -c1-36)"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
+            frontend-dist.tar.gz "$SSH_USER@$SSH_HOST:/tmp/frontend-dist-${RELEASE_ID}.tar.gz"
+
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "FRONTEND_DIR='$FRONTEND_DIR' RELEASE_ID='$RELEASE_ID' bash -s" <<'EOF'
+          set -euo pipefail
+
+          STAGE_DIR="$FRONTEND_DIR/.staging/$RELEASE_ID"
+          ROLLBACK_DIR="$FRONTEND_DIR/.rollback/$RELEASE_ID"
+          TAR_FILE="/tmp/frontend-dist-${RELEASE_ID}.tar.gz"
+
+          cleanup_staging() {
+            rm -f "$TAR_FILE"
+            rm -rf "$STAGE_DIR"
+          }
+          trap cleanup_staging EXIT
+
+          mkdir -p "$STAGE_DIR" "$ROLLBACK_DIR"
+          tar -xzf "$TAR_FILE" -C "$STAGE_DIR"
+          test -f "$STAGE_DIR/dist/index.html"
+
+          if [ -d "$FRONTEND_DIR/dist" ]; then
+            cp -a "$FRONTEND_DIR/dist" "$ROLLBACK_DIR/dist"
+          fi
+
+          rm -rf "$FRONTEND_DIR/dist.prev"
+          [ -d "$FRONTEND_DIR/dist" ] && mv "$FRONTEND_DIR/dist" "$FRONTEND_DIR/dist.prev"
+          mv "$STAGE_DIR/dist" "$FRONTEND_DIR/dist"
+
+          RELOAD_OK="true"
+          if [ "$(id -u)" -eq 0 ]; then
+            nginx -t && systemctl reload nginx || RELOAD_OK="false"
+          else
+            sudo nginx -t && sudo systemctl reload nginx || RELOAD_OK="false"
+          fi
+
+          if [ "$RELOAD_OK" != "true" ]; then
+            echo "::error::Nginx config test or reload failed! Rolling back frontend dist..."
+            rm -rf "$FRONTEND_DIR/dist"
+            if [ -d "$FRONTEND_DIR/dist.prev" ]; then
+              mv "$FRONTEND_DIR/dist.prev" "$FRONTEND_DIR/dist"
+            elif [ -d "$ROLLBACK_DIR/dist" ]; then
+              cp -a "$ROLLBACK_DIR/dist" "$FRONTEND_DIR/dist"
+            fi
+            exit 1
+          fi
+
+          rm -rf "$FRONTEND_DIR/dist.prev"
+          ls -1dt "$FRONTEND_DIR/.rollback"/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+          echo "Frontend deploy $RELEASE_ID completed."
+          EOF
+
+      - name: External public portal check
+        run: |
+          for i in 1 2 3; do
+            if curl -fsSI --max-time 10 https://effmemberportal.org/ >/dev/null; then
+              echo "Public frontend HTTP check passed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Public frontend HTTP verification failed."
+          exit 1
+
+      - name: Remove temporary SSH files
+        if: always()
+        run: rm -rf ~/.ssh/deploy_key ~/.ssh/known_hosts
